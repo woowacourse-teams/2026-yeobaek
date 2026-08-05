@@ -11,12 +11,22 @@ kotlin {
     }
 }
 dependencies {
+    // shared module
     implementation(project(":shared"))
 
+    // compose & android
     implementation(libs.androidx.activity.compose)
 
+    // compose tooling (preview & debug)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+
+    // coroutines (android dispatcher)
+    implementation(libs.kotlinx.coroutines.android)
+
+    // test
+    androidTestImplementation(libs.androidx.ui.test.junit4.android)
+    debugImplementation(libs.ui.test.manifest)
 }
 
 android {
@@ -29,6 +39,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {
