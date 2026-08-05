@@ -18,11 +18,12 @@ import org.jetbrains.compose.resources.painterResource
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.compose_multiplatform
+import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
+    YeobaekTheme {
         var showContent by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier
