@@ -37,6 +37,29 @@ public class CommentService {
         return CommentResponse.of(comment, memberId);
     }
 
+    @Transactional
+    public CommentResponse update(Long memberId, Long commentId, String content) {
+        Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 수정할 수 있습니다.");
+        comment.updateContent(content);
+        commentRepository.flush();
+        return CommentResponse.of(comment, memberId);
+    }
+
+    @Transactional
+    public void delete(Long memberId, Long commentId) {
+        Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 삭제할 수 있습니다.");
+        commentRepository.delete(comment);
+    }
+
+    private Comment findOwnComment(Long memberId, Long commentId, String forbiddenMessage) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 댓글입니다."));
+        if (!comment.isWrittenBy(memberId)) {
+            throw new ForbiddenException(forbiddenMessage);
+        }
+        return comment;
+    }
+
     private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 모임입니다."));

@@ -6,8 +6,10 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,6 +87,68 @@ class CommentControllerTest extends ControllerTest {
                                 PayloadDocumentation.fieldWithPath("updatedAt").description("수정일 (작성 직후 null)").optional(),
                                 PayloadDocumentation.fieldWithPath("mine").description("요청자 본인 작성 여부 (항상 true)"))
                         .build())));
+    }
+
+    @Test
+    @DisplayName("댓글을 수정하면 수정일이 포함된 댓글을 응답한다")
+    void updateComment() throws Exception {
+        givenValidMember(1L);
+        given(commentService.update(anyLong(), anyLong(), anyString())).willReturn(
+                new CommentResponse(7L, 1L, "민서", "수정된 내용",
+                        LocalDateTime.of(2026, 8, 5, 14, 30), LocalDateTime.of(2026, 8, 5, 15, 0), true));
+
+        mockMvc.perform(put("/api/comments/7")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\": \"수정된 내용\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").value("수정된 내용"))
+                .andExpect(jsonPath("$.updatedAt").isNotEmpty())
+                .andDo(document("comment-update", resource(ResourceSnippetParameters.builder()
+                        .tag("댓글")
+                        .summary("댓글 수정")
+                        .description("본인 댓글이 아니면 403.")
+                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestFields(PayloadDocumentation.fieldWithPath("content").description("수정할 내용 (1~1000자)"))
+                        .responseFields(
+                                PayloadDocumentation.fieldWithPath("commentId").description("댓글 ID"),
+                                PayloadDocumentation.fieldWithPath("memberId").description("작성자 회원 ID"),
+                                PayloadDocumentation.fieldWithPath("nickname").description("작성자 닉네임"),
+                                PayloadDocumentation.fieldWithPath("content").description("내용"),
+                                PayloadDocumentation.fieldWithPath("createdAt").description("작성일"),
+                                PayloadDocumentation.fieldWithPath("updatedAt").description("수정일"),
+                                PayloadDocumentation.fieldWithPath("mine").description("요청자 본인 작성 여부"))
+                        .build())));
+    }
+
+    @Test
+    @DisplayName("댓글을 삭제하면 204를 응답한다")
+    void deleteComment() throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(delete("/api/comments/7").header("X-Member-Id", "1"))
+                .andExpect(status().isNoContent())
+                .andDo(document("comment-delete", resource(ResourceSnippetParameters.builder()
+                        .tag("댓글")
+                        .summary("댓글 삭제")
+                        .description("하드 삭제(PRD 3.5). 본인 댓글이 아니면 403.")
+                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .build())));
+    }
+
+    @Test
+    @DisplayName("남의 댓글 수정은 403을 응답한다")
+    void rejectUpdatingOthersComment() throws Exception {
+        givenValidMember(1L);
+        given(commentService.update(anyLong(), anyLong(), anyString()))
+                .willThrow(new ForbiddenException("본인의 댓글만 수정할 수 있습니다."));
+
+        mockMvc.perform(put("/api/comments/7")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\": \"탈취 시도\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("본인의 댓글만 수정할 수 있습니다."));
     }
 
     @Test

@@ -53,6 +53,15 @@ public class Comment {
         this.content = content;
     }
 
+    public void updateContent(String content) {
+        validateContent(content);
+        this.content = content;
+    }
+
+    public boolean isWrittenBy(Long memberId) {
+        return clubMember.getMember().getId().equals(memberId);
+    }
+
     private static void validateContent(String content) {
         if (content == null || content.isBlank() || content.length() > MAX_CONTENT_LENGTH) {
             throw new IllegalArgumentException("댓글 내용은 공백이 아닌 1~" + MAX_CONTENT_LENGTH + "자여야 합니다.");

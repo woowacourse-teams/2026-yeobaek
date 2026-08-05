@@ -21,6 +21,7 @@ import watson.backend.club.ClubRepository;
 import watson.backend.member.Member;
 import watson.backend.member.MemberRepository;
 import watson.backend.support.ForbiddenException;
+import watson.backend.support.NotFoundException;
 import watson.backend.support.RepositoryTest;
 
 @Import(CommentService.class)
@@ -105,6 +106,55 @@ class CommentServiceTest extends RepositoryTest {
 
         assertThatThrownBy(() -> commentService.create(outsider.getId(), club.getId(), passage.getId(), "댓글"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("본인 댓글을 수정하면 내용이 바뀌고 수정일이 기록된다")
+    void updateOwnComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+
+        CommentResponse response = commentService.update(writer.getId(), created.commentId(), "수정된 내용");
+
+        assertThat(response.content()).isEqualTo("수정된 내용");
+        assertThat(response.updatedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("남의 댓글은 수정할 수 없다")
+    void rejectUpdatingOthersComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+
+        assertThatThrownBy(() -> commentService.update(other.getId(), created.commentId(), "탈취 시도"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("본인 댓글을 삭제하면 하드 삭제된다")
+    void deleteOwnComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "삭제될 댓글");
+
+        commentService.delete(writer.getId(), created.commentId());
+
+        assertThat(commentRepository.findById(created.commentId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("남의 댓글은 삭제할 수 없다")
+    void rejectDeletingOthersComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+
+        assertThatThrownBy(() -> commentService.delete(other.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(commentRepository.findById(created.commentId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 댓글의 수정·삭제는 실패한다")
+    void rejectUnknownComment() {
+        assertThatThrownBy(() -> commentService.update(writer.getId(), 999L, "내용"))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> commentService.delete(writer.getId(), 999L))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
