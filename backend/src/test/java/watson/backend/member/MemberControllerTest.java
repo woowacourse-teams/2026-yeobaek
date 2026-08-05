@@ -11,20 +11,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.PayloadDocumentation;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import watson.backend.support.ControllerTest;
 
 @WebMvcTest(MemberController.class)
-@AutoConfigureRestDocs
-class MemberControllerTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class MemberControllerTest extends ControllerTest {
 
     @MockitoBean
     private MemberService memberService;
