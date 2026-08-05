@@ -22,6 +22,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    runtimeOnly 'org.webjars:swagger-ui:5.32.11'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
@@ -41,6 +42,14 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// 배포 잼에 생성된 OpenAPI 스펙을 정적 리소스로 동봉해 Swagger UI(/docs/index.html)가 읽는다
+tasks.named('bootJar') {
+    dependsOn tasks.named('openapi3')
+    from("${layout.buildDirectory.get()}/api-spec") {
+        into 'BOOT-INF/classes/static'
+    }
 }
 
 openapi3 {
