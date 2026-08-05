@@ -65,16 +65,16 @@
   "publishedYear": 1924,
   "passageCount": 312,
   "chapters": [
-    { "chapterId": 1, "title": "1장", "order": 1, "startPassageOrder": 1, "endPassageOrder": 105 }
+    { "chapterId": 1, "title": "1장", "sequence": 1, "startPassageSequence": 1, "endPassageSequence": 105 }
   ]
 }
 ```
-- `startPassageOrder`/`endPassageOrder`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
+- `startPassageSequence`/`endPassageSequence`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
 
 ## 3. 모임
 
 ### 모임 생성
-`POST /api/groups`
+`POST /api/clubs`
 
 요청:
 ```json
@@ -84,7 +84,7 @@
 응답 `201` — 생성자는 자동으로 모임에 참여된다:
 ```json
 {
-  "groupId": 1,
+  "clubId": 1,
   "name": "교환독서 1기",
   "joinCode": "A3F9KQ",
   "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312 }
@@ -93,7 +93,7 @@
 - `joinCode`: 서버 발급, 전역 unique, 영구 고정.
 
 ### 참여 코드로 모임 참여
-`POST /api/groups/join`
+`POST /api/clubs/join`
 
 요청:
 ```json
@@ -103,7 +103,7 @@
 응답 `200`:
 ```json
 {
-  "groupId": 1,
+  "clubId": 1,
   "name": "교환독서 1기",
   "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312 }
 }
@@ -111,19 +111,19 @@
 - 존재하지 않는 코드: `404`. 이미 참여한 모임: `200`과 동일 응답 (멱등).
 
 ### 내 모임 목록
-`GET /api/groups`
+`GET /api/clubs`
 
 응답 `200`:
 ```json
 {
-  "groups": [
+  "clubs": [
     {
-      "groupId": 1,
+      "clubId": 1,
       "name": "교환독서 1기",
       "memberCount": 4,
       "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312 },
       "myProgress": {
-        "lastReadPassageOrder": 42,
+        "lastReadPassageSequence": 42,
         "progressRate": 13,
         "lastReadAt": "2026-08-05T14:30:00"
       }
@@ -132,14 +132,14 @@
 }
 ```
 - `myProgress`: 아직 읽기 시작 전이면 `null`.
-- `progressRate`: 0~100 정수 (반올림). `lastReadPassageOrder ÷ passageCount × 100`.
+- `progressRate`: 0~100 정수 (반올림). `lastReadPassageSequence ÷ passageCount × 100`.
 
 ## 4. 읽기 · 진도
 
 읽기는 항상 모임 맥락에서 이루어진다 (진도·댓글이 모임 단위이므로).
 
 ### 본문 범위 조회
-`GET /api/groups/{groupId}/passages?from={order}&to={order}`
+`GET /api/clubs/{clubId}/passages?from={sequence}&to={sequence}`
 
 - `from`·`to`: 전체 순서 기준 범위 (양 끝 포함). `to - from + 1 ≤ 100`, 초과 시 `400`.
 - 모임 미소속 회원: `403`.
@@ -150,7 +150,7 @@
   "passages": [
     {
       "passageId": 1042,
-      "order": 42,
+      "sequence": 42,
       "chapterId": 2,
       "content": "새침하게 흐린 품이 눈이 올 듯하더니...",
       "imageUrl": null,
@@ -162,7 +162,7 @@
 - `content`와 `imageUrl` 중 하나 이상 존재. `commentCount`는 이 모임의 댓글 수.
 
 ### 진도 갱신 (최근 열람 보고)
-`PUT /api/groups/{groupId}/progress`
+`PUT /api/clubs/{clubId}/progress`
 
 요청:
 ```json
@@ -172,7 +172,7 @@
 응답 `200`:
 ```json
 {
-  "lastReadPassageOrder": 42,
+  "lastReadPassageSequence": 42,
   "progressRate": 13,
   "lastReadAt": "2026-08-05T14:30:00"
 }
@@ -186,10 +186,10 @@
 응답 `200` — 전 모임 중 `lastReadAt`이 가장 최근인 것:
 ```json
 {
-  "groupId": 1,
-  "groupName": "교환독서 1기",
+  "clubId": 1,
+  "clubName": "교환독서 1기",
   "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312 },
-  "lastReadPassageOrder": 42,
+  "lastReadPassageSequence": 42,
   "progressRate": 13,
   "lastReadAt": "2026-08-05T14:30:00"
 }
@@ -199,7 +199,7 @@
 ## 5. 댓글
 
 ### 문단의 댓글 목록
-`GET /api/groups/{groupId}/passages/{passageId}/comments`
+`GET /api/clubs/{clubId}/passages/{passageId}/comments`
 
 응답 `200` — 작성일 오름차순:
 ```json
@@ -220,7 +220,7 @@
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
 
 ### 댓글 작성
-`POST /api/groups/{groupId}/passages/{passageId}/comments`
+`POST /api/clubs/{clubId}/passages/{passageId}/comments`
 
 요청:
 ```json
@@ -259,14 +259,14 @@
 | POST | /api/members | 회원 생성 |
 | GET | /api/books | 도서 목록 |
 | GET | /api/books/{bookId} | 도서 상세 + 목차 |
-| POST | /api/groups | 모임 생성 |
-| POST | /api/groups/join | 참여 코드로 참여 |
-| GET | /api/groups | 내 모임 목록 |
-| GET | /api/groups/{groupId}/passages | 본문 범위 조회 |
-| PUT | /api/groups/{groupId}/progress | 진도 갱신 |
+| POST | /api/clubs | 모임 생성 |
+| POST | /api/clubs/join | 참여 코드로 참여 |
+| GET | /api/clubs | 내 모임 목록 |
+| GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
+| PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
-| GET | /api/groups/{groupId}/passages/{passageId}/comments | 댓글 목록 |
-| POST | /api/groups/{groupId}/passages/{passageId}/comments | 댓글 작성 |
+| GET | /api/clubs/{clubId}/passages/{passageId}/comments | 댓글 목록 |
+| POST | /api/clubs/{clubId}/passages/{passageId}/comments | 댓글 작성 |
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
