@@ -48,4 +48,9 @@ public class ClubMember {
         this.member = member;
         this.club = club;
     }
+
+    public void updateProgress(Passage passage, LocalDateTime readAt) {
+        this.lastReadPassage = passage;
+        this.lastReadAt = readAt;
+    }
 }

@@ -2,6 +2,7 @@ package watson.backend.club;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -18,5 +19,15 @@ public class ClubController {
     @ResponseStatus(HttpStatus.CREATED)
     public ClubCreateResponse create(@AuthMember Long memberId, @RequestBody ClubCreateRequest request) {
         return clubService.create(memberId, request.name(), request.bookId());
+    }
+
+    @PostMapping("/api/clubs/join")
+    public ClubJoinResponse join(@AuthMember Long memberId, @RequestBody ClubJoinRequest request) {
+        return clubService.join(memberId, request.joinCode());
+    }
+
+    @GetMapping("/api/clubs")
+    public MyClubsResponse findMyClubs(@AuthMember Long memberId) {
+        return clubService.findMyClubs(memberId);
     }
 }

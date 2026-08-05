@@ -1,6 +1,7 @@
 package watson.backend.club;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,46 @@ public class ClubService {
                 ClubBookResponse.of(book, authorNames(book)));
     }
 
+    @Transactional
+    public ClubJoinResponse join(Long memberId, String joinCode) {
+        Club club = clubRepository.findByJoinCode(joinCode)
+                .orElseThrow(() -> new NotFoundException("존재하지 않는 참여 코드입니다."));
+        if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, club.getId())) {
+            clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
+        }
+        Book book = club.getBook();
+        return new ClubJoinResponse(club.getId(), club.getName(), ClubBookResponse.of(book, authorNames(book)));
+    }
+
+    @Transactional(readOnly = true)
+    public MyClubsResponse findMyClubs(Long memberId) {
+        List<ClubMember> clubMembers = clubMemberRepository.findAllWithClubAndBookByMemberId(memberId);
+        List<Long> clubIds = clubMembers.stream().map(clubMember -> clubMember.getClub().getId()).toList();
+        Map<Long, Long> memberCounts = clubMemberRepository.countByClubIds(clubIds).stream()
+                .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
+        Map<Long, List<String>> authorNames = authorNamesByBookId(
+                clubMembers.stream().map(clubMember -> clubMember.getClub().getBook().getId()).distinct().toList());
+        return new MyClubsResponse(clubMembers.stream()
+                .map(clubMember -> {
+                    Club club = clubMember.getClub();
+                    Book book = club.getBook();
+                    return new MyClubResponse(club.getId(), club.getName(),
+                            memberCounts.getOrDefault(club.getId(), 0L),
+                            ClubBookResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())),
+                            toMyProgress(clubMember, book));
+                })
+                .toList());
+    }
+
+    private MyProgressResponse toMyProgress(ClubMember clubMember, Book book) {
+        if (clubMember.getLastReadPassage() == null) {
+            return null;
+        }
+        int sequence = clubMember.getLastReadPassage().getSequence();
+        int progressRate = (int) Math.round(sequence * 100.0 / book.getPassageCount());
+        return new MyProgressResponse(sequence, progressRate, clubMember.getLastReadAt());
+    }
+
     private String generateUniqueJoinCode() {
         for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
             String code = joinCodeGenerator.generate();
@@ -48,5 +89,11 @@ public class ClubService {
         return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
                 .map(authorBook -> authorBook.getAuthor().getName())
                 .collect(Collectors.toList());
+    }
+
+    private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
+        return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
+                .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
     }
 }

@@ -3,11 +3,17 @@ package watson.backend.club;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import watson.backend.book.Chapter;
+import watson.backend.book.ChapterRepository;
+import watson.backend.book.Passage;
+import watson.backend.book.PassageRepository;
 import watson.backend.book.Author;
 import watson.backend.book.AuthorBook;
 import watson.backend.book.AuthorBookRepository;
@@ -43,6 +49,12 @@ class ClubServiceTest extends RepositoryTest {
     @Autowired
     private MemberRepository memberRepository;
 
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private PassageRepository passageRepository;
+
     private Member creator;
     private Book book;
 
@@ -70,5 +82,65 @@ class ClubServiceTest extends RepositoryTest {
     void rejectUnknownBook() {
         assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", 999L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("참여 코드로 모임에 참여한다")
+    void joinByCode() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+        Member joiner = memberRepository.save(new Member("지수"));
+
+        ClubJoinResponse response = clubService.join(joiner.getId(), created.joinCode());
+
+        assertThat(response.clubId()).isEqualTo(created.clubId());
+        assertThat(clubMemberRepository.existsByMemberIdAndClubId(joiner.getId(), created.clubId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("이미 참여한 모임에 다시 참여해도 같은 응답을 반환한다 (멱등)")
+    void joinIsIdempotent() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+
+        ClubJoinResponse response = clubService.join(creator.getId(), created.joinCode());
+
+        assertThat(response.clubId()).isEqualTo(created.clubId());
+        assertThat(clubMemberRepository.countByClubIds(List.of(created.clubId())).getFirst().getMemberCount())
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 참여 코드는 거부된다")
+    void rejectUnknownJoinCode() {
+        assertThatThrownBy(() -> clubService.join(creator.getId(), "NOCODE"))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("내 모임 목록에 회원 수와 진도가 함께 조회된다")
+    void findMyClubsWithProgress() {
+        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
+        Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
+        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2", null));
+        ClubCreateResponse first = clubService.create(creator.getId(), "1기", book.getId());
+        ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
+        Member joiner = memberRepository.save(new Member("지수"));
+        clubService.join(joiner.getId(), first.joinCode());
+        ClubMember myMembership = clubMemberRepository.findAllWithClubAndBookByMemberId(creator.getId()).stream()
+                .filter(clubMember -> clubMember.getClub().getId().equals(secondClub.clubId()))
+                .findFirst().orElseThrow();
+        myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
+        clubMemberRepository.saveAndFlush(myMembership);
+
+        MyClubsResponse response = clubService.findMyClubs(creator.getId());
+
+        assertThat(response.clubs()).hasSize(2);
+        MyClubResponse firstClub = response.clubs().stream()
+                .filter(club -> club.clubId().equals(first.clubId())).findFirst().orElseThrow();
+        MyClubResponse progressClub = response.clubs().stream()
+                .filter(club -> club.clubId().equals(secondClub.clubId())).findFirst().orElseThrow();
+        assertThat(firstClub.memberCount()).isEqualTo(2);
+        assertThat(firstClub.myProgress()).isNull();
+        assertThat(progressClub.myProgress().lastReadPassageSequence()).isEqualTo(2);
+        assertThat(progressClub.myProgress().progressRate()).isEqualTo(67);
     }
 }
