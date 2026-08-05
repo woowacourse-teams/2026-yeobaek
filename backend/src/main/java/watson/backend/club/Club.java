@@ -1,0 +1,45 @@
+package watson.backend.club;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import watson.backend.book.Book;
+
+@Entity
+@Table(name = "clubs", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_clubs_join_code", columnNames = "join_code")
+})
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Club {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "book_id", updatable = false)
+    private Book book;
+
+    @Column(name = "join_code", nullable = false, length = 10)
+    private String joinCode;
+
+    public Club(String name, Book book, String joinCode) {
+        this.name = name;
+        this.book = book;
+        this.joinCode = joinCode;
+    }
+}
