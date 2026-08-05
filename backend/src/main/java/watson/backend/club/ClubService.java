@@ -71,8 +71,7 @@ public class ClubService {
             return null;
         }
         int sequence = clubMember.getLastReadPassage().getSequence();
-        int progressRate = (int) Math.round(sequence * 100.0 / book.getPassageCount());
-        return new MyProgressResponse(sequence, progressRate, clubMember.getLastReadAt());
+        return new MyProgressResponse(sequence, clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
     private String generateUniqueJoinCode() {

@@ -1,6 +1,7 @@
 package watson.backend.club;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,6 +9,18 @@ import org.springframework.data.repository.query.Param;
 public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
     boolean existsByMemberIdAndClubId(Long memberId, Long clubId);
+
+    Optional<ClubMember> findByMemberIdAndClubId(Long memberId, Long clubId);
+
+    @Query("""
+            select cm from ClubMember cm
+            join fetch cm.club c
+            join fetch c.book
+            join fetch cm.lastReadPassage
+            where cm.member.id = :memberId and cm.lastReadAt is not null
+            order by cm.lastReadAt desc
+            """)
+    List<ClubMember> findAllWithLastReadingByMemberId(@Param("memberId") Long memberId);
 
     @Query("""
             select cm from ClubMember cm
