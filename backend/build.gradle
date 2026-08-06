@@ -24,6 +24,8 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    // 관리자 페이지 (2026-08-06 M7 결정: Thymeleaf 서버 렌더링)
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     runtimeOnly 'org.webjars:swagger-ui:5.32.11'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'

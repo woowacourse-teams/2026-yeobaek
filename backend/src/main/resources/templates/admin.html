@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>여백 관리자</title>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+        h1 { font-size: 1.4rem; }
+        section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; }
+        label { display: block; margin-bottom: .3rem; font-weight: 600; }
+        input[type="password"] { width: 100%; max-width: 420px; padding: .4rem; }
+        textarea { width: 100%; min-height: 260px; font-family: monospace; font-size: .85rem; }
+        button { padding: .45rem 1rem; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; margin-top: .8rem; }
+        th, td { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; font-size: .9rem; }
+        .result { margin-top: .8rem; white-space: pre-wrap; font-family: monospace; font-size: .85rem; }
+        .ok { color: #0a7a2f; }
+        .error { color: #c0272d; }
+    </style>
+</head>
+<body>
+<h1>여백 관리자</h1>
+
+<section>
+    <label for="admin-token">관리자 토큰 (X-Admin-Token)</label>
+    <input type="password" id="admin-token" autocomplete="off" placeholder="관리자 토큰을 입력하세요">
+</section>
+
+<section>
+    <h2>등록 작가 · 작품 조회</h2>
+    <p>업로드 전에 같은 작가가 이미 있는지 확인하세요. ISNI가 없는 작가를 재사용하려면 아래 authorId를 업로드 JSON에 기재합니다.</p>
+    <button type="button" id="load-authors">작가 목록 불러오기</button>
+    <div id="authors-result" class="result"></div>
+    <table id="authors-table" hidden>
+        <thead>
+        <tr><th>authorId</th><th>이름</th><th>ISNI</th><th>작품</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</section>
+
+<section>
+    <h2>도서 업로드 (인제스트 규격 JSON)</h2>
+    <p>규격은 API 문서 6장을 따릅니다. 본문 순서는 배열 순서대로 서버가 부여합니다.</p>
+    <textarea id="upload-json" spellcheck="false" placeholder='{
+  "title": "운수 좋은 날",
+  "publisher": "자체 제작",
+  "publishedYear": 1924,
+  "authors": [{ "name": "현진건", "isni": "0000 0001 2345 964X" }],
+  "chapters": [{ "title": "1장", "passages": [{ "content": "첫 문단" }] }]
+}'></textarea>
+    <button type="button" id="upload-book">업로드</button>
+    <div id="upload-result" class="result"></div>
+</section>
+
+<script>
+    function adminToken() {
+        return document.getElementById('admin-token').value.trim();
+    }
+
+    function show(element, message, isError) {
+        element.textContent = message;
+        element.className = 'result ' + (isError ? 'error' : 'ok');
+    }
+
+    document.getElementById('load-authors').addEventListener('click', async () => {
+        const result = document.getElementById('authors-result');
+        const table = document.getElementById('authors-table');
+        table.hidden = true;
+        try {
+            const response = await fetch('/api/admin/authors', {
+                headers: { 'X-Admin-Token': adminToken() }
+            });
+            const body = await response.json();
+            if (!response.ok) {
+                show(result, body.code + ': ' + body.message, true);
+                return;
+            }
+            const rows = body.authors.map(author => '<tr>'
+                + '<td>' + author.authorId + '</td>'
+                + '<td>' + escapeHtml(author.name) + '</td>'
+                + '<td>' + (author.isni ?? '-') + '</td>'
+                + '<td>' + author.books.map(book => escapeHtml(book.title) + ' (#' + book.bookId + ')').join(', ') + '</td>'
+                + '</tr>').join('');
+            table.querySelector('tbody').innerHTML = rows;
+            table.hidden = false;
+            show(result, '작가 ' + body.authors.length + '명', false);
+        } catch (error) {
+            show(result, '요청 실패: ' + error, true);
+        }
+    });
+
+    document.getElementById('upload-book').addEventListener('click', async () => {
+        const result = document.getElementById('upload-result');
+        let payload;
+        try {
+            payload = JSON.parse(document.getElementById('upload-json').value);
+        } catch (error) {
+            show(result, 'JSON 파싱 실패: ' + error.message, true);
+            return;
+        }
+        try {
+            const response = await fetch('/api/admin/books', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
+                body: JSON.stringify(payload)
+            });
+            const body = await response.json();
+            if (!response.ok) {
+                show(result, body.code + ': ' + body.message, true);
+                return;
+            }
+            show(result, '업로드 완료 — bookId ' + body.bookId + ', 본문 ' + body.passageCount + '개', false);
+        } catch (error) {
+            show(result, '요청 실패: ' + error, true);
+        }
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+</body>
+</html>
