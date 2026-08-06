@@ -35,11 +35,4 @@ public class Member {
             throw new IllegalArgumentException("닉네임은 공백이 아닌 1~" + MAX_NICKNAME_LENGTH + "자여야 합니다.");
         }
     }
-
-    // 생성자에서 예외가 발생할 수 있어 파이널라이저 공격에 노출될 수 있다.
-    // finalize()를 오버라이드 불가능하게 막아 차단한다 (클래스를 final로 두면 Hibernate 지연 로딩 프록시 생성이 불가능해진다).
-    @Override
-    @SuppressWarnings({"deprecation", "removal"})
-    protected final void finalize() {
-    }
 }
