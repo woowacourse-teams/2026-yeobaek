@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.ktorfit)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.ktlint)
 }
 
 kotlin {
@@ -104,4 +105,23 @@ dependencies {
 
 tasks.named("runKtlintFormatOverCommonMainSourceSet") {
     dependsOn("kspCommonMainKotlinMetadata")
+}
+
+private val ktlintEngineVersion = libs.versions.ktlintEngine
+
+ktlint {
+    // 사용할 Ktlint 엔진 버전 명시
+    version.set(ktlintEngineVersion)
+    debug.set(false)
+    verbose.set(true)
+
+    // 안드로이드 타겟이 포함되어 있으므로 true로 설정
+    android.set(true)
+
+    // .editorconfig 파일을 적극적으로 준수하도록 강제
+    enableExperimentalRules.set(true)
+
+    filter {
+        exclude { it.file.path.contains("/build/generated/") }
+    }
 }
