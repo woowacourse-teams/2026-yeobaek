@@ -53,6 +53,14 @@ pmd {
     consoleOutput = true
 }
 
+tasks.named('pmdTest') {
+    ruleSetFiles = files('config/pmd/ruleset-test.xml')
+}
+
+spotbugs {
+    excludeFilter = file('config/spotbugs/exclude.xml')
+}
+
 // 배포 잼에 생성된 OpenAPI 스펙을 정적 리소스로 동봉해 Swagger UI(/docs/index.html)가 읽는다
 tasks.named('bootJar') {
     dependsOn tasks.named('openapi3')
