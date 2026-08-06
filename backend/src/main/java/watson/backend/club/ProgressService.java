@@ -30,7 +30,7 @@ public class ProgressService {
                 .orElseThrow(() -> new ForbiddenException("모임에 참여하지 않은 회원입니다."));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 본문입니다."));
-        if (!passage.getChapter().getBook().getId().equals(club.getBook().getId())) {
+        if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
         clubMember.updateProgress(passage, LocalDateTime.now());

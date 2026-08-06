@@ -36,4 +36,8 @@ public class Book {
         this.publishedYear = publishedYear;
         this.passageCount = passageCount;
     }
+
+    public boolean isSame(Book other) {
+        return this.id.equals(other.id);
+    }
 }

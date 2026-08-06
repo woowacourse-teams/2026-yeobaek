@@ -59,7 +59,7 @@ public class Comment {
     }
 
     public boolean isWrittenBy(Long memberId) {
-        return clubMember.getMember().getId().equals(memberId);
+        return clubMember.isMember(memberId);
     }
 
     private static void validateContent(String content) {

@@ -38,4 +38,8 @@ public class Chapter {
         this.title = title;
         this.sequence = sequence;
     }
+
+    public boolean belongsTo(Book other) {
+        return book.isSame(other);
+    }
 }

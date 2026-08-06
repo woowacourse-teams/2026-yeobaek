@@ -41,4 +41,8 @@ public class Passage {
         this.content = content;
         this.imageUrl = imageUrl;
     }
+
+    public boolean belongsTo(Book book) {
+        return chapter.belongsTo(book);
+    }
 }

@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import watson.backend.book.Book;
+import watson.backend.book.Passage;
 
 @Entity
 @Table(name = "clubs", uniqueConstraints = {
@@ -41,5 +42,13 @@ public class Club {
         this.name = name;
         this.book = book;
         this.joinCode = joinCode;
+    }
+
+    public boolean isReading(Passage passage) {
+        return passage.belongsTo(book);
+    }
+
+    public int totalPassageCount() {
+        return book.getPassageCount();
     }
 }
