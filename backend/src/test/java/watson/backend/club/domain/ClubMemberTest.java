@@ -15,22 +15,22 @@ class ClubMemberTest {
 
     @Test
     @DisplayName("본인의 회원 id를 전달하면 참을 반환한다")
-    void isMemberWhenIdMatches() {
+    void isOwnedByWhenIdMatches() {
         Member member = new Member("민서");
         ReflectionTestUtils.setField(member, "id", 1L);
         ClubMember clubMember = new ClubMember(member, new Club("1기", new Book("제목", null, null, 1), "CODE01"));
 
-        assertThat(clubMember.isMember(1L)).isTrue();
+        assertThat(clubMember.isOwnedBy(1L)).isTrue();
     }
 
     @Test
     @DisplayName("다른 회원의 id를 전달하면 거짓을 반환한다")
-    void isNotMemberWhenIdDiffers() {
+    void isNotOwnedByWhenIdDiffers() {
         Member member = new Member("민서");
         ReflectionTestUtils.setField(member, "id", 1L);
         ClubMember clubMember = new ClubMember(member, new Club("1기", new Book("제목", null, null, 1), "CODE01"));
 
-        assertThat(clubMember.isMember(2L)).isFalse();
+        assertThat(clubMember.isOwnedBy(2L)).isFalse();
     }
 
     @Test

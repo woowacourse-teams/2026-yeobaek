@@ -17,6 +17,6 @@ public record CommentResponse(
         Long writerId = comment.getClubMember().getMember().getId();
         return new CommentResponse(comment.getId(), writerId,
                 comment.getClubMember().getMember().getNickname(), comment.getContent(),
-                comment.getCreatedAt(), comment.getUpdatedAt(), writerId.equals(requesterId));
+                comment.getCreatedAt(), comment.getUpdatedAt(), comment.isWrittenBy(requesterId));
     }
 }

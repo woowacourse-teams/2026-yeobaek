@@ -54,7 +54,7 @@ public class ClubMember {
         this.lastReadAt = readAt;
     }
 
-    public boolean isMember(Long memberId) {
+    public boolean isOwnedBy(Long memberId) {
         return member.getId().equals(memberId);
     }
 
