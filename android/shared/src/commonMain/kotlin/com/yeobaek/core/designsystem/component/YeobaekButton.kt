@@ -29,7 +29,7 @@ fun YeobaekButton(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "여백 버튼")
 @Composable
 private fun YeobaekButtonPreview() {
     YeobaekTheme {
