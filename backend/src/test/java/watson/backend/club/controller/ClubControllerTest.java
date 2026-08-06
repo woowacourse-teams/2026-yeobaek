@@ -34,6 +34,9 @@ import watson.backend.support.NotFoundException;
 @WebMvcTest(ClubController.class)
 class ClubControllerTest extends ControllerTest {
 
+    private static final String MEMBER_ID_HEADER = "X-Member-Id";
+    private static final String CLUB_NAME_DESC = "모임 이름";
+
     @MockitoBean
     private ClubService clubService;
 
@@ -46,7 +49,7 @@ class ClubControllerTest extends ControllerTest {
                 new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312)));
 
         mockMvc.perform(post("/api/clubs")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\": \"교환독서 1기\", \"bookId\": 1}"))
                 .andExpect(status().isCreated())
@@ -56,13 +59,13 @@ class ClubControllerTest extends ControllerTest {
                         .tag("모임")
                         .summary("모임 생성")
                         .description("책 한 권을 골라 모임을 만든다. 생성자는 자동으로 모임에 참여되고 참여 코드가 발급된다.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .requestFields(
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("name").description(CLUB_NAME_DESC),
                                 PayloadDocumentation.fieldWithPath("bookId").description("읽을 도서 ID (영구 고정)"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("name").description(CLUB_NAME_DESC),
                                 PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드 (6자 대문자·숫자, 전역 unique, 영구 고정)"),
                                 PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
                                 PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
@@ -79,7 +82,7 @@ class ClubControllerTest extends ControllerTest {
                 1L, "교환독서 1기", new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312)));
 
         mockMvc.perform(post("/api/clubs/join")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"joinCode\": \"A3F9KQ\"}"))
                 .andExpect(status().isOk())
@@ -88,11 +91,11 @@ class ClubControllerTest extends ControllerTest {
                         .tag("모임")
                         .summary("참여 코드로 모임 참여")
                         .description("존재하지 않는 코드는 404. 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .requestFields(PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("name").description(CLUB_NAME_DESC),
                                 PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
                                 PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
                                 PayloadDocumentation.fieldWithPath("book.authors[]").description("작가 이름 목록"),
@@ -108,7 +111,7 @@ class ClubControllerTest extends ControllerTest {
                 .willThrow(new NotFoundException("존재하지 않는 참여 코드입니다."));
 
         mockMvc.perform(post("/api/clubs/join")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"joinCode\": \"NOCODE\"}"))
                 .andExpect(status().isNotFound())
@@ -126,7 +129,7 @@ class ClubControllerTest extends ControllerTest {
                 new MyClubResponse(2L, "새 모임", 1,
                         new ClubBookResponse(2L, "무정", List.of("이광수"), 200), null))));
 
-        mockMvc.perform(get("/api/clubs").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clubs[0].memberCount").value(4))
                 .andExpect(jsonPath("$.clubs[0].myProgress.progressRate").value(13))
@@ -134,10 +137,10 @@ class ClubControllerTest extends ControllerTest {
                 .andDo(document("club-my-list", resource(ResourceSnippetParameters.builder()
                         .tag("모임")
                         .summary("내 모임 목록 조회")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("clubs[].clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("clubs[].name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("clubs[].name").description(CLUB_NAME_DESC),
                                 PayloadDocumentation.fieldWithPath("clubs[].memberCount").description("모임 회원 수"),
                                 PayloadDocumentation.fieldWithPath("clubs[].book.bookId").description("도서 ID"),
                                 PayloadDocumentation.fieldWithPath("clubs[].book.title").description("도서 제목"),

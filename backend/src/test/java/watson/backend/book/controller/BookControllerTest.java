@@ -28,6 +28,10 @@ import watson.backend.support.NotFoundException;
 @WebMvcTest(BookController.class)
 class BookControllerTest extends ControllerTest {
 
+    private static final String BOOKS_PATH = "/api/books";
+    private static final String MEMBER_ID_HEADER = "X-Member-Id";
+    private static final String MESSAGE_PATH = "$.message";
+
     @MockitoBean
     private BookService bookService;
 
@@ -38,7 +42,7 @@ class BookControllerTest extends ControllerTest {
         given(bookService.findBooks()).willReturn(new BooksResponse(List.of(
                 new BookSummaryResponse(1L, "운수 좋은 날", List.of("현진건"), "자체 제작", 1924, 312))));
 
-        mockMvc.perform(get("/api/books").header("X-Member-Id", "1"))
+        mockMvc.perform(get(BOOKS_PATH).header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.books[0].bookId").value(1))
                 .andExpect(jsonPath("$.books[0].authors[0]").value("현진건"))
@@ -46,7 +50,7 @@ class BookControllerTest extends ControllerTest {
                         .tag("도서")
                         .summary("도서 목록 조회")
                         .description("모임 생성 시 선택할 도서 목록을 조회한다.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("books[].bookId").description("도서 ID"),
                                 PayloadDocumentation.fieldWithPath("books[].title").description("제목"),
@@ -64,14 +68,14 @@ class BookControllerTest extends ControllerTest {
         given(bookService.findBook(1L)).willReturn(new BookDetailResponse(1L, "운수 좋은 날", List.of("현진건"),
                 "자체 제작", 1924, 312, List.of(new ChapterResponse(1L, "1장", 1, 1, 105))));
 
-        mockMvc.perform(get("/api/books/1").header("X-Member-Id", "1"))
+        mockMvc.perform(get(BOOKS_PATH + "/1").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.chapters[0].startPassageSequence").value(1))
                 .andExpect(jsonPath("$.chapters[0].endPassageSequence").value(105))
                 .andDo(document("book-detail", resource(ResourceSnippetParameters.builder()
                         .tag("도서")
                         .summary("도서 상세 + 목차 조회")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("bookId").description("도서 ID"),
                                 PayloadDocumentation.fieldWithPath("title").description("제목"),
@@ -93,17 +97,17 @@ class BookControllerTest extends ControllerTest {
         givenValidMember(1L);
         given(bookService.findBook(anyLong())).willThrow(new NotFoundException("존재하지 않는 도서입니다."));
 
-        mockMvc.perform(get("/api/books/999").header("X-Member-Id", "1"))
+        mockMvc.perform(get(BOOKS_PATH + "/999").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("존재하지 않는 도서입니다."));
+                .andExpect(jsonPath(MESSAGE_PATH).value("존재하지 않는 도서입니다."));
     }
 
     @Test
     @DisplayName("X-Member-Id 헤더가 없으면 400을 응답한다")
     void missingMemberIdHeader() throws Exception {
-        mockMvc.perform(get("/api/books"))
+        mockMvc.perform(get(BOOKS_PATH))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("X-Member-Id 헤더가 필요합니다."));
+                .andExpect(jsonPath(MESSAGE_PATH).value("X-Member-Id 헤더가 필요합니다."));
     }
 
     @Test
@@ -111,16 +115,16 @@ class BookControllerTest extends ControllerTest {
     void unknownMember() throws Exception {
         given(memberRepository.existsById(99L)).willReturn(false);
 
-        mockMvc.perform(get("/api/books").header("X-Member-Id", "99"))
+        mockMvc.perform(get(BOOKS_PATH).header(MEMBER_ID_HEADER, "99"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("존재하지 않는 회원입니다."));
+                .andExpect(jsonPath(MESSAGE_PATH).value("존재하지 않는 회원입니다."));
     }
 
     @Test
     @DisplayName("숫자가 아닌 X-Member-Id 헤더는 400을 응답한다")
     void invalidMemberIdHeader() throws Exception {
-        mockMvc.perform(get("/api/books").header("X-Member-Id", "abc"))
+        mockMvc.perform(get(BOOKS_PATH).header(MEMBER_ID_HEADER, "abc"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("X-Member-Id 헤더가 올바르지 않습니다."));
+                .andExpect(jsonPath(MESSAGE_PATH).value("X-Member-Id 헤더가 올바르지 않습니다."));
     }
 }

@@ -28,6 +28,8 @@ import watson.backend.support.ForbiddenException;
 @WebMvcTest(PassageController.class)
 class PassageControllerTest extends ControllerTest {
 
+    private static final String MEMBER_ID_HEADER = "X-Member-Id";
+
     @MockitoBean
     private PassageService passageService;
 
@@ -39,7 +41,7 @@ class PassageControllerTest extends ControllerTest {
                 new PassageResponse(1042L, 42, 2L, "새침하게 흐린 품이 눈이 올 듯하더니...", null, 3),
                 new PassageResponse(1043L, 43, 2L, null, "https://example.com/1.png", 0))));
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=42&to=43").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/1/passages?from=42&to=43").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passages[0].sequence").value(42))
                 .andExpect(jsonPath("$.passages[0].commentCount").value(3))
@@ -47,7 +49,7 @@ class PassageControllerTest extends ControllerTest {
                         .tag("읽기")
                         .summary("본문 범위 조회")
                         .description("전체 순서 기준 범위(양 끝 포함)의 본문을 조회한다. 범위는 최대 100개, 모임 미소속은 403.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
                         .queryParameters(
                                 parameterWithName("from").description("시작 본문의 전체 순서 (1 이상)"),
                                 parameterWithName("to").description("끝 본문의 전체 순서 (양 끝 포함, to-from+1 ≤ 100)"))
@@ -68,7 +70,7 @@ class PassageControllerTest extends ControllerTest {
         given(passageService.findPassages(anyLong(), anyLong(), anyInt(), anyInt()))
                 .willThrow(new ForbiddenException("모임에 참여하지 않은 회원입니다."));
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=1&to=3").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/1/passages?from=1&to=3").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("모임에 참여하지 않은 회원입니다."));
     }
@@ -80,7 +82,7 @@ class PassageControllerTest extends ControllerTest {
         given(passageService.findPassages(anyLong(), anyLong(), anyInt(), anyInt()))
                 .willThrow(new IllegalArgumentException("본문은 한 번에 최대 100개까지 조회할 수 있습니다."));
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=1&to=101").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/1/passages?from=1&to=101").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -89,7 +91,7 @@ class PassageControllerTest extends ControllerTest {
     void missingRangeParameter() throws Exception {
         givenValidMember(1L);
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=1").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/1/passages?from=1").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("필수 파라미터가 없습니다: to"));
     }

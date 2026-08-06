@@ -32,6 +32,10 @@ import watson.backend.support.ForbiddenException;
 @WebMvcTest(CommentController.class)
 class CommentControllerTest extends ControllerTest {
 
+    private static final String MEMBER_ID_HEADER = "X-Member-Id";
+    private static final String MEMBER_ID_DESC = "회원 ID";
+    private static final String CONTENT_FIELD = "content";
+
     @MockitoBean
     private CommentService commentService;
 
@@ -43,7 +47,7 @@ class CommentControllerTest extends ControllerTest {
                 new CommentResponse(7L, 2L, "지수", "이 문장에서 멈칫했어요.",
                         LocalDateTime.of(2026, 8, 5, 14, 30), null, false))));
 
-        mockMvc.perform(get("/api/clubs/1/passages/1042/comments").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/1/passages/1042/comments").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comments[0].commentId").value(7))
                 .andExpect(jsonPath("$.comments[0].mine").value(false))
@@ -51,12 +55,12 @@ class CommentControllerTest extends ControllerTest {
                         .tag("댓글")
                         .summary("문단의 댓글 목록 조회")
                         .description("작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description(MEMBER_ID_DESC))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("comments[].commentId").description("댓글 ID"),
                                 PayloadDocumentation.fieldWithPath("comments[].memberId").description("작성자 회원 ID"),
                                 PayloadDocumentation.fieldWithPath("comments[].nickname").description("작성자 닉네임"),
-                                PayloadDocumentation.fieldWithPath("comments[].content").description("내용"),
+                                PayloadDocumentation.fieldWithPath("comments[]." + CONTENT_FIELD).description("내용"),
                                 PayloadDocumentation.fieldWithPath("comments[].createdAt").description("작성일"),
                                 PayloadDocumentation.fieldWithPath("comments[].updatedAt").description("수정일 (수정된 적 없으면 null)").optional(),
                                 PayloadDocumentation.fieldWithPath("comments[].mine").description("요청자 본인 작성 여부"))
@@ -72,7 +76,7 @@ class CommentControllerTest extends ControllerTest {
                         LocalDateTime.of(2026, 8, 5, 14, 30), null, true));
 
         mockMvc.perform(post("/api/clubs/1/passages/1042/comments")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"이 문장에서 멈칫했어요.\"}"))
                 .andExpect(status().isCreated())
@@ -80,13 +84,13 @@ class CommentControllerTest extends ControllerTest {
                 .andDo(document("comment-create", resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("댓글 작성")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .requestFields(PayloadDocumentation.fieldWithPath("content").description("내용 (1~1000자)"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description(MEMBER_ID_DESC))
+                        .requestFields(PayloadDocumentation.fieldWithPath(CONTENT_FIELD).description("내용 (1~1000자)"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("commentId").description("댓글 ID"),
                                 PayloadDocumentation.fieldWithPath("memberId").description("작성자 회원 ID"),
                                 PayloadDocumentation.fieldWithPath("nickname").description("작성자 닉네임"),
-                                PayloadDocumentation.fieldWithPath("content").description("내용"),
+                                PayloadDocumentation.fieldWithPath(CONTENT_FIELD).description("내용"),
                                 PayloadDocumentation.fieldWithPath("createdAt").description("작성일"),
                                 PayloadDocumentation.fieldWithPath("updatedAt").description("수정일 (작성 직후 null)").optional(),
                                 PayloadDocumentation.fieldWithPath("mine").description("요청자 본인 작성 여부 (항상 true)"))
@@ -102,7 +106,7 @@ class CommentControllerTest extends ControllerTest {
                         LocalDateTime.of(2026, 8, 5, 14, 30), LocalDateTime.of(2026, 8, 5, 15, 0), true));
 
         mockMvc.perform(put("/api/comments/7")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"수정된 내용\"}"))
                 .andExpect(status().isOk())
@@ -112,13 +116,13 @@ class CommentControllerTest extends ControllerTest {
                         .tag("댓글")
                         .summary("댓글 수정")
                         .description("본인 댓글이 아니면 403.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .requestFields(PayloadDocumentation.fieldWithPath("content").description("수정할 내용 (1~1000자)"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description(MEMBER_ID_DESC))
+                        .requestFields(PayloadDocumentation.fieldWithPath(CONTENT_FIELD).description("수정할 내용 (1~1000자)"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("commentId").description("댓글 ID"),
                                 PayloadDocumentation.fieldWithPath("memberId").description("작성자 회원 ID"),
                                 PayloadDocumentation.fieldWithPath("nickname").description("작성자 닉네임"),
-                                PayloadDocumentation.fieldWithPath("content").description("내용"),
+                                PayloadDocumentation.fieldWithPath(CONTENT_FIELD).description("내용"),
                                 PayloadDocumentation.fieldWithPath("createdAt").description("작성일"),
                                 PayloadDocumentation.fieldWithPath("updatedAt").description("수정일"),
                                 PayloadDocumentation.fieldWithPath("mine").description("요청자 본인 작성 여부"))
@@ -130,13 +134,13 @@ class CommentControllerTest extends ControllerTest {
     void deleteComment() throws Exception {
         givenValidMember(1L);
 
-        mockMvc.perform(delete("/api/comments/7").header("X-Member-Id", "1"))
+        mockMvc.perform(delete("/api/comments/7").header(MEMBER_ID_HEADER, "1"))
                 .andExpect(status().isNoContent())
                 .andDo(document("comment-delete", resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("댓글 삭제")
                         .description("하드 삭제(PRD 3.5). 본인 댓글이 아니면 403.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description(MEMBER_ID_DESC))
                         .build())));
     }
 
@@ -148,7 +152,7 @@ class CommentControllerTest extends ControllerTest {
                 .willThrow(new ForbiddenException("본인의 댓글만 수정할 수 있습니다."));
 
         mockMvc.perform(put("/api/comments/7")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"탈취 시도\"}"))
                 .andExpect(status().isForbidden())
@@ -163,7 +167,7 @@ class CommentControllerTest extends ControllerTest {
                 .willThrow(new ForbiddenException("모임에 참여하지 않은 회원입니다."));
 
         mockMvc.perform(post("/api/clubs/1/passages/1042/comments")
-                        .header("X-Member-Id", "1")
+                        .header(MEMBER_ID_HEADER, "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"댓글\"}"))
                 .andExpect(status().isForbidden());

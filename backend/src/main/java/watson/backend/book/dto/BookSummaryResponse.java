@@ -12,6 +12,10 @@ public record BookSummaryResponse(
         int passageCount
 ) {
 
+    public BookSummaryResponse {
+        authors = List.copyOf(authors);
+    }
+
     public static BookSummaryResponse of(Book book, List<String> authors) {
         return new BookSummaryResponse(book.getId(), book.getTitle(), authors,
                 book.getPublisher(), book.getPublishedYear(), book.getPassageCount());

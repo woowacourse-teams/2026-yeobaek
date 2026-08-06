@@ -33,7 +33,7 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
         try {
             return Long.parseLong(header);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("X-Member-Id 헤더가 올바르지 않습니다.");
+            throw new IllegalArgumentException("X-Member-Id 헤더가 올바르지 않습니다.", e);
         }
     }
 }

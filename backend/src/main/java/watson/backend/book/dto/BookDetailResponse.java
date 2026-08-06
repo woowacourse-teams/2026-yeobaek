@@ -11,4 +11,9 @@ public record BookDetailResponse(
         int passageCount,
         List<ChapterResponse> chapters
 ) {
+
+    public BookDetailResponse {
+        authors = List.copyOf(authors);
+        chapters = List.copyOf(chapters);
+    }
 }

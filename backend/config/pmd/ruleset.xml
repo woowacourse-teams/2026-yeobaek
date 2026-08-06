@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<ruleset name="yeobaek-backend"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        여백 백엔드 PMD 규칙셋. category/java/bestpractices.xml, category/java/errorprone.xml을 기반으로 하되,
+        이 프로젝트의 정상적인 관례와 충돌하는 개별 룰을 조정한다.
+        조정 내역과 사유는 backend/docs/지침/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
+    </description>
+
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="UnitTestShouldIncludeAssert"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <exclude name="AbstractClassWithoutAbstractMethod"/>
+    </rule>
+
+    <rule ref="category/java/bestpractices.xml/UnitTestContainsTooManyAsserts">
+        <properties>
+            <property name="maximumAsserts" value="5"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="TestClassWithoutTestCases"/>
+    </rule>
+
+</ruleset>
