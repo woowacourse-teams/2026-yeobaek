@@ -45,13 +45,13 @@ val YeobaekLightColorScheme = lightColorScheme(
 
 @Composable
 fun YeobaekTheme(
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = YeobaekLightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = YeobaekTypography,
-        content = content
+        content = content,
     )
 }

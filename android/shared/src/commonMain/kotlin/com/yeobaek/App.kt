@@ -32,14 +32,14 @@ fun App() {
         ) {
             YeobaekButton(
                 text = "모임 참여하기",
-                onClick = { showContent = !showContent }
+                onClick = { showContent = !showContent },
             )
             YeobaekTextField(
                 value = value,
                 onValueChange = {
                     value = it
                 },
-                placeholder = "예: Book42"
+                placeholder = "예: Book42",
             )
         }
     }

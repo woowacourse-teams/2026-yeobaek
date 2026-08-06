@@ -18,7 +18,7 @@ fun YeobaekTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     OutlinedTextField(
         value = value,
@@ -28,7 +28,7 @@ fun YeobaekTextField(
         textStyle = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.ExtraBold,
             fontSize = 14.sp,
-            letterSpacing = 1.2.sp
+            letterSpacing = 1.2.sp,
         ),
         placeholder = {
             Text(
@@ -36,8 +36,8 @@ fun YeobaekTextField(
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
-                    letterSpacing = 1.2.sp
-                )
+                    letterSpacing = 1.2.sp,
+                ),
             )
         },
         modifier = modifier.fillMaxWidth(),
@@ -53,7 +53,7 @@ private fun YeobaekTextFieldPreview() {
         YeobaekTextField(
             value = "",
             onValueChange = {},
-            placeholder = "예: Book42"
+            placeholder = "예: Book42",
         )
     }
 }

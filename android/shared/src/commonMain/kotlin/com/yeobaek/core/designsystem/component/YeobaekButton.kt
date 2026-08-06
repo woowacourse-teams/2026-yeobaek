@@ -15,16 +15,16 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun YeobaekButton(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.small
+        shape = MaterialTheme.shapes.small,
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(vertical = 8.dp),
         )
     }
 }
