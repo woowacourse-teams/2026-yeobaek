@@ -18,4 +18,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
             order by b.id
             """)
     List<Book> searchByTitleOrAuthorName(@Param("keyword") String keyword);
+
+    List<Book> findAllByTitle(String title);
 }

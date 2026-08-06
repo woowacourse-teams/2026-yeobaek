@@ -17,13 +17,17 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
+    private static final int MAX_TITLE_LENGTH = 100;
+    private static final int MAX_PUBLISHER_LENGTH = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = MAX_TITLE_LENGTH)
     private String title;
 
+    @Column(length = MAX_PUBLISHER_LENGTH)
     private String publisher;
 
     private Integer publishedYear;
@@ -32,6 +36,8 @@ public class Book {
     private int passageCount;
 
     public Book(String title, String publisher, Integer publishedYear, int passageCount) {
+        validateTitle(title);
+        validatePublisher(publisher);
         this.title = title;
         this.publisher = publisher;
         this.publishedYear = publishedYear;
@@ -40,5 +46,23 @@ public class Book {
 
     public boolean isSame(Book other) {
         return Objects.equals(id, other.getId());
+    }
+
+    public boolean hasSameBibliography(Book other) {
+        return title.equals(other.getTitle())
+                && Objects.equals(publisher, other.getPublisher())
+                && Objects.equals(publishedYear, other.getPublishedYear());
+    }
+
+    private static void validateTitle(String title) {
+        if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
+            throw new IllegalArgumentException("도서 제목은 공백이 아닌 1~" + MAX_TITLE_LENGTH + "자여야 합니다.");
+        }
+    }
+
+    private static void validatePublisher(String publisher) {
+        if (publisher != null && (publisher.isBlank() || publisher.length() > MAX_PUBLISHER_LENGTH)) {
+            throw new IllegalArgumentException("출판사는 공백이 아닌 1~" + MAX_PUBLISHER_LENGTH + "자여야 합니다.");
+        }
     }
 }

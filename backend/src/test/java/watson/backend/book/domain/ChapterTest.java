@@ -1,6 +1,7 @@
 package watson.backend.book.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,5 +29,16 @@ class ChapterTest {
         Chapter chapter = new Chapter(book, "1장", 1);
 
         assertThat(chapter.belongsTo(otherBook)).isFalse();
+    }
+
+    @Test
+    @DisplayName("목차 제목이 공백이거나 100자를 넘으면 거부한다")
+    void rejectInvalidTitle() {
+        Book book = new Book("제목", null, null, 1);
+
+        assertThatThrownBy(() -> new Chapter(book, " ", 1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Chapter(book, "가".repeat(101), 1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

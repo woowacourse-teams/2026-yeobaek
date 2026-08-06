@@ -10,4 +10,7 @@ public interface AuthorBookRepository extends JpaRepository<AuthorBook, Long> {
 
     @Query("select ab from AuthorBook ab join fetch ab.author where ab.book.id in :bookIds")
     List<AuthorBook> findAllWithAuthorByBookIdIn(@Param("bookIds") List<Long> bookIds);
+
+    @Query("select ab from AuthorBook ab join fetch ab.book where ab.author.id in :authorIds")
+    List<AuthorBook> findAllWithBookByAuthorIdIn(@Param("authorIds") List<Long> authorIds);
 }

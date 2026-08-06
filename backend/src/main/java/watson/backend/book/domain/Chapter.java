@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Chapter {
 
+    private static final int MAX_TITLE_LENGTH = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,16 +29,23 @@ public class Chapter {
     @JoinColumn(name = "book_id")
     private Book book;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = MAX_TITLE_LENGTH)
     private String title;
 
     @Column(nullable = false)
     private int sequence;
 
     public Chapter(Book book, String title, int sequence) {
+        validateTitle(title);
         this.book = book;
         this.title = title;
         this.sequence = sequence;
+    }
+
+    private static void validateTitle(String title) {
+        if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
+            throw new IllegalArgumentException("목차 제목은 공백이 아닌 1~" + MAX_TITLE_LENGTH + "자여야 합니다.");
+        }
     }
 
     public boolean belongsTo(Book other) {
