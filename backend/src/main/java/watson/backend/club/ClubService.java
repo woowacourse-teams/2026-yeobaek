@@ -61,12 +61,12 @@ public class ClubService {
                     return new MyClubResponse(club.getId(), club.getName(),
                             memberCounts.getOrDefault(club.getId(), 0L),
                             ClubBookResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())),
-                            toMyProgress(clubMember, book));
+                            toMyProgress(clubMember));
                 })
                 .toList());
     }
 
-    private MyProgressResponse toMyProgress(ClubMember clubMember, Book book) {
+    private MyProgressResponse toMyProgress(ClubMember clubMember) {
         if (clubMember.getLastReadPassage() == null) {
             return null;
         }
