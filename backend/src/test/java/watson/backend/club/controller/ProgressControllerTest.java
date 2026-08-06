@@ -24,13 +24,10 @@ import watson.backend.club.dto.ClubBookResponse;
 import watson.backend.club.dto.LastReadingResponse;
 import watson.backend.club.dto.ProgressResponse;
 import watson.backend.club.service.ProgressService;
-import watson.backend.member.domain.Member;
 import watson.backend.support.ControllerTest;
 
 @WebMvcTest(ProgressController.class)
 class ProgressControllerTest extends ControllerTest {
-
-    private static final String MEMBER_ID_HEADER = "X-Member-Id";
 
     @MockitoBean
     private ProgressService progressService;
@@ -43,7 +40,7 @@ class ProgressControllerTest extends ControllerTest {
                 .willReturn(new ProgressResponse(42, 13, LocalDateTime.of(2026, 8, 5, 14, 30)));
 
         mockMvc.perform(put("/api/clubs/1/progress")
-                        .header(MEMBER_ID_HEADER, "1")
+                        .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"passageId\": 1042}"))
                 .andExpect(status().isOk())
@@ -53,7 +50,7 @@ class ProgressControllerTest extends ControllerTest {
                         .tag("읽기")
                         .summary("진도 갱신 (최근 열람 보고)")
                         .description("항상 마지막 열람 본문으로 덮어쓴다. 앞부분 재열람 시 진도율은 후퇴한다 (PRD 3.4).")
-                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
+                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
                         .requestFields(PayloadDocumentation.fieldWithPath("passageId").description("열람한 본문 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("lastReadPassageSequence").description("최근 열람 본문의 전체 순서"),
@@ -70,7 +67,7 @@ class ProgressControllerTest extends ControllerTest {
                 1L, "교환독서 1기", new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312),
                 42, 13, LocalDateTime.of(2026, 8, 5, 14, 30))));
 
-        mockMvc.perform(get("/api/members/me/last-reading").header(MEMBER_ID_HEADER, "1"))
+        mockMvc.perform(get("/api/members/me/last-reading").header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clubId").value(1))
                 .andExpect(jsonPath("$.progressRate").value(13))
@@ -78,7 +75,7 @@ class ProgressControllerTest extends ControllerTest {
                         .tag("읽기")
                         .summary("홈 — 마지막으로 읽던 책 조회")
                         .description("전 모임 중 마지막으로 읽은 시간이 가장 최근인 모임. 읽기 기록이 없으면 204.")
-                        .requestHeaders(headerWithName(MEMBER_ID_HEADER).description("회원 ID"))
+                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
                                 PayloadDocumentation.fieldWithPath("clubName").description("모임 이름"),
@@ -98,7 +95,7 @@ class ProgressControllerTest extends ControllerTest {
         givenValidMember(1L);
         given(progressService.findLastReading(1L)).willReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/members/me/last-reading").header(MEMBER_ID_HEADER, "1"))
+        mockMvc.perform(get("/api/members/me/last-reading").header("X-Member-Id", "1"))
                 .andExpect(status().isNoContent());
     }
 }

@@ -36,8 +36,6 @@ import watson.backend.support.RepositoryTest;
 @Import({ClubService.class, JoinCodeGenerator.class})
 class ClubServiceTest extends RepositoryTest {
 
-    private static final String CLUB_NAME = "교환독서 1기";
-
     @Autowired
     private ClubService clubService;
 
@@ -79,7 +77,7 @@ class ClubServiceTest extends RepositoryTest {
     @Test
     @DisplayName("모임을 생성하면 참여 코드가 발급되고 생성자가 자동으로 참여한다")
     void createClub() {
-        ClubCreateResponse response = clubService.create(creator.getId(), CLUB_NAME, book.getId());
+        ClubCreateResponse response = clubService.create(creator.getId(), "교환독서 1기", book.getId());
 
         assertThat(response.joinCode()).matches("^[A-Z0-9]{6}$");
         assertThat(response.book().authors()).containsExactly("현진건");
@@ -90,14 +88,14 @@ class ClubServiceTest extends RepositoryTest {
     @Test
     @DisplayName("존재하지 않는 도서로는 모임을 생성할 수 없다")
     void rejectUnknownBook() {
-        assertThatThrownBy(() -> clubService.create(creator.getId(), CLUB_NAME, 999L))
+        assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", 999L))
                 .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     @DisplayName("참여 코드로 모임에 참여한다")
     void joinByCode() {
-        ClubCreateResponse created = clubService.create(creator.getId(), CLUB_NAME, book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
         Member joiner = memberRepository.save(new Member("지수"));
 
         ClubJoinResponse response = clubService.join(joiner.getId(), created.joinCode());
@@ -109,7 +107,7 @@ class ClubServiceTest extends RepositoryTest {
     @Test
     @DisplayName("이미 참여한 모임에 다시 참여해도 같은 응답을 반환한다 (멱등)")
     void joinIsIdempotent() {
-        ClubCreateResponse created = clubService.create(creator.getId(), CLUB_NAME, book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
 
         ClubJoinResponse response = clubService.join(creator.getId(), created.joinCode());
 

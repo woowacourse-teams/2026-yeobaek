@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.servlet.HandlerInterceptor;
-import watson.backend.member.domain.Member;
 import watson.backend.member.repository.MemberRepository;
 
 @RequiredArgsConstructor
