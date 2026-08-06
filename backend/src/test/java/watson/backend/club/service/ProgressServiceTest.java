@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import watson.backend.book.domain.Book;
 import watson.backend.book.domain.Chapter;
@@ -50,6 +51,9 @@ class ProgressServiceTest extends RepositoryTest {
 
     @Autowired
     private ClubMemberRepository clubMemberRepository;
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     private Member reader;
     private Club club;
@@ -106,6 +110,18 @@ class ProgressServiceTest extends RepositoryTest {
                 .isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), 999L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("영속성 컨텍스트를 비워 모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
+    void updateProgressWorksWhenBookIsUninitializedProxy() {
+        entityManager.flush();
+        entityManager.clear();
+
+        ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
+
+        assertThat(response.lastReadPassageSequence()).isEqualTo(4);
+        assertThat(response.progressRate()).isEqualTo(100);
     }
 
     @Test
