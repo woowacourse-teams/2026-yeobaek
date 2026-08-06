@@ -13,6 +13,7 @@ import watson.backend.comment.domain.Comment;
 import watson.backend.comment.dto.CommentResponse;
 import watson.backend.comment.dto.CommentsResponse;
 import watson.backend.comment.repository.CommentRepository;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 
@@ -56,20 +57,20 @@ public class CommentService {
 
     private Comment findOwnComment(Long memberId, Long commentId, String forbiddenMessage) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 댓글입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.COMMENT_NOT_FOUND));
         if (!comment.isWrittenBy(memberId)) {
-            throw new ForbiddenException(forbiddenMessage);
+            throw new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, forbiddenMessage);
         }
         return comment;
     }
 
     private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 모임입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException("모임에 참여하지 않은 회원입니다."));
+                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 본문입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }

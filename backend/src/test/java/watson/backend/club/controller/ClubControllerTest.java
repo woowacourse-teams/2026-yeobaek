@@ -28,6 +28,7 @@ import watson.backend.club.dto.MyClubsResponse;
 import watson.backend.club.dto.MyProgressResponse;
 import watson.backend.club.service.ClubService;
 import watson.backend.support.ControllerTest;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.NotFoundException;
 
 @WebMvcTest(ClubController.class)
@@ -86,7 +87,7 @@ class ClubControllerTest extends ControllerTest {
                 .andDo(document("club-join", resource(ResourceSnippetParameters.builder()
                         .tag("모임")
                         .summary("참여 코드로 모임 참여")
-                        .description("존재하지 않는 코드는 404. 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
+                        .description("존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
                         .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
                         .requestFields(PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드"))
                         .responseFields(
@@ -100,17 +101,18 @@ class ClubControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 참여 코드는 404를 응답한다")
+    @DisplayName("존재하지 않는 참여 코드는 400과 JOIN_CODE_NOT_FOUND 코드를 응답한다")
     void joinWithUnknownCode() throws Exception {
         givenValidMember(1L);
         given(clubService.join(anyLong(), anyString()))
-                .willThrow(new NotFoundException("존재하지 않는 참여 코드입니다."));
+                .willThrow(new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
 
         mockMvc.perform(post("/api/clubs/join")
                         .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"joinCode\": \"NOCODE\"}"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("JOIN_CODE_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 참여 코드입니다."));
     }
 

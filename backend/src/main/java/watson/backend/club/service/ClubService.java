@@ -22,6 +22,7 @@ import watson.backend.club.repository.ClubMemberCount;
 import watson.backend.club.repository.ClubMemberRepository;
 import watson.backend.club.repository.ClubRepository;
 import watson.backend.member.repository.MemberRepository;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.NotFoundException;
 
 @Service
@@ -40,7 +41,7 @@ public class ClubService {
     @Transactional
     public ClubCreateResponse create(Long memberId, String name, Long bookId) {
         Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 도서입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
         Club club = clubRepository.save(new Club(name, book, generateUniqueJoinCode()));
         clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
         return new ClubCreateResponse(club.getId(), club.getName(), club.getJoinCode(),
@@ -50,7 +51,7 @@ public class ClubService {
     @Transactional
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 참여 코드입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
         if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, club.getId())) {
             clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
         }

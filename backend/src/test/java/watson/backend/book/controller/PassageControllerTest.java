@@ -22,6 +22,7 @@ import watson.backend.book.dto.PassageResponse;
 import watson.backend.book.dto.PassagesResponse;
 import watson.backend.book.service.PassageService;
 import watson.backend.support.ControllerTest;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.ForbiddenException;
 
 @WebMvcTest(PassageController.class)
@@ -65,7 +66,7 @@ class PassageControllerTest extends ControllerTest {
     void rejectOutsider() throws Exception {
         givenValidMember(1L);
         given(passageService.findPassages(anyLong(), anyLong(), anyInt(), anyInt()))
-                .willThrow(new ForbiddenException("모임에 참여하지 않은 회원입니다."));
+                .willThrow(new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
 
         mockMvc.perform(get("/api/clubs/1/passages?from=1&to=3").header("X-Member-Id", "1"))
                 .andExpect(status().isForbidden())

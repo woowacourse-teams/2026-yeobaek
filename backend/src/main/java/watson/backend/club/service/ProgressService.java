@@ -17,6 +17,7 @@ import watson.backend.club.dto.LastReadingResponse;
 import watson.backend.club.dto.ProgressResponse;
 import watson.backend.club.repository.ClubMemberRepository;
 import watson.backend.club.repository.ClubRepository;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 
@@ -32,11 +33,11 @@ public class ProgressService {
     @Transactional
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 모임입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException("모임에 참여하지 않은 회원입니다."));
+                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 본문입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }

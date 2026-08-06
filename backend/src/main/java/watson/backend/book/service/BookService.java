@@ -16,6 +16,7 @@ import watson.backend.book.repository.BookRepository;
 import watson.backend.book.repository.ChapterPassageRange;
 import watson.backend.book.repository.ChapterRepository;
 import watson.backend.book.repository.PassageRepository;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.NotFoundException;
 
 @Service
@@ -38,7 +39,7 @@ public class BookService {
 
     public BookDetailResponse findBook(Long bookId) {
         Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 도서입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
         return new BookDetailResponse(book.getId(), book.getTitle(), authors,
                 book.getPublisher(), book.getPublishedYear(), book.getPassageCount(), chapters(bookId));

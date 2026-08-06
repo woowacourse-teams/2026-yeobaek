@@ -5,6 +5,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.servlet.HandlerInterceptor;
 import watson.backend.member.repository.MemberRepository;
+import watson.backend.support.ErrorCode;
+import watson.backend.support.NotFoundException;
 
 @RequiredArgsConstructor
 public class MemberAuthInterceptor implements HandlerInterceptor {
@@ -22,7 +24,7 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
         }
         long memberId = parseMemberId(header);
         if (!memberRepository.existsById(memberId)) {
-            throw new IllegalArgumentException("존재하지 않는 회원입니다.");
+            throw new NotFoundException(ErrorCode.MEMBER_NOT_FOUND);
         }
         request.setAttribute(MEMBER_ID_ATTRIBUTE, memberId);
         return true;

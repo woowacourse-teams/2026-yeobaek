@@ -22,6 +22,7 @@ import watson.backend.book.dto.BooksResponse;
 import watson.backend.book.dto.ChapterResponse;
 import watson.backend.book.service.BookService;
 import watson.backend.support.ControllerTest;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.NotFoundException;
 
 @WebMvcTest(BookController.class)
@@ -87,13 +88,14 @@ class BookControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 도서는 404를 응답한다")
+    @DisplayName("존재하지 않는 도서는 400과 BOOK_NOT_FOUND 코드를 응답한다")
     void findBookNotFound() throws Exception {
         givenValidMember(1L);
-        given(bookService.findBook(anyLong())).willThrow(new NotFoundException("존재하지 않는 도서입니다."));
+        given(bookService.findBook(anyLong())).willThrow(new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
 
         mockMvc.perform(get("/api/books/999").header("X-Member-Id", "1"))
-                .andExpect(status().isNotFound())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 도서입니다."));
     }
 
@@ -102,6 +104,7 @@ class BookControllerTest extends ControllerTest {
     void missingMemberIdHeader() throws Exception {
         mockMvc.perform(get("/api/books"))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.message").value("X-Member-Id 헤더가 필요합니다."));
     }
 
@@ -112,6 +115,7 @@ class BookControllerTest extends ControllerTest {
 
         mockMvc.perform(get("/api/books").header("X-Member-Id", "99"))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("존재하지 않는 회원입니다."));
     }
 

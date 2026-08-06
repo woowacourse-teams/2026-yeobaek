@@ -26,6 +26,7 @@ import watson.backend.comment.dto.CommentResponse;
 import watson.backend.comment.dto.CommentsResponse;
 import watson.backend.comment.service.CommentService;
 import watson.backend.support.ControllerTest;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.ForbiddenException;
 
 @WebMvcTest(CommentController.class)
@@ -144,7 +145,7 @@ class CommentControllerTest extends ControllerTest {
     void rejectUpdatingOthersComment() throws Exception {
         givenValidMember(1L);
         given(commentService.update(anyLong(), anyLong(), anyString()))
-                .willThrow(new ForbiddenException("본인의 댓글만 수정할 수 있습니다."));
+                .willThrow(new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, "본인의 댓글만 수정할 수 있습니다."));
 
         mockMvc.perform(put("/api/comments/7")
                         .header("X-Member-Id", "1")
@@ -159,7 +160,7 @@ class CommentControllerTest extends ControllerTest {
     void rejectOutsider() throws Exception {
         givenValidMember(1L);
         given(commentService.create(anyLong(), anyLong(), anyLong(), anyString()))
-                .willThrow(new ForbiddenException("모임에 참여하지 않은 회원입니다."));
+                .willThrow(new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
 
         mockMvc.perform(post("/api/clubs/1/passages/1042/comments")
                         .header("X-Member-Id", "1")

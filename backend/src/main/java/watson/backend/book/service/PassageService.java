@@ -15,6 +15,7 @@ import watson.backend.club.repository.ClubMemberRepository;
 import watson.backend.club.repository.ClubRepository;
 import watson.backend.comment.repository.CommentRepository;
 import watson.backend.comment.repository.PassageCommentCount;
+import watson.backend.support.ErrorCode;
 import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 
@@ -33,9 +34,9 @@ public class PassageService {
     public PassagesResponse findPassages(Long memberId, Long clubId, int from, int to) {
         validateRange(from, to);
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException("존재하지 않는 모임입니다."));
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, clubId)) {
-            throw new ForbiddenException("모임에 참여하지 않은 회원입니다.");
+            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
         }
         List<Passage> passages = passageRepository.findRangeByBookId(club.getBook().getId(), from, to);
         Map<Long, Long> commentCounts = commentRepository.countByClubIdAndSequenceRange(clubId, from, to).stream()
