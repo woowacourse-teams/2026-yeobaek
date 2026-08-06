@@ -41,7 +41,6 @@ public class CommentService {
     public CommentResponse update(Long memberId, Long commentId, String content) {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 수정할 수 있습니다.");
         comment.updateContent(content);
-        commentRepository.flush();
         return CommentResponse.of(comment, memberId);
     }
 

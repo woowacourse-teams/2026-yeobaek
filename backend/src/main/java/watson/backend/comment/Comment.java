@@ -8,8 +8,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -51,11 +49,13 @@ public class Comment {
         this.clubMember = clubMember;
         this.passage = passage;
         this.content = content;
+        this.createdAt = LocalDateTime.now();
     }
 
     public void updateContent(String content) {
         validateContent(content);
         this.content = content;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public boolean isWrittenBy(Long memberId) {
@@ -66,15 +66,5 @@ public class Comment {
         if (content == null || content.isBlank() || content.length() > MAX_CONTENT_LENGTH) {
             throw new IllegalArgumentException("댓글 내용은 공백이 아닌 1~" + MAX_CONTENT_LENGTH + "자여야 합니다.");
         }
-    }
-
-    @PrePersist
-    void prePersist() {
-        this.createdAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }

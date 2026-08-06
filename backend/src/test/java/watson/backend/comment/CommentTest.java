@@ -1,5 +1,6 @@
 package watson.backend.comment;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -16,6 +17,28 @@ class CommentTest {
     void createWithValidContent() {
         assertThatCode(() -> new Comment(null, null, "가".repeat(1000)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("댓글을 생성하면 생성 시각이 즉시 채워지고 수정 시각은 비어있다")
+    void createFillsCreatedAtOnly() {
+        Comment comment = new Comment(null, null, "내용");
+
+        assertThat(comment.getCreatedAt()).isNotNull();
+        assertThat(comment.getUpdatedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("내용을 수정하면 수정 시각이 채워지고 생성 시각은 바뀌지 않는다")
+    void updateContentFillsUpdatedAt() {
+        Comment comment = new Comment(null, null, "원본");
+        var createdAt = comment.getCreatedAt();
+
+        comment.updateContent("수정된 내용");
+
+        assertThat(comment.getContent()).isEqualTo("수정된 내용");
+        assertThat(comment.getUpdatedAt()).isNotNull();
+        assertThat(comment.getCreatedAt()).isEqualTo(createdAt);
     }
 
     @ParameterizedTest
