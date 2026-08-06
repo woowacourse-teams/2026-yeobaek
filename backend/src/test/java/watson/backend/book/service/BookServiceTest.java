@@ -51,11 +51,58 @@ class BookServiceTest extends RepositoryTest {
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, book));
 
-        BooksResponse response = bookService.findBooks();
+        BooksResponse response = bookService.findBooks(null);
 
         assertThat(response.books()).hasSize(1);
         assertThat(response.books().getFirst().authors()).containsExactly("현진건");
         assertThat(response.books().getFirst().passageCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("키워드가 제목에 부분 일치하는 도서를 검색한다")
+    void searchByTitle() {
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+
+        BooksResponse response = bookService.findBooks("운수");
+
+        assertThat(response.books()).hasSize(1);
+        assertThat(response.books().getFirst().title()).isEqualTo("운수 좋은 날");
+    }
+
+    @Test
+    @DisplayName("키워드가 작가 이름에 부분 일치하는 도서를 검색한다")
+    void searchByAuthorName() {
+        Book matched = bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+        Author author = authorRepository.save(new Author("현진건"));
+        authorBookRepository.save(new AuthorBook(author, matched));
+
+        BooksResponse response = bookService.findBooks("현진");
+
+        assertThat(response.books()).hasSize(1);
+        assertThat(response.books().getFirst().title()).isEqualTo("운수 좋은 날");
+    }
+
+    @Test
+    @DisplayName("제목과 작가 어디에도 일치하지 않으면 빈 목록을 반환한다")
+    void searchNoMatch() {
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
+
+        BooksResponse response = bookService.findBooks("이상");
+
+        assertThat(response.books()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("공백 키워드는 전체 목록을 반환한다")
+    void searchWithBlankKeyword() {
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+
+        BooksResponse response = bookService.findBooks(" ");
+
+        assertThat(response.books()).hasSize(2);
     }
 
     @Test

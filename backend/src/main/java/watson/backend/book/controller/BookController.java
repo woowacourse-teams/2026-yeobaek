@@ -3,6 +3,7 @@ package watson.backend.book.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import watson.backend.book.dto.BookDetailResponse;
 import watson.backend.book.dto.BooksResponse;
@@ -15,8 +16,8 @@ public class BookController {
     private final BookService bookService;
 
     @GetMapping("/api/books")
-    public BooksResponse findBooks() {
-        return bookService.findBooks();
+    public BooksResponse findBooks(@RequestParam(required = false) String keyword) {
+        return bookService.findBooks(keyword);
     }
 
     @GetMapping("/api/books/{bookId}")

@@ -29,12 +29,19 @@ public class BookService {
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
 
-    public BooksResponse findBooks() {
-        List<Book> books = bookRepository.findAll();
+    public BooksResponse findBooks(String keyword) {
+        List<Book> books = search(keyword);
         Map<Long, List<String>> authorNames = authorNamesByBookId(books.stream().map(Book::getId).toList());
         return new BooksResponse(books.stream()
                 .map(book -> BookSummaryResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())))
                 .toList());
+    }
+
+    private List<Book> search(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return bookRepository.findAll();
+        }
+        return bookRepository.searchByTitleOrAuthorName(keyword);
     }
 
     public BookDetailResponse findBook(Long bookId) {

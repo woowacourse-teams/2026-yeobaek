@@ -2,6 +2,7 @@ package watson.backend.book.controller;
 
 import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.document;
 import static com.epages.restdocs.apispec.ResourceDocumentation.headerWithName;
+import static com.epages.restdocs.apispec.ResourceDocumentation.parameterWithName;
 import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
@@ -35,7 +36,7 @@ class BookControllerTest extends ControllerTest {
     @DisplayName("도서 목록을 조회한다")
     void findBooks() throws Exception {
         givenValidMember(1L);
-        given(bookService.findBooks()).willReturn(new BooksResponse(List.of(
+        given(bookService.findBooks(null)).willReturn(new BooksResponse(List.of(
                 new BookSummaryResponse(1L, "운수 좋은 날", List.of("현진건"), "자체 제작", 1924, 312))));
 
         mockMvc.perform(get("/api/books").header("X-Member-Id", "1"))
@@ -44,8 +45,10 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[0].authors[0]").value("현진건"))
                 .andDo(document("book-list", resource(ResourceSnippetParameters.builder()
                         .tag("도서")
-                        .summary("도서 목록 조회")
-                        .description("모임 생성 시 선택할 도서 목록을 조회한다.")
+                        .summary("도서 목록 조회 · 검색")
+                        .description("모임 생성 시 선택할 도서 목록을 조회한다. keyword를 주면 제목 또는 작가 이름 부분 일치로 검색한다.")
+                        .queryParameters(parameterWithName("keyword")
+                                .description("제목 또는 작가 이름 부분 일치 검색어. 미지정·공백이면 전체 목록").optional())
                         .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("books[].bookId").description("도서 ID"),
@@ -55,6 +58,18 @@ class BookControllerTest extends ControllerTest {
                                 PayloadDocumentation.fieldWithPath("books[].publishedYear").description("출판연도").optional(),
                                 PayloadDocumentation.fieldWithPath("books[].passageCount").description("본문 개수"))
                         .build())));
+    }
+
+    @Test
+    @DisplayName("키워드로 도서를 검색한다")
+    void searchBooks() throws Exception {
+        givenValidMember(1L);
+        given(bookService.findBooks("현진건")).willReturn(new BooksResponse(List.of(
+                new BookSummaryResponse(1L, "운수 좋은 날", List.of("현진건"), "자체 제작", 1924, 312))));
+
+        mockMvc.perform(get("/api/books").param("keyword", "현진건").header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.books[0].title").value("운수 좋은 날"));
     }
 
     @Test
