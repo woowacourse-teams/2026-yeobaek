@@ -1,0 +1,61 @@
+package watson.backend.book.repository;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import watson.backend.book.domain.Author;
+import watson.backend.book.domain.AuthorBook;
+import watson.backend.book.domain.Book;
+import watson.backend.book.domain.Chapter;
+import watson.backend.book.domain.Passage;
+import watson.backend.support.RepositoryTest;
+
+class BookMappingTest extends RepositoryTest {
+
+    @Autowired
+    private BookRepository bookRepository;
+
+    @Autowired
+    private AuthorRepository authorRepository;
+
+    @Autowired
+    private AuthorBookRepository authorBookRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private PassageRepository passageRepository;
+
+    @Test
+    @DisplayName("도서-목차-본문 구조를 저장하고 본문에서 도서까지 연관을 타고 조회할 수 있다")
+    void bookChapterPassageMapping() {
+        Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 2));
+        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
+        passageRepository.save(new Passage(chapter, 1, "새침하게 흐린 품이 눈이 올 듯하더니...", null));
+        Passage image = passageRepository.save(new Passage(chapter, 2, null, "https://example.com/1.png"));
+
+        Passage found = passageRepository.findById(image.getId()).orElseThrow();
+
+        assertThat(found.getSequence()).isEqualTo(2);
+        assertThat(found.getContent()).isNull();
+        assertThat(found.getImageUrl()).isEqualTo("https://example.com/1.png");
+        assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
+    }
+
+    @Test
+    @DisplayName("공저를 위해 하나의 도서에 여러 작가를 매핑할 수 있다")
+    void coAuthorMapping() {
+        Book book = bookRepository.save(new Book("공저 도서", null, null, 0));
+        Author first = authorRepository.save(new Author("작가1"));
+        Author second = authorRepository.save(new Author("작가2"));
+        authorBookRepository.save(new AuthorBook(first, book));
+        authorBookRepository.save(new AuthorBook(second, book));
+
+        assertThat(authorBookRepository.findAll())
+                .extracting(mapping -> mapping.getAuthor().getName())
+                .containsExactlyInAnyOrder("작가1", "작가2");
+    }
+}

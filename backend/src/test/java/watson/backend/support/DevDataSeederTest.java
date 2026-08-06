@@ -7,13 +7,13 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import watson.backend.book.AuthorBookRepository;
-import watson.backend.book.AuthorRepository;
-import watson.backend.book.Book;
-import watson.backend.book.BookRepository;
-import watson.backend.book.ChapterRepository;
-import watson.backend.book.Passage;
-import watson.backend.book.PassageRepository;
+import watson.backend.book.domain.Book;
+import watson.backend.book.domain.Passage;
+import watson.backend.book.repository.AuthorBookRepository;
+import watson.backend.book.repository.AuthorRepository;
+import watson.backend.book.repository.BookRepository;
+import watson.backend.book.repository.ChapterRepository;
+import watson.backend.book.repository.PassageRepository;
 
 class DevDataSeederTest extends RepositoryTest {
 

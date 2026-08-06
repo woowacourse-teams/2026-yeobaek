@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import watson.backend.member.MemberRepository;
+import watson.backend.member.repository.MemberRepository;
 
 /**
  * 컨트롤러 슬라이스 테스트 공통 베이스.

@@ -6,16 +6,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import watson.backend.book.Author;
-import watson.backend.book.AuthorBook;
-import watson.backend.book.AuthorBookRepository;
-import watson.backend.book.AuthorRepository;
-import watson.backend.book.Book;
-import watson.backend.book.BookRepository;
-import watson.backend.book.Chapter;
-import watson.backend.book.ChapterRepository;
-import watson.backend.book.Passage;
-import watson.backend.book.PassageRepository;
+import watson.backend.book.domain.Author;
+import watson.backend.book.domain.AuthorBook;
+import watson.backend.book.domain.Book;
+import watson.backend.book.domain.Chapter;
+import watson.backend.book.domain.Passage;
+import watson.backend.book.repository.AuthorBookRepository;
+import watson.backend.book.repository.AuthorRepository;
+import watson.backend.book.repository.BookRepository;
+import watson.backend.book.repository.ChapterRepository;
+import watson.backend.book.repository.PassageRepository;
 
 /**
  * 개발용 시드 데이터 투입기. local 프로파일에서만 동작하며 프로덕션에는 포함되지 않는다.
