@@ -1,6 +1,6 @@
 # Project Skills
 
-백엔드 팀 공용 Claude Code 스킬 디렉터리입니다. 저장소에 포함되어 있으므로 별도 설치 없이 `backend/` 디렉터리에서 Claude Code를 실행하면 바로 사용할 수 있습니다.
+팀 공용 Claude Code 스킬 디렉터리입니다. 저장소 루트에 있으므로 저장소 안 어느 디렉터리(루트, `backend/` 등)에서 Claude Code를 실행하든 별도 설치 없이 세션 시작 시점부터 바로 사용할 수 있습니다.
 
 ## grill-me / grilling
 
