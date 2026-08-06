@@ -1,6 +1,6 @@
 # 백엔드 CI/CD (M8 배포 구성 결정, 2026-08-06)
 # develop에 backend 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 →
-# Docker Hub 푸시 → EC2에서 pull & 재기동. 필요한 시크릿은 docs/배포_가이드.md 참고.
+# Docker Hub 푸시 → EC2에서 pull & 재기동. 필요한 시크릿은 backend/docs/배포_가이드.md 참고.
 name: backend-deploy
 
 on:
