@@ -58,7 +58,7 @@ class ClubControllerTest extends ControllerTest {
                         .description("책 한 권을 골라 모임을 만든다. 생성자는 자동으로 모임에 참여되고 참여 코드가 발급된다.")
                         .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
                         .requestFields(
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("name").description("모임 이름 (1~20자, 공백만은 불가)"),
                                 PayloadDocumentation.fieldWithPath("bookId").description("읽을 도서 ID (영구 고정)"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),

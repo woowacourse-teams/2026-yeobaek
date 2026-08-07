@@ -24,11 +24,13 @@ import watson.backend.book.domain.Passage;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Club {
 
+    private static final int MAX_NAME_LENGTH = 20;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -39,9 +41,16 @@ public class Club {
     private String joinCode;
 
     public Club(String name, Book book, String joinCode) {
+        validate(name);
         this.name = name;
         this.book = book;
         this.joinCode = joinCode;
+    }
+
+    private static void validate(String name) {
+        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH) {
+            throw new IllegalArgumentException("모임 이름은 공백이 아닌 1~" + MAX_NAME_LENGTH + "자여야 합니다.");
+        }
     }
 
     public boolean isReading(Passage passage) {
