@@ -1,0 +1,9 @@
+package com.yeobaek.feature.home.model
+
+data class CurrentlyReadingBookUiModel(
+    val groupName: String,
+    val title: String,
+    val coverImageUrl: String,
+    val authors: String,
+    val progressRate: Int,
+)
