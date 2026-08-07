@@ -14,7 +14,9 @@ import watson.backend.club.domain.ClubMember;
 import watson.backend.club.domain.JoinCodeGenerator;
 import watson.backend.club.dto.ClubBookResponse;
 import watson.backend.club.dto.ClubCreateResponse;
+import watson.backend.club.dto.ClubDetailResponse;
 import watson.backend.club.dto.ClubJoinResponse;
+import watson.backend.club.dto.ClubMemberResponse;
 import watson.backend.club.dto.MyClubResponse;
 import watson.backend.club.dto.MyClubsResponse;
 import watson.backend.club.dto.MyProgressResponse;
@@ -23,6 +25,7 @@ import watson.backend.club.repository.ClubMemberRepository;
 import watson.backend.club.repository.ClubRepository;
 import watson.backend.member.repository.MemberRepository;
 import watson.backend.support.ErrorCode;
+import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 
 @Service
@@ -77,6 +80,25 @@ public class ClubService {
                             toMyProgress(clubMember));
                 })
                 .toList());
+    }
+
+    @Transactional(readOnly = true)
+    public ClubDetailResponse findDetail(Long memberId, Long clubId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+        List<ClubMember> clubMembers = clubMemberRepository.findAllWithMemberByClubId(clubId);
+        ClubMember myMembership = clubMembers.stream()
+                .filter(clubMember -> clubMember.isOwnedBy(memberId))
+                .findFirst()
+                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+        Book book = club.getBook();
+        return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
+                ClubBookResponse.of(book, authorNames(book)),
+                toMyProgress(myMembership),
+                clubMembers.stream()
+                        .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
+                                clubMember.getMember().getNickname(), clubMember.isOwnedBy(memberId)))
+                        .toList());
     }
 
     private MyProgressResponse toMyProgress(ClubMember clubMember) {

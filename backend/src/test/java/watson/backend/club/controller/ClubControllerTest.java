@@ -22,13 +22,16 @@ import org.springframework.restdocs.payload.PayloadDocumentation;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import watson.backend.club.dto.ClubBookResponse;
 import watson.backend.club.dto.ClubCreateResponse;
+import watson.backend.club.dto.ClubDetailResponse;
 import watson.backend.club.dto.ClubJoinResponse;
+import watson.backend.club.dto.ClubMemberResponse;
 import watson.backend.club.dto.MyClubResponse;
 import watson.backend.club.dto.MyClubsResponse;
 import watson.backend.club.dto.MyProgressResponse;
 import watson.backend.club.service.ClubService;
 import watson.backend.support.ControllerTest;
 import watson.backend.support.ErrorCode;
+import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 
 @WebMvcTest(ClubController.class)
@@ -149,5 +152,54 @@ class ClubControllerTest extends ControllerTest {
                                 PayloadDocumentation.fieldWithPath("clubs[].myProgress.progressRate").description("진도율 (0~100 정수, 반올림)").optional(),
                                 PayloadDocumentation.fieldWithPath("clubs[].myProgress.lastReadAt").description("마지막으로 읽은 시간").optional())
                         .build())));
+    }
+
+    @Test
+    @DisplayName("모임 상세를 조회한다")
+    void findClubDetail() throws Exception {
+        givenValidMember(1L);
+        given(clubService.findDetail(1L, 1L)).willReturn(new ClubDetailResponse(
+                1L, "교환독서 1기", "A3F9KQ",
+                new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312),
+                new MyProgressResponse(42, 13, LocalDateTime.of(2026, 8, 5, 14, 30)),
+                List.of(new ClubMemberResponse(1L, "민서", true), new ClubMemberResponse(2L, "지수", false))));
+
+        mockMvc.perform(get("/api/clubs/1").header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.joinCode").value("A3F9KQ"))
+                .andExpect(jsonPath("$.members[0].mine").value(true))
+                .andDo(document("club-detail", resource(ResourceSnippetParameters.builder()
+                        .tag("모임")
+                        .summary("모임 상세 조회")
+                        .description("모임 상세 화면용: 초대 코드, 참여자 목록(참여 시각 오름차순), 내 진도. 모임 미소속은 403(NOT_CLUB_MEMBER).")
+                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
+                        .responseFields(
+                                PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
+                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
+                                PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드 (전역 unique, 영구 고정)"),
+                                PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
+                                PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
+                                PayloadDocumentation.fieldWithPath("book.authors[]").description("작가 이름 목록"),
+                                PayloadDocumentation.fieldWithPath("book.passageCount").description("본문 개수"),
+                                PayloadDocumentation.fieldWithPath("myProgress").description("내 진도 (읽기 시작 전이면 null)").optional(),
+                                PayloadDocumentation.fieldWithPath("myProgress.lastReadPassageSequence").description("최근 열람 본문의 전체 순서").optional(),
+                                PayloadDocumentation.fieldWithPath("myProgress.progressRate").description("진도율 (0~100 정수, 반올림)").optional(),
+                                PayloadDocumentation.fieldWithPath("myProgress.lastReadAt").description("마지막으로 읽은 시간").optional(),
+                                PayloadDocumentation.fieldWithPath("members[].memberId").description("회원 ID"),
+                                PayloadDocumentation.fieldWithPath("members[].nickname").description("닉네임"),
+                                PayloadDocumentation.fieldWithPath("members[].mine").description("요청자 본인 여부"))
+                        .build())));
+    }
+
+    @Test
+    @DisplayName("모임 미소속 회원의 상세 조회는 403을 응답한다")
+    void rejectDetailForOutsider() throws Exception {
+        givenValidMember(1L);
+        given(clubService.findDetail(anyLong(), anyLong()))
+                .willThrow(new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+
+        mockMvc.perform(get("/api/clubs/1").header("X-Member-Id", "1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_CLUB_MEMBER"));
     }
 }
