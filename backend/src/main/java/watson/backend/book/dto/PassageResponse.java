@@ -5,7 +5,6 @@ public record PassageResponse(
         int sequence,
         Long chapterId,
         String content,
-        String imageUrl,
         long commentCount
 ) {
 }

@@ -112,10 +112,10 @@ class BookServiceTest extends RepositoryTest {
         Chapter first = chapterRepository.save(new Chapter(book, "1장", 1));
         Chapter second = chapterRepository.save(new Chapter(book, "2장", 2));
         for (int sequence = 1; sequence <= 3; sequence++) {
-            passageRepository.save(new Passage(first, sequence, "본문 " + sequence, null));
+            passageRepository.save(new Passage(first, sequence, "본문 " + sequence));
         }
         for (int sequence = 4; sequence <= 5; sequence++) {
-            passageRepository.save(new Passage(second, sequence, "본문 " + sequence, null));
+            passageRepository.save(new Passage(second, sequence, "본문 " + sequence));
         }
 
         BookDetailResponse response = bookService.findBook(book.getId());

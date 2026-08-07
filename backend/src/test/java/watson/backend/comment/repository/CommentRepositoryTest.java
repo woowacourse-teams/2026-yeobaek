@@ -48,7 +48,7 @@ class CommentRepositoryTest extends RepositoryTest {
     void saveSetsCreatedAt() {
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, "본문", null));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, "본문"));
         Member member = memberRepository.save(new Member("민서"));
         Club club = clubRepository.save(new Club("1기", book, "CODE03"));
         ClubMember clubMember = clubMemberRepository.save(new ClubMember(member, club));

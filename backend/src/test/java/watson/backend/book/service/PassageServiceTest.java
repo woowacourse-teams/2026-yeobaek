@@ -64,7 +64,7 @@ class PassageServiceTest extends RepositoryTest {
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 5));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         for (int sequence = 1; sequence <= 5; sequence++) {
-            passageRepository.save(new Passage(chapter, sequence, "본문 " + sequence, null));
+            passageRepository.save(new Passage(chapter, sequence, "본문 " + sequence));
         }
         reader = memberRepository.save(new Member("민서"));
         outsider = memberRepository.save(new Member("외부인"));

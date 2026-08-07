@@ -38,7 +38,7 @@ class ClubMemberTest {
     void progressRateDelegatesTotalPassageCountToClub() {
         Book book = new Book("제목", null, null, 4);
         Chapter chapter = new Chapter(book, "1장", 1);
-        Passage passage = new Passage(chapter, 3, "본문", null);
+        Passage passage = new Passage(chapter, 3, "본문");
         Club club = new Club("1기", book, "CODE01");
         ClubMember clubMember = new ClubMember(new Member("민서"), club);
 

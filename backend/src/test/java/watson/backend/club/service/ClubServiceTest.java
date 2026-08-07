@@ -128,7 +128,7 @@ class ClubServiceTest extends RepositoryTest {
     void findMyClubsWithProgress() {
         Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2", null));
+        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
         ClubCreateResponse first = clubService.create(creator.getId(), "1기", book.getId());
         ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));

@@ -30,16 +30,20 @@ public class Passage {
     @Column(nullable = false)
     private int sequence;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    private String imageUrl;
-
-    public Passage(Chapter chapter, int sequence, String content, String imageUrl) {
+    public Passage(Chapter chapter, int sequence, String content) {
+        validate(content);
         this.chapter = chapter;
         this.sequence = sequence;
         this.content = content;
-        this.imageUrl = imageUrl;
+    }
+
+    private static void validate(String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("본문 내용은 공백이 아닌 텍스트여야 합니다.");
+        }
     }
 
     public boolean belongsTo(Book book) {

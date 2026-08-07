@@ -17,7 +17,7 @@ class ClubTest {
         Book book = new Book("제목", null, null, 1);
         ReflectionTestUtils.setField(book, "id", 1L);
         Chapter chapter = new Chapter(book, "1장", 1);
-        Passage passage = new Passage(chapter, 1, "본문", null);
+        Passage passage = new Passage(chapter, 1, "본문");
         Club club = new Club("1기", book, "CODE01");
 
         assertThat(club.isReading(passage)).isTrue();
@@ -31,7 +31,7 @@ class ClubTest {
         Book otherBook = new Book("다른 제목", null, null, 1);
         ReflectionTestUtils.setField(otherBook, "id", 2L);
         Chapter otherChapter = new Chapter(otherBook, "1장", 1);
-        Passage otherPassage = new Passage(otherChapter, 1, "다른 본문", null);
+        Passage otherPassage = new Passage(otherChapter, 1, "다른 본문");
         Club club = new Club("1기", book, "CODE01");
 
         assertThat(club.isReading(otherPassage)).isFalse();
