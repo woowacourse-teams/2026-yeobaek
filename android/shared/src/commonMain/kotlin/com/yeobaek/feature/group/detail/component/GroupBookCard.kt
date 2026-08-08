@@ -35,7 +35,7 @@ import coil3.compose.AsyncImage
 왜냐하면 클릭 이벤트가 있으며, 클릭에 따라 아이콘 컴포넌트가 생성 및 삭제, 테두리의 강조 등의 기능이 부가적으로 있기 때문이다.
  */
 @Composable
-fun BookInfoCard(
+fun GroupBookCard(
     uri: String,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
@@ -75,8 +75,8 @@ fun BookInfoCard(
 
 @Preview(showBackground = true, name = "책 아이템")
 @Composable
-private fun YeobaekBookItemPreview() {
-    BookInfoCard(
+private fun YeobaekGroupBookItemPreview() {
+    GroupBookCard(
         uri = "",
     ) {
         Box(modifier = Modifier)
@@ -85,8 +85,8 @@ private fun YeobaekBookItemPreview() {
 
 @Preview(showBackground = true, name = "모임에서 책 아이템")
 @Composable
-private fun YeobaekBookItemForHomePreview() {
-    BookInfoCard(
+private fun YeobaekGroupBookItemForHomePreview() {
+    GroupBookCard(
         uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg?t=2976410",
     ) {
         Column(
