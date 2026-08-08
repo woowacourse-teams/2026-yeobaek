@@ -19,18 +19,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
 import com.yeobaek.feature.group.detail.component.GroupBookCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
+import kotlinx.coroutines.launch
 
 @Composable
 fun DetailScreen(
@@ -38,6 +42,8 @@ fun DetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by remember { mutableStateOf(detailStateHolder.uiState) }
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier
@@ -79,6 +85,11 @@ fun DetailScreen(
             // 초대 코드 컴포넌트
             InviteCodeCard(
                 groupCode = uiState.groupUiModel.groupCode,
+                onClick = {
+                    coroutineScope.launch {
+                        clipboard.setClipEntry(uiState.groupUiModel.groupCode.toClipEntry())
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(24.dp))

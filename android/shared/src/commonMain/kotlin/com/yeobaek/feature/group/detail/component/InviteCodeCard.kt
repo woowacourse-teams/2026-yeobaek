@@ -31,6 +31,7 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun InviteCodeCard(
     groupCode: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -70,7 +71,7 @@ fun InviteCodeCard(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
                 shape = MaterialTheme.shapes.medium,
-                onClick = {},
+                onClick = onClick,
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_copy),
@@ -87,6 +88,7 @@ private fun InviteCodeCardPreview() {
     YeobaekTheme {
         InviteCodeCard(
             groupCode = "BOOK42",
+            onClick = {},
         )
     }
 }
