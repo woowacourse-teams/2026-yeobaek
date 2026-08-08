@@ -4,5 +4,5 @@ data class BookUiModel(
     val uri: String = "",
     val title: String = "",
     val author: String = "",
-    val currentProgress: Float = 0f
+    val currentProgress: Float = 0f,
 )

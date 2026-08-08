@@ -36,6 +36,51 @@ class DetailStateHolder {
                     UserUiModel(
                         name = "하로3",
                     ),
+                    UserUiModel(
+                        name = "하로",
+                    ),
+                    UserUiModel(
+                        name = "하로2",
+                    ),
+                    UserUiModel(
+                        name = "하로3",
+                    ),
+                    UserUiModel(
+                        name = "하로",
+                    ),
+                    UserUiModel(
+                        name = "하로2",
+                    ),
+                    UserUiModel(
+                        name = "하로3",
+                    ),
+                    UserUiModel(
+                        name = "하로",
+                    ),
+                    UserUiModel(
+                        name = "하로2",
+                    ),
+                    UserUiModel(
+                        name = "하로3",
+                    ),
+                    UserUiModel(
+                        name = "하로",
+                    ),
+                    UserUiModel(
+                        name = "하로2",
+                    ),
+                    UserUiModel(
+                        name = "하로3",
+                    ),
+                    UserUiModel(
+                        name = "하로",
+                    ),
+                    UserUiModel(
+                        name = "하로2",
+                    ),
+                    UserUiModel(
+                        name = "하로3",
+                    ),
                 ),
             ),
         )
