@@ -23,13 +23,16 @@ import watson.backend.book.repository.PassageRepository;
 import watson.backend.club.domain.ClubMember;
 import watson.backend.club.domain.JoinCodeGenerator;
 import watson.backend.club.dto.ClubCreateResponse;
+import watson.backend.club.dto.ClubDetailResponse;
 import watson.backend.club.dto.ClubJoinResponse;
+import watson.backend.club.dto.ClubMemberResponse;
 import watson.backend.club.dto.MyClubResponse;
 import watson.backend.club.dto.MyClubsResponse;
 import watson.backend.club.repository.ClubMemberRepository;
 import watson.backend.club.repository.ClubRepository;
 import watson.backend.member.domain.Member;
 import watson.backend.member.repository.MemberRepository;
+import watson.backend.support.ForbiddenException;
 import watson.backend.support.NotFoundException;
 import watson.backend.support.RepositoryTest;
 
@@ -128,7 +131,7 @@ class ClubServiceTest extends RepositoryTest {
     void findMyClubsWithProgress() {
         Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2", null));
+        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
         ClubCreateResponse first = clubService.create(creator.getId(), "1기", book.getId());
         ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));
@@ -150,5 +153,55 @@ class ClubServiceTest extends RepositoryTest {
         assertThat(firstClub.myProgress()).isNull();
         assertThat(progressClub.myProgress().lastReadPassageSequence()).isEqualTo(2);
         assertThat(progressClub.myProgress().progressRate()).isEqualTo(67);
+    }
+
+    @Test
+    @DisplayName("모임 상세에 참여 코드·참여 순서의 회원 목록·내 진도가 함께 조회된다")
+    void findDetailWithMembersAndProgress() {
+        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
+        Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
+        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
+        ClubCreateResponse created = clubService.create(creator.getId(), "1기", smallBook.getId());
+        Member joiner = memberRepository.save(new Member("지수"));
+        clubService.join(joiner.getId(), created.joinCode());
+        ClubMember myMembership = clubMemberRepository
+                .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
+        myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
+        clubMemberRepository.saveAndFlush(myMembership);
+
+        ClubDetailResponse response = clubService.findDetail(creator.getId(), created.clubId());
+
+        assertThat(response.joinCode()).isEqualTo(created.joinCode());
+        assertThat(response.members()).extracting(ClubMemberResponse::nickname).containsExactly("민서", "지수");
+        assertThat(response.members()).extracting(ClubMemberResponse::mine).containsExactly(true, false);
+        assertThat(response.myProgress().lastReadPassageSequence()).isEqualTo(2);
+        assertThat(response.myProgress().progressRate()).isEqualTo(67);
+    }
+
+    @Test
+    @DisplayName("읽기 시작 전이면 모임 상세의 내 진도는 null이다")
+    void findDetailWithoutProgress() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+
+        ClubDetailResponse response = clubService.findDetail(creator.getId(), created.clubId());
+
+        assertThat(response.myProgress()).isNull();
+    }
+
+    @Test
+    @DisplayName("모임에 참여하지 않은 회원의 상세 조회는 거부된다")
+    void rejectDetailForOutsider() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+        Member outsider = memberRepository.save(new Member("외부인"));
+
+        assertThatThrownBy(() -> clubService.findDetail(outsider.getId(), created.clubId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 모임의 상세 조회는 거부된다")
+    void rejectDetailForUnknownClub() {
+        assertThatThrownBy(() -> clubService.findDetail(creator.getId(), 999L))
+                .isInstanceOf(NotFoundException.class);
     }
 }

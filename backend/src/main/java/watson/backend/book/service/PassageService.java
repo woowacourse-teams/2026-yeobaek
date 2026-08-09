@@ -43,7 +43,7 @@ public class PassageService {
                 .collect(Collectors.toMap(PassageCommentCount::getPassageId, PassageCommentCount::getCommentCount));
         return new PassagesResponse(passages.stream()
                 .map(passage -> new PassageResponse(passage.getId(), passage.getSequence(),
-                        passage.getChapter().getId(), passage.getContent(), passage.getImageUrl(),
+                        passage.getChapter().getId(), passage.getContent(),
                         commentCounts.getOrDefault(passage.getId(), 0L)))
                 .toList());
     }

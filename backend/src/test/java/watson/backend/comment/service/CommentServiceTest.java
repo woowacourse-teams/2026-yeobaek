@@ -65,7 +65,7 @@ class CommentServiceTest extends RepositoryTest {
     void setUp() {
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        passage = passageRepository.save(new Passage(chapter, 1, "본문 1", null));
+        passage = passageRepository.save(new Passage(chapter, 1, "본문 1"));
         writer = memberRepository.save(new Member("민서"));
         other = memberRepository.save(new Member("지수"));
         club = clubRepository.save(new Club("1기", book, "CODE01"));
@@ -166,7 +166,7 @@ class CommentServiceTest extends RepositoryTest {
     void rejectPassageOfOtherBook() {
         Book otherBook = bookRepository.save(new Book("다른 책", null, null, 1));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, "1장", 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, "다른 본문", null));
+        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, "다른 본문"));
 
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(), otherPassage.getId(), "댓글"))
                 .isInstanceOf(IllegalArgumentException.class);

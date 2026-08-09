@@ -1,0 +1,37 @@
+# EC2 배포용 구성. 서버의 ~/yeobaek/docker-compose.yml로 복사해 사용한다 (docs/배포_가이드.md).
+# 같은 디렉터리의 .env에서 DOCKERHUB_USERNAME, DB_PASSWORD, ADMIN_TOKEN을 읽는다.
+services:
+  app:
+    image: ${DOCKERHUB_USERNAME}/yeobaek-backend:latest
+    container_name: yeobaek-app
+    restart: unless-stopped
+    # nginx가 호스트에서 프록시하므로 로컬호스트에만 바인딩한다
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/yeobaek
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    container_name: yeobaek-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: yeobaek
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  mysql-data:

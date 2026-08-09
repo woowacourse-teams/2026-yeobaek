@@ -34,14 +34,12 @@ class BookMappingTest extends RepositoryTest {
     void bookChapterPassageMapping() {
         Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 2));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        passageRepository.save(new Passage(chapter, 1, "새침하게 흐린 품이 눈이 올 듯하더니...", null));
-        Passage image = passageRepository.save(new Passage(chapter, 2, null, "https://example.com/1.png"));
+        Passage saved = passageRepository.save(new Passage(chapter, 1, "새침하게 흐린 품이 눈이 올 듯하더니..."));
 
-        Passage found = passageRepository.findById(image.getId()).orElseThrow();
+        Passage found = passageRepository.findById(saved.getId()).orElseThrow();
 
-        assertThat(found.getSequence()).isEqualTo(2);
-        assertThat(found.getContent()).isNull();
-        assertThat(found.getImageUrl()).isEqualTo("https://example.com/1.png");
+        assertThat(found.getSequence()).isEqualTo(1);
+        assertThat(found.getContent()).isEqualTo("새침하게 흐린 품이 눈이 올 듯하더니...");
         assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
     }
 

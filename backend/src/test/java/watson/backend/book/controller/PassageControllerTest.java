@@ -36,8 +36,8 @@ class PassageControllerTest extends ControllerTest {
     void findPassages() throws Exception {
         givenValidMember(1L);
         given(passageService.findPassages(1L, 1L, 42, 43)).willReturn(new PassagesResponse(List.of(
-                new PassageResponse(1042L, 42, 2L, "새침하게 흐린 품이 눈이 올 듯하더니...", null, 3),
-                new PassageResponse(1043L, 43, 2L, null, "https://example.com/1.png", 0))));
+                new PassageResponse(1042L, 42, 2L, "새침하게 흐린 품이 눈이 올 듯하더니...", 3),
+                new PassageResponse(1043L, 43, 2L, "얼다가 만 비가 추적추적 내리었다.", 0))));
 
         mockMvc.perform(get("/api/clubs/1/passages?from=42&to=43").header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
@@ -55,8 +55,7 @@ class PassageControllerTest extends ControllerTest {
                                 PayloadDocumentation.fieldWithPath("passages[].passageId").description("본문 ID"),
                                 PayloadDocumentation.fieldWithPath("passages[].sequence").description("책 전체 기준 순서"),
                                 PayloadDocumentation.fieldWithPath("passages[].chapterId").description("소속 목차 ID"),
-                                PayloadDocumentation.fieldWithPath("passages[].content").description("본문 텍스트 (이미지 문단이면 null)").optional(),
-                                PayloadDocumentation.fieldWithPath("passages[].imageUrl").description("이미지 URL (텍스트 문단이면 null)").optional(),
+                                PayloadDocumentation.fieldWithPath("passages[].content").description("본문 텍스트"),
                                 PayloadDocumentation.fieldWithPath("passages[].commentCount").description("이 모임의 댓글 수"))
                         .build())));
     }

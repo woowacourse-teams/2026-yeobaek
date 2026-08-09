@@ -105,6 +105,7 @@
 ```json
 { "name": "교환독서 1기", "bookId": 1 }
 ```
+- `name`: 1~20자, 공백만은 불가 (2026-08-07 추가 — 프로토타입 대조 결정).
 
 응답 `201` — 생성자는 자동으로 모임에 참여된다:
 ```json
@@ -159,6 +160,33 @@
 - `myProgress`: 아직 읽기 시작 전이면 `null`.
 - `progressRate`: 0~100 정수 (반올림). `lastReadPassageSequence ÷ passageCount × 100`.
 
+### 모임 상세 (2026-08-07 추가 — 프로토타입 대조 결정)
+`GET /api/clubs/{clubId}`
+
+모임 상세 화면용: 초대 코드 표시·복사, 참여자 목록, 내 진행률.
+
+응답 `200`:
+```json
+{
+  "clubId": 1,
+  "name": "교환독서 1기",
+  "joinCode": "A3F9KQ",
+  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312 },
+  "myProgress": {
+    "lastReadPassageSequence": 42,
+    "progressRate": 13,
+    "lastReadAt": "2026-08-05T14:30:00"
+  },
+  "members": [
+    { "memberId": 1, "nickname": "민서", "mine": true },
+    { "memberId": 2, "nickname": "지수", "mine": false }
+  ]
+}
+```
+- `myProgress`: 내 모임 목록과 동일 형태. 아직 읽기 시작 전이면 `null`.
+- `members`: 참여 시각 오름차순. `mine`은 요청자(`X-Member-Id`) 본인 여부 (댓글의 `mine`과 동일 규약).
+- 모임 미소속 회원: `403` (`NOT_CLUB_MEMBER`). 존재하지 않는 모임: `400` (`CLUB_NOT_FOUND`).
+
 ## 4. 읽기 · 진도
 
 읽기는 항상 모임 맥락에서 이루어진다 (진도·댓글이 모임 단위이므로).
@@ -178,13 +206,12 @@
       "sequence": 42,
       "chapterId": 2,
       "content": "새침하게 흐린 품이 눈이 올 듯하더니...",
-      "imageUrl": null,
       "commentCount": 3
     }
   ]
 }
 ```
-- `content`와 `imageUrl` 중 하나 이상 존재. `commentCount`는 이 모임의 댓글 수.
+- `content`는 항상 존재한다 (2026-08-07 개정 — 이미지 미제공 결정으로 `imageUrl` 필드 제거). `commentCount`는 이 모임의 댓글 수.
 
 ### 진도 갱신 (최근 열람 보고)
 `PUT /api/clubs/{clubId}/progress`
@@ -353,6 +380,7 @@
 | POST | /api/clubs | 모임 생성 |
 | POST | /api/clubs/join | 참여 코드로 참여 |
 | GET | /api/clubs | 내 모임 목록 |
+| GET | /api/clubs/{clubId} | 모임 상세 (초대 코드 · 참여자 목록) |
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
 | PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |

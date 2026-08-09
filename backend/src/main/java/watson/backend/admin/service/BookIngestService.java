@@ -161,7 +161,7 @@ public class BookIngestService {
             Chapter chapter = chapterRepository.save(new Chapter(book, chapterRequest.title(), chapterSequence));
             chapterSequence++;
             for (PassageUploadRequest passageRequest : chapterRequest.passages()) {
-                passageRepository.save(new Passage(chapter, passageSequence, passageRequest.content(), null));
+                passageRepository.save(new Passage(chapter, passageSequence, passageRequest.content()));
                 passageSequence++;
             }
         }

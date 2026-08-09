@@ -53,7 +53,7 @@ public class DevDataSeeder implements CommandLineRunner {
         for (int chapterIndex = 1; chapterIndex <= CHAPTER_COUNT; chapterIndex++) {
             Chapter chapter = chapterRepository.save(new Chapter(book, chapterIndex + "장", chapterIndex));
             for (int i = 0; i < PASSAGES_PER_CHAPTER; i++) {
-                passageRepository.save(new Passage(chapter, sequence, paragraphs.get(sequence - 1), null));
+                passageRepository.save(new Passage(chapter, sequence, paragraphs.get(sequence - 1)));
                 sequence++;
             }
         }
