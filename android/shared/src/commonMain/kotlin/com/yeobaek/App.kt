@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.ReaderHomeScreen
-import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
+import com.yeobaek.feature.home.rememberReaderHomeStateHolder
 
 @Composable
 @Preview
@@ -30,14 +30,10 @@ fun App() {
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            val readerHomeStateHolder = rememberReaderHomeStateHolder()
+
             ReaderHomeScreen(
-                bookUiModel = CurrentlyReadingBookUiModel(
-                    groupName = "고전 읽는 오후 모임",
-                    title = "데미안",
-                    coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
-                    authors = "헤르만 헤세",
-                    progressRate = 12,
-                ),
+                uiState = readerHomeStateHolder.uiState,
             )
         }
     }

@@ -17,15 +17,18 @@ import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 
 @Composable
 fun ReaderHomeScreen(
-    bookUiModel: CurrentlyReadingBookUiModel,
+    uiState: ReaderHomeUiState,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
         AppTitle(title = "여백")
-        Spacer(modifier = Modifier.height(36.dp))
-        CurrentlyReadingBookSection(bookUiModel = bookUiModel)
+
+        uiState.currentlyReadingBookUiModel?.let { book ->
+            Spacer(modifier = Modifier.height(36.dp))
+            CurrentlyReadingBookSection(bookUiModel = book)
+        }
     }
 }
 
@@ -48,12 +51,14 @@ private fun AppTitle(
 private fun ReaderHomeScreenPreview() {
     YeobaekTheme {
         ReaderHomeScreen(
-            bookUiModel = CurrentlyReadingBookUiModel(
-                groupName = "고전 읽는 오후 모임",
-                title = "데미안",
-                coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
-                authors = "헤르만 헤세",
-                progressRate = 12,
+            uiState = ReaderHomeUiState(
+                currentlyReadingBookUiModel = CurrentlyReadingBookUiModel(
+                    groupName = "고전 읽는 오후 모임",
+                    title = "데미안",
+                    coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
+                    authors = "헤르만 헤세",
+                    progressRate = 12,
+                ),
             ),
         )
     }
