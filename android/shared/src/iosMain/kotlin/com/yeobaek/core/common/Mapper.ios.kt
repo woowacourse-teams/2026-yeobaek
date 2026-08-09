@@ -5,3 +5,5 @@ import androidx.compose.ui.platform.ClipEntry
 
 @OptIn(ExperimentalComposeUiApi::class)
 actual fun String.toClipEntry(): ClipEntry = ClipEntry.withPlainText(this)
+
+actual fun shouldCopySnackbar(): Boolean = true

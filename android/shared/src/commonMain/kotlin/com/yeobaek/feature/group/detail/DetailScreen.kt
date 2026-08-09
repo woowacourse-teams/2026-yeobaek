@@ -14,9 +14,15 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +30,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -41,6 +48,7 @@ fun DetailScreen(
     val uiState = detailStateHolder.uiState
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         modifier = modifier
@@ -61,6 +69,11 @@ fun DetailScreen(
                     modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
                 )
             }
+        },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
@@ -85,6 +98,14 @@ fun DetailScreen(
                 onClick = {
                     coroutineScope.launch {
                         clipboard.setClipEntry(uiState.groupUiModel.groupCode.toClipEntry())
+                        snackbarHostState.currentSnackbarData?.dismiss()
+
+                        if (shouldCopySnackbar()) {
+                            snackbarHostState.showSnackbar(
+                                message = "초대 코드를 복사했습니다.",
+                                duration = SnackbarDuration.Short,
+                            )
+                        }
                     }
                 },
                 modifier = Modifier.padding(horizontal = 16.dp),
