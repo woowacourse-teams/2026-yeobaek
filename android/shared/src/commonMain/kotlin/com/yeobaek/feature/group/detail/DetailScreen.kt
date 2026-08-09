@@ -16,9 +16,6 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +38,7 @@ fun DetailScreen(
     detailStateHolder: DetailStateHolder = DetailStateHolder(),
     modifier: Modifier = Modifier,
 ) {
-    val uiState by remember { mutableStateOf(detailStateHolder.uiState) }
+    val uiState = detailStateHolder.uiState
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
 
