@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,8 +13,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yeobaek.core.designsystem.theme.YeobaekAccent
-import com.yeobaek.core.designsystem.theme.YeobaekSoft
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
@@ -33,10 +30,10 @@ fun ReadingProgressIndicator(
             modifier = Modifier
                 .weight(1f)
                 .height(6.dp),
-            color = YeobaekAccent,
-            trackColor = YeobaekSoft,
-            strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+            color = MaterialTheme.colorScheme.secondary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
             drawStopIndicator = {},
+            gapSize = (-4).dp,
         )
         Text(
             text = "$progressRate%",
