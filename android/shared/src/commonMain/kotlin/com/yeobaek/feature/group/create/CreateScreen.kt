@@ -1,30 +1,21 @@
 package com.yeobaek.feature.group.create
 
-import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
+import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.component.CreateBookChooseCard
 import com.yeobaek.feature.group.create.component.CreateGroupNameCard
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CreateScreen(
@@ -38,25 +29,9 @@ fun CreateScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("새로운 모임 만들기")
-                },
-                modifier = Modifier.fillMaxWidth(),
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBackClick,
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_back_arrow),
-                            contentDescription = "뒤로가기 아이콘",
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+            YeobaekTopAppBar(
+                title = "새로운 모임 만들기",
+                onBackClick = onBackClick,
             )
         },
         bottomBar = {

@@ -1,7 +1,5 @@
 package com.yeobaek.feature.group.join
 
-import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -12,12 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,8 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTextField
+import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun JoinScreen(
@@ -45,24 +40,9 @@ fun JoinScreen(
             .padding(horizontal = 16.dp)
             .fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("모임 참여하기")
-                },
-                navigationIcon = {
-                    Box(
-                        modifier = Modifier.size(16.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_back_arrow),
-                            contentDescription = "뒤로가기 아이콘",
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+            YeobaekTopAppBar(
+                title = "모임 참여하기",
+                onBackClick = {},
             )
         },
     ) { innerPadding ->
