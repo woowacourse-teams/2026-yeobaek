@@ -6,12 +6,33 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.yeobaek.feature.reader.model.PassageUiModel
+import com.yeobaek.feature.reader.model.ReaderFontSize
 
 class ReaderStateHolder(
     initialUiState: ReaderUiState = ReaderUiState(),
 ) {
     var uiState by mutableStateOf(initialUiState)
         private set
+
+    fun toggleTextSettingMenu() {
+        uiState = uiState.copy(
+            isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,
+        )
+    }
+
+    fun dismissTextSettingMenu() {
+        uiState = uiState.copy(
+            isTextSettingMenuExpanded = false,
+        )
+    }
+
+    fun updateFontSize(fontSize: Int) {
+        if (fontSize !in ReaderFontSize.options) return
+
+        uiState = uiState.copy(
+            fontSize = fontSize,
+        )
+    }
 }
 
 val passages: List<PassageUiModel> = listOf(

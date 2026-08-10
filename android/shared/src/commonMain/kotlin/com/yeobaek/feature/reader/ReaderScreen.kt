@@ -25,6 +25,8 @@ fun ReaderScreen(
     onPassageClick: (PassageUiModel) -> Unit,
     onBackClick: () -> Unit,
     onTextSettingClick: () -> Unit,
+    onTextSettingDismiss: () -> Unit,
+    onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -35,8 +37,12 @@ fun ReaderScreen(
             ReaderTopBar(
                 title = uiState.title,
                 author = uiState.author,
+                fontSize = uiState.fontSize,
+                isTextSettingMenuExpanded = uiState.isTextSettingMenuExpanded,
                 onBackClick = onBackClick,
                 onTextSettingClick = onTextSettingClick,
+                onTextSettingDismiss = onTextSettingDismiss,
+                onFontSizeChange = onFontSizeChange,
             )
         },
         bottomBar = {
@@ -48,6 +54,7 @@ fun ReaderScreen(
     ) { innerPadding ->
         ReaderContent(
             passages = uiState.passages,
+            fontSize = uiState.fontSize,
             listState = listState,
             onPassageClick = onPassageClick,
             modifier = Modifier.padding(innerPadding),
@@ -58,6 +65,7 @@ fun ReaderScreen(
 @Composable
 private fun ReaderContent(
     passages: List<PassageUiModel>,
+    fontSize: Int,
     listState: LazyListState,
     onPassageClick: (PassageUiModel) -> Unit,
     modifier: Modifier = Modifier,
@@ -77,6 +85,7 @@ private fun ReaderContent(
         ) { passage ->
             PassageItem(
                 passage = passage,
+                fontSize = fontSize,
                 onClick = {
                     onPassageClick(passage)
                 },
@@ -101,6 +110,8 @@ private fun ReaderScreenPreview() {
             onPassageClick = {},
             onBackClick = {},
             onTextSettingClick = {},
+            onTextSettingDismiss = {},
+            onFontSizeChange = {},
         )
     }
 }

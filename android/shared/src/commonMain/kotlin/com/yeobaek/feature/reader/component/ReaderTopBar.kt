@@ -5,9 +5,12 @@ import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,14 +24,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.reader.model.ReaderFontSize
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun ReaderTopBar(
     title: String,
     author: String,
+    fontSize: Int,
+    isTextSettingMenuExpanded: Boolean,
     onBackClick: () -> Unit,
     onTextSettingClick: () -> Unit,
+    onTextSettingDismiss: () -> Unit,
+    onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -74,15 +82,32 @@ fun ReaderTopBar(
 
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .noRippleClickable(onClick = onTextSettingClick),
+                .align(Alignment.CenterEnd),
         ) {
-            Text(
-                text = "가",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                ),
+            Row(
+                modifier = Modifier.noRippleClickable(onClick = onTextSettingClick),
+            ) {
+                Text(
+                    text = "가",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+                Spacer(modifier = Modifier.width(1.dp))
+                Text(
+                    text = "가",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                )
+            }
+            ReaderTextSettingMenu(
+                expanded = isTextSettingMenuExpanded,
+                fontSize = fontSize,
+                onDismissRequest = onTextSettingDismiss,
+                onFontSizeChange = onFontSizeChange,
             )
         }
     }
@@ -95,8 +120,12 @@ private fun ReaderTopBarPreview() {
         ReaderTopBar(
             title = "데미안",
             author = "헤르만 헤세",
+            fontSize = ReaderFontSize.DEFAULT,
+            isTextSettingMenuExpanded = true,
             onBackClick = {},
             onTextSettingClick = {},
+            onTextSettingDismiss = {},
+            onFontSizeChange = {},
         )
     }
 }

@@ -24,6 +24,7 @@ import com.yeobaek.feature.reader.passages
 @Composable
 fun PassageItem(
     passage: PassageUiModel,
+    fontSize: Int,
     onClick: () -> Unit,
     showUnderline: Boolean,
     modifier: Modifier = Modifier,
@@ -31,7 +32,9 @@ fun PassageItem(
     if (showUnderline) {
         UnderlinedPassageText(
             text = passage.content,
+            fontSize = fontSize,
             onClick = onClick,
+            modifier = modifier,
         )
     } else {
         Text(
@@ -40,6 +43,8 @@ fun PassageItem(
                 .fillMaxWidth()
                 .noRippleClickable(onClick = onClick),
             style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = fontSize.sp,
+                lineHeight = (fontSize * 2f).sp,
                 letterSpacing = 1.sp,
             ),
         )
@@ -49,6 +54,7 @@ fun PassageItem(
 @Composable
 private fun UnderlinedPassageText(
     text: String,
+    fontSize: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -94,6 +100,8 @@ private fun UnderlinedPassageText(
             }
             .noRippleClickable(onClick = onClick),
         style = MaterialTheme.typography.bodyLarge.copy(
+            fontSize = fontSize.sp,
+            lineHeight = (fontSize * 2f).sp,
             letterSpacing = 1.sp,
         ),
     )
@@ -105,6 +113,7 @@ private fun PassageItemPreview() {
     YeobaekTheme {
         PassageItem(
             passage = passages[0],
+            fontSize = 18,
             onClick = {},
             showUnderline = true,
         )

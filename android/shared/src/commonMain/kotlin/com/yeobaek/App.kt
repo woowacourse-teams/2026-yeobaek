@@ -16,7 +16,9 @@ fun App() {
             uiState = readerStateHolder.uiState,
             onPassageClick = {},
             onBackClick = {},
-            onTextSettingClick = {},
+            onTextSettingClick = readerStateHolder::toggleTextSettingMenu,
+            onTextSettingDismiss = readerStateHolder::dismissTextSettingMenu,
+            onFontSizeChange = readerStateHolder::updateFontSize,
         )
     }
 }
