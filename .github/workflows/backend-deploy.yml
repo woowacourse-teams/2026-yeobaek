@@ -42,12 +42,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
+      # EC2가 Graviton(arm64)이라 멀티아키로 빌드한다. amd64 단일 빌드는 exec format error로 기동 불가.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image (amd64+arm64)
         run: |
           IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend"
-          docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
-          docker push "$IMAGE:latest"
-          docker push "$IMAGE:${{ github.sha }}"
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" --push .
 
   deploy:
     needs: build
