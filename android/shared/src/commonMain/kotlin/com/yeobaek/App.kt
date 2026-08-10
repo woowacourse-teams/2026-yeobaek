@@ -19,6 +19,8 @@ fun App() {
             uiState = stateHolder.uiState,
             updateGroupNameValue = stateHolder::updateGroupNameValue,
             selectBook = stateHolder::selectBook,
+            onBackClick = {},
+            onCreateGroup = {},
         )
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,6 +33,8 @@ fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
     selectBook: (Int) -> Unit,
+    onBackClick: () -> Unit,
+    onCreateGroup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -46,10 +49,14 @@ fun CreateScreen(
                     Box(
                         modifier = Modifier.size(16.dp),
                     ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_back_arrow),
-                            contentDescription = "뒤로가기 아이콘",
-                        )
+                        IconButton(
+                            onClick = onBackClick,
+                        ) {
+                            Icon(
+                                painter = painterResource(Res.drawable.ic_back_arrow),
+                                contentDescription = "뒤로가기 아이콘",
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -61,7 +68,7 @@ fun CreateScreen(
         bottomBar = {
             YeobaekButton(
                 text = "모임 생성하고 친구 초대하기",
-                onClick = {},
+                onClick = onCreateGroup,
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
@@ -96,6 +103,8 @@ private fun CreateScreenPreview() {
             uiState = CreateUiState(),
             updateGroupNameValue = {},
             selectBook = {},
+            onBackClick = {},
+            onCreateGroup = {},
         )
     }
 }
