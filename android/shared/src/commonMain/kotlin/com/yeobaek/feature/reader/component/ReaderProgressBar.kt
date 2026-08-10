@@ -20,7 +20,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 fun ReaderProgressBar(
-    progress: Int,
+    progress: Float,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -44,7 +44,7 @@ fun ReaderProgressBar(
                 gapSize = (-4).dp,
             )
             Text(
-                text = "$progress%",
+                text = "${progress.toInt()}%",
                 maxLines = 1,
                 modifier = Modifier.padding(start = 8.dp),
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -62,7 +62,7 @@ fun ReaderProgressBar(
 private fun ReaderProgressBarPreview() {
     YeobaekTheme {
         ReaderProgressBar(
-            progress = 12,
+            progress = 12f,
         )
     }
 }

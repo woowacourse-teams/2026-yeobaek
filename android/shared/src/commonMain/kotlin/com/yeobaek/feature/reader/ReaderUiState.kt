@@ -9,6 +9,6 @@ data class ReaderUiState(
     val currentSequence: Int = 0,
     val totalPassageCount: Int = 0,
 ) {
-    val progress: Int
-        get() = (currentSequence * 100) / totalPassageCount
+    val progress: Float
+        get() = (currentSequence * 100f) / totalPassageCount
 }
