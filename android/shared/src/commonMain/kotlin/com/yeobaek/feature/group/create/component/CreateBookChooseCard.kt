@@ -33,7 +33,7 @@ fun CreateBookChooseCard(
         Spacer(modifier = Modifier.height(12.dp))
         LazyColumn {
             items(items = books, key = { books.indexOf(it) }) { book ->
-                BookCard(
+                CreateBookCard(
                     uri = book.uri,
                     title = book.title,
                     author = book.author,

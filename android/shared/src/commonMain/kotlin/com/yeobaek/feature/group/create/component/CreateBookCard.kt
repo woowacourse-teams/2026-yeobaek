@@ -33,7 +33,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun BookCard(
+fun CreateBookCard(
     uri: String,
     title: String,
     author: String,
@@ -134,9 +134,9 @@ private fun BookInfoCard(
 
 @Preview(showBackground = true, name = "책 아이템")
 @Composable
-private fun YeobaekGroupBookItemPreview() {
+private fun YeobaekGroupCreateBookItemPreview() {
     YeobaekTheme {
-        BookCard(
+        CreateBookCard(
             uri = "",
             title = "",
             author = "",
@@ -149,9 +149,9 @@ private fun YeobaekGroupBookItemPreview() {
 
 @Preview(showBackground = true, name = "모임에서 선택되지 않은 책 아이템")
 @Composable
-private fun YeobaekGroupBookItemNoSelectPreview() {
+private fun YeobaekGroupCreateBookItemNoSelectPreview() {
     YeobaekTheme {
-        BookCard(
+        CreateBookCard(
             uri = "https://i.namu.wiki/i/" +
                 "Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
             title = "미드나잇 라이브러리",
@@ -165,9 +165,9 @@ private fun YeobaekGroupBookItemNoSelectPreview() {
 
 @Preview(showBackground = true, name = "모임에서 선택된 책 아이템")
 @Composable
-private fun YeobaekGroupBookItemSelectedPreview() {
+private fun YeobaekGroupCreateBookItemSelectedPreview() {
     YeobaekTheme {
-        BookCard(
+        CreateBookCard(
             uri = "https://i.namu.wiki/" +
                 "i/Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
             title = "미드나잇 라이브러리",
