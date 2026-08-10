@@ -8,7 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.mock.group.MockGroupData
+import com.yeobaek.data.model.MockData
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStateHolder
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -76,7 +76,7 @@ fun App() {
 
                 val detailStateHolder = DetailStateHolder(
                     groupId = route.id,
-                    mockGroupData = MockGroupData.mockGroupData,
+                    groupModelList = MockData.mockGroups,
                 )
 
                 DetailScreen(
