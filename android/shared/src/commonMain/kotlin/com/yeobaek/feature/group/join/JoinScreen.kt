@@ -14,10 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -34,7 +30,7 @@ fun JoinScreen(
     codeValue: String,
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    onGroupCreateClick: () -> Unit,
+    navigateToDetail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -112,7 +108,7 @@ fun JoinScreen(
             Spacer(modifier = Modifier.height(12.dp))
             YeobaekButton(
                 text = "모임 참여하기",
-                onClick = onGroupCreateClick,
+                onClick = navigateToDetail,
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
@@ -134,7 +130,7 @@ private fun JoinScreenPreview() {
             codeValue = "",
             onCodeValueChange = {},
             onBackClick = {},
-            onGroupCreateClick = {},
+            navigateToDetail = {},
         )
     }
 }

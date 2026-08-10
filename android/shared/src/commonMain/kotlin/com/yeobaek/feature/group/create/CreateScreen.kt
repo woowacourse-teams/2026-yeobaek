@@ -23,7 +23,7 @@ fun CreateScreen(
     updateGroupNameValue: (String) -> Unit,
     selectBook: (Int) -> Unit,
     onBackClick: () -> Unit,
-    onCreateGroup: () -> Unit,
+    navigateToDetail: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -37,7 +37,7 @@ fun CreateScreen(
         bottomBar = {
             YeobaekButton(
                 text = "모임 생성하고 친구 초대하기",
-                onClick = onCreateGroup,
+                onClick = navigateToDetail,
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
@@ -73,7 +73,7 @@ private fun CreateScreenPreview() {
             updateGroupNameValue = {},
             selectBook = {},
             onBackClick = {},
-            onCreateGroup = {},
+            navigateToDetail = {},
         )
     }
 }
