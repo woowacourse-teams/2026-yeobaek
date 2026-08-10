@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.model.BookUiModel
 
@@ -27,7 +26,7 @@ fun CreateBookChooseCard(
     ) {
         CreateStepTitleCard(
             step = "02",
-            title = "함께 읽을 책 선택하기"
+            title = "함께 읽을 책 선택하",
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text("이달의 추천 도서 중에서 골라보세요.", style = MaterialTheme.typography.bodyMedium)

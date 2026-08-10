@@ -14,10 +14,10 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun CreateStepTitleCard(
     step: String,
     title: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Text(
             "STEP $step",
@@ -41,7 +41,7 @@ private fun CreateStepTitleCardPreview() {
     YeobaekTheme {
         CreateStepTitleCard(
             step = "01",
-            title = "모임의 이름을 정해주세요"
+            title = "모임의 이름을 정해주세요",
         )
     }
 }
