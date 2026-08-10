@@ -26,7 +26,7 @@ fun CreateBookChooseCard(
     ) {
         CreateStepTitleCard(
             step = "02",
-            title = "함께 읽을 책 선택하",
+            title = "함께 읽을 책 선택하기",
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text("이달의 추천 도서 중에서 골라보세요.", style = MaterialTheme.typography.bodyMedium)
