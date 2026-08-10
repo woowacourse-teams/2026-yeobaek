@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
+import com.yeobaek.feature.home.component.SectionTitle
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 
 @Composable
@@ -33,6 +34,11 @@ fun ReaderHomeScreen(
             Spacer(modifier = Modifier.height(36.dp))
             CurrentlyReadingBookSection(bookUiModel = book)
         }
+
+        SectionTitle(
+            title = "내 모임"
+        )
+
     }
 }
 
