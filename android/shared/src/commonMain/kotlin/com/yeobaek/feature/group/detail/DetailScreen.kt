@@ -59,7 +59,6 @@ fun DetailScreen(
             DetailTopAppBar(
                 title = groupUiModel.name,
                 onBackClick = onBackClick,
-                modifier = Modifier.padding(horizontal = 16.dp),
             )
         },
         bottomBar = {

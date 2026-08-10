@@ -30,7 +30,7 @@ fun JoinScreen(
     codeValue: String,
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    navigateToDetail: () -> Unit,
+    navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -108,7 +108,7 @@ fun JoinScreen(
             Spacer(modifier = Modifier.height(12.dp))
             YeobaekButton(
                 text = "모임 참여하기",
-                onClick = navigateToDetail,
+                onClick = navigateToHome,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -131,7 +131,7 @@ private fun JoinScreenPreview() {
             codeValue = "",
             onCodeValueChange = {},
             onBackClick = {},
-            navigateToDetail = {},
+            navigateToHome = {},
         )
     }
 }

@@ -6,7 +6,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.data.mock.group.MockGroupData
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStateHolder
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -31,7 +33,6 @@ fun App() {
 
         val onBoardingStateHolder = remember { OnboardingStateHolder() }
         val homeUiState = rememberHomeStateHolder()
-        val detailStateHolder = remember { DetailStateHolder() }
         val joinStateHolder = remember { JoinStateHolder() }
         val createStateHolder = CreateStateHolder()
 
@@ -47,7 +48,11 @@ fun App() {
                         navController.navigate(Create)
                     },
                     navigateToHome = {
-                        navController.navigate(Home)
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
                     },
                 )
             }
@@ -66,7 +71,14 @@ fun App() {
                     },
                 )
             }
-            composable<Detail> {
+            composable<Detail> { backStackEntry ->
+                val route = backStackEntry.toRoute<Detail>()
+
+                val detailStateHolder = DetailStateHolder(
+                    groupId = route.id,
+                    mockGroupData = MockGroupData.mockGroupData,
+                )
+
                 DetailScreen(
                     groupUiModel = detailStateHolder.uiState.groupUiModel,
                     bookUiModel = detailStateHolder.uiState.bookUiModel,
@@ -82,8 +94,12 @@ fun App() {
                     onBackClick = {
                         navController.popBackStack()
                     },
-                    navigateToDetail = {
-                        navController.navigate(Create)
+                    navigateToHome = {
+                        navController.navigate(Home) {
+                            popUpTo<Join> {
+                                inclusive = true
+                            }
+                        }
                     },
                 )
             }
@@ -95,8 +111,12 @@ fun App() {
                     onBackClick = {
                         navController.popBackStack()
                     },
-                    navigateToDetail = {
-                        navController.navigate(Detail)
+                    navigateToHome = {
+                        navController.navigate(Home) {
+                            popUpTo<Create> {
+                                inclusive = true
+                            }
+                        }
                     },
                 )
             }
