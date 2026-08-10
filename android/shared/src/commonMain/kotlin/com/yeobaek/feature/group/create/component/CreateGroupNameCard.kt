@@ -26,19 +26,9 @@ fun CreateGroupNameCard(
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
-        Text(
-            "STEP 01",
-            style = MaterialTheme.typography.labelLarge.copy(
-                color = MaterialTheme.colorScheme.secondary,
-                letterSpacing = 2.sp,
-            ),
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "모임의 이름을 정해주세요",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 24.sp,
-            ),
+        CreateStepTitleCard(
+            step = "01",
+            title = "모임의 이름을 정해주세요"
         )
         Spacer(modifier = Modifier.height(16.dp))
         TextField(

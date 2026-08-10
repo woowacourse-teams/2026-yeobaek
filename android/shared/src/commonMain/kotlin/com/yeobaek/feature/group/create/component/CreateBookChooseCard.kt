@@ -25,18 +25,9 @@ fun CreateBookChooseCard(
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
-        Text(
-            "STEP 02",
-            style = MaterialTheme.typography.labelLarge.copy(
-                color = MaterialTheme.colorScheme.secondary,
-                letterSpacing = 2.sp,
-            ),
-        )
-        Text(
-            "함께 읽을 책 선택하기",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 24.sp,
-            ),
+        CreateStepTitleCard(
+            step = "02",
+            title = "함께 읽을 책 선택하기"
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text("이달의 추천 도서 중에서 골라보세요.", style = MaterialTheme.typography.bodyMedium)
