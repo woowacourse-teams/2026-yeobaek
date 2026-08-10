@@ -18,7 +18,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 fun ReadingProgressIndicator(
-    progressRate: Int,
+    progressRate: Float,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -36,7 +36,7 @@ fun ReadingProgressIndicator(
             gapSize = (-4).dp,
         )
         Text(
-            text = "$progressRate%",
+            text = "${progressRate.toInt()}%",
             maxLines = 1,
             modifier = Modifier.padding(start = 8.dp),
             style = MaterialTheme.typography.labelMedium.copy(
@@ -52,6 +52,6 @@ fun ReadingProgressIndicator(
 @Composable
 private fun ReadingProgressIndicatorPreview() {
     YeobaekTheme {
-        ReadingProgressIndicator(progressRate = 12)
+        ReadingProgressIndicator(progressRate = 12f)
     }
 }

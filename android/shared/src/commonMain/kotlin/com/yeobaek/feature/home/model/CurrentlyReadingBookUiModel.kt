@@ -5,5 +5,5 @@ data class CurrentlyReadingBookUiModel(
     val title: String,
     val coverImageUrl: String,
     val authors: String,
-    val progressRate: Int,
+    val progressRate: Float,
 )

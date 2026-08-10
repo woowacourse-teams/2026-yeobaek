@@ -135,7 +135,7 @@ private fun CurrentlyReadingBookItemPreview() {
                     "https://minumsa.minumsa.com/wp-content/uploads/bookcover/" +
                         "044_%EB%8D%B0%EB%AF%B8%EC%95%88-500x840.jpg",
                 authors = "헤르만 헤세",
-                progressRate = 12,
+                progressRate = 12f,
             ),
         )
     }

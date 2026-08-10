@@ -22,7 +22,7 @@ fun rememberReaderHomeStateHolder(
             title = "데미안",
             coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
             authors = "헤르만 헤세",
-            progressRate = 12,
+            progressRate = 12f,
         ),
     ),
 ): ReaderHomeStateHolder = remember {
