@@ -1,17 +1,26 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.onboarding.OnboardingScreen
-import com.yeobaek.feature.onboarding.OnboardingStateHolder
+import com.yeobaek.feature.group.create.CreateScreen
+import com.yeobaek.feature.group.create.CreateStateHolder
 
 @Composable
 @Preview
 fun App() {
     YeobaekTheme {
-        OnboardingScreen(
-            stateHolder = OnboardingStateHolder(),
+        val stateHolder = remember {
+            CreateStateHolder()
+        }
+
+        CreateScreen(
+            uiState = stateHolder.uiState,
+            updateGroupNameValue = stateHolder::updateGroupNameValue,
+            selectBook = stateHolder::selectBook,
+            onBackClick = {},
+            onCreateGroup = {},
         )
     }
 }
