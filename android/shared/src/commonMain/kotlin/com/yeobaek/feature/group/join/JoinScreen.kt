@@ -31,10 +31,12 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 fun JoinScreen(
+    codeValue: String,
+    onCodeValueChange: (String) -> Unit,
+    onBackClick: () -> Unit,
+    onGroupCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var codeValue by remember { mutableStateOf("") }
-
     Scaffold(
         modifier = modifier
             .padding(horizontal = 16.dp)
@@ -42,7 +44,7 @@ fun JoinScreen(
         topBar = {
             YeobaekTopAppBar(
                 title = "모임 참여하기",
-                onBackClick = {},
+                onBackClick = onBackClick,
             )
         },
     ) { innerPadding ->
@@ -103,14 +105,14 @@ fun JoinScreen(
             YeobaekTextField(
                 value = codeValue,
                 onValueChange = {
-                    codeValue = it
+                    onCodeValueChange(it)
                 },
                 placeholder = "예: BOOK42",
             )
             Spacer(modifier = Modifier.height(12.dp))
             YeobaekButton(
                 text = "모임 참여하기",
-                onClick = {},
+                onClick = onGroupCreateClick,
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
@@ -128,6 +130,11 @@ fun JoinScreen(
 @Composable
 private fun JoinScreenPreview() {
     YeobaekTheme {
-        JoinScreen()
+        JoinScreen(
+            codeValue = "",
+            onCodeValueChange = {},
+            onBackClick = {},
+            onGroupCreateClick = {},
+        )
     }
 }
