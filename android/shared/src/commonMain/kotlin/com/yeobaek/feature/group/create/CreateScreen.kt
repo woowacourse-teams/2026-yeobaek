@@ -61,7 +61,7 @@ fun CreateScreen(
             YeobaekButton(
                 text = "모임 생성하고 친구 초대하기",
                 onClick = {},
-                modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
+                modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
     ) { innerPadding ->
