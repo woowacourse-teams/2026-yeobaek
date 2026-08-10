@@ -14,13 +14,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.onboarding.component.OnboardingGroupCreateCard
+import com.yeobaek.feature.onboarding.component.OnboardingBottomCard
 import com.yeobaek.feature.onboarding.component.OnboardingHorizontalDivider
 import com.yeobaek.feature.onboarding.component.OnboardingYeobaekCommonCard
 import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
@@ -68,9 +67,10 @@ fun OnboardingScreen(
                 OnboardingHorizontalDivider(
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
-                OnboardingGroupCreateCard(
+                OnboardingBottomCard(
                     text = "새 모임 만들기",
                     onGroupCreateClick = {},
+                    onLookAroundClick = {}
                 )
             }
         }

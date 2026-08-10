@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,9 +16,10 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
-fun OnboardingGroupCreateCard(
+fun OnboardingBottomCard(
     text: String,
     onGroupCreateClick: () -> Unit,
+    onLookAroundClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -31,18 +33,22 @@ fun OnboardingGroupCreateCard(
         ) {
             Text(text)
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("둘러보기", style = MaterialTheme.typography.bodySmall)
+        TextButton(
+            onClick = onLookAroundClick,
+        ) {
+            Text("둘러보기", style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
 @Preview(showBackground = true, name = "온보딩 화면 하단 카드")
 @Composable
-private fun OnboardingGroupCreateCardPreview() {
+private fun OnboardingBottomCardPreview() {
     YeobaekTheme {
-        OnboardingGroupCreateCard(
+        OnboardingBottomCard(
             text = "새 모임 만들기",
             onGroupCreateClick = {},
+            onLookAroundClick = {},
         )
     }
 }
