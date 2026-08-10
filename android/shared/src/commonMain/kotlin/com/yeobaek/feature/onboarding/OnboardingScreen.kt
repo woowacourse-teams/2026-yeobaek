@@ -70,7 +70,7 @@ fun OnboardingScreen(
                 OnboardingBottomCard(
                     text = "새 모임 만들기",
                     onGroupCreateClick = {},
-                    onLookAroundClick = {}
+                    onLookAroundClick = {},
                 )
             }
         }

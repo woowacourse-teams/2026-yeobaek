@@ -61,7 +61,7 @@ fun BookCard(
                 .fillMaxWidth()
                 .background(color = Color.White)
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
                 model = uri,
@@ -88,7 +88,7 @@ fun BookCard(
                 Icon(
                     painter = painterResource(Res.drawable.ic_checkmark),
                     contentDescription = "체크 아이콘",
-                    tint = MaterialTheme.colorScheme.outline
+                    tint = MaterialTheme.colorScheme.outline,
                 )
             }
         }
@@ -123,7 +123,7 @@ private fun BookInfoCard(
                 color = MaterialTheme.colorScheme.secondary,
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
         Spacer(modifier = Modifier.height(8.dp))
     }
@@ -149,7 +149,8 @@ private fun YeobaekGroupBookItemPreview() {
 private fun YeobaekGroupBookItemNoSelectPreview() {
     YeobaekTheme {
         BookCard(
-            uri = "https://i.namu.wiki/i/Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
+            uri = "https://i.namu.wiki/i/" +
+                "Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
             title = "미드나잇 라이브러리",
             author = "메트 해이그",
             description = "삶의 가능성을 다시 바라보는 이야기",
@@ -164,7 +165,8 @@ private fun YeobaekGroupBookItemNoSelectPreview() {
 private fun YeobaekGroupBookItemSelectedPreview() {
     YeobaekTheme {
         BookCard(
-            uri = "https://i.namu.wiki/i/Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
+            uri = "https://i.namu.wiki/" +
+                "i/Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
             title = "미드나잇 라이브러리",
             author = "메트 해이그",
             description = "삶의 가능성을 다시 바라보는 이야기",

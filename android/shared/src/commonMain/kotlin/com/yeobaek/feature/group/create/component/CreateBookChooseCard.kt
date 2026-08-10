@@ -65,7 +65,7 @@ private fun CreateBookChooseCardPreview() {
     YeobaekTheme {
         CreateBookChooseCard(
             books = emptyList(),
-            onClickBook = {}
+            onClickBook = {},
         )
     }
 }

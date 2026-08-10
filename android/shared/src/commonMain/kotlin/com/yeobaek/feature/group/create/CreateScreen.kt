@@ -32,7 +32,6 @@ fun CreateScreen(
     stateHolder: CreateStateHolder,
     modifier: Modifier = Modifier,
 ) {
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {

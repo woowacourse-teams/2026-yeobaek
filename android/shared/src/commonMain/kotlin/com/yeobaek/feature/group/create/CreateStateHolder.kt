@@ -35,7 +35,8 @@ class CreateStateHolder {
         val mockUiState = CreateUiState(
             bookList = listOf(
                 BookUiModel(
-                    uri = "https://i.namu.wiki/i/Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
+                    uri = "https://i.namu.wiki/i/" +
+                        "Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
                     title = "미드나잇 라이브러리",
                     author = "메트 해이그",
                     description = "삶의 가능성을 다시 바라보는 이야기",
