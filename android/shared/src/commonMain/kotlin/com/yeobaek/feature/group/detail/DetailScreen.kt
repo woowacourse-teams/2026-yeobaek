@@ -36,14 +36,14 @@ import com.yeobaek.feature.group.detail.component.DetailTopAppBar
 import com.yeobaek.feature.group.detail.component.GroupBookCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
-import com.yeobaek.feature.group.detail.model.BookUiModel
+import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun DetailScreen(
     groupUiModel: GroupUiModel,
-    bookUiModel: BookUiModel,
+    bookUiModel: DetailBookUiModel,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -172,7 +172,7 @@ private fun DetailScreenPreview() {
     YeobaekTheme {
         DetailScreen(
             groupUiModel = GroupUiModel(),
-            bookUiModel = BookUiModel(),
+            bookUiModel = DetailBookUiModel(),
             onBackClick = {},
         )
     }

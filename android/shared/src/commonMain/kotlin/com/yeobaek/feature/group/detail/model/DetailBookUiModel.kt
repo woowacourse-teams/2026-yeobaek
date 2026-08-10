@@ -1,6 +1,6 @@
 package com.yeobaek.feature.group.detail.model
 
-data class BookUiModel(
+data class DetailBookUiModel(
     val uri: String = "",
     val title: String = "",
     val author: String = "",
