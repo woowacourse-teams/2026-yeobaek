@@ -2,7 +2,6 @@ package com.yeobaek.feature.group.create
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,19 +42,15 @@ fun CreateScreen(
                 title = {
                     Text("새로운 모임 만들기")
                 },
-                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 navigationIcon = {
-                    Box(
-                        modifier = Modifier.size(16.dp),
+                    IconButton(
+                        onClick = onBackClick,
                     ) {
-                        IconButton(
-                            onClick = onBackClick,
-                        ) {
-                            Icon(
-                                painter = painterResource(Res.drawable.ic_back_arrow),
-                                contentDescription = "뒤로가기 아이콘",
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_back_arrow),
+                            contentDescription = "뒤로가기 아이콘",
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
