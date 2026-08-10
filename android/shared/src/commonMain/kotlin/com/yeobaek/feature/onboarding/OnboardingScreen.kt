@@ -26,7 +26,11 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 
 @Composable
 fun OnboardingScreen(
-    stateHolder: OnboardingStateHolder,
+    codeValue: String,
+    onCodeValueChange: (String) -> Unit,
+    onGroupJoinClick: () -> Unit,
+    onGroupCreateClick: () -> Unit,
+    onLookAroundClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -54,23 +58,23 @@ fun OnboardingScreen(
                 OnboardingYeobaekCommonCard()
                 OnboardingYeobaekTextField(
                     title = "참여 코드 입력",
-                    value = stateHolder.codeValue,
+                    value = codeValue,
                     onValueChange = {
-                        stateHolder.onCodeValueChange(it)
+                        onCodeValueChange(it)
                     },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 YeobaekButton(
                     text = "모임 참여하기",
-                    onClick = {},
+                    onClick = onGroupJoinClick,
                 )
                 OnboardingHorizontalDivider(
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
                 OnboardingBottomCard(
                     text = "새 모임 만들기",
-                    onGroupCreateClick = {},
-                    onLookAroundClick = {},
+                    onGroupCreateClick = onGroupCreateClick,
+                    onLookAroundClick = onLookAroundClick,
                 )
             }
         }
@@ -82,7 +86,11 @@ fun OnboardingScreen(
 private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
-            stateHolder = OnboardingStateHolder(),
+            codeValue = "",
+            onCodeValueChange = {},
+            onGroupJoinClick = {},
+            onGroupCreateClick = {},
+            onLookAroundClick = {},
         )
     }
 }
