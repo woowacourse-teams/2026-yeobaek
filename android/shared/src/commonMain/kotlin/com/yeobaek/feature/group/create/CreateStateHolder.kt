@@ -9,14 +9,14 @@ class CreateStateHolder {
     var uiState by mutableStateOf(CreateUiState())
         private set
 
-    var groupNameValue by mutableStateOf("")
-
     init {
         uiState = mockUiState
     }
 
     fun updateGroupNameValue(value: String) {
-        groupNameValue = value.take(20)
+        uiState = uiState.copy(
+            groupNameValue = value.take(20),
+        )
     }
 
     fun selectBook(index: Int) {

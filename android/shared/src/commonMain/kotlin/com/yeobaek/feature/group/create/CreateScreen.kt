@@ -29,7 +29,9 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CreateScreen(
-    stateHolder: CreateStateHolder,
+    uiState: CreateUiState,
+    updateGroupNameValue: (String) -> Unit,
+    selectBook: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -68,17 +70,17 @@ fun CreateScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
             CreateGroupNameCard(
-                value = stateHolder.groupNameValue,
+                value = uiState.groupNameValue,
                 onValueChange = {
-                    stateHolder.updateGroupNameValue(it)
+                    updateGroupNameValue(it)
                 },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(32.dp))
             CreateBookChooseCard(
-                books = stateHolder.uiState.bookList,
+                books = uiState.bookList,
                 onClickBook = {
-                    stateHolder.selectBook(it)
+                    selectBook(it)
                 },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -91,7 +93,9 @@ fun CreateScreen(
 private fun CreateScreenPreview() {
     YeobaekTheme {
         CreateScreen(
-            stateHolder = CreateStateHolder(),
+            uiState = CreateUiState(),
+            updateGroupNameValue = {},
+            selectBook = {},
         )
     }
 }
