@@ -80,6 +80,7 @@ private fun ReaderContent(
                 onClick = {
                     onPassageClick(passage)
                 },
+                showUnderline = passage.hasComment,
             )
         }
     }
