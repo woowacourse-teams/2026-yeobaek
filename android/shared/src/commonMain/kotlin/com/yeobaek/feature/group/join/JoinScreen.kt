@@ -35,7 +35,6 @@ fun JoinScreen(
 ) {
     Scaffold(
         modifier = modifier
-            .padding(horizontal = 16.dp)
             .fillMaxSize(),
         topBar = {
             YeobaekTopAppBar(
@@ -104,11 +103,13 @@ fun JoinScreen(
                     onCodeValueChange(it)
                 },
                 placeholder = "예: BOOK42",
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             YeobaekButton(
                 text = "모임 참여하기",
                 onClick = navigateToDetail,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
