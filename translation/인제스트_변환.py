@@ -7,11 +7,16 @@
 
 사용법:
   python 인제스트_변환.py 번역본.md [번역본2.md ...]
+      --original 원문.txt
       [--meta 메타데이터.json]
-      [--original "The Memoirs of Sherlock Holmes.txt"]
+      [--chapter-re 정규식]   원문 장 제목 패턴 (기본: 로마숫자 "I. 제목")
       [-o ingest.json]
+      [--partial]     완료된 장까지만 대조 (진행 중 검증용)
       [--no-verify]   원문 대조를 건너뜀
       [--force]       검증 실패해도 JSON을 출력
+
+  python 인제스트_변환.py --list-chapters --original 원문.txt [--chapter-re 정규식]
+      원문의 장 제목·라인 범위·문단 수를 출력한다 (번역 시작 전 장 정보 파악용).
 
 번역본 파일을 여러 개 주면 인자 순서대로 이어 붙여 처리한다(장 단위 분할 번역 지원).
 """
@@ -21,11 +26,17 @@ import re
 import sys
 from pathlib import Path
 
-CHAPTER_RE = re.compile(r"^[IVXLCDM]+\.\s+\S")  # 열 0에서 시작하는 로마숫자 장 제목
+# 기본값: 열 0에서 시작하는 로마숫자 장 제목 ("I. Silver Blaze" 형태)
+# 다른 형식의 책은 --chapter-re로 교체한다. 예: "^CHAPTER [IVXLCDM]+" , "^Chapter \d+"
+DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
 
 
-def parse_original(path):
-    """Gutenberg 원문에서 장별 문단 수를 센다. → [{"title", "count"}]"""
+def parse_original(path, chapter_re):
+    """원문에서 장별 문단 수를 센다. → [{"title", "count", "start", "end"}]
+
+    start/end는 원문 파일 기준 1-based 라인 번호(장 제목 줄 ~ 다음 장 직전).
+    Gutenberg 텍스트의 *** START/END 마커 바깥은 무시한다.
+    """
     lines = path.read_text(encoding="utf-8-sig").splitlines()
 
     start, end = 0, len(lines)
@@ -35,14 +46,16 @@ def parse_original(path):
         elif ln.startswith("*** END"):
             end = i
             break
-    lines = lines[start:end]
 
     chapters = []
     current = None
     in_block = False
-    for ln in lines:
-        if CHAPTER_RE.match(ln):
-            current = {"title": ln.strip(), "count": 0}
+    for i in range(start, end):
+        ln = lines[i]
+        if chapter_re.match(ln):
+            if current is not None:
+                current["end"] = i  # 직전 줄까지 (1-based로 i)
+            current = {"title": ln.strip(), "count": 0, "start": i + 1, "end": end}
             chapters.append(current)
             in_block = False
             continue
@@ -87,8 +100,8 @@ def validate(book):
         if not (1 <= len(value) <= 100):
             errors.append(f"{label}이(가) 1~100자 범위를 벗어남 ({len(value)}자): {value[:50]}")
 
-    check_len("도서 제목", book["title"])
-    check_len("출판사", book["publisher"])
+    check_len("도서 제목", book.get("title", ""))
+    check_len("출판사", book.get("publisher", ""))
     if not book.get("authors"):
         errors.append("authors가 비어 있음")
     for a in book.get("authors", []):
@@ -139,28 +152,71 @@ def verify_counts(original, translated, partial=False):
     return ok
 
 
+def list_chapters(original, chapter_re):
+    """원문 장 목록(제목·라인 범위·문단 수)을 출력한다."""
+    chapters = parse_original(original, chapter_re)
+    if not chapters:
+        sys.exit("[오류] 장 제목을 하나도 찾지 못했습니다. "
+                 "--chapter-re로 이 책의 장 제목 패턴을 지정하세요.")
+    print(f"{'':>3} {'장 제목':<50} {'라인 범위':>13} {'문단':>5}")
+    print("-" * 78)
+    for i, ch in enumerate(chapters, 1):
+        print(f"{i:>3} {ch['title']:<50} {ch['start']:>6}–{ch['end']:<6} {ch['count']:>5}")
+    total = sum(ch["count"] for ch in chapters)
+    print(f"\n장 {len(chapters)}개, 문단 총 {total}개")
+
+
 def main():
     ap = argparse.ArgumentParser(description="번역본 → 인제스트 JSON 변환/검증")
-    ap.add_argument("translations", nargs="+", type=Path, help="번역본 .md 파일(순서대로 병합)")
-    ap.add_argument("--meta", type=Path, default=Path(__file__).parent / "메타데이터.json")
-    ap.add_argument("--original", type=Path,
-                    default=Path(__file__).parent / "The Memoirs of Sherlock Holmes.txt")
-    ap.add_argument("-o", "--output", type=Path, default=Path(__file__).parent / "ingest.json")
+    ap.add_argument("translations", nargs="*", type=Path, help="번역본 .md 파일(순서대로 병합)")
+    ap.add_argument("--meta", type=Path, help="메타데이터.json 경로 (--partial이면 생략 가능)")
+    ap.add_argument("--original", type=Path, help="영문 원문 .txt 경로")
+    ap.add_argument("--chapter-re", default=DEFAULT_CHAPTER_RE,
+                    help="원문 장 제목 정규식 (기본: 로마숫자 'I. 제목' 형태)")
+    ap.add_argument("-o", "--output", type=Path,
+                    help="출력 경로 (기본: 메타데이터.json과 같은 폴더의 ingest.json)")
+    ap.add_argument("--list-chapters", action="store_true",
+                    help="원문의 장 제목·라인 범위·문단 수만 출력하고 종료")
     ap.add_argument("--no-verify", action="store_true", help="원문 문단 수 대조를 건너뜀")
     ap.add_argument("--partial", action="store_true",
                     help="번역 완료된 장까지만 대조하고 JSON은 출력하지 않음(진행 중 검증용)")
     ap.add_argument("--force", action="store_true", help="검증 실패해도 JSON을 출력")
     args = ap.parse_args()
 
-    for p in args.translations + [args.meta]:
+    chapter_re = re.compile(args.chapter_re)
+
+    if args.list_chapters:
+        if not args.original or not args.original.exists():
+            sys.exit(f"[오류] --list-chapters에는 --original 원문 파일이 필요합니다: {args.original}")
+        list_chapters(args.original, chapter_re)
+        return
+
+    if not args.translations:
+        ap.error("번역본 .md 파일을 하나 이상 지정하세요 (--list-chapters 모드가 아닌 경우)")
+
+    for p in args.translations:
         if not p.exists():
             sys.exit(f"[오류] 파일 없음: {p}")
 
-    meta = json.loads(args.meta.read_text(encoding="utf-8-sig"))
+    meta = {}
+    if args.meta:
+        if not args.meta.exists():
+            sys.exit(f"[오류] 메타데이터 파일 없음: {args.meta}")
+        meta = json.loads(args.meta.read_text(encoding="utf-8-sig"))
+    elif not args.partial:
+        sys.exit("[오류] 최종 변환에는 --meta 메타데이터.json이 필요합니다.")
+
     chapters = parse_translation(args.translations)
     book = {**meta, "chapters": chapters}
 
-    errors = validate(book)
+    if args.partial and not args.meta:
+        # 메타데이터 없이 진행 중 검증: 구조(장·문단)만 확인한다
+        errors = []
+        for i, ch in enumerate(chapters, 1):
+            if not ch["passages"]:
+                errors.append(f"{i}번째 목차 '{ch['title']}'에 본문이 없음")
+    else:
+        errors = validate(book)
     if errors:
         print("[규격 검증 실패]")
         for e in errors:
@@ -169,10 +225,14 @@ def main():
     counts_ok = True
     if args.no_verify:
         print("[경고] 원문 대조를 건너뜀 (--no-verify)")
-    elif not args.original.exists():
+    elif not args.original or not args.original.exists():
         sys.exit(f"[오류] 원문 파일 없음: {args.original} (대조 없이 변환하려면 --no-verify)")
     else:
-        counts_ok = verify_counts(parse_original(args.original), chapters, partial=args.partial)
+        original = parse_original(args.original, chapter_re)
+        if not original:
+            sys.exit("[오류] 원문에서 장 제목을 하나도 찾지 못했습니다. "
+                     "--chapter-re로 이 책의 장 제목 패턴을 지정하세요.")
+        counts_ok = verify_counts(original, chapters, partial=args.partial)
 
     total = sum(len(c["passages"]) for c in chapters)
     print(f"\n장 {len(chapters)}개, 문단 총 {total}개")
@@ -186,8 +246,9 @@ def main():
     if (errors or not counts_ok) and not args.force:
         sys.exit("\n검증 실패 — JSON을 출력하지 않았습니다. 무시하고 출력하려면 --force")
 
-    args.output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"저장 완료: {args.output}")
+    output = args.output or args.meta.parent / "ingest.json"
+    output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"저장 완료: {output}")
 
 
 if __name__ == "__main__":
