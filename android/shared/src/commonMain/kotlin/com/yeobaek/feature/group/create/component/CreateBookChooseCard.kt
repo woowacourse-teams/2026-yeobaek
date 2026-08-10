@@ -13,11 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.group.create.model.BookUiModel
+import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
 @Composable
 fun CreateBookChooseCard(
-    books: List<BookUiModel>,
+    books: List<CreateBookUiModel>,
     onClickBook: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
