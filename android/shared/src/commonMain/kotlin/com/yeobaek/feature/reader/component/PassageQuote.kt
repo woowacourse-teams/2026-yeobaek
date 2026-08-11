@@ -55,6 +55,6 @@ fun PassageQuote(
 @Composable
 private fun PassageQuotePreview() {
     PassageQuote(
-        content = mockPassages[0].content
+        content = mockPassages[0].content,
     )
 }

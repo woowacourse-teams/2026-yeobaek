@@ -15,6 +15,7 @@ fun App() {
         ReaderScreen(
             uiState = readerStateHolder.uiState,
             onPassageClick = readerStateHolder::openPassageComments,
+            onCurrentSequenceChange = readerStateHolder::updateCurrentSequence,
             onBackClick = {},
             onTextSettingClick = readerStateHolder::toggleTextSettingMenu,
             onTextSettingDismiss = readerStateHolder::dismissTextSettingMenu,
