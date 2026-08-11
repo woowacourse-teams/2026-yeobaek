@@ -21,6 +21,8 @@ import com.yeobaek.feature.group.create.component.CreateGroupNameCard
 fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
+    groupNameCondition: Boolean,
+    selectedBookCondition: Boolean,
     selectBook: (Int) -> Unit,
     onBackClick: () -> Unit,
     navigateToHome: () -> Unit,
@@ -50,6 +52,8 @@ fun CreateScreen(
                 onValueChange = {
                     updateGroupNameValue(it)
                 },
+                placeholder = if (groupNameCondition) "제목을 입력해주세요." else "예: 일요일 아침, 함께 읽기",
+                isError = groupNameCondition,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(32.dp))
@@ -58,6 +62,8 @@ fun CreateScreen(
                 onClickBook = {
                     selectBook(it)
                 },
+                subTitle = if (selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
+                isError = selectedBookCondition,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -71,6 +77,8 @@ private fun CreateScreenPreview() {
         CreateScreen(
             uiState = CreateUiState(),
             updateGroupNameValue = {},
+            groupNameCondition = false,
+            selectedBookCondition = false,
             selectBook = {},
             onBackClick = {},
             navigateToHome = {},

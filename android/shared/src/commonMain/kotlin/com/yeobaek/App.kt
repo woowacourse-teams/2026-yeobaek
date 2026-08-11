@@ -153,16 +153,21 @@ fun App() {
             composable<Create> {
                 CreateScreen(
                     uiState = createStateHolder.uiState,
+                    groupNameCondition = createStateHolder.groupNameCondition,
+                    selectedBookCondition = createStateHolder.selectedBookCondition,
                     updateGroupNameValue = createStateHolder::updateGroupNameValue,
                     selectBook = createStateHolder::selectBook,
                     onBackClick = {
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        createStateHolder.createGroup()
-                        navController.navigate(Home) {
-                            popUpTo<Create> {
-                                inclusive = true
+                        createStateHolder.createConditionCheck()
+                        if (!createStateHolder.createConditionCheck()) {
+                            createStateHolder.createGroup()
+                            navController.navigate(Home) {
+                                popUpTo<Create> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },

@@ -14,6 +14,9 @@ class CreateStateHolder(
     var uiState by mutableStateOf(CreateUiState())
         private set
 
+    var groupNameCondition by mutableStateOf(false)
+    var selectedBookCondition by mutableStateOf(false)
+
     init {
         initBookList()
     }
@@ -37,6 +40,7 @@ class CreateStateHolder(
         uiState = uiState.copy(
             groupNameValue = value.take(20),
         )
+        groupNameCondition = false
     }
 
     fun selectBook(index: Int) {
@@ -49,6 +53,7 @@ class CreateStateHolder(
                 }
             },
         )
+        selectedBookCondition = false
     }
 
     fun createGroup() {
@@ -60,4 +65,19 @@ class CreateStateHolder(
             book = selectedBook
         )
     }
+
+    fun groupNameCheck() {
+        groupNameCondition = uiState.groupNameValue.isEmpty()
+    }
+
+    fun selectedBookCheck() {
+        selectedBookCondition = uiState.bookList.all { !it.selected }
+    }
+
+    fun createConditionCheck(): Boolean {
+        groupNameCheck()
+        selectedBookCheck()
+        return groupNameCondition || selectedBookCondition
+    }
+
 }
