@@ -34,7 +34,7 @@ fun OnboardingYeobaekTextField(
             value = value,
             onValueChange = onValueChange,
             placeholder = if (!codeState) "예: BOOK42" else "잘못된 코드 입력입니다.",
-            isError = codeState
+            isError = codeState,
         )
     }
 }

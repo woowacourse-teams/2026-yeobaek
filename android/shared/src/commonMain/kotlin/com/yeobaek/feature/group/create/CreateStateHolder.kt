@@ -9,7 +9,7 @@ import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
 class CreateStateHolder(
     private val groupRepository: GroupRepository,
-    private val bookRepository: BookRepository
+    private val bookRepository: BookRepository,
 ) {
     var uiState by mutableStateOf(CreateUiState())
         private set
@@ -32,7 +32,7 @@ class CreateStateHolder(
                     author = it.author,
                     description = it.description,
                 )
-            }
+            },
         )
     }
 
@@ -62,7 +62,7 @@ class CreateStateHolder(
 
         groupRepository.createGroup(
             groupName = uiState.groupNameValue,
-            book = selectedBook
+            book = selectedBook,
         )
     }
 
@@ -79,5 +79,4 @@ class CreateStateHolder(
         selectedBookCheck()
         return groupNameCondition || selectedBookCondition
     }
-
 }

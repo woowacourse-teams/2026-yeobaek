@@ -46,7 +46,7 @@ fun CreateGroupNameCard(
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
                 errorPlaceholderColor = MaterialTheme.colorScheme.error,
-                errorContainerColor = Color.Transparent
+                errorContainerColor = Color.Transparent,
             ),
             isError = isError,
         )

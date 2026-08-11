@@ -10,7 +10,7 @@ import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
 
 class DetailStateHolder(
-    groupRepository: GroupRepository
+    groupRepository: GroupRepository,
 ) {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set

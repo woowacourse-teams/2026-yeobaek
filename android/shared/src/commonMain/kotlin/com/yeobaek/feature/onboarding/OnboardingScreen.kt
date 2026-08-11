@@ -93,7 +93,7 @@ private fun OnboardingScreenPreview() {
             onCodeValueChange = {},
             navigateToHome = {},
             navigateToCreate = {},
-            navigateToAroundHome = {}
+            navigateToAroundHome = {},
         )
     }
 }

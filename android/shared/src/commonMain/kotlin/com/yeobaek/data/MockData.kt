@@ -20,7 +20,7 @@ object MockData {
         title = "데미안",
         author = "헤르만 헤세",
         progressRate = 0.12f,
-        description = "깨달음을 주는 소설이라고 한다"
+        description = "깨달음을 주는 소설이라고 한다",
     )
 
     val theMidnightLibrary = BookModel(
@@ -56,7 +56,7 @@ object MockData {
         book = theLittlePrince,
         users = (1..8).map {
             UserModel(
-                name = "하로${it}",
+                name = "하로$it",
             )
         },
     )
@@ -67,7 +67,7 @@ object MockData {
         book = demian,
         users = (1..4).map {
             UserModel(
-                name = "엘리${it}",
+                name = "엘리$it",
             )
         },
     )

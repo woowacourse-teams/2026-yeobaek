@@ -12,7 +12,7 @@ class MockGroupRepositoryImpl : GroupRepository {
 
     override fun createGroup(
         groupName: String,
-        book: BookModel
+        book: BookModel,
     ) {
         totalGroup.add(
             GroupModel(
@@ -21,10 +21,10 @@ class MockGroupRepositoryImpl : GroupRepository {
                 book = book,
                 users = listOf(
                     UserModel(
-                        name = "나"
-                    )
-                )
-            )
+                        name = "나",
+                    ),
+                ),
+            ),
         )
         groups.add(
             GroupModel(
@@ -33,22 +33,18 @@ class MockGroupRepositoryImpl : GroupRepository {
                 book = book,
                 users = listOf(
                     UserModel(
-                        name = "나"
-                    )
-                )
-            )
+                        name = "나",
+                    ),
+                ),
+            ),
         )
     }
-    override fun getGroups(): List<GroupModel> {
-        return groups
-    }
+    override fun getGroups(): List<GroupModel> = groups
     override fun joinGroup(code: String) {
         if (checkCode(code)) throw IllegalArgumentException("존재하지 않는 모임입니다.")
         val joinGroup = totalGroup.find { it.groupCode == code }!!
         groups.add(joinGroup)
     }
 
-    override fun checkCode(code: String): Boolean {
-        return totalGroup.find { it.groupCode == code } == null
-    }
+    override fun checkCode(code: String): Boolean = totalGroup.find { it.groupCode == code } == null
 }

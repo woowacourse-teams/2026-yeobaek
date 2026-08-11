@@ -19,7 +19,7 @@ import org.jetbrains.compose.resources.painterResource
 fun YeobaekTopAppBar(
     title: String,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     TopAppBar(
         title = {

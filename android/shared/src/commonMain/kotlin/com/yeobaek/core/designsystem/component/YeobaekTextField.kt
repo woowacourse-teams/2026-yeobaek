@@ -44,7 +44,7 @@ fun YeobaekTextField(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
         singleLine = true,
-        isError = isError
+        isError = isError,
     )
 }
 

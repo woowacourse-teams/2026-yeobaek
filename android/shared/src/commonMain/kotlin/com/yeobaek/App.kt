@@ -93,7 +93,7 @@ fun App() {
                                 inclusive = true
                             }
                         }
-                    }
+                    },
                 )
             }
             composable<Home> {

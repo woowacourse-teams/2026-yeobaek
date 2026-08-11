@@ -103,15 +103,15 @@ fun JoinScreen(
                 onValueChange = {
                     onCodeValueChange(it)
                 },
-                placeholder = if(!codeState) "예: BOOK42" else "존재하지 않는 코드입니다.",
+                placeholder = if (!codeState) "예: BOOK42" else "존재하지 않는 코드입니다.",
                 isError = codeState,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(12.dp))
             YeobaekButton(
                 text = "모임 참여하기",
                 onClick = navigateToHome,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
@@ -134,7 +134,7 @@ private fun JoinScreenPreview() {
             onCodeValueChange = {},
             onBackClick = {},
             navigateToHome = {},
-            codeState = false
+            codeState = false,
         )
     }
 }

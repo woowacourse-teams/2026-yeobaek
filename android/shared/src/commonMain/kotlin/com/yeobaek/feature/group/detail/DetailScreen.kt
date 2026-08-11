@@ -47,7 +47,6 @@ fun DetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }

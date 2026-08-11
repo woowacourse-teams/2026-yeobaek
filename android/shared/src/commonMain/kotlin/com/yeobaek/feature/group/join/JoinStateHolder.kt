@@ -2,12 +2,11 @@ package com.yeobaek.feature.group.join
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.yeobaek.data.repository.GroupRepository
 
 class JoinStateHolder(
-    private val groupRepository: GroupRepository
+    private val groupRepository: GroupRepository,
 ) {
     var codeValue by mutableStateOf("")
         private set

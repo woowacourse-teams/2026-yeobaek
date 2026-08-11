@@ -31,9 +31,12 @@ fun CreateBookChooseCard(
             title = "함께 읽을 책 선택하기",
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Text(subTitle, style = MaterialTheme.typography.bodyMedium.copy(
-            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        ))
+        Text(
+            subTitle,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
         Spacer(modifier = Modifier.height(12.dp))
         LazyColumn {
             items(items = books, key = { it.id }) { book ->
