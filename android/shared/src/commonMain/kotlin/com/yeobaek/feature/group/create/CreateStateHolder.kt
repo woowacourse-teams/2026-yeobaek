@@ -43,6 +43,8 @@ class CreateStateHolder(
                 it.copy(selected = false)
             },
         )
+        groupNameCondition = false
+        selectedBookCondition = false
     }
 
     fun updateGroupNameValue(value: String) {

@@ -151,6 +151,10 @@ fun App() {
                 )
             }
             composable<Create> {
+                LaunchedEffect(true) {
+                    createStateHolder.initInputValue()
+                }
+
                 CreateScreen(
                     uiState = createStateHolder.uiState,
                     groupNameCondition = createStateHolder.groupNameCondition,
@@ -175,7 +179,6 @@ fun App() {
                                     }
                                 }
                             }
-                            createStateHolder.initInputValue()
                         }
                     },
                 )
