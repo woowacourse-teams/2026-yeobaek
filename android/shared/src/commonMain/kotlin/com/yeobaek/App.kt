@@ -172,7 +172,7 @@ fun App() {
                             val popped = navController.popBackStack<Home>(
                                 inclusive = false,
                             )
-                            if(!popped) {
+                            if (!popped) {
                                 navController.navigate(Home) {
                                     popUpTo<Onboarding> {
                                         inclusive = true
