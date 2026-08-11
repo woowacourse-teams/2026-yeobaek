@@ -27,6 +27,7 @@ import com.yeobaek.feature.home.model.GroupUiModel
 @Composable
 fun HomeScreen(
     currentlyReadingBookUiModel: CurrentlyReadingBookUiModel?,
+    myNickname: String,
     groupUiModelList: List<GroupUiModel>,
     navigateToJoin: () -> Unit,
     navigateToDetail: (String) -> Unit,
@@ -58,7 +59,7 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임",
+                title = "내 모임 (닉네임 : ${myNickname})",
                 groupUiModelList = groupUiModelList,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -103,16 +104,19 @@ private fun HomeScreenPreview() {
             ),
             groupUiModelList = listOf(
                 GroupUiModel(
+                    groupCode = "XXXXXX",
                     title = "어린 왕자",
                     groupName = "어른이들을 위한 동화 읽기",
                     groupCount = 8,
                 ),
                 GroupUiModel(
+                    groupCode = "BOOK42",
                     title = "데미안",
                     groupName = "고전 읽는 오후 모임",
                     groupCount = 4,
                 ),
             ),
+            myNickname = "하로",
             navigateToJoin = {},
             navigateToDetail = {},
             navigateToCreate = {},

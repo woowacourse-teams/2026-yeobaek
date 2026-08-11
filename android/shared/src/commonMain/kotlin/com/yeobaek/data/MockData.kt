@@ -50,6 +50,18 @@ object MockData {
         description = "낯선 이들이 건네는 다정한 위로",
     )
 
+    val haro = UserModel(
+        name = "하로",
+    )
+
+    val ellie = UserModel(
+        name = "엘리",
+    )
+
+    val mockUsers = listOf(
+        haro, ellie,
+    )
+
     val group1 = GroupModel(
         groupCode = "BOOK42",
         groupName = "어른이들을 위한 동화 읽기",

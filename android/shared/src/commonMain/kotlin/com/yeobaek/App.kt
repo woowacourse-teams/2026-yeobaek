@@ -11,6 +11,7 @@ import androidx.navigation.toRoute
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.MockUserRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStateHolder
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -33,11 +34,13 @@ fun App() {
     YeobaekTheme {
         val navController = rememberNavController()
 
+        val userRepository = MockUserRepositoryImpl()
         val bookRepository = MockBookRepositoryImpl()
         val groupRepository = MockGroupRepositoryImpl()
 
         val onboardingStateHolder = remember {
             OnboardingStateHolder(
+                userRepository = userRepository,
                 groupRepository = groupRepository,
             )
         }
@@ -72,12 +75,19 @@ fun App() {
                     codeValue = onboardingStateHolder.codeValue,
                     codeState = onboardingStateHolder.codeState,
                     onCodeValueChange = onboardingStateHolder::onCodeValueChange,
+                    nicknameValue = onboardingStateHolder.nicknameValue,
+                    nicknameState = onboardingStateHolder.nicknameState,
+                    onNicknameValueChange = onboardingStateHolder::onNicknameValueChange,
                     navigateToCreate = {
-                        navController.navigate(Create)
+                        onboardingStateHolder.nicknameValueCheck()
+                        if (!onboardingStateHolder.nicknameState) {
+                            navController.navigate(Create)
+                        }
                     },
                     navigateToHome = {
-                        onboardingStateHolder.checkValue()
-                        if (!onboardingStateHolder.codeState) {
+                        onboardingStateHolder.nicknameValueCheck()
+                        onboardingStateHolder.codeValueCheck()
+                        if (!onboardingStateHolder.codeState && !onboardingStateHolder.nicknameState) {
                             onboardingStateHolder.joinGroup()
 
                             navController.navigate(Home) {
@@ -88,9 +98,12 @@ fun App() {
                         }
                     },
                     navigateToAroundHome = {
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
+                        onboardingStateHolder.nicknameValueCheck()
+                        if (!onboardingStateHolder.nicknameState) {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },
@@ -104,6 +117,7 @@ fun App() {
                 HomeScreen(
                     currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
                     groupUiModelList = homeUiState.uiState.groups,
+                    myNickname = onboardingStateHolder.nicknameValue,
                     navigateToJoin = {
                         navController.navigate(Join)
                     },

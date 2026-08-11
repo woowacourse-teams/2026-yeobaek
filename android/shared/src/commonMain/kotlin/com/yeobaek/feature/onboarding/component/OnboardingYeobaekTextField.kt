@@ -15,9 +15,10 @@ import com.yeobaek.core.designsystem.component.YeobaekTextField
 @Composable
 fun OnboardingYeobaekTextField(
     title: String,
-    codeState: Boolean,
+    isError: Boolean,
     value: String,
     onValueChange: (String) -> Unit,
+    placeholder: String,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -26,15 +27,15 @@ fun OnboardingYeobaekTextField(
         Text(
             title,
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = if (codeState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
         Spacer(modifier = Modifier.height(8.dp))
         YeobaekTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = "예: BOOK42",
-            isError = codeState,
+            placeholder = placeholder,
+            isError = isError,
         )
     }
 }
@@ -45,7 +46,8 @@ private fun OnboardingYeobaekTextFieldPreview() {
     OnboardingYeobaekTextField(
         title = "참여 코드 입력",
         value = "",
-        codeState = false,
+        placeholder = "예: BOOK42",
+        isError = false,
         onValueChange = {},
     )
 }

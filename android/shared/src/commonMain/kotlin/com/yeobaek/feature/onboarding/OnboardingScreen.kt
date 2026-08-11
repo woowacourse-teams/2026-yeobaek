@@ -29,6 +29,9 @@ fun OnboardingScreen(
     codeValue: String,
     onCodeValueChange: (String) -> Unit,
     codeState: Boolean,
+    nicknameValue: String,
+    onNicknameValueChange: (String) -> Unit,
+    nicknameState: Boolean,
     navigateToHome: () -> Unit,
     navigateToCreate: () -> Unit,
     navigateToAroundHome: () -> Unit,
@@ -57,10 +60,22 @@ fun OnboardingScreen(
                 ),
             ) {
                 OnboardingYeobaekCommonCard()
+                Spacer(modifier = Modifier.height(24.dp))
+                OnboardingYeobaekTextField(
+                    title = if (nicknameState) "중복된 닉네임입니다. 다시 입력해주세요." else "닉네임 입력",
+                    isError = nicknameState,
+                    value = nicknameValue,
+                    placeholder = "예: 하로, 엘리",
+                    onValueChange = {
+                        onNicknameValueChange(it)
+                    },
+                )
+                Spacer(modifier = Modifier.height(24.dp))
                 OnboardingYeobaekTextField(
                     title = if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력",
-                    codeState = codeState,
+                    isError = codeState,
                     value = codeValue,
+                    placeholder = "예: BOOK42",
                     onValueChange = {
                         onCodeValueChange(it)
                     },
@@ -91,6 +106,9 @@ private fun OnboardingScreenPreview() {
             codeValue = "",
             codeState = false,
             onCodeValueChange = {},
+            nicknameValue = "",
+            nicknameState = false,
+            onNicknameValueChange = {},
             navigateToHome = {},
             navigateToCreate = {},
             navigateToAroundHome = {},
