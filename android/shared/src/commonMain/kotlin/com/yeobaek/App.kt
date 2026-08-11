@@ -142,7 +142,7 @@ fun App() {
                             joinStateHolder.joinGroup()
 
                             navController.navigate(Home) {
-                                popUpTo<Join> {
+                                popUpTo<Home> {
                                     inclusive = true
                                 }
                             }
@@ -165,7 +165,7 @@ fun App() {
                         if (!createStateHolder.createConditionCheck()) {
                             createStateHolder.createGroup()
                             navController.navigate(Home) {
-                                popUpTo<Create> {
+                                popUpTo<Onboarding> {
                                     inclusive = true
                                 }
                             }
