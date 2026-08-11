@@ -43,6 +43,11 @@ fun App() {
                 groupRepository = groupRepository,
             )
         }
+        val detailStateHolder = remember {
+            DetailStateHolder(
+                groupRepository = groupRepository
+            )
+        }
         val joinStateHolder = remember { JoinStateHolder(
             groupRepository = groupRepository
         ) }
@@ -95,10 +100,7 @@ fun App() {
             composable<Detail> { backStackEntry ->
                 val route = backStackEntry.toRoute<Detail>()
 
-                val detailStateHolder = DetailStateHolder(
-                    groupId = route.id,
-                    groupModelList = MockData.mockGroups,
-                )
+                detailStateHolder.initGroupData(route.groupCode)
 
                 DetailScreen(
                     groupUiModel = detailStateHolder.uiState.groupUiModel,

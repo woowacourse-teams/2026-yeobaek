@@ -10,7 +10,7 @@ data object Home
 
 @Serializable
 data class Detail(
-    val id: String,
+    val groupCode: String,
 )
 
 @Serializable
