@@ -182,17 +182,6 @@ class ReaderStateHolder(
         )
     }
 
-    fun updateCurrentSequence(sequence: Int) {
-        if (uiState.totalPassageCount == 0) return
-
-        uiState = uiState.copy(
-            currentSequence = sequence.coerceIn(
-                minimumValue = 1,
-                maximumValue = uiState.totalPassageCount,
-            ),
-        )
-    }
-
     private val commentsByPassageId = mockCommentsByPassageId.toMutableMap()
 }
 

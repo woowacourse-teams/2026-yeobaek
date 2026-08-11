@@ -14,10 +14,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -32,17 +29,17 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 @Composable
 fun ReaderProgressBar(
     progress: Float,
-    onProgressChangeFinished: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var sliderProgress by remember(progress) {
-        mutableFloatStateOf(progress.coerceIn(0f, 100f))
-    }
+    val sliderProgress = progress.coerceIn(0f, 100f)
     val interactionSource = remember { MutableInteractionSource() }
     val sliderColors = SliderDefaults.colors(
         thumbColor = MaterialTheme.colorScheme.secondary,
         activeTrackColor = MaterialTheme.colorScheme.secondary,
         inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledThumbColor = MaterialTheme.colorScheme.secondary,
+        disabledActiveTrackColor = MaterialTheme.colorScheme.secondary,
+        disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
     )
 
     Column(
@@ -64,12 +61,8 @@ fun ReaderProgressBar(
         ) {
             Slider(
                 value = sliderProgress,
-                onValueChange = { newProgress ->
-                    sliderProgress = newProgress
-                },
-                onValueChangeFinished = {
-                    onProgressChangeFinished(sliderProgress)
-                },
+                onValueChange = {},
+                enabled = false,
                 valueRange = 0f..100f,
                 colors = sliderColors,
                 interactionSource = interactionSource,
@@ -117,7 +110,6 @@ private fun ReaderProgressBarPreview() {
     YeobaekTheme {
         ReaderProgressBar(
             progress = 12f,
-            onProgressChangeFinished = {},
         )
     }
 }

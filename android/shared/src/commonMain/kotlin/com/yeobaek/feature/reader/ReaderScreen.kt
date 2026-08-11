@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -21,15 +20,11 @@ import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderTopBar
 import com.yeobaek.feature.reader.model.PassageUiModel
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 @Composable
 fun ReaderScreen(
     uiState: ReaderUiState,
     onPassageClick: (PassageUiModel) -> Unit,
-    onCurrentSequenceChange: (Int) -> Unit,
     onBackClick: () -> Unit,
     onTextSettingClick: () -> Unit,
     onTextSettingDismiss: () -> Unit,
@@ -68,27 +63,8 @@ fun ReaderScreen(
             )
         },
         bottomBar = {
-            val coroutineScope = rememberCoroutineScope()
-
             ReaderProgressBar(
                 progress = uiState.progress,
-                onProgressChangeFinished = { progress ->
-                    if (uiState.passages.isNotEmpty() && uiState.totalPassageCount > 0) {
-                        val targetSequence = (
-                            progress / 100f * uiState.totalPassageCount
-                            ).roundToInt()
-                            .coerceIn(1, uiState.totalPassageCount)
-                        val targetIndex = uiState.passages.indices.minByOrNull { index ->
-                            abs(uiState.passages[index].sequence - targetSequence)
-                        } ?: return@ReaderProgressBar
-
-                        onCurrentSequenceChange(targetSequence)
-
-                        coroutineScope.launch {
-                            listState.animateScrollToItem(targetIndex)
-                        }
-                    }
-                },
                 modifier = Modifier.navigationBarsPadding(),
             )
         },
@@ -164,7 +140,6 @@ private fun ReaderScreenPreview() {
                 totalPassageCount = mockPassages.size,
             ),
             onPassageClick = {},
-            onCurrentSequenceChange = {},
             onBackClick = {},
             onTextSettingClick = {},
             onTextSettingDismiss = {},
