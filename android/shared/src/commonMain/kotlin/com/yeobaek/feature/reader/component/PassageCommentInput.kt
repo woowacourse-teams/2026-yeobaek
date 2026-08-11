@@ -46,7 +46,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun PassageCommentInput(
     value: String,
     enabled: Boolean,
-    errorMessage: String?,
     isEditing: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -140,15 +139,6 @@ fun PassageCommentInput(
                     }
                 }
             },
-            supportingText = errorMessage?.let { message ->
-                {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            isError = errorMessage != null,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -175,7 +165,6 @@ private fun PassageCommentInputPreview() {
         PassageCommentInput(
             value = "",
             enabled = true,
-            errorMessage = null,
             isEditing = true,
             onValueChange = {},
             onSubmit = {},

@@ -95,7 +95,6 @@ fun PassageCommentBottomSheet(
             PassageCommentInput(
                 value = uiState.input,
                 enabled = !uiState.isSubmitting,
-                errorMessage = uiState.submitErrorMessage,
                 isEditing = uiState.editingCommentId != null,
                 onValueChange = onInputChange,
                 onSubmit = onSubmit,
