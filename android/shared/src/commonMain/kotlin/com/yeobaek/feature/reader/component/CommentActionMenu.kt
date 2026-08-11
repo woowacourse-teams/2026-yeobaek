@@ -1,5 +1,7 @@
 package com.yeobaek.feature.reader.component
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_menu
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +38,7 @@ import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekError
 import com.yeobaek.core.designsystem.theme.YeobaekShadow
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CommentActionMenu(
@@ -56,10 +60,10 @@ fun CommentActionMenu(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "⋮",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 20.sp,
+            Icon(
+                painter = painterResource(Res.drawable.ic_menu),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                contentDescription = "메뉴 아이콘",
             )
         }
 
