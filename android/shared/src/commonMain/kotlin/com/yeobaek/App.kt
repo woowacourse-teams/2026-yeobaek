@@ -56,6 +56,7 @@ fun App() {
         }
         val joinStateHolder = remember {
             JoinStateHolder(
+                userRepository = userRepository,
                 groupRepository = groupRepository,
             )
         }
@@ -63,6 +64,7 @@ fun App() {
             CreateStateHolder(
                 bookRepository = bookRepository,
                 groupRepository = groupRepository,
+                userRepository = userRepository,
             )
         }
 
@@ -81,6 +83,8 @@ fun App() {
                     navigateToCreate = {
                         onboardingStateHolder.nicknameValueCheck()
                         if (!onboardingStateHolder.nicknameState) {
+                            onboardingStateHolder.setNickname()
+
                             navController.navigate(Create)
                         }
                     },
@@ -88,6 +92,7 @@ fun App() {
                         onboardingStateHolder.nicknameValueCheck()
                         onboardingStateHolder.codeValueCheck()
                         if (!onboardingStateHolder.codeState && !onboardingStateHolder.nicknameState) {
+                            onboardingStateHolder.setNickname()
                             onboardingStateHolder.joinGroup()
 
                             navController.navigate(Home) {
@@ -100,6 +105,8 @@ fun App() {
                     navigateToAroundHome = {
                         onboardingStateHolder.nicknameValueCheck()
                         if (!onboardingStateHolder.nicknameState) {
+                            onboardingStateHolder.setNickname()
+
                             navController.navigate(Home) {
                                 popUpTo<Onboarding> {
                                     inclusive = true

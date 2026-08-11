@@ -5,11 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
 class CreateStateHolder(
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
+    private val userRepository: UserRepository,
 ) {
     var uiState by mutableStateOf(CreateUiState())
         private set
@@ -73,6 +75,7 @@ class CreateStateHolder(
 
         groupRepository.createGroup(
             groupName = uiState.groupNameValue,
+            username = userRepository.nickname,
             book = selectedBook,
         )
     }

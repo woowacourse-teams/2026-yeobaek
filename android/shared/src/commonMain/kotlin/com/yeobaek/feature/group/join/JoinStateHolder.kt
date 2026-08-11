@@ -4,9 +4,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.UserRepository
 
 class JoinStateHolder(
     private val groupRepository: GroupRepository,
+    private val userRepository: UserRepository,
 ) {
     var codeValue by mutableStateOf("")
         private set
@@ -25,7 +27,10 @@ class JoinStateHolder(
     }
 
     fun joinGroup() {
-        if (!codeState) groupRepository.joinGroup(codeValue) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
+        if (!codeState) groupRepository.joinGroup(
+            code = codeValue,
+            username = userRepository.nickname,
+        ) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
     }
 
     fun checkValue() {

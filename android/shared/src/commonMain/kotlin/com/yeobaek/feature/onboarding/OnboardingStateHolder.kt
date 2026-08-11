@@ -26,8 +26,15 @@ class OnboardingStateHolder(
         nicknameValue = inputValue
     }
 
+    fun setNickname() {
+        userRepository.setNickname(nicknameValue)
+    }
+
     fun joinGroup() {
-        if (!codeState) groupRepository.joinGroup(codeValue) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
+        if (!codeState) groupRepository.joinGroup(
+            code = codeValue,
+            username = userRepository.nickname,
+        ) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
     }
 
     fun codeValueCheck() {
