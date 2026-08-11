@@ -52,12 +52,14 @@ private fun CurrentlyGroupSectionPreview() {
             title = "내 모임",
             groupUiModelList = listOf(
                 GroupUiModel(
+                    groupCode = "BOOK42",
                     uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791187192596.jpg?t=2977195",
                     title = "어린 왕자",
                     groupName = "어른이들을 위한 동화 읽기",
                     groupCount = 8,
                 ),
                 GroupUiModel(
+                    groupCode = "XXXXXX",
                     uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
                     title = "데미안",
                     groupName = "고전 읽는 오후 모임",
