@@ -14,31 +14,20 @@ class MockGroupRepositoryImpl : GroupRepository {
         groupName: String,
         book: BookModel,
     ) {
-        totalGroup.add(
-            GroupModel(
-                groupCode = "EXAM${totalGroup.size}",
-                groupName = groupName,
-                book = book,
-                users = listOf(
-                    UserModel(
-                        name = "나",
-                    ),
+        val groupData = GroupModel(
+            groupCode = "EXAM${totalGroup.size}",
+            groupName = groupName,
+            book = book,
+            users = listOf(
+                UserModel(
+                    name = "나",
                 ),
             ),
         )
-        groups.add(
-            GroupModel(
-                groupCode = "EXAM${totalGroup.size}",
-                groupName = groupName,
-                book = book,
-                users = listOf(
-                    UserModel(
-                        name = "나",
-                    ),
-                ),
-            ),
-        )
+        totalGroup.add(groupData)
+        groups.add(groupData)
     }
+
     override fun getGroups(): List<GroupModel> = groups.toList()
     override fun joinGroup(code: String) {
         if (checkCode(code)) throw IllegalArgumentException("존재하지 않는 모임입니다.")
