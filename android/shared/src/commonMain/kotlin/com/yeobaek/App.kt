@@ -164,9 +164,15 @@ fun App() {
                         createStateHolder.createConditionCheck()
                         if (!createStateHolder.createConditionCheck()) {
                             createStateHolder.createGroup()
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
+
+                            val popped = navController.popBackStack<Home>(
+                                inclusive = false,
+                            )
+                            if(!popped) {
+                                navController.navigate(Home) {
+                                    popUpTo<Onboarding> {
+                                        inclusive = true
+                                    }
                                 }
                             }
                             createStateHolder.initInputValue()
