@@ -87,6 +87,13 @@ fun App() {
                             }
                         }
                     },
+                    navigateToAroundHome = {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    }
                 )
             }
             composable<Home> {

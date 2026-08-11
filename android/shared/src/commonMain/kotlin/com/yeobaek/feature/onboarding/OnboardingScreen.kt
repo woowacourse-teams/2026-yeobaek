@@ -31,6 +31,7 @@ fun OnboardingScreen(
     codeState: Boolean,
     navigateToHome: () -> Unit,
     navigateToCreate: () -> Unit,
+    navigateToAroundHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -75,7 +76,7 @@ fun OnboardingScreen(
                 OnboardingBottomCard(
                     text = "새 모임 만들기",
                     onGroupCreateClick = navigateToCreate,
-                    onLookAroundClick = navigateToHome,
+                    onLookAroundClick = navigateToAroundHome,
                 )
             }
         }
@@ -92,6 +93,7 @@ private fun OnboardingScreenPreview() {
             onCodeValueChange = {},
             navigateToHome = {},
             navigateToCreate = {},
+            navigateToAroundHome = {}
         )
     }
 }
