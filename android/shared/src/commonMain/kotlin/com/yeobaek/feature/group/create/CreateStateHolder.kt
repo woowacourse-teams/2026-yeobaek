@@ -3,20 +3,55 @@ package com.yeobaek.feature.group.create
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.yeobaek.feature.group.create.model.BookUiModel
+import com.yeobaek.data.repository.BookRepository
+import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
-class CreateStateHolder {
+class CreateStateHolder(
+    private val groupRepository: GroupRepository,
+    private val bookRepository: BookRepository,
+) {
     var uiState by mutableStateOf(CreateUiState())
         private set
 
+    var groupNameCondition by mutableStateOf(false)
+    var selectedBookCondition by mutableStateOf(false)
+
     init {
-        uiState = mockUiState
+        initBookList()
+    }
+
+    fun initBookList() {
+        val groups = bookRepository.getBooks()
+        uiState = CreateUiState(
+            bookList = groups.map {
+                CreateBookUiModel(
+                    id = it.id,
+                    uri = it.uri,
+                    title = it.title,
+                    author = it.author,
+                    description = it.description,
+                )
+            },
+        )
+    }
+
+    fun initInputValue() {
+        uiState = uiState.copy(
+            groupNameValue = "",
+            bookList = uiState.bookList.map {
+                it.copy(selected = false)
+            },
+        )
+        groupNameCondition = false
+        selectedBookCondition = false
     }
 
     fun updateGroupNameValue(value: String) {
         uiState = uiState.copy(
             groupNameValue = value.take(20),
         )
+        groupNameCondition = false
     }
 
     fun selectBook(index: Int) {
@@ -29,31 +64,35 @@ class CreateStateHolder {
                 }
             },
         )
+        selectedBookCondition = false
     }
 
-    companion object {
-        val mockUiState = CreateUiState(
-            bookList = listOf(
-                BookUiModel(
-                    uri = "https://i.namu.wiki/i/" +
-                        "Wi8JtxXjls349ehpO4I0LzTIZMXTpbofsU_Btscepuh3KPTAPTaDtIdpkdea2ygSdNPm-saQVCWrnss7nzMhzw.webp",
-                    title = "미드나잇 라이브러리",
-                    author = "메트 해이그",
-                    description = "삶의 가능성을 다시 바라보는 이야기",
-                ),
-                BookUiModel(
-                    uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9788936434267.jpg?t=2977220",
-                    title = "아몬드",
-                    author = "손원평",
-                    description = "마음을 이해하고 성장하는 소설",
-                ),
-                BookUiModel(
-                    uri = "https://cdn.kids.donga.com/news/photo/202304/159384_246405_3011.jpg",
-                    title = "불편한 편의점",
-                    author = "김호연",
-                    description = "낯선 이들이 건네는 다정한 위로",
-                ),
-            ),
+    fun createGroup() {
+        val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
+        val selectedBook = bookRepository.getBook(bookId)
+
+        groupRepository.createGroup(
+            groupName = uiState.groupNameValue,
+            book = selectedBook,
         )
+    }
+
+    fun groupNameCheck() {
+        groupNameCondition = uiState.groupNameValue.isBlank()
+        if (groupNameCondition) {
+            uiState = uiState.copy(
+                groupNameValue = "",
+            )
+        }
+    }
+
+    fun selectedBookCheck() {
+        selectedBookCondition = uiState.bookList.all { !it.selected }
+    }
+
+    fun createConditionCheck(): Boolean {
+        groupNameCheck()
+        selectedBookCheck()
+        return groupNameCondition || selectedBookCondition
     }
 }

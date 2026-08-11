@@ -13,13 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.group.create.model.BookUiModel
+import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
 @Composable
 fun CreateBookChooseCard(
-    books: List<BookUiModel>,
+    books: List<CreateBookUiModel>,
+    subTitle: String,
     onClickBook: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -29,11 +31,16 @@ fun CreateBookChooseCard(
             title = "함께 읽을 책 선택하기",
         )
         Spacer(modifier = Modifier.height(12.dp))
-        Text("이달의 추천 도서 중에서 골라보세요.", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            subTitle,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        )
         Spacer(modifier = Modifier.height(12.dp))
         LazyColumn {
-            items(items = books, key = { books.indexOf(it) }) { book ->
-                BookCard(
+            items(items = books, key = { it.id }) { book ->
+                CreateBookCard(
                     uri = book.uri,
                     title = book.title,
                     author = book.author,
@@ -55,6 +62,7 @@ private fun CreateBookChooseCardPreview() {
     YeobaekTheme {
         CreateBookChooseCard(
             books = emptyList(),
+            subTitle = "함께 읽을 책을 선택해주세요.",
             onClickBook = {},
         )
     }

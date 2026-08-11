@@ -26,7 +26,12 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 
 @Composable
 fun OnboardingScreen(
-    stateHolder: OnboardingStateHolder,
+    codeValue: String,
+    onCodeValueChange: (String) -> Unit,
+    codeState: Boolean,
+    navigateToHome: () -> Unit,
+    navigateToCreate: () -> Unit,
+    navigateToAroundHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -53,24 +58,25 @@ fun OnboardingScreen(
             ) {
                 OnboardingYeobaekCommonCard()
                 OnboardingYeobaekTextField(
-                    title = "참여 코드 입력",
-                    value = stateHolder.codeValue,
+                    title = if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력",
+                    codeState = codeState,
+                    value = codeValue,
                     onValueChange = {
-                        stateHolder.onCodeValueChange(it)
+                        onCodeValueChange(it)
                     },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 YeobaekButton(
                     text = "모임 참여하기",
-                    onClick = {},
+                    onClick = navigateToHome,
                 )
                 OnboardingHorizontalDivider(
                     modifier = Modifier.padding(vertical = 24.dp),
                 )
                 OnboardingBottomCard(
                     text = "새 모임 만들기",
-                    onGroupCreateClick = {},
-                    onLookAroundClick = {},
+                    onGroupCreateClick = navigateToCreate,
+                    onLookAroundClick = navigateToAroundHome,
                 )
             }
         }
@@ -82,7 +88,12 @@ fun OnboardingScreen(
 private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
-            stateHolder = OnboardingStateHolder(),
+            codeValue = "",
+            codeState = false,
+            onCodeValueChange = {},
+            navigateToHome = {},
+            navigateToCreate = {},
+            navigateToAroundHome = {},
         )
     }
 }

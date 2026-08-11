@@ -19,6 +19,7 @@ fun YeobaekTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
@@ -43,6 +44,7 @@ fun YeobaekTextField(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
         singleLine = true,
+        isError = isError,
     )
 }
 

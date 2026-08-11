@@ -20,6 +20,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun CreateGroupNameCard(
     value: String,
     onValueChange: (String) -> Unit,
+    placeholder: String,
+    isError: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -35,7 +37,7 @@ fun CreateGroupNameCard(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text("예: 일요일 아침, 함께 읽기")
+                Text(placeholder)
             },
             singleLine = true,
             colors = TextFieldDefaults.colors().copy(
@@ -43,7 +45,10 @@ fun CreateGroupNameCard(
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = MaterialTheme.colorScheme.outline,
                 unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                errorPlaceholderColor = MaterialTheme.colorScheme.error,
+                errorContainerColor = Color.Transparent,
             ),
+            isError = isError,
         )
         Text(
             "${value.length}/20",
@@ -63,6 +68,8 @@ private fun CreateGroupNameCardPreview() {
         CreateGroupNameCard(
             value = "",
             onValueChange = {},
+            placeholder = "예: 일요일 아침, 함께 읽기",
+            isError = false,
         )
     }
 }

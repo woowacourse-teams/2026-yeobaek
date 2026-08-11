@@ -1,19 +1,27 @@
-package com.yeobaek.feature.onboarding
+package com.yeobaek.feature.group.join
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.yeobaek.data.repository.GroupRepository
 
-class OnboardingStateHolder(
+class JoinStateHolder(
     private val groupRepository: GroupRepository,
 ) {
     var codeValue by mutableStateOf("")
-    var codeState by mutableStateOf(false)
+        private set
 
-    fun onCodeValueChange(inputValue: String) {
+    var codeState by mutableStateOf(false)
+        private set
+
+    fun initInputValue() {
+        codeValue = ""
         codeState = false
-        codeValue = inputValue
+    }
+
+    fun onCodeValueChange(value: String) {
+        codeState = false
+        codeValue = value
     }
 
     fun joinGroup() {

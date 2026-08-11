@@ -1,8 +1,7 @@
-package com.yeobaek.feature.group.detail.component
+package com.yeobaek.core.designsystem.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
-import android.shared.generated.resources.ic_menu
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -12,26 +11,21 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun DetailTopAppBar(
+fun YeobaekTopAppBar(
     title: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
-        modifier = modifier.fillMaxWidth(),
         title = {
-            Text(
-                text = title,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Text(title)
         },
+        modifier = modifier.fillMaxWidth(),
         navigationIcon = {
             IconButton(
                 onClick = onBackClick,
@@ -42,13 +36,6 @@ fun DetailTopAppBar(
                 )
             }
         },
-        actions = {
-            Icon(
-                painter = painterResource(resource = Res.drawable.ic_menu),
-                contentDescription = "메뉴 아이콘",
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -56,12 +43,12 @@ fun DetailTopAppBar(
     )
 }
 
-@Preview(showBackground = true, name = "상세 화면 앱 상단바")
+@Preview(showBackground = true, name = "공통 상단 바")
 @Composable
-private fun DetailTopAppBarPreview() {
+private fun YeobaekTopAppBarPreview() {
     YeobaekTheme {
-        DetailTopAppBar(
-            title = "어른이들을 위한 동화 읽기",
+        YeobaekTopAppBar(
+            title = "모임 참여하기",
             onBackClick = {},
         )
     }

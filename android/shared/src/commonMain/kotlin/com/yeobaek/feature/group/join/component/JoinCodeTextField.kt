@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding.component
+package com.yeobaek.feature.group.join.component
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,41 +11,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekTextField
+import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
-fun OnboardingYeobaekTextField(
-    title: String,
+fun JoinCodeTextField(
+    codeValue: String,
     codeState: Boolean,
-    value: String,
-    onValueChange: (String) -> Unit,
+    onCodeValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
         Text(
-            title,
+            if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드",
             style = MaterialTheme.typography.bodyMedium.copy(
                 color = if (codeState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
         Spacer(modifier = Modifier.height(8.dp))
         YeobaekTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = codeValue,
+            onValueChange = {
+                onCodeValueChange(it)
+            },
             placeholder = "예: BOOK42",
             isError = codeState,
         )
     }
 }
 
-@Preview(showBackground = true, name = "온보딩 화면 참여 코드 입력")
+@Preview(showBackground = true, name = "그룹 참여 화면 참여 코드 입력")
 @Composable
-private fun OnboardingYeobaekTextFieldPreview() {
-    OnboardingYeobaekTextField(
-        title = "참여 코드 입력",
-        value = "",
-        codeState = false,
-        onValueChange = {},
-    )
+private fun JoinCodeTextFieldPreview() {
+    YeobaekTheme {
+        JoinCodeTextField(
+            codeValue = "",
+            codeState = false,
+            onCodeValueChange = {},
+        )
+    }
 }

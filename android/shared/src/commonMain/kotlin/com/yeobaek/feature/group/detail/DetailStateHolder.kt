@@ -3,85 +3,37 @@ package com.yeobaek.feature.group.detail
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.yeobaek.feature.group.detail.model.BookUiModel
+import com.yeobaek.data.model.GroupModel
+import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
 
-class DetailStateHolder {
+class DetailStateHolder(
+    private val groupRepository: GroupRepository,
+) {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
 
-    init {
-        uiState = mookUiState
-    }
+    fun initGroupData(groupCode: String) {
+        val groups: List<GroupModel> = groupRepository.getGroups()
+        val groupData = groups.find { it.groupCode == groupCode } ?: throw IllegalArgumentException("모임이 없음요")
 
-    companion object {
-        val mookUiState = DetailUiState(
-            bookUiModel = BookUiModel(
-                uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791187192596.jpg?t=2976894",
-                title = "어린 왕자",
-                author = "앙투안 드 생텍쥐페리",
-                currentProgress = 0.3f,
+        uiState = uiState.copy(
+            bookUiModel = DetailBookUiModel(
+                uri = groupData.book.uri,
+                title = groupData.book.title,
+                author = groupData.book.author,
+                currentProgress = groupData.book.progressRate,
             ),
             groupUiModel = GroupUiModel(
-                name = "어른이들을 위한 동화 읽기",
-                groupCode = "BOOK42",
-                users = listOf(
+                name = groupData.groupName,
+                groupCode = groupData.groupCode,
+                users = groupData.users.map {
                     UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                    UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                    UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                    UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                    UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                    UserUiModel(
-                        name = "하로",
-                    ),
-                    UserUiModel(
-                        name = "하로2",
-                    ),
-                    UserUiModel(
-                        name = "하로3",
-                    ),
-                ),
+                        name = it.name,
+                    )
+                },
             ),
         )
     }
