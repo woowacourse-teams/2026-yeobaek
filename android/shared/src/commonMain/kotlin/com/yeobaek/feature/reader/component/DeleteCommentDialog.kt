@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -32,7 +31,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekOnNeutralContainer
 import com.yeobaek.core.designsystem.theme.YeobaekSurfaceElevated
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTextSubtle
-import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 fun DeleteCommentDialog(
@@ -130,13 +128,3 @@ private fun DeleteDialogButton(
     }
 }
 
-@Preview(showBackground = true, name = "댓글 삭제 다이얼로그")
-@Composable
-private fun DeleteCommentDialogPreview() {
-    YeobaekTheme {
-        DeleteCommentDialog(
-            onDismissRequest = {},
-            onConfirm = {},
-        )
-    }
-}
