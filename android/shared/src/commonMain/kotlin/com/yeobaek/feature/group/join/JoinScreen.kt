@@ -21,9 +21,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.YeobaekButton
-import com.yeobaek.core.designsystem.component.YeobaekTextField
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.group.join.component.JoinCodeTextField
 
 @Composable
 fun JoinScreen(
@@ -98,13 +98,10 @@ fun JoinScreen(
                 ),
             )
             Spacer(modifier = Modifier.height(36.dp))
-            YeobaekTextField(
-                value = codeValue,
-                onValueChange = {
-                    onCodeValueChange(it)
-                },
-                placeholder = if (!codeState) "예: BOOK42" else "존재하지 않는 코드입니다.",
-                isError = codeState,
+            JoinCodeTextField(
+                codeValue = codeValue,
+                codeState = codeState,
+                onCodeValueChange = onCodeValueChange,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(12.dp))

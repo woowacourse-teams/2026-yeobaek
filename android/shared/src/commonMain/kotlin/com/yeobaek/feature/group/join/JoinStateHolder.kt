@@ -25,6 +25,5 @@ class JoinStateHolder(
 
     fun checkValue() {
         codeState = groupRepository.checkCode(codeValue)
-        if (codeState) codeValue = ""
     }
 }

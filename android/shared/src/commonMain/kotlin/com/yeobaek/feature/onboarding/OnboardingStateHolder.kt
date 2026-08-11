@@ -22,6 +22,5 @@ class OnboardingStateHolder(
 
     fun checkValue() {
         codeState = groupRepository.checkCode(codeValue)
-        if (codeState) codeValue = ""
     }
 }

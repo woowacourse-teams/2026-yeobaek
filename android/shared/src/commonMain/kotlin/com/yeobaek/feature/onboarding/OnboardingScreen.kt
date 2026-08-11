@@ -58,7 +58,7 @@ fun OnboardingScreen(
             ) {
                 OnboardingYeobaekCommonCard()
                 OnboardingYeobaekTextField(
-                    title = "참여 코드 입력",
+                    title = if(codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력",
                     codeState = codeState,
                     value = codeValue,
                     onValueChange = {
