@@ -49,6 +49,8 @@ fun FontSizeController(
             SliderDefaults.Track(
                 sliderState = sliderState,
                 modifier = Modifier.height(4.dp),
+                drawStopIndicator = null,
+                drawTick = { _, _ -> },
                 thumbTrackGapSize = 0.dp,
                 trackInsideCornerSize = 2.dp,
             )
