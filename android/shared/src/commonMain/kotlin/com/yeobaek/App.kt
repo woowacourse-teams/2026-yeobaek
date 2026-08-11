@@ -1,6 +1,7 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
@@ -8,7 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.model.MockData
+import com.yeobaek.data.MockData
+import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
+import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStateHolder
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -16,7 +19,7 @@ import com.yeobaek.feature.group.detail.DetailStateHolder
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinStateHolder
 import com.yeobaek.feature.home.HomeScreen
-import com.yeobaek.feature.home.rememberHomeStateHolder
+import com.yeobaek.feature.home.HomeStateHolder
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
@@ -31,10 +34,22 @@ fun App() {
     YeobaekTheme {
         val navController = rememberNavController()
 
+        val bookRepository = MockBookRepositoryImpl()
+        val groupRepository = MockGroupRepositoryImpl()
+
         val onBoardingStateHolder = remember { OnboardingStateHolder() }
-        val homeUiState = rememberHomeStateHolder()
+        val homeUiState = remember {
+            HomeStateHolder(
+                groupRepository = groupRepository,
+            )
+        }
         val joinStateHolder = remember { JoinStateHolder() }
-        val createStateHolder = CreateStateHolder()
+        val createStateHolder = remember {
+            CreateStateHolder(
+                bookRepository = bookRepository,
+                groupRepository = groupRepository,
+            )
+        }
 
         NavHost(
             navController = navController,
@@ -57,6 +72,10 @@ fun App() {
                 )
             }
             composable<Home> {
+                LaunchedEffect(true) {
+                    homeUiState.initGroups()
+                }
+
                 HomeScreen(
                     currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
                     groupUiModelList = homeUiState.uiState.groups,
@@ -112,6 +131,7 @@ fun App() {
                         navController.popBackStack()
                     },
                     navigateToHome = {
+                        createStateHolder.createGroup()
                         navController.navigate(Home) {
                             popUpTo<Create> {
                                 inclusive = true

@@ -6,6 +6,7 @@ import com.yeobaek.data.model.UserModel
 
 object MockData {
     val theLittlePrince = BookModel(
+        id = 1,
         uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791187192596.jpg?t=2977195",
         title = "어린 왕자",
         author = "앙투안 드 생텍쥐페리",
@@ -14,6 +15,7 @@ object MockData {
     )
 
     val demian = BookModel(
+        id = 2,
         uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
         title = "데미안",
         author = "헤르만 헤세",
@@ -22,6 +24,7 @@ object MockData {
     )
 
     val theMidnightLibrary = BookModel(
+        id = 3,
         uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791191056556.jpg?t=2977270",
         title = "미드나잇 라이브러리",
         author = "매트 헤이그",
@@ -30,6 +33,7 @@ object MockData {
     )
 
     val almond = BookModel(
+        id = 4,
         uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9788936434267.jpg?t=2977220",
         title = "아몬드",
         author = "손원평",
@@ -38,6 +42,7 @@ object MockData {
     )
 
     val theSecondChanceConvenienceStore = BookModel(
+        id = 5,
         uri = "https://cdn.kids.donga.com/news/photo/202304/159384_246405_3011.jpg",
         title = "불편한 편의점",
         author = "김호연",

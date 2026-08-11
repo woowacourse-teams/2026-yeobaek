@@ -32,7 +32,7 @@ fun CreateBookChooseCard(
         Text("이달의 추천 도서 중에서 골라보세요.", style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(12.dp))
         LazyColumn {
-            items(items = books, key = { books.indexOf(it) }) { book ->
+            items(items = books, key = { it.id }) { book ->
                 CreateBookCard(
                     uri = book.uri,
                     title = book.title,
