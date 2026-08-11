@@ -59,7 +59,7 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임 (닉네임 : ${myNickname})",
+                title = "내 모임 (닉네임 : $myNickname)",
                 groupUiModelList = groupUiModelList,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),

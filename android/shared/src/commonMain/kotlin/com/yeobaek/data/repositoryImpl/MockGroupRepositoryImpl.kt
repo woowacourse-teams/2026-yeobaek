@@ -36,10 +36,11 @@ class MockGroupRepositoryImpl : GroupRepository {
         if (checkCode(code)) throw IllegalArgumentException("존재하지 않는 모임입니다.")
         val joinGroup = totalGroup.find { it.groupCode == code }!!
         val addUserGroup = joinGroup.copy(
-            users = joinGroup.users + UserModel(
-                id = userData.id,
-                name = userData.name,
-            ),
+            users = joinGroup.users +
+                UserModel(
+                    id = userData.id,
+                    name = userData.name,
+                ),
         )
         groups.add(addUserGroup)
     }

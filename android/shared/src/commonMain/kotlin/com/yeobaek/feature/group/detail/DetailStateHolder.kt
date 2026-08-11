@@ -36,7 +36,7 @@ class DetailStateHolder(
                     UserUiModel(
                         id = it.id,
                         name = it.name,
-                        itsMe = checkItsMe(it.id)
+                        itsMe = checkItsMe(it.id),
                     )
                 },
             ),
@@ -47,7 +47,5 @@ class DetailStateHolder(
         }
     }
 
-    fun checkItsMe(userId: Int): Boolean {
-        return userRepository.userData.id == userId
-    }
+    fun checkItsMe(userId: Int): Boolean = userRepository.userData.id == userId
 }

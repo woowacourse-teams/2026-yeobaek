@@ -85,7 +85,8 @@ fun GroupUserCard(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(
-                    items = users, key = { it.id }
+                    items = users,
+                    key = { it.id },
                 ) { user ->
                     UserCard(
                         name = if (user.itsMe) "(나) ${user.name}" else user.name,
@@ -112,8 +113,10 @@ private fun UserCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(32.dp).background(color = MaterialTheme.colorScheme.outline, shape = CircleShape),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.size(
+                    32.dp,
+                ).background(color = MaterialTheme.colorScheme.outline, shape = CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
             }

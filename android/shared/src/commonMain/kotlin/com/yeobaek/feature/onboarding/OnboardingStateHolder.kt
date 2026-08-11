@@ -32,10 +32,14 @@ class OnboardingStateHolder(
     }
 
     fun joinGroup() {
-        if (!codeState) groupRepository.joinGroup(
-            code = codeValue,
-            userData = userRepository.userData,
-        ) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
+        if (!codeState) {
+            groupRepository.joinGroup(
+                code = codeValue,
+                userData = userRepository.userData,
+            )
+        } else {
+            throw IllegalArgumentException("코드 입력이 잘못되었다.")
+        }
     }
 
     fun codeValueCheck() {

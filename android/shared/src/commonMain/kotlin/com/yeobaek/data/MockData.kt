@@ -61,7 +61,8 @@ object MockData {
     )
 
     val mockUsers = listOf(
-        haro, ellie,
+        haro,
+        ellie,
     )
 
     val group1 = GroupModel(
