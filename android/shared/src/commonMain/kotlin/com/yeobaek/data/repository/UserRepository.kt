@@ -1,7 +1,9 @@
 package com.yeobaek.data.repository
 
+import com.yeobaek.data.model.UserModel
+
 interface UserRepository {
-    val nickname: String
+    val userData: UserModel
     fun checkNickname(nickname: String): Boolean
-    fun setNickname(nickname: String)
+    fun setUserData(nickname: String)
 }

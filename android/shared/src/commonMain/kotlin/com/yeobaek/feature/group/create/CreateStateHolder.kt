@@ -75,7 +75,7 @@ class CreateStateHolder(
 
         groupRepository.createGroup(
             groupName = uiState.groupNameValue,
-            username = userRepository.nickname,
+            userData = userRepository.userData,
             book = selectedBook,
         )
     }

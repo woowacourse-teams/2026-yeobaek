@@ -52,6 +52,7 @@ fun App() {
         val detailStateHolder = remember {
             DetailStateHolder(
                 groupRepository = groupRepository,
+                userRepository = userRepository,
             )
         }
         val joinStateHolder = remember {

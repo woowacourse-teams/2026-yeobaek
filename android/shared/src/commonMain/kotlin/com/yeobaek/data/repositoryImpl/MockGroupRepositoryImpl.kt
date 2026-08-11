@@ -13,7 +13,7 @@ class MockGroupRepositoryImpl : GroupRepository {
 
     override fun createGroup(
         groupName: String,
-        username: String,
+        userData: UserModel,
         book: BookModel,
     ) {
         val groupData = GroupModel(
@@ -22,7 +22,8 @@ class MockGroupRepositoryImpl : GroupRepository {
             book = book,
             users = listOf(
                 UserModel(
-                    name = username,
+                    id = userData.id,
+                    name = userData.name,
                 ),
             ),
         )
@@ -31,12 +32,13 @@ class MockGroupRepositoryImpl : GroupRepository {
     }
 
     override fun getGroups(): List<GroupModel> = groups.toList()
-    override fun joinGroup(code: String, username: String) {
+    override fun joinGroup(code: String, userData: UserModel) {
         if (checkCode(code)) throw IllegalArgumentException("존재하지 않는 모임입니다.")
         val joinGroup = totalGroup.find { it.groupCode == code }!!
         val addUserGroup = joinGroup.copy(
             users = joinGroup.users + UserModel(
-                name = username,
+                id = userData.id,
+                name = userData.name,
             ),
         )
         groups.add(addUserGroup)
