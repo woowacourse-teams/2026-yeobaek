@@ -76,7 +76,10 @@ class CreateStateHolder(
     }
 
     fun groupNameCheck() {
-        groupNameCondition = uiState.groupNameValue.isEmpty()
+        groupNameCondition = uiState.groupNameValue.isBlank()
+        if(groupNameCondition) uiState = uiState.copy(
+            groupNameValue = ""
+        )
     }
 
     fun selectedBookCheck() {
