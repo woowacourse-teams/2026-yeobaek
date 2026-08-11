@@ -27,6 +27,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekError
 import com.yeobaek.core.designsystem.theme.YeobaekNeutralContainer
+import com.yeobaek.core.designsystem.theme.YeobaekOnError
 import com.yeobaek.core.designsystem.theme.YeobaekOnNeutralContainer
 import com.yeobaek.core.designsystem.theme.YeobaekSurfaceElevated
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
@@ -89,7 +90,7 @@ fun DeleteCommentDialog(
                     DeleteDialogButton(
                         text = "삭제",
                         containerColor = YeobaekError,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                        contentColor = YeobaekOnError,
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                     )
