@@ -18,12 +18,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.PassageCommentSheetUiState
-import com.yeobaek.feature.reader.mockPassages
-import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,38 +103,6 @@ fun PassageCommentBottomSheet(
         DeleteCommentDialog(
             onDismissRequest = onCancelDelete,
             onConfirm = onConfirmDelete,
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "문단 댓글 바텀시트")
-@Composable
-private fun PassageCommentBottomSheetPreview() {
-    YeobaekTheme {
-        PassageCommentBottomSheet(
-            passage = mockPassages[1],
-            uiState = PassageCommentSheetUiState(
-                passageId = mockPassages[1].passageId,
-                comments = listOf(
-                    PassageCommentUiModel(
-                        commentId = 7L,
-                        memberId = 2L,
-                        nickname = "지수",
-                        content = "이 문장에서 멈칫했어요.",
-                        createdAt = "2026-08-05T14:30:00",
-                        updatedAt = null,
-                        mine = false,
-                    ),
-                ),
-            ),
-            onDismissRequest = {},
-            onInputChange = {},
-            onSubmit = {},
-            onEditComment = {},
-            onCancelEdit = {},
-            onDeleteComment = {},
-            onCancelDelete = {},
-            onConfirmDelete = {},
         )
     }
 }

@@ -14,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import kotlin.math.roundToInt
@@ -71,15 +70,4 @@ fun ReaderTextSettingMenu(
             }
         }
     }
-}
-
-@Preview(showBackground = true, name = "글자 크기 설정 팝업")
-@Composable
-private fun ReaderTextSettingMenuPreview() {
-    ReaderTextSettingMenu(
-        expanded = true,
-        fontSize = 24,
-        onDismissRequest = {},
-        onFontSizeChange = {},
-    )
 }
