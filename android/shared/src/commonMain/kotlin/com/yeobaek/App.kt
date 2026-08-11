@@ -129,6 +129,9 @@ fun App() {
                 )
             }
             composable<Join> {
+                LaunchedEffect(true) {
+                    joinStateHolder.initInputValue()
+                }
                 JoinScreen(
                     codeValue = joinStateHolder.codeValue,
                     codeState = joinStateHolder.codeState,

@@ -14,6 +14,11 @@ class JoinStateHolder(
     var codeState by mutableStateOf(false)
         private set
 
+    fun initInputValue() {
+        codeValue = ""
+        codeState = false
+    }
+
     fun onCodeValueChange(value: String) {
         codeState = false
         codeValue = value
