@@ -169,6 +169,7 @@ fun App() {
                                     inclusive = true
                                 }
                             }
+                            createStateHolder.initInputValue()
                         }
                     },
                 )
