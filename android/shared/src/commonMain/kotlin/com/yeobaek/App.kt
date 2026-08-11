@@ -9,7 +9,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.MockData
 import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
@@ -37,7 +36,11 @@ fun App() {
         val bookRepository = MockBookRepositoryImpl()
         val groupRepository = MockGroupRepositoryImpl()
 
-        val onBoardingStateHolder = remember { OnboardingStateHolder() }
+        val onboardingStateHolder = remember {
+            OnboardingStateHolder(
+                groupRepository = groupRepository,
+            )
+        }
         val homeUiState = remember {
             HomeStateHolder(
                 groupRepository = groupRepository,
@@ -45,12 +48,14 @@ fun App() {
         }
         val detailStateHolder = remember {
             DetailStateHolder(
-                groupRepository = groupRepository
+                groupRepository = groupRepository,
             )
         }
-        val joinStateHolder = remember { JoinStateHolder(
-            groupRepository = groupRepository
-        ) }
+        val joinStateHolder = remember {
+            JoinStateHolder(
+                groupRepository = groupRepository,
+            )
+        }
         val createStateHolder = remember {
             CreateStateHolder(
                 bookRepository = bookRepository,
@@ -64,12 +69,14 @@ fun App() {
         ) {
             composable<Onboarding> {
                 OnboardingScreen(
-                    codeValue = onBoardingStateHolder.codeValue,
-                    onCodeValueChange = onBoardingStateHolder::onCodeValueChange,
+                    codeValue = onboardingStateHolder.codeValue,
+                    onCodeValueChange = onboardingStateHolder::onCodeValueChange,
                     navigateToCreate = {
                         navController.navigate(Create)
                     },
                     navigateToHome = {
+                        onboardingStateHolder.joinGroup()
+
                         navController.navigate(Home) {
                             popUpTo<Onboarding> {
                                 inclusive = true
