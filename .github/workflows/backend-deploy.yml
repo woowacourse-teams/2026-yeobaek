@@ -1,6 +1,7 @@
 # 백엔드 CI/CD (M8 배포 구성 결정, 2026-08-06)
-# develop에 backend 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 →
-# Docker Hub 푸시 → EC2에서 pull & 재기동. 필요한 시크릿은 backend/docs/배포_가이드.md 참고.
+# develop에 backend 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 → Docker Hub 푸시(빌드 잡)
+# → EC2의 셀프 호스티드 러너에서 pull & 재기동(배포 잡). 보안 그룹이 SSH를 막고 있어
+# SSH 대신 EC2에 상주하는 러너(라벨: ec2-prod)가 배포를 수행한다. 시크릿은 backend/docs/배포_가이드.md 참고.
 name: backend-deploy
 
 on:
@@ -11,8 +12,13 @@ on:
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:
 
+# 연속 푸시 시 배포가 겹치지 않도록 직렬화한다 (진행 중인 배포는 취소하지 않음)
+concurrency:
+  group: backend-deploy
+  cancel-in-progress: false
+
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,18 +42,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
+      # EC2가 Graviton(arm64)이라 멀티아키로 빌드한다. amd64 단일 빌드는 exec format error로 기동 불가.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image (amd64+arm64)
         run: |
           IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend"
-          docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
-          docker push "$IMAGE:latest"
-          docker push "$IMAGE:${{ github.sha }}"
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" --push .
 
-      - name: Deploy on EC2
-        working-directory: .
+  deploy:
+    needs: build
+    runs-on: [self-hosted, ec2-prod]
+    steps:
+      # 서버의 ~/yeobaek/docker-compose.yml과 .env를 사용하므로 체크아웃이 필요 없다
+      - name: Pull & restart
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > key.pem
-          chmod 600 key.pem
-          ssh -o StrictHostKeyChecking=accept-new -i key.pem \
-            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
-            'cd ~/yeobaek && docker compose pull && docker compose up -d && docker image prune -f'
+          cd ~/yeobaek
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
