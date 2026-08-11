@@ -28,6 +28,7 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 fun OnboardingScreen(
     codeValue: String,
     onCodeValueChange: (String) -> Unit,
+    codeState: Boolean,
     navigateToHome: () -> Unit,
     navigateToCreate: () -> Unit,
     modifier: Modifier = Modifier,
@@ -57,6 +58,7 @@ fun OnboardingScreen(
                 OnboardingYeobaekCommonCard()
                 OnboardingYeobaekTextField(
                     title = "참여 코드 입력",
+                    codeState = codeState,
                     value = codeValue,
                     onValueChange = {
                         onCodeValueChange(it)
@@ -86,6 +88,7 @@ private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
             codeValue = "",
+            codeState = false,
             onCodeValueChange = {},
             navigateToHome = {},
             navigateToCreate = {},

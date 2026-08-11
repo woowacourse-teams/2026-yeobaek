@@ -15,6 +15,7 @@ import com.yeobaek.core.designsystem.component.YeobaekTextField
 @Composable
 fun OnboardingYeobaekTextField(
     title: String,
+    codeState: Boolean,
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -32,7 +33,8 @@ fun OnboardingYeobaekTextField(
         YeobaekTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = "예: BOOK42",
+            placeholder = if (!codeState) "예: BOOK42" else "잘못된 코드 입력입니다.",
+            isError = codeState
         )
     }
 }
@@ -43,6 +45,7 @@ private fun OnboardingYeobaekTextFieldPreview() {
     OnboardingYeobaekTextField(
         title = "참여 코드 입력",
         value = "",
+        codeState = false,
         onValueChange = {},
     )
 }

@@ -7,4 +7,5 @@ interface GroupRepository {
     fun getGroups(): List<GroupModel>
     fun createGroup(groupName: String, book: BookModel)
     fun joinGroup(code: String)
+    fun checkCode(code: String): Boolean
 }

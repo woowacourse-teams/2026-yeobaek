@@ -70,16 +70,20 @@ fun App() {
             composable<Onboarding> {
                 OnboardingScreen(
                     codeValue = onboardingStateHolder.codeValue,
+                    codeState = onboardingStateHolder.codeState,
                     onCodeValueChange = onboardingStateHolder::onCodeValueChange,
                     navigateToCreate = {
                         navController.navigate(Create)
                     },
                     navigateToHome = {
-                        onboardingStateHolder.joinGroup()
+                        onboardingStateHolder.checkValue()
+                        if (!onboardingStateHolder.codeState) {
+                            onboardingStateHolder.joinGroup()
 
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },

@@ -43,8 +43,12 @@ class MockGroupRepositoryImpl : GroupRepository {
         return groups
     }
     override fun joinGroup(code: String) {
-        val joinGroup = totalGroup.find { it.groupCode == code }
-        if (joinGroup == null) throw IllegalArgumentException("존재하지 않는 모임입니다.")
+        if (checkCode(code)) throw IllegalArgumentException("존재하지 않는 모임입니다.")
+        val joinGroup = totalGroup.find { it.groupCode == code }!!
         groups.add(joinGroup)
+    }
+
+    override fun checkCode(code: String): Boolean {
+        return totalGroup.find { it.groupCode == code } == null
     }
 }
