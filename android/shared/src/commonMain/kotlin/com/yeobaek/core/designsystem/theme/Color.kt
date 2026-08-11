@@ -51,7 +51,7 @@ val YeobaekSurfaceElevated = Color(0xFFFBFAF7)
 val YeobaekTextStrong = Color(0xFF2A2824)
 
 // 다이얼로그의 보조 설명
-val YeobaekTextSubtle = Color(0xFF8A8273)
+val YeobaekTextSubtle = Color(0xFF6F695D)
 
 // 취소와 같은 중립 버튼의 배경
 val YeobaekNeutralContainer = Color(0xFFEEEAE1)
