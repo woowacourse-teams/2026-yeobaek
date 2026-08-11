@@ -1,32 +1,105 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.reader.ReaderScreen
-import com.yeobaek.feature.reader.rememberReaderStateHolder
+import com.yeobaek.feature.group.create.CreateScreen
+import com.yeobaek.feature.group.create.CreateStateHolder
+import com.yeobaek.feature.group.detail.DetailScreen
+import com.yeobaek.feature.group.detail.DetailStateHolder
+import com.yeobaek.feature.group.join.JoinScreen
+import com.yeobaek.feature.group.join.JoinStateHolder
+import com.yeobaek.feature.home.HomeScreen
+import com.yeobaek.feature.home.rememberHomeStateHolder
+import com.yeobaek.feature.navigation.Create
+import com.yeobaek.feature.navigation.Detail
+import com.yeobaek.feature.navigation.Home
+import com.yeobaek.feature.navigation.Join
+import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.onboarding.OnboardingScreen
+import com.yeobaek.feature.onboarding.OnboardingStateHolder
 
 @Composable
 @Preview
 fun App() {
     YeobaekTheme {
-        val readerStateHolder = rememberReaderStateHolder()
+        val navController = rememberNavController()
 
-        ReaderScreen(
-            uiState = readerStateHolder.uiState,
-            onPassageClick = readerStateHolder::openPassageComments,
-            onBackClick = {},
-            onTextSettingClick = readerStateHolder::toggleTextSettingMenu,
-            onTextSettingDismiss = readerStateHolder::dismissTextSettingMenu,
-            onFontSizeChange = readerStateHolder::updateFontSize,
-            onCommentSheetDismiss = readerStateHolder::dismissPassageComments,
-            onCommentInputChange = readerStateHolder::updateCommentInput,
-            onCommentSubmit = readerStateHolder::submitComment,
-            onCommentEdit = readerStateHolder::startEditingComment,
-            onCommentEditCancel = readerStateHolder::cancelEditingComment,
-            onCommentDelete = readerStateHolder::requestDeleteComment,
-            onCommentDeleteCancel = readerStateHolder::cancelDeleteComment,
-            onCommentDeleteConfirm = readerStateHolder::confirmDeleteComment,
-        )
+        val onBoardingStateHolder = remember { OnboardingStateHolder() }
+        val homeUiState = rememberHomeStateHolder()
+        val detailStateHolder = remember { DetailStateHolder() }
+        val joinStateHolder = remember { JoinStateHolder() }
+        val createStateHolder = CreateStateHolder()
+
+        NavHost(
+            navController = navController,
+            startDestination = Onboarding,
+        ) {
+            composable<Onboarding> {
+                OnboardingScreen(
+                    codeValue = onBoardingStateHolder.codeValue,
+                    onCodeValueChange = onBoardingStateHolder::onCodeValueChange,
+                    navigateToCreate = {
+                        navController.navigate(Create)
+                    },
+                    navigateToHome = {
+                        navController.navigate(Home)
+                    },
+                )
+            }
+            composable<Home> {
+                HomeScreen(
+                    currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
+                    groupUiModelList = homeUiState.uiState.groups,
+                    navigateToJoin = {
+                        navController.navigate(Join)
+                    },
+                    navigateToDetail = { groupCode ->
+                        navController.navigate(Detail(groupCode))
+                    },
+                    navigateToCreate = {
+                        navController.navigate(Create)
+                    },
+                )
+            }
+            composable<Detail> {
+                DetailScreen(
+                    groupUiModel = detailStateHolder.uiState.groupUiModel,
+                    bookUiModel = detailStateHolder.uiState.bookUiModel,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                )
+            }
+            composable<Join> {
+                JoinScreen(
+                    codeValue = joinStateHolder.codeValue,
+                    onCodeValueChange = joinStateHolder::onCodeValueChange,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    navigateToDetail = {
+                        navController.navigate(Create)
+                    },
+                )
+            }
+            composable<Create> {
+                CreateScreen(
+                    uiState = createStateHolder.uiState,
+                    updateGroupNameValue = createStateHolder::updateGroupNameValue,
+                    selectBook = createStateHolder::selectBook,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    navigateToDetail = {
+                        navController.navigate(Detail)
+                    },
+                )
+            }
+        }
     }
 }
