@@ -43,7 +43,9 @@ fun App() {
                 groupRepository = groupRepository,
             )
         }
-        val joinStateHolder = remember { JoinStateHolder() }
+        val joinStateHolder = remember { JoinStateHolder(
+            groupRepository = groupRepository
+        ) }
         val createStateHolder = remember {
             CreateStateHolder(
                 bookRepository = bookRepository,
@@ -114,6 +116,8 @@ fun App() {
                         navController.popBackStack()
                     },
                     navigateToHome = {
+                        joinStateHolder.joinGroup()
+
                         navController.navigate(Home) {
                             popUpTo<Join> {
                                 inclusive = true

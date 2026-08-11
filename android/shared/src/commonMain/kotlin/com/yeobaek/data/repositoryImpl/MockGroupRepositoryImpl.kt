@@ -7,15 +7,28 @@ import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.GroupRepository
 
 class MockGroupRepositoryImpl : GroupRepository {
-    private val groups = MockData.mockGroups.toMutableList()
+    private val totalGroup = MockData.mockGroups.toMutableList()
+    private val groups: MutableList<GroupModel> = mutableListOf()
 
     override fun createGroup(
         groupName: String,
         book: BookModel
     ) {
+        totalGroup.add(
+            GroupModel(
+                groupCode = "EXAM${totalGroup.size}",
+                groupName = groupName,
+                book = book,
+                users = listOf(
+                    UserModel(
+                        name = "나"
+                    )
+                )
+            )
+        )
         groups.add(
             GroupModel(
-                groupCode = "EXAM00",
+                groupCode = "EXAM${totalGroup.size}",
                 groupName = groupName,
                 book = book,
                 users = listOf(
@@ -29,8 +42,9 @@ class MockGroupRepositoryImpl : GroupRepository {
     override fun getGroups(): List<GroupModel> {
         return groups
     }
-    override fun joinGroup(code: String): GroupModel {
-        val group = groups.find { it.groupCode == code }
-        return group ?: throw IllegalArgumentException("존재하지 않는 모임입니다.")
+    override fun joinGroup(code: String) {
+        val joinGroup = totalGroup.find { it.groupCode == code }
+        if (joinGroup == null) throw IllegalArgumentException("존재하지 않는 모임입니다.")
+        groups.add(joinGroup)
     }
 }

@@ -6,5 +6,5 @@ import com.yeobaek.data.model.GroupModel
 interface GroupRepository {
     fun getGroups(): List<GroupModel>
     fun createGroup(groupName: String, book: BookModel)
-    fun joinGroup(code: String): GroupModel
+    fun joinGroup(code: String)
 }
