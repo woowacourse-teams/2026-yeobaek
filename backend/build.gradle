@@ -72,7 +72,8 @@ tasks.named('bootJar') {
 }
 
 openapi3 {
-    server = 'http://localhost:8080'
+    // 상대 URL: Swagger UI가 스펙을 서빙한 서버(로컬·배포 모두)로 Try it out 요청을 보낸다
+    server = '/'
     title = '여백 API'
     description = '여백 백엔드 API 문서'
     version = project.version
