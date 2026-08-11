@@ -131,16 +131,20 @@ fun App() {
             composable<Join> {
                 JoinScreen(
                     codeValue = joinStateHolder.codeValue,
+                    codeState = joinStateHolder.codeState,
                     onCodeValueChange = joinStateHolder::onCodeValueChange,
                     onBackClick = {
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        joinStateHolder.joinGroup()
+                        joinStateHolder.checkValue()
+                        if (!joinStateHolder.codeState) {
+                            joinStateHolder.joinGroup()
 
-                        navController.navigate(Home) {
-                            popUpTo<Join> {
-                                inclusive = true
+                            navController.navigate(Home) {
+                                popUpTo<Join> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },

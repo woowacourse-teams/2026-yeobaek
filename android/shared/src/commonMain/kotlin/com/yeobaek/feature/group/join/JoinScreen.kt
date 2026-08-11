@@ -31,6 +31,7 @@ fun JoinScreen(
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
     navigateToHome: () -> Unit,
+    codeState: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -102,7 +103,8 @@ fun JoinScreen(
                 onValueChange = {
                     onCodeValueChange(it)
                 },
-                placeholder = "예: BOOK42",
+                placeholder = if(!codeState) "예: BOOK42" else "존재하지 않는 코드입니다.",
+                isError = codeState,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -132,6 +134,7 @@ private fun JoinScreenPreview() {
             onCodeValueChange = {},
             onBackClick = {},
             navigateToHome = {},
+            codeState = false
         )
     }
 }

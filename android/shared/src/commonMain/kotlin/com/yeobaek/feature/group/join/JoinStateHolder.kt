@@ -12,11 +12,20 @@ class JoinStateHolder(
     var codeValue by mutableStateOf("")
         private set
 
+    var codeState by mutableStateOf(false)
+        private set
+
     fun onCodeValueChange(value: String) {
+        codeState = false
         codeValue = value
     }
 
     fun joinGroup() {
-        groupRepository.joinGroup(codeValue) // 코드로 참여하려고 함
+        if (!codeState) groupRepository.joinGroup(codeValue) else throw IllegalArgumentException("코드 입력이 잘못되었다.")
+    }
+
+    fun checkValue() {
+        codeState = groupRepository.checkCode(codeValue)
+        if (codeState) codeValue = ""
     }
 }
