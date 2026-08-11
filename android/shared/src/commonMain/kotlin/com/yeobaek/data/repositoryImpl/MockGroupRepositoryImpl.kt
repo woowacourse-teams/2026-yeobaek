@@ -5,6 +5,7 @@ import com.yeobaek.data.model.BookModel
 import com.yeobaek.data.model.GroupModel
 import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.GroupRepository
+import kotlin.code
 
 class MockGroupRepositoryImpl : GroupRepository {
     private val totalGroup = MockData.mockGroups.toMutableList()
@@ -35,5 +36,9 @@ class MockGroupRepositoryImpl : GroupRepository {
         groups.add(joinGroup)
     }
 
-    override fun checkCode(code: String): Boolean = totalGroup.find { it.groupCode == code } == null
+    override fun checkCode(code: String): Boolean {
+        val totalCheck = totalGroup.find { it.groupCode == code } == null
+        val myGroupCheck = groups.find { it.groupCode == code } == null
+        return totalCheck || !myGroupCheck
+    }
 }
