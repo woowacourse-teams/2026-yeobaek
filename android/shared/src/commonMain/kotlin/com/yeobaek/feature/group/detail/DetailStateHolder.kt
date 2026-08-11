@@ -10,14 +10,13 @@ import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
 
 class DetailStateHolder(
-    groupRepository: GroupRepository,
+    private val groupRepository: GroupRepository,
 ) {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
 
-    val groups: List<GroupModel> = groupRepository.getGroups()
-
     fun initGroupData(groupCode: String) {
+        val groups: List<GroupModel> = groupRepository.getGroups()
         val groupData = groups.find { it.groupCode == groupCode } ?: throw IllegalArgumentException("모임이 없음요")
 
         uiState = uiState.copy(
