@@ -14,11 +14,19 @@ fun App() {
 
         ReaderScreen(
             uiState = readerStateHolder.uiState,
-            onPassageClick = {},
+            onPassageClick = readerStateHolder::openPassageComments,
             onBackClick = {},
             onTextSettingClick = readerStateHolder::toggleTextSettingMenu,
             onTextSettingDismiss = readerStateHolder::dismissTextSettingMenu,
             onFontSizeChange = readerStateHolder::updateFontSize,
+            onCommentSheetDismiss = readerStateHolder::dismissPassageComments,
+            onCommentInputChange = readerStateHolder::updateCommentInput,
+            onCommentSubmit = readerStateHolder::submitComment,
+            onCommentEdit = readerStateHolder::startEditingComment,
+            onCommentEditCancel = readerStateHolder::cancelEditingComment,
+            onCommentDelete = readerStateHolder::requestDeleteComment,
+            onCommentDeleteCancel = readerStateHolder::cancelDeleteComment,
+            onCommentDeleteConfirm = readerStateHolder::confirmDeleteComment,
         )
     }
 }

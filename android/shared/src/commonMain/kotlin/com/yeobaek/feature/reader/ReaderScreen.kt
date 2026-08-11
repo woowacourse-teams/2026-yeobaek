@@ -3,6 +3,7 @@ package com.yeobaek.feature.reader
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderTopBar
@@ -27,9 +29,24 @@ fun ReaderScreen(
     onTextSettingClick: () -> Unit,
     onTextSettingDismiss: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
+    onCommentSheetDismiss: () -> Unit,
+    onCommentInputChange: (String) -> Unit,
+    onCommentSubmit: () -> Unit,
+    onCommentEdit: (Long) -> Unit,
+    onCommentEditCancel: () -> Unit,
+    onCommentDelete: (Long) -> Unit,
+    onCommentDeleteCancel: () -> Unit,
+    onCommentDeleteConfirm: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val commentSheet = uiState.commentSheet
+
+    val selectedPassage = commentSheet?.let { sheet ->
+        uiState.passages.firstOrNull { passage ->
+            passage.passageId == sheet.passageId
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -48,7 +65,7 @@ fun ReaderScreen(
         bottomBar = {
             ReaderProgressBar(
                 progress = uiState.progress,
-                modifier = Modifier.padding(bottom = 20.dp),
+                modifier = Modifier.navigationBarsPadding(),
             )
         },
     ) { innerPadding ->
@@ -58,6 +75,21 @@ fun ReaderScreen(
             listState = listState,
             onPassageClick = onPassageClick,
             modifier = Modifier.padding(innerPadding),
+        )
+    }
+
+    if (commentSheet != null && selectedPassage != null) {
+        PassageCommentBottomSheet(
+            passage = selectedPassage,
+            uiState = commentSheet,
+            onDismissRequest = onCommentSheetDismiss,
+            onInputChange = onCommentInputChange,
+            onSubmit = onCommentSubmit,
+            onEditComment = onCommentEdit,
+            onCancelEdit = onCommentEditCancel,
+            onDeleteComment = onCommentDelete,
+            onCancelDelete = onCommentDeleteCancel,
+            onConfirmDelete = onCommentDeleteConfirm,
         )
     }
 }
@@ -103,15 +135,23 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = passages,
+                passages = mockPassages,
                 currentSequence = 4,
-                totalPassageCount = passages.size,
+                totalPassageCount = mockPassages.size,
             ),
             onPassageClick = {},
             onBackClick = {},
             onTextSettingClick = {},
             onTextSettingDismiss = {},
             onFontSizeChange = {},
+            onCommentSheetDismiss = {},
+            onCommentInputChange = {},
+            onCommentSubmit = {},
+            onCommentEdit = {},
+            onCommentEditCancel = {},
+            onCommentDelete = {},
+            onCommentDeleteCancel = {},
+            onCommentDeleteConfirm = {},
         )
     }
 }

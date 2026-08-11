@@ -11,6 +11,7 @@ data class ReaderUiState(
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
     val isTextSettingMenuExpanded: Boolean = false,
+    val commentSheet: PassageCommentSheetUiState? = null,
 ) {
     val progress: Float
         get() = if (totalPassageCount == 0) {

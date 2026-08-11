@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekLine
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.reader.mockPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
-import com.yeobaek.feature.reader.passages
 
 @Composable
 fun PassageItem(
@@ -112,7 +112,7 @@ private fun UnderlinedPassageText(
 private fun PassageItemPreview() {
     YeobaekTheme {
         PassageItem(
-            passage = passages[0],
+            passage = mockPassages[0],
             fontSize = 18,
             onClick = {},
             showUnderline = true,
