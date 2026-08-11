@@ -36,7 +36,25 @@ val YeobaekLine = Color(0xFFEEE7DE)
 val YeobaekOutline = Color(0xFFD8CEC3)
 
 // 유효성 오류, 실패 상태와 삭제처럼 주의가 필요한 피드백의 배경·아이콘·텍스트
-val YeobaekError = Color(0xFFBA1A1A)
+val YeobaekError = Color(0xFFC0492F)
 
 // Error 색상 위에 배치되는 텍스트와 아이콘
 val YeobaekOnError = Color(0xFFFFFFFF)
+
+// 팝업과 다이얼로그 등 떠 있는 UI의 그림자
+val YeobaekShadow = Color(0xFF766A50)
+
+// 다이얼로그처럼 배경 위에 떠 있는 표면
+val YeobaekSurfaceElevated = Color(0xFFFBFAF7)
+
+// 다이얼로그 제목처럼 강하게 강조되는 텍스트
+val YeobaekTextStrong = Color(0xFF2A2824)
+
+// 다이얼로그의 보조 설명
+val YeobaekTextSubtle = Color(0xFF6F695D)
+
+// 취소와 같은 중립 버튼의 배경
+val YeobaekNeutralContainer = Color(0xFFEEEAE1)
+
+// 중립 버튼 위에 배치되는 텍스트
+val YeobaekOnNeutralContainer = Color(0xFF746B5E)

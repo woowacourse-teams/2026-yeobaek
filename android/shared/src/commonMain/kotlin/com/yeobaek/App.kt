@@ -1,26 +1,32 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.group.create.CreateScreen
-import com.yeobaek.feature.group.create.CreateStateHolder
+import com.yeobaek.feature.reader.ReaderScreen
+import com.yeobaek.feature.reader.rememberReaderStateHolder
 
 @Composable
 @Preview
 fun App() {
     YeobaekTheme {
-        val stateHolder = remember {
-            CreateStateHolder()
-        }
+        val readerStateHolder = rememberReaderStateHolder()
 
-        CreateScreen(
-            uiState = stateHolder.uiState,
-            updateGroupNameValue = stateHolder::updateGroupNameValue,
-            selectBook = stateHolder::selectBook,
+        ReaderScreen(
+            uiState = readerStateHolder.uiState,
+            onPassageClick = readerStateHolder::openPassageComments,
             onBackClick = {},
-            onCreateGroup = {},
+            onTextSettingClick = readerStateHolder::toggleTextSettingMenu,
+            onTextSettingDismiss = readerStateHolder::dismissTextSettingMenu,
+            onFontSizeChange = readerStateHolder::updateFontSize,
+            onCommentSheetDismiss = readerStateHolder::dismissPassageComments,
+            onCommentInputChange = readerStateHolder::updateCommentInput,
+            onCommentSubmit = readerStateHolder::submitComment,
+            onCommentEdit = readerStateHolder::startEditingComment,
+            onCommentEditCancel = readerStateHolder::cancelEditingComment,
+            onCommentDelete = readerStateHolder::requestDeleteComment,
+            onCommentDeleteCancel = readerStateHolder::cancelDeleteComment,
+            onCommentDeleteConfirm = readerStateHolder::confirmDeleteComment,
         )
     }
 }
