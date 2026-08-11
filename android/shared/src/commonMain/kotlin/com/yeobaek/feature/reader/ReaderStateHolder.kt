@@ -196,7 +196,7 @@ private fun List<PassageUiModel>.withCommentCount(
     }
 }
 
-private val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
+val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
     2L to listOf(
         PassageCommentUiModel(
             commentId = 7L,
