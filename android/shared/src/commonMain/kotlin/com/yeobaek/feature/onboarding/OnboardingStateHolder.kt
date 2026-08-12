@@ -28,7 +28,6 @@ class OnboardingStateHolder(
 
     fun setNickname() {
         userRepository.setUserData(nicknameValue)
-        println("온보딩에서 ${userRepository.userData}")
     }
 
     fun joinGroup() {

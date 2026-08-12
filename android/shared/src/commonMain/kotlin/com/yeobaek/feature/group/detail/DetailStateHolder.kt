@@ -21,7 +21,6 @@ class DetailStateHolder(
         val groups: List<GroupModel> = groupRepository.getGroups()
         val groupData = groups.find { it.groupCode == groupCode } ?: throw IllegalArgumentException("모임이 없음요")
 
-        println("그룹 상세 화면에서 ${userRepository.userData}")
         uiState = uiState.copy(
             bookUiModel = DetailBookUiModel(
                 uri = groupData.book.uri,
@@ -41,10 +40,6 @@ class DetailStateHolder(
                 },
             ),
         )
-
-        uiState.groupUiModel.users.map {
-            println("상세 화면에서 사용자의 목록 : ${it.id} ${it.name}")
-        }
     }
 
     fun checkItsMe(userId: Int): Boolean = userRepository.userData.id == userId
