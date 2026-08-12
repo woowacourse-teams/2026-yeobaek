@@ -62,7 +62,7 @@ fun OnboardingScreen(
                 OnboardingYeobaekCommonCard()
                 Spacer(modifier = Modifier.height(24.dp))
                 OnboardingYeobaekTextField(
-                    title = if (nicknameState) "중복된 닉네임입니다. 다시 입력해주세요." else "닉네임 입력",
+                    title = if (nicknameState) "중복된 닉네임입니다. 다시 입력해주세요." else "닉네임 입력 (필수)",
                     isError = nicknameState,
                     value = nicknameValue,
                     placeholder = "예: 하로, 엘리",
@@ -70,9 +70,13 @@ fun OnboardingScreen(
                         onNicknameValueChange(it)
                     },
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("입력한 닉네임은 앞으로 앱에 반영됩니다.", style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.secondary,
+                ))
+                Spacer(modifier = Modifier.height(12.dp))
                 OnboardingYeobaekTextField(
-                    title = if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력",
+                    title = if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력 (선택)",
                     isError = codeState,
                     value = codeValue,
                     placeholder = "예: BOOK42",
