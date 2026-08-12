@@ -16,7 +16,7 @@ class MockUserRepositoryImpl : UserRepository {
 
     override fun setUserData(nickname: String) {
         this.userData = UserModel(
-            id = Random.nextInt(100, 1000),
+            id = Random.nextInt(20, 997),
             name = nickname,
         )
     }
