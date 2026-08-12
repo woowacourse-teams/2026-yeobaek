@@ -89,7 +89,8 @@ fun GroupUserCard(
                     key = { it.id },
                 ) { user ->
                     UserCard(
-                        name = if (user.itsMe) "(나) ${user.name}" else user.name,
+                        name = user.name,
+                        itsMe = user.itsMe
                     )
                 }
             }
@@ -100,6 +101,7 @@ fun GroupUserCard(
 @Composable
 private fun UserCard(
     name: String,
+    itsMe: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -121,7 +123,7 @@ private fun UserCard(
                 Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(name)
+            Text(if (itsMe) "(나) $name" else name)
         }
     }
 }
