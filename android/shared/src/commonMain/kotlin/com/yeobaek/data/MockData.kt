@@ -50,12 +50,28 @@ object MockData {
         description = "낯선 이들이 건네는 다정한 위로",
     )
 
+    val haro = UserModel(
+        id = 998,
+        name = "하로",
+    )
+
+    val ellie = UserModel(
+        id = 999,
+        name = "엘리",
+    )
+
+    val mockUsers = listOf(
+        haro,
+        ellie,
+    )
+
     val group1 = GroupModel(
         groupCode = "BOOK42",
         groupName = "어른이들을 위한 동화 읽기",
         book = theLittlePrince,
         users = (1..8).map {
             UserModel(
+                id = 100 + it,
                 name = "하로$it",
             )
         },
@@ -67,6 +83,7 @@ object MockData {
         book = demian,
         users = (1..4).map {
             UserModel(
+                id = it,
                 name = "엘리$it",
             )
         },

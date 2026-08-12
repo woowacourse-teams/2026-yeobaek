@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.detail.model.UserUiModel
 
@@ -82,9 +84,13 @@ fun GroupUserCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                items(userCount) {
+                items(
+                    items = users,
+                    key = { it.id },
+                ) { user ->
                     UserCard(
-                        name = users[it].name,
+                        name = user.name,
+                        itsMe = user.itsMe
                     )
                 }
             }
@@ -95,6 +101,7 @@ fun GroupUserCard(
 @Composable
 private fun UserCard(
     name: String,
+    itsMe: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -108,10 +115,15 @@ private fun UserCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.background(color = Color.Green, shape = CircleShape).size(24.dp),
-            )
+                modifier = Modifier.size(
+                    32.dp,
+                ).background(color = MaterialTheme.colorScheme.outline, shape = CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
+            }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(name)
+            Text(if (itsMe) "(나) $name" else name)
         }
     }
 }
@@ -133,12 +145,15 @@ private fun GroupUserCardPreview() {
         GroupUserCard(
             users = listOf(
                 UserUiModel(
-                    name = "하로",
+                    id = 1,
+                    name = "하로1",
                 ),
                 UserUiModel(
+                    id = 2,
                     name = "하로2",
                 ),
                 UserUiModel(
+                    id = 3,
                     name = "하로3",
                 ),
             ),
