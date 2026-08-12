@@ -3,11 +3,11 @@ package com.yeobaek
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
@@ -29,8 +29,9 @@ import com.yeobaek.feature.onboarding.OnboardingScreen
 import com.yeobaek.feature.onboarding.OnboardingStateHolder
 
 @Composable
-@Preview
-fun App() {
+fun App(
+    appContainer: AppContainer,
+) {
     YeobaekTheme {
         val navController = rememberNavController()
 
