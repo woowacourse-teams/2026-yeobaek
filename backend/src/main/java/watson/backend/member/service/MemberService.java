@@ -15,7 +15,12 @@ public class MemberService {
 
     @Transactional
     public MemberCreateResponse create(String nickname) {
-        Member member = memberRepository.save(new Member(nickname));
-        return new MemberCreateResponse(member.getId(), member.getNickname());
+        Member member = new Member(nickname);
+        if (memberRepository.existsByNickname(member.getNickname())) {
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
+
+        Member savedMember = memberRepository.save(member);
+        return new MemberCreateResponse(savedMember.getId(), savedMember.getNickname());
     }
 }

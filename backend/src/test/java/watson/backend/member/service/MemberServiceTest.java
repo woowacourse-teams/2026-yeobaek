@@ -3,6 +3,7 @@ package watson.backend.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,6 +33,7 @@ class MemberServiceTest {
     void create() {
         Member saved = new Member("민서");
         ReflectionTestUtils.setField(saved, "id", 1L);
+        given(memberRepository.existsByNickname("민서")).willReturn(false);
         given(memberRepository.save(any(Member.class))).willReturn(saved);
 
         MemberCreateResponse response = memberService.create("민서");
@@ -41,11 +43,24 @@ class MemberServiceTest {
     }
 
     @Test
+    @DisplayName("이미 사용 중인 닉네임이면 회원을 저장하지 않는다")
+    void duplicateNicknameNotSaved() {
+        given(memberRepository.existsByNickname("민서")).willReturn(true);
+
+        assertThatThrownBy(() -> memberService.create("민서"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이미 사용 중인 닉네임입니다.");
+
+        verify(memberRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("닉네임이 유효하지 않으면 저장 없이 예외가 전파된다")
     void invalidNicknameNotSaved() {
         assertThatThrownBy(() -> memberService.create(" "))
                 .isInstanceOf(IllegalArgumentException.class);
 
+        verify(memberRepository, never()).existsByNickname(anyString());
         verify(memberRepository, never()).save(any());
     }
 }

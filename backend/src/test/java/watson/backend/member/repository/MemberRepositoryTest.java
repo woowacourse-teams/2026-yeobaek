@@ -24,11 +24,11 @@ class MemberRepositoryTest extends RepositoryTest {
     }
 
     @Test
-    @DisplayName("닉네임은 중복을 허용한다")
-    void duplicateNicknameAllowed() {
-        memberRepository.save(new Member("민서"));
+    @DisplayName("이미 저장된 닉네임의 존재 여부를 확인한다")
+    void existsByNickname() {
         memberRepository.save(new Member("민서"));
 
-        assertThat(memberRepository.count()).isEqualTo(2);
+        assertThat(memberRepository.existsByNickname("민서")).isTrue();
+        assertThat(memberRepository.existsByNickname("지수")).isFalse();
     }
 }

@@ -41,7 +41,7 @@ class MemberControllerTest extends ControllerTest {
                         .summary("회원 생성")
                         .description("닉네임 입력만으로 회원을 생성하고 ID를 발급한다. 헤더 불필요(최초 진입).")
                         .requestFields(
-                                PayloadDocumentation.fieldWithPath("nickname").description("닉네임 (1~20자, 공백만은 불가, 중복 허용)"))
+                                PayloadDocumentation.fieldWithPath("nickname").description("닉네임 (1~20자, 공백만은 불가, 중복 불가)"))
                         .responseFields(
                                 PayloadDocumentation.fieldWithPath("memberId").description("발급된 회원 ID"),
                                 PayloadDocumentation.fieldWithPath("nickname").description("닉네임"))
@@ -58,5 +58,18 @@ class MemberControllerTest extends ControllerTest {
                         .content("{\"nickname\": \" \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("닉네임은 공백이 아닌 1~20자여야 합니다."));
+    }
+
+    @Test
+    @DisplayName("이미 사용 중인 닉네임이면 400과 메시지를 응답한다")
+    void createMemberWithDuplicateNickname() throws Exception {
+        given(memberService.create(anyString())).willThrow(new IllegalArgumentException("이미 사용 중인 닉네임입니다."));
+
+        mockMvc.perform(post("/api/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\": \"민서\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
     }
 }
