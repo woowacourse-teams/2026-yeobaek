@@ -9,7 +9,7 @@ import com.yeobaek.data.repository.UserRepository
 class RemoteUserRepositoryImpl(
     private val userApi: UserApi,
 ) : UserRepository {
-    override suspend fun setUserData(userData: UserModel): UserModel {
-        return userApi.createUser(UserRequest(nickname = userData.name)).toModel()
+    override suspend fun setUserData(nickname: String): UserModel {
+        return userApi.createUser(UserRequest(nickname = nickname)).toModel()
     }
 }

@@ -1,30 +1,20 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.repositoryImpl.mock.MockBookRepositoryImpl
-import com.yeobaek.data.repositoryImpl.mock.MockGroupRepositoryImpl
-import com.yeobaek.data.repositoryImpl.mock.MockUserRepositoryImpl
-import com.yeobaek.feature.group.create.CreateScreen
-import com.yeobaek.feature.group.create.CreateStateHolder
-import com.yeobaek.feature.group.detail.DetailScreen
-import com.yeobaek.feature.group.detail.DetailStateHolder
-import com.yeobaek.feature.group.join.JoinScreen
-import com.yeobaek.feature.group.join.JoinStateHolder
-import com.yeobaek.feature.home.HomeScreen
-import com.yeobaek.feature.home.HomeStateHolder
+import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
 import com.yeobaek.feature.navigation.Create
-import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
-import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
@@ -32,6 +22,7 @@ import com.yeobaek.feature.onboarding.OnboardingStateHolder
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
+import com.yeobaek.feature.onboarding.OnboardingViewModel
 
 @Composable
 fun App(
@@ -40,40 +31,40 @@ fun App(
     YeobaekTheme {
         val navController = rememberNavController()
 
-        val userRepository = MockUserRepositoryImpl()
-        val bookRepository = MockBookRepositoryImpl()
-        val groupRepository = MockGroupRepositoryImpl()
+        val userRepository = RemoteUserRepositoryImpl(
+            userApi = appContainer.apiProvider.userApi,
+        )
+        val bookRepository = RemoteBookRepositoryImpl(
+            bookApi = appContainer.apiProvider.booksApi,
+        )
+        val groupRepository = RemoteGroupRepositoryImpl(
+            clubApi = appContainer.apiProvider.clubApi,
+        )
 
-        val onboardingStateHolder = remember {
-            OnboardingStateHolder(
-                userRepository = userRepository,
-                groupRepository = groupRepository,
-            )
-        }
-        val homeUiState = remember {
-            HomeStateHolder(
-                groupRepository = groupRepository,
-            )
-        }
-        val detailStateHolder = remember {
-            DetailStateHolder(
-                groupRepository = groupRepository,
-                userRepository = userRepository,
-            )
-        }
-        val joinStateHolder = remember {
-            JoinStateHolder(
-                userRepository = userRepository,
-                groupRepository = groupRepository,
-            )
-        }
-        val createStateHolder = remember {
-            CreateStateHolder(
-                bookRepository = bookRepository,
-                groupRepository = groupRepository,
-                userRepository = userRepository,
-            )
-        }
+//        val homeUiState = remember {
+//            HomeStateHolder(
+//                groupRepository = groupRepository,
+//            )
+//        }
+//        val detailStateHolder = remember {
+//            DetailStateHolder(
+//                groupRepository = groupRepository,
+//                userRepository = userRepository,
+//            )
+//        }
+//        val joinStateHolder = remember {
+//            JoinStateHolder(
+//                userRepository = userRepository,
+//                groupRepository = groupRepository,
+//            )
+//        }
+//        val createStateHolder = remember {
+//            CreateStateHolder(
+//                bookRepository = bookRepository,
+//                groupRepository = groupRepository,
+//                userRepository = userRepository,
+//            )
+//        }
 
         NavHost(
             navController = navController,
@@ -117,148 +108,133 @@ fun App(
                 )
             }
             composable<Onboarding> {
-                OnboardingScreen(
-                    codeValue = onboardingStateHolder.codeValue,
-                    codeState = onboardingStateHolder.codeState,
-                    onCodeValueChange = onboardingStateHolder::onCodeValueChange,
-                    nicknameValue = onboardingStateHolder.nicknameValue,
-                    nicknameState = onboardingStateHolder.nicknameState,
-                    onNicknameValueChange = onboardingStateHolder::onNicknameValueChange,
-                    navigateToCreate = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        if (!onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
+                val onboardingViewModel: OnboardingViewModel = viewModel(
+                    factory = OnboardingViewModel.onboardingViewModelFactory(
+                        userRepository = userRepository,
+                        groupRepository = groupRepository,
+                    ),
+                )
 
-                            navController.navigate(Create)
-                        }
+                OnboardingScreen(
+                    uiState = onboardingViewModel.uiState,
+                    onCodeValueChange = onboardingViewModel::onCodeValueChange,
+                    onNicknameValueChange = onboardingViewModel::onNicknameValueChange,
+                    navigateToCreate = {
+                        onboardingViewModel.setNickname()
+                        navController.navigate(Create)
                     },
                     navigateToHome = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        onboardingStateHolder.codeValueCheck()
-                        if (!onboardingStateHolder.codeState && !onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
-                            onboardingStateHolder.joinGroup()
+                        onboardingViewModel.setNickname()
+                        onboardingViewModel.joinGroup()
 
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
                             }
                         }
                     },
                     navigateToAroundHome = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        if (!onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
+                        onboardingViewModel.setNickname()
 
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
                             }
                         }
                     },
                 )
             }
-            composable<Home> {
-                LaunchedEffect(true) {
-                    homeUiState.initGroups()
-                }
-
-                HomeScreen(
-                    currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
-                    groupUiModelList = homeUiState.uiState.groups,
-                    myNickname = onboardingStateHolder.nicknameValue,
-                    navigateToJoin = {
-                        navController.navigate(Join)
-                    },
-                    navigateToDetail = { groupId, groupCode ->
-                        navController.navigate(
-                            Detail(
-                                groupId = groupId,
-                                groupCode = groupCode,
-                            ),
-                        )
-                    },
-                    navigateToCreate = {
-                        navController.navigate(Create)
-                    },
-                )
-            }
-            composable<Detail> { backStackEntry ->
-                val route = backStackEntry.toRoute<Detail>()
-
-                detailStateHolder.initGroupData(route.groupCode)
-
-                DetailScreen(
-                    groupUiModel = detailStateHolder.uiState.groupUiModel,
-                    bookUiModel = detailStateHolder.uiState.bookUiModel,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onReadClick = {
-                        navController.navigate(Reader(groupId = route.groupId))
-                    },
-                )
-            }
-            composable<Join> {
-                LaunchedEffect(true) {
-                    joinStateHolder.initInputValue()
-                }
-                JoinScreen(
-                    codeValue = joinStateHolder.codeValue,
-                    codeState = joinStateHolder.codeState,
-                    onCodeValueChange = joinStateHolder::onCodeValueChange,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    navigateToHome = {
-                        joinStateHolder.checkValue()
-                        if (!joinStateHolder.codeState) {
-                            joinStateHolder.joinGroup()
-
-                            navController.navigate(Home) {
-                                popUpTo<Home> {
-                                    inclusive = true
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            composable<Create> {
-                LaunchedEffect(true) {
-                    createStateHolder.initInputValue()
-                }
-
-                CreateScreen(
-                    uiState = createStateHolder.uiState,
-                    groupNameCondition = createStateHolder.groupNameCondition,
-                    selectedBookCondition = createStateHolder.selectedBookCondition,
-                    updateGroupNameValue = createStateHolder::updateGroupNameValue,
-                    selectBook = createStateHolder::selectBook,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    navigateToHome = {
-                        createStateHolder.createConditionCheck()
-                        if (!createStateHolder.createConditionCheck()) {
-                            createStateHolder.createGroup()
-
-                            val popped = navController.popBackStack<Home>(
-                                inclusive = false,
-                            )
-                            if (!popped) {
-                                navController.navigate(Home) {
-                                    popUpTo<Onboarding> {
-                                        inclusive = true
-                                    }
-                                }
-                            }
-                        }
-                    },
-                )
-            }
+//            composable<Home> {
+//                LaunchedEffect(true) {
+//                    homeUiState.initGroups()
+//                }
+//
+//                HomeScreen(
+//                    currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
+//                    groupUiModelList = homeUiState.uiState.groups,
+//                    myNickname = onboardingStateHolder.nicknameValue,
+//                    navigateToJoin = {
+//                        navController.navigate(Join)
+//                    },
+//                    navigateToDetail = { groupCode ->
+//                        navController.navigate(Detail(groupCode))
+//                    },
+//                    navigateToCreate = {
+//                        navController.navigate(Create)
+//                    },
+//                )
+//            }
+//            composable<Detail> { backStackEntry ->
+//                val route = backStackEntry.toRoute<Detail>()
+//
+//                detailStateHolder.initGroupData(route.groupCode)
+//
+//                DetailScreen(
+//                    groupUiModel = detailStateHolder.uiState.groupUiModel,
+//                    bookUiModel = detailStateHolder.uiState.bookUiModel,
+//                    onBackClick = {
+//                        navController.popBackStack()
+//                    },
+//                )
+//            }
+//            composable<Join> {
+//                LaunchedEffect(true) {
+//                    joinStateHolder.initInputValue()
+//                }
+//                JoinScreen(
+//                    codeValue = joinStateHolder.codeValue,
+//                    codeState = joinStateHolder.codeState,
+//                    onCodeValueChange = joinStateHolder::onCodeValueChange,
+//                    onBackClick = {
+//                        navController.popBackStack()
+//                    },
+//                    navigateToHome = {
+//                        joinStateHolder.checkValue()
+//                        if (!joinStateHolder.codeState) {
+//                            joinStateHolder.joinGroup()
+//
+//                            navController.navigate(Home) {
+//                                popUpTo<Home> {
+//                                    inclusive = true
+//                                }
+//                            }
+//                        }
+//                    },
+//                )
+//            }
+//            composable<Create> {
+//                LaunchedEffect(true) {
+//                    createStateHolder.initInputValue()
+//                }
+//
+//                CreateScreen(
+//                    uiState = createStateHolder.uiState,
+//                    groupNameCondition = createStateHolder.groupNameCondition,
+//                    selectedBookCondition = createStateHolder.selectedBookCondition,
+//                    updateGroupNameValue = createStateHolder::updateGroupNameValue,
+//                    selectBook = createStateHolder::selectBook,
+//                    onBackClick = {
+//                        navController.popBackStack()
+//                    },
+//                    navigateToHome = {
+//                        createStateHolder.createConditionCheck()
+//                        if (!createStateHolder.createConditionCheck()) {
+//                            createStateHolder.createGroup()
+//
+//                            val popped = navController.popBackStack<Home>(
+//                                inclusive = false,
+//                            )
+//                            if (!popped) {
+//                                navController.navigate(Home) {
+//                                    popUpTo<Onboarding> {
+//                                        inclusive = true
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    },
+//                )
+//            }
         }
     }
 }
