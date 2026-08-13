@@ -22,13 +22,11 @@ import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupButtonSection
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
-import com.yeobaek.feature.home.model.GroupUiModel
 
 @Composable
 fun HomeScreen(
     currentlyReadingBookUiModel: CurrentlyReadingBookUiModel?,
-    myNickname: String,
-    groupUiModelList: List<GroupUiModel>,
+    uiState: HomeUiState,
     navigateToJoin: () -> Unit,
     navigateToDetail: (Int, String) -> Unit,
     navigateToCreate: () -> Unit,
@@ -59,8 +57,8 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임 (닉네임 : $myNickname)",
-                groupUiModelList = groupUiModelList,
+                title = "내 모임 (닉네임 : 아직 연결 안함)",
+                groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -87,7 +85,7 @@ private fun AppTitle(
             containerColor = MaterialTheme.colorScheme.background,
         ),
 
-    )
+        )
 }
 
 @Preview(showBackground = true, name = "리더홈화면")
@@ -102,21 +100,7 @@ private fun HomeScreenPreview() {
                 authors = "헤르만 헤세",
                 progressRate = 12f,
             ),
-            groupUiModelList = listOf(
-                GroupUiModel(
-                    groupCode = "XXXXXX",
-                    title = "어린 왕자",
-                    groupName = "어른이들을 위한 동화 읽기",
-                    groupCount = 8,
-                ),
-                GroupUiModel(
-                    groupCode = "BOOK42",
-                    title = "데미안",
-                    groupName = "고전 읽는 오후 모임",
-                    groupCount = 4,
-                ),
-            ),
-            myNickname = "하로",
+            uiState = HomeUiState(),
             navigateToJoin = {},
             navigateToDetail = { _, _ -> },
             navigateToCreate = {},

@@ -1,12 +1,14 @@
 package com.yeobaek.data.dto
 
 import com.yeobaek.data.model.GroupModel
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Club(
     val book: Book,
     val clubId: Int,
     val memberCount: Int,
-    val myProgress: Any,
+    val myProgress: MyProgress?,
     val name: String
 )
 
@@ -15,7 +17,7 @@ fun Club.toModel(): GroupModel {
         book = book,
         clubId = clubId,
         memberCount = memberCount,
-        myProgress = myProgress,
+        myProgress = null,
         name = name,
     )
 }

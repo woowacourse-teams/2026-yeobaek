@@ -6,6 +6,6 @@ data class GroupModel(
     val book: Book,
     val clubId: Int,
     val memberCount: Int,
-    val myProgress: Any,
+    val myProgress: MyProgress?,
     val name: String
 )

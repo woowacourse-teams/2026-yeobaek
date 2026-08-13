@@ -1,6 +1,7 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -13,6 +14,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
+import com.yeobaek.feature.home.HomeScreen
+import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Onboarding
@@ -41,11 +44,6 @@ fun App(
             clubApi = appContainer.apiProvider.clubApi,
         )
 
-//        val homeUiState = remember {
-//            HomeStateHolder(
-//                groupRepository = groupRepository,
-//            )
-//        }
 //        val detailStateHolder = remember {
 //            DetailStateHolder(
 //                groupRepository = groupRepository,
@@ -144,26 +142,30 @@ fun App(
                     },
                 )
             }
-//            composable<Home> {
-//                LaunchedEffect(true) {
-//                    homeUiState.initGroups()
-//                }
-//
-//                HomeScreen(
-//                    currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
-//                    groupUiModelList = homeUiState.uiState.groups,
-//                    myNickname = onboardingStateHolder.nicknameValue,
-//                    navigateToJoin = {
-//                        navController.navigate(Join)
-//                    },
-//                    navigateToDetail = { groupCode ->
-//                        navController.navigate(Detail(groupCode))
-//                    },
-//                    navigateToCreate = {
-//                        navController.navigate(Create)
-//                    },
-//                )
-//            }
+            composable<Home> {
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = HomeViewModel.homeViewModelFactory(
+                        groupRepository = groupRepository,
+                    ),
+                )
+                LaunchedEffect(true) {
+                    homeViewModel.initGroups()
+                }
+
+                HomeScreen(
+                    currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
+                    uiState = homeViewModel.uiState,
+                    navigateToJoin = {
+                        // navController.navigate(Join)
+                    },
+                    navigateToDetail = { groupCode ->
+                        // navController.navigate(Detail(groupCode))
+                    },
+                    navigateToCreate = {
+                        // navController.navigate(Create)
+                    },
+                )
+            }
 //            composable<Detail> { backStackEntry ->
 //                val route = backStackEntry.toRoute<Detail>()
 //
