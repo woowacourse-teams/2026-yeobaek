@@ -1,17 +1,17 @@
 package com.yeobaek.feature.reader
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 
-class ReaderStateHolder(
-    initialUiState: ReaderUiState = ReaderUiState(),
-) {
+class ReaderViewModel(
+    val groupId: Int,
+    initialUiState: ReaderUiState = defaultReaderUiState,
+) : ViewModel() {
     var uiState by mutableStateOf(initialUiState)
         private set
 
@@ -314,17 +314,10 @@ val mockPassages: List<PassageUiModel> = listOf(
     ),
 )
 
-@Composable
-fun rememberReaderStateHolder(
-    initialUiState: ReaderUiState = ReaderUiState(
-        title = "데미안",
-        author = "헤르만 헤세",
-        passages = mockPassages,
-        currentSequence = 12,
-        totalPassageCount = 100,
-    ),
-): ReaderStateHolder = remember {
-    ReaderStateHolder(
-        initialUiState = initialUiState,
-    )
-}
+private val defaultReaderUiState = ReaderUiState(
+    title = "데미안",
+    author = "헤르만 헤세",
+    passages = mockPassages,
+    currentSequence = 12,
+    totalPassageCount = 100,
+)
