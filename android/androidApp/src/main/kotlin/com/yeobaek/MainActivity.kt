@@ -28,6 +28,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppAndroidPreview() {
     App(
-        appContainer = AppContainer()
+        appContainer = AppContainer(
+            memberId = 1
+        )
     )
 }

@@ -2,10 +2,10 @@ package com.yeobaek.data.repositoryImpl
 
 import com.yeobaek.data.MockData
 import com.yeobaek.data.model.BookModel
+import com.yeobaek.data.model.GroupDetailModel
 import com.yeobaek.data.model.GroupModel
 import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.GroupRepository
-import kotlin.code
 
 class MockGroupRepositoryImpl : GroupRepository {
     private val totalGroup = MockData.mockGroups.toMutableList()
@@ -49,5 +49,9 @@ class MockGroupRepositoryImpl : GroupRepository {
         val totalCheck = totalGroup.find { it.groupCode == code } == null
         val myGroupCheck = groups.find { it.groupCode == code } == null
         return totalCheck || !myGroupCheck
+    }
+
+    override suspend fun getGroupDetail(id: Int): GroupDetailModel {
+        TODO("Not yet implemented")
     }
 }
