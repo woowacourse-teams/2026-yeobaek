@@ -18,7 +18,7 @@ fun ClubDetailResponse.toModel(): GroupDetailModel =
         book = book,
         groupId = clubId,
         joinCode = joinCode,
-        members = members,
+        members = members.map { it.toModel() },
         myProgress = myProgress,
         name = name,
     )
