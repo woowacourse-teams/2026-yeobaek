@@ -4,9 +4,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
+import kotlin.reflect.KClass
 
 class ReaderViewModel(
     val groupId: Int,
@@ -321,3 +324,19 @@ private val defaultReaderUiState = ReaderUiState(
     currentSequence = 12,
     totalPassageCount = 100,
 )
+
+class ReaderViewModelFactory(
+    private val groupId: Int,
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(
+        modelClass: KClass<T>,
+        extras: CreationExtras,
+    ): T {
+        if (modelClass == ReaderViewModel::class) {
+            @Suppress("UNCHECKED_CAST")
+            return ReaderViewModel(groupId = groupId) as T
+        }
+
+        throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
+    }
+}
