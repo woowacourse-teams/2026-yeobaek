@@ -82,6 +82,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktorfit.lib)
+            implementation(libs.ktor.client.logging)
 
             // kotlinx-serialization (json parsing)
             implementation(libs.kotlinx.serialization.json)
