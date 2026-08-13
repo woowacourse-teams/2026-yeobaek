@@ -8,6 +8,6 @@ import com.yeobaek.data.model.UserModel
 interface GroupRepository {
     suspend fun getGroups(userId: Int): List<GroupModel>
     suspend fun createGroup(groupName: String, userData: UserModel, book: BookModel)
-    suspend fun joinGroup(code: String, userData: UserModel)
+    suspend fun joinGroup(joinCode: String, userId: Int)
     suspend fun getGroupDetail(userId: Int, groupId: Int): GroupDetailModel
 }

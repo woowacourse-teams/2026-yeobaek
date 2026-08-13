@@ -27,11 +27,10 @@ import com.yeobaek.feature.group.join.component.JoinCodeTextField
 
 @Composable
 fun JoinScreen(
-    codeValue: String,
+    uiState: JoinUiState,
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
     navigateToHome: () -> Unit,
-    codeState: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -99,8 +98,8 @@ fun JoinScreen(
             )
             Spacer(modifier = Modifier.height(36.dp))
             JoinCodeTextField(
-                codeValue = codeValue,
-                codeState = codeState,
+                codeValue = uiState.codeValue,
+                codeState = uiState.codeState,
                 onCodeValueChange = onCodeValueChange,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -127,11 +126,10 @@ fun JoinScreen(
 private fun JoinScreenPreview() {
     YeobaekTheme {
         JoinScreen(
-            codeValue = "",
+            uiState = JoinUiState(),
             onCodeValueChange = {},
             onBackClick = {},
             navigateToHome = {},
-            codeState = false,
         )
     }
 }

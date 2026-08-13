@@ -44,8 +44,8 @@ class OnboardingViewModel(
             val user = userRepository.setUserData(uiState.nicknameValue)
 
             groupRepository.joinGroup(
-                code = uiState.codeValue,
-                userData = user,
+                joinCode = uiState.codeValue,
+                userId = user.id,
             )
         }
     }

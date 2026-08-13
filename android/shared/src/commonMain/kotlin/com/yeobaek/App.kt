@@ -17,11 +17,14 @@ import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.join.JoinScreen
+import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
+import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
@@ -160,7 +163,7 @@ fun App(
                     currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
-                        // navController.navigate(Join)
+                        navController.navigate(Join)
                     },
                     navigateToDetail = { groupCode ->
                         navController.navigate(Detail(groupCode))
@@ -188,31 +191,34 @@ fun App(
                     },
                 )
             }
-//            composable<Join> {
-//                LaunchedEffect(true) {
-//                    joinStateHolder.initInputValue()
-//                }
-//                JoinScreen(
-//                    codeValue = joinStateHolder.codeValue,
-//                    codeState = joinStateHolder.codeState,
-//                    onCodeValueChange = joinStateHolder::onCodeValueChange,
-//                    onBackClick = {
-//                        navController.popBackStack()
-//                    },
-//                    navigateToHome = {
-//                        joinStateHolder.checkValue()
-//                        if (!joinStateHolder.codeState) {
-//                            joinStateHolder.joinGroup()
-//
-//                            navController.navigate(Home) {
-//                                popUpTo<Home> {
-//                                    inclusive = true
-//                                }
-//                            }
-//                        }
-//                    },
-//                )
-//            }
+            composable<Join> {
+                val joinViewModel: JoinViewModel = viewModel(
+                    factory = JoinViewModel.joinViewModelFactory(
+                        groupRepository = groupRepository,
+                    ),
+                )
+
+                LaunchedEffect(true) {
+                    joinViewModel.initInputValue()
+                }
+
+                JoinScreen(
+                    uiState = joinViewModel.uiState,
+                    onCodeValueChange = joinViewModel::onCodeValueChange,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    navigateToHome = {
+                        joinViewModel.joinGroup()
+
+                        navController.navigate(Home) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        }
+                    },
+                )
+            }
 //            composable<Create> {
 //                LaunchedEffect(true) {
 //                    createStateHolder.initInputValue()

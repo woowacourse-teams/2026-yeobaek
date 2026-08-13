@@ -30,10 +30,10 @@ class RemoteGroupRepositoryImpl(
         )
     }
 
-    override suspend fun joinGroup(code: String, userData: UserModel) {
+    override suspend fun joinGroup(joinCode: String, userId: Int) {
         clubApi.joinClub(
-            userId = userData.id,
-            request = JoinRequest(joinCode = code),
+            userId = userId,
+            request = JoinRequest(joinCode = joinCode),
         )
     }
 

@@ -28,6 +28,7 @@ interface ClubApi {
         @Path("clubId") clubId: Int,
     ): ClubDetailResponse
 
+    @Headers("Content-Type: application/json")
     @POST("api/clubs/join")
     suspend fun joinClub(
         @Header("X-member-Id") userId: Int,
