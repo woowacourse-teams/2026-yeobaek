@@ -5,6 +5,8 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.headerWithName;
 import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -39,14 +41,16 @@ class ProgressControllerTest extends ControllerTest {
         given(progressService.updateProgress(anyLong(), anyLong(), anyLong()))
                 .willReturn(new ProgressResponse(42, 13, LocalDateTime.of(2026, 8, 5, 14, 30)));
 
-        mockMvc.perform(put("/api/clubs/1/progress")
+        mockMvc.perform(put("/api/clubs/{clubId}/progress", 1L)
                         .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"passageId\": 1042}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lastReadPassageSequence").value(42))
                 .andExpect(jsonPath("$.progressRate").value(13))
-                .andDo(document("progress-update", resource(ResourceSnippetParameters.builder()
+                .andDo(document("progress-update",
+                        pathParameters(parameterWithName("clubId").description("모임 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("읽기")
                         .summary("진도 갱신 (최근 열람 보고)")
                         .description("항상 마지막 열람 본문으로 덮어쓴다. 앞부분 재열람 시 진도율은 후퇴한다 (PRD 3.4).")

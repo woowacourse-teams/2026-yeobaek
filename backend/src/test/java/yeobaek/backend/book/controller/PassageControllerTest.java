@@ -7,6 +7,7 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,11 +40,14 @@ class PassageControllerTest extends ControllerTest {
                 new PassageResponse(1042L, 42, 2L, "새침하게 흐린 품이 눈이 올 듯하더니...", 3),
                 new PassageResponse(1043L, 43, 2L, "얼다가 만 비가 추적추적 내리었다.", 0))));
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=42&to=43").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/{clubId}/passages?from=42&to=43", 1L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passages[0].sequence").value(42))
                 .andExpect(jsonPath("$.passages[0].commentCount").value(3))
-                .andDo(document("passage-range", resource(ResourceSnippetParameters.builder()
+                .andDo(document("passage-range",
+                        pathParameters(org.springframework.restdocs.request.RequestDocumentation
+                                .parameterWithName("clubId").description("모임 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("읽기")
                         .summary("본문 범위 조회")
                         .description("전체 순서 기준 범위(양 끝 포함)의 본문을 조회한다. 범위는 최대 100개, 모임 미소속은 403.")

@@ -6,6 +6,8 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,11 +45,15 @@ class CommentControllerTest extends ControllerTest {
                 new CommentResponse(7L, 2L, "지수", "이 문장에서 멈칫했어요.",
                         LocalDateTime.of(2026, 8, 5, 14, 30), null, false))));
 
-        mockMvc.perform(get("/api/clubs/1/passages/1042/comments").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/{clubId}/passages/{passageId}/comments", 1L, 1042L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comments[0].commentId").value(7))
                 .andExpect(jsonPath("$.comments[0].mine").value(false))
-                .andDo(document("comment-list", resource(ResourceSnippetParameters.builder()
+                .andDo(document("comment-list",
+                        pathParameters(
+                                parameterWithName("clubId").description("모임 ID"),
+                                parameterWithName("passageId").description("본문 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("문단의 댓글 목록 조회")
                         .description("작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
@@ -71,13 +77,17 @@ class CommentControllerTest extends ControllerTest {
                 new CommentResponse(7L, 1L, "민서", "이 문장에서 멈칫했어요.",
                         LocalDateTime.of(2026, 8, 5, 14, 30), null, true));
 
-        mockMvc.perform(post("/api/clubs/1/passages/1042/comments")
+        mockMvc.perform(post("/api/clubs/{clubId}/passages/{passageId}/comments", 1L, 1042L)
                         .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"이 문장에서 멈칫했어요.\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.mine").value(true))
-                .andDo(document("comment-create", resource(ResourceSnippetParameters.builder()
+                .andDo(document("comment-create",
+                        pathParameters(
+                                parameterWithName("clubId").description("모임 ID"),
+                                parameterWithName("passageId").description("본문 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("댓글 작성")
                         .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
@@ -101,14 +111,16 @@ class CommentControllerTest extends ControllerTest {
                 new CommentResponse(7L, 1L, "민서", "수정된 내용",
                         LocalDateTime.of(2026, 8, 5, 14, 30), LocalDateTime.of(2026, 8, 5, 15, 0), true));
 
-        mockMvc.perform(put("/api/comments/7")
+        mockMvc.perform(put("/api/comments/{commentId}", 7L)
                         .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\": \"수정된 내용\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").value("수정된 내용"))
                 .andExpect(jsonPath("$.updatedAt").isNotEmpty())
-                .andDo(document("comment-update", resource(ResourceSnippetParameters.builder()
+                .andDo(document("comment-update",
+                        pathParameters(parameterWithName("commentId").description("댓글 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("댓글 수정")
                         .description("본인 댓글이 아니면 403.")
@@ -130,9 +142,11 @@ class CommentControllerTest extends ControllerTest {
     void deleteComment() throws Exception {
         givenValidMember(1L);
 
-        mockMvc.perform(delete("/api/comments/7").header("X-Member-Id", "1"))
+        mockMvc.perform(delete("/api/comments/{commentId}", 7L).header("X-Member-Id", "1"))
                 .andExpect(status().isNoContent())
-                .andDo(document("comment-delete", resource(ResourceSnippetParameters.builder()
+                .andDo(document("comment-delete",
+                        pathParameters(parameterWithName("commentId").description("댓글 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("댓글")
                         .summary("댓글 삭제")
                         .description("하드 삭제(PRD 3.5). 본인 댓글이 아니면 403.")
