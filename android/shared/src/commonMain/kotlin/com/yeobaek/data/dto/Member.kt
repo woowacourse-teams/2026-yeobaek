@@ -1,6 +1,6 @@
 package com.yeobaek.data.dto
 
-import com.yeobaek.data.model.MemberModel
+import com.yeobaek.data.model.UserModel
 import kotlinx.serialization.Serializable
 
 @Serializable

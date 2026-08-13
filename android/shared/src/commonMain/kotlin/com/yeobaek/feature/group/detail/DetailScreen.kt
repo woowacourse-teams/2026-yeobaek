@@ -36,14 +36,11 @@ import com.yeobaek.feature.group.detail.component.DetailTopAppBar
 import com.yeobaek.feature.group.detail.component.GroupBookCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
-import com.yeobaek.feature.group.detail.model.DetailBookUiModel
-import com.yeobaek.feature.group.detail.model.GroupUiModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun DetailScreen(
-    groupUiModel: GroupUiModel,
-    bookUiModel: DetailBookUiModel,
+    uiState: DetailUiState,
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -57,7 +54,7 @@ fun DetailScreen(
             .fillMaxSize(),
         topBar = {
             DetailTopAppBar(
-                title = groupUiModel.name,
+                title = uiState.groupUiModel.name,
                 onBackClick = onBackClick,
             )
         },
@@ -84,22 +81,22 @@ fun DetailScreen(
         ) {
             // 책 정보
             GroupBookCard(
-                uri = bookUiModel.uri,
+                uri = uiState.bookUiModel.uri,
                 modifier = Modifier.padding(horizontal = 16.dp),
             ) {
                 GroupBookInfoCard(
-                    title = bookUiModel.title,
-                    author = bookUiModel.author,
-                    currentProgress = bookUiModel.currentProgress,
+                    title = uiState.bookUiModel.title,
+                    author = uiState.bookUiModel.author,
+                    currentProgress = uiState.bookUiModel.currentProgress,
                 )
             }
             Spacer(modifier = Modifier.height(24.dp))
             // 초대 코드 컴포넌트
             InviteCodeCard(
-                groupCode = groupUiModel.groupCode,
+                groupCode = uiState.groupUiModel.groupCode,
                 onClick = {
                     coroutineScope.launch {
-                        clipboard.setClipEntry(groupUiModel.groupCode.toClipEntry())
+                        clipboard.setClipEntry(uiState.groupUiModel.groupCode.toClipEntry())
                         snackbarHostState.currentSnackbarData?.dismiss()
 
                         if (shouldCopySnackbar()) {
@@ -115,7 +112,7 @@ fun DetailScreen(
             Spacer(modifier = Modifier.height(24.dp))
             // 모임에 참여한 사람들
             GroupUserCard(
-                users = groupUiModel.users,
+                users = uiState.groupUiModel.users,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -170,8 +167,7 @@ private fun GroupBookInfoCard(
 private fun DetailScreenPreview() {
     YeobaekTheme {
         DetailScreen(
-            groupUiModel = GroupUiModel(),
-            bookUiModel = DetailBookUiModel(),
+            uiState = DetailUiState(),
             onBackClick = {},
             onReadClick = {},
         )

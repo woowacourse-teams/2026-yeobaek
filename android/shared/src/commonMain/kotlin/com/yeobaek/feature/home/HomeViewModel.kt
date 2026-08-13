@@ -40,7 +40,7 @@ class HomeViewModel(
             uiState = uiState.copy(
                 groups = groupRepository.getGroups(userId).map {
                     GroupUiModel(
-                        groupCode = it.clubId.toString(),
+                        groupId = it.clubId,
                         uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",
                         title = it.book.title,
                         groupName = it.name,

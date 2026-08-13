@@ -28,7 +28,7 @@ fun HomeScreen(
     currentlyReadingBookUiModel: CurrentlyReadingBookUiModel?,
     uiState: HomeUiState,
     navigateToJoin: () -> Unit,
-    navigateToDetail: (Int, String) -> Unit,
+    navigateToDetail: (Int) -> Unit,
     navigateToCreate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -102,7 +102,7 @@ private fun HomeScreenPreview() {
             ),
             uiState = HomeUiState(),
             navigateToJoin = {},
-            navigateToDetail = { _, _ -> },
+            navigateToDetail = {},
             navigateToCreate = {},
         )
     }

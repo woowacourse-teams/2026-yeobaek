@@ -21,6 +21,7 @@ interface ClubApi {
         @Body request: ClubRequest,
     )
 
+    @Headers("Content-Type: application/json")
     @GET("api/clubs/{clubId}")
     suspend fun getClubDetail(
         @Header("X-member-Id") userId: Int,

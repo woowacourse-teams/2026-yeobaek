@@ -11,7 +11,6 @@ data object Home
 @Serializable
 data class Detail(
     val groupId: Int,
-    val groupCode: String,
 )
 
 @Serializable

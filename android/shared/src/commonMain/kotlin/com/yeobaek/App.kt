@@ -9,14 +9,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
+import com.yeobaek.feature.group.detail.DetailScreen
+import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.navigation.Create
+import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
@@ -159,26 +163,31 @@ fun App(
                         // navController.navigate(Join)
                     },
                     navigateToDetail = { groupCode ->
-                        // navController.navigate(Detail(groupCode))
+                        navController.navigate(Detail(groupCode))
                     },
                     navigateToCreate = {
                         // navController.navigate(Create)
                     },
                 )
             }
-//            composable<Detail> { backStackEntry ->
-//                val route = backStackEntry.toRoute<Detail>()
-//
-//                detailStateHolder.initGroupData(route.groupCode)
-//
-//                DetailScreen(
-//                    groupUiModel = detailStateHolder.uiState.groupUiModel,
-//                    bookUiModel = detailStateHolder.uiState.bookUiModel,
-//                    onBackClick = {
-//                        navController.popBackStack()
-//                    },
-//                )
-//            }
+            composable<Detail> { backStackEntry ->
+                val route = backStackEntry.toRoute<Detail>()
+
+                val detailViewModel: DetailViewModel = viewModel(
+                    factory = DetailViewModel.detailViewModelFactory(
+                        groupRepository = groupRepository,
+                    ),
+                )
+
+                detailViewModel.initGroupData(userId = 2, groupId = route.groupId)
+
+                DetailScreen(
+                    uiState = detailViewModel.uiState,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                )
+            }
 //            composable<Join> {
 //                LaunchedEffect(true) {
 //                    joinStateHolder.initInputValue()

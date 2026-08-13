@@ -1,0 +1,66 @@
+package com.yeobaek.feature.group.detail
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.model.GroupModel
+import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.UserRepository
+import com.yeobaek.feature.group.detail.model.DetailBookUiModel
+import com.yeobaek.feature.group.detail.model.GroupUiModel
+import com.yeobaek.feature.group.detail.model.UserUiModel
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+class DetailViewModel(
+    private val groupRepository: GroupRepository,
+) : ViewModel() {
+    var uiState: DetailUiState by mutableStateOf(DetailUiState())
+        private set
+
+    fun initGroupData(userId: Int, groupId: Int) {
+        viewModelScope.launch {
+            val groupDetail = groupRepository.getGroupDetail(
+                userId = userId,
+                groupId = groupId
+            )
+            uiState = uiState.copy(
+                bookUiModel = DetailBookUiModel(
+                    uri = groupDetail.book.uri,
+                    title = groupDetail.book.title,
+                    author = groupDetail.book.author,
+                    currentProgress = groupDetail.book.progressRate,
+                ),
+                groupUiModel = GroupUiModel(
+                    name = groupDetail.name,
+                    groupCode = groupDetail.joinCode,
+                    users = groupDetail.members.map { member ->
+                        UserUiModel(
+                            id = member.id,
+                            name = member.name,
+                            itsMe = member.mine,
+                        )
+                    },
+                ),
+            )
+        }
+    }
+
+    companion object {
+        fun detailViewModelFactory(
+            groupRepository: GroupRepository,
+        ) : ViewModelProvider.Factory = viewModelFactory{
+            initializer {
+                DetailViewModel(
+                    groupRepository = groupRepository,
+                )
+            }
+        }
+    }
+}
