@@ -1,0 +1,15 @@
+package yeobaek.backend.club.dto;
+
+import java.util.List;
+import yeobaek.backend.book.domain.Book;
+
+public record ClubBookResponse(Long bookId, String title, List<String> authors, int passageCount) {
+
+    public ClubBookResponse {
+        authors = List.copyOf(authors);
+    }
+
+    public static ClubBookResponse of(Book book, List<String> authors) {
+        return new ClubBookResponse(book.getId(), book.getTitle(), authors, book.getPassageCount());
+    }
+}

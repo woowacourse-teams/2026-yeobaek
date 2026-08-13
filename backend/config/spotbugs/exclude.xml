@@ -2,11 +2,11 @@
 <FindBugsFilter>
     <!--
         CT_CONSTRUCTOR_THROW(생성자 예외로 인한 파이널라이저 공격 노출)를 도메인 엔티티 패키지
-        (watson.backend.*.domain)에 한정해 제외한다.
+        (yeobaek.backend.*.domain)에 한정해 제외한다.
         사유는 backend/docs/지침/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
     -->
     <Match>
-        <Package name="~watson\.backend\..*\.domain"/>
+        <Package name="~yeobaek\.backend\..*\.domain"/>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
 </FindBugsFilter>
