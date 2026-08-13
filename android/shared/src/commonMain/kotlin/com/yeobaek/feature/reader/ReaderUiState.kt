@@ -10,6 +10,8 @@ data class ReaderUiState(
     val currentSequence: Int = 0,
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
+    val isLoading: Boolean = false,
+    val loadErrorMessage: String? = null,
     val isTextSettingMenuExpanded: Boolean = false,
     val commentSheet: PassageCommentSheetUiState? = null,
 ) {
