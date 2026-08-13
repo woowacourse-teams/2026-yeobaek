@@ -7,7 +7,7 @@ import de.jensklingenberg.ktorfit.http.Header
 import de.jensklingenberg.ktorfit.http.Path
 
 interface BookApi {
-    @GET("/api/books/")
+    @GET("api/books")
     suspend fun getBooks(
         @Header("X-member-Id") userId: Int,
     ): BooksResponse

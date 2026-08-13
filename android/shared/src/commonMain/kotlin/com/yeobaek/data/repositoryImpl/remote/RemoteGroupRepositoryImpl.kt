@@ -21,11 +21,11 @@ class RemoteGroupRepositoryImpl(
 
     override suspend fun createGroup(
         groupName: String,
-        userData: UserModel,
+        userId: Int,
         book: BookModel,
     ) {
         clubApi.createClub(
-            userId = userData.id,
+            userId = userId,
             request = ClubRequest(bookId = book.id, name = groupName),
         )
     }

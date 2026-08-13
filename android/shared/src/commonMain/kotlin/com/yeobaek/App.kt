@@ -15,6 +15,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
+import com.yeobaek.feature.group.create.CreateScreen
+import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.join.JoinScreen
@@ -34,6 +36,8 @@ import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
 import com.yeobaek.feature.onboarding.OnboardingViewModel
 
+private val userId = 90
+
 @Composable
 fun App(
     appContainer: AppContainer,
@@ -50,26 +54,6 @@ fun App(
         val groupRepository = RemoteGroupRepositoryImpl(
             clubApi = appContainer.apiProvider.clubApi,
         )
-
-//        val detailStateHolder = remember {
-//            DetailStateHolder(
-//                groupRepository = groupRepository,
-//                userRepository = userRepository,
-//            )
-//        }
-//        val joinStateHolder = remember {
-//            JoinStateHolder(
-//                userRepository = userRepository,
-//                groupRepository = groupRepository,
-//            )
-//        }
-//        val createStateHolder = remember {
-//            CreateStateHolder(
-//                bookRepository = bookRepository,
-//                groupRepository = groupRepository,
-//                userRepository = userRepository,
-//            )
-//        }
 
         NavHost(
             navController = navController,
@@ -156,7 +140,9 @@ fun App(
                     ),
                 )
                 LaunchedEffect(true) {
-                    homeViewModel.initGroups()
+                    homeViewModel.initGroups(
+                        userId = userId,
+                    )
                 }
 
                 HomeScreen(
@@ -169,7 +155,7 @@ fun App(
                         navController.navigate(Detail(groupCode))
                     },
                     navigateToCreate = {
-                        // navController.navigate(Create)
+                        navController.navigate(Create)
                     },
                 )
             }
@@ -182,7 +168,7 @@ fun App(
                     ),
                 )
 
-                detailViewModel.initGroupData(userId = 2, groupId = route.groupId)
+                detailViewModel.initGroupData(userId = userId, groupId = route.groupId)
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
@@ -209,7 +195,9 @@ fun App(
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        joinViewModel.joinGroup()
+                        joinViewModel.joinGroup(
+                            userId = userId,
+                        )
 
                         navController.navigate(Home) {
                             popUpTo<Home> {
@@ -219,39 +207,47 @@ fun App(
                     },
                 )
             }
-//            composable<Create> {
-//                LaunchedEffect(true) {
-//                    createStateHolder.initInputValue()
-//                }
-//
-//                CreateScreen(
-//                    uiState = createStateHolder.uiState,
-//                    groupNameCondition = createStateHolder.groupNameCondition,
-//                    selectedBookCondition = createStateHolder.selectedBookCondition,
-//                    updateGroupNameValue = createStateHolder::updateGroupNameValue,
-//                    selectBook = createStateHolder::selectBook,
-//                    onBackClick = {
-//                        navController.popBackStack()
-//                    },
-//                    navigateToHome = {
-//                        createStateHolder.createConditionCheck()
-//                        if (!createStateHolder.createConditionCheck()) {
-//                            createStateHolder.createGroup()
-//
-//                            val popped = navController.popBackStack<Home>(
-//                                inclusive = false,
-//                            )
-//                            if (!popped) {
-//                                navController.navigate(Home) {
-//                                    popUpTo<Onboarding> {
-//                                        inclusive = true
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    },
-//                )
-//            }
+            composable<Create> {
+                val createViewModel: CreateViewModel = viewModel(
+                    factory = CreateViewModel.createViewModelFactory(
+                        groupRepository = groupRepository,
+                        bookRepository = bookRepository,
+                        userRepository = userRepository,
+                    ),
+                )
+
+                LaunchedEffect(true) {
+                    createViewModel.initInputValue()
+                }
+
+                CreateScreen(
+                    uiState = createViewModel.uiState,
+                    updateGroupNameValue = createViewModel::updateGroupNameValue,
+                    selectBook = createViewModel::selectBook,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    navigateToHome = {
+                        createViewModel.createConditionCheck()
+                        if (!createViewModel.createConditionCheck()) {
+                            createViewModel.createGroup(
+                                userId = userId,
+                            )
+
+                            val popped = navController.popBackStack<Home>(
+                                inclusive = false,
+                            )
+                            if (!popped) {
+                                navController.navigate(Home) {
+                                    popUpTo<Onboarding> {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
+            }
         }
     }
 }

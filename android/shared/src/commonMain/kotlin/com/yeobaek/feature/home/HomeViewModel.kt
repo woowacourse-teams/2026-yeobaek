@@ -35,7 +35,7 @@ class HomeViewModel(
         )
     }
 
-    fun initGroups(userId: Int = 2) {
+    fun initGroups(userId: Int) {
         viewModelScope.launch {
             uiState = uiState.copy(
                 groups = groupRepository.getGroups(userId).map {

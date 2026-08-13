@@ -33,7 +33,7 @@ class JoinViewModel(
         )
     }
 
-    fun joinGroup(userId: Int = 2) {
+    fun joinGroup(userId: Int) {
         viewModelScope.launch {
             groupRepository.joinGroup(
                 joinCode = uiState.codeValue,
