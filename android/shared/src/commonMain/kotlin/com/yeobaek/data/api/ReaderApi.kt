@@ -1,7 +1,11 @@
 package com.yeobaek.data.api
 
+import com.yeobaek.data.dto.MyProgress
 import com.yeobaek.data.dto.PassagesResponse
+import com.yeobaek.data.dto.UpdatePassageRequest
+import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.GET
+import de.jensklingenberg.ktorfit.http.PUT
 import de.jensklingenberg.ktorfit.http.Path
 import de.jensklingenberg.ktorfit.http.Query
 
@@ -12,4 +16,10 @@ interface ReaderApi {
         @Query("from") from: Int,
         @Query("to") to: Int,
     ): PassagesResponse
+
+    @PUT("api/clubs/{clubId}/progress")
+    suspend fun updatePassage(
+        @Path("clubId") clubId: Int,
+        @Body request: UpdatePassageRequest,
+    ): MyProgress
 }
