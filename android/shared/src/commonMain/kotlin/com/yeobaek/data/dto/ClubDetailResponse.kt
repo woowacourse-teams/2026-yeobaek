@@ -15,10 +15,10 @@ data class ClubDetailResponse(
 
 fun ClubDetailResponse.toModel(): GroupDetailModel =
     GroupDetailModel(
-        book = book,
+        book = book.toModel(),
         groupId = clubId,
         joinCode = joinCode,
         members = members.map { it.toModel() },
-        myProgress = myProgress,
+        myProgress = myProgress.toModel(),
         name = name,
     )
