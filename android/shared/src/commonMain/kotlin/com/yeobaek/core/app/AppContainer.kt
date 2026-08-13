@@ -4,8 +4,10 @@ import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 
 class AppContainer(
     val memberId: Int,
@@ -20,6 +22,7 @@ class AppContainer(
 
     val bookRepository: BookRepository = BookRepositoryImpl(apiProvider.bookApi)
     val groupRepository: GroupRepository = GroupRepositoryImpl(apiProvider.clubApi)
+    val readerRepository: ReaderRepository = ReaderRepositoryImpl(apiProvider.readerApi)
 
     fun close() {
         networkProvider.close()
