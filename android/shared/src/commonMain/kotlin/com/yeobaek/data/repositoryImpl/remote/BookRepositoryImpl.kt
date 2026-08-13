@@ -18,6 +18,6 @@ class BookRepositoryImpl(
     }
 
     override suspend fun getBookDetail(id: Int): BookDetailModel = bookApi
-        .getBookDetail(id = id)
+        .getBookDetail(bookId = id)
         .toModel()
 }

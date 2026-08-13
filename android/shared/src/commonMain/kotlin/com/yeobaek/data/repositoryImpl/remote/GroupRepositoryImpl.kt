@@ -32,6 +32,6 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun getGroupDetail(id: Int): GroupDetailModel = clubApi
-        .getClubDetail(id = id)
+        .getClubDetail(clubId = id)
         .toModel()
 }

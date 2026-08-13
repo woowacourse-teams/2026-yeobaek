@@ -5,8 +5,8 @@ import de.jensklingenberg.ktorfit.http.GET
 import de.jensklingenberg.ktorfit.http.Path
 
 interface ClubApi {
-    @GET("api/clubs/{id}")
+    @GET("api/clubs/{clubId}")
     suspend fun getClubDetail(
-        @Path("id") id: Int,
+        @Path("clubId") clubId: Int,
     ): ClubDetailResponse
 }

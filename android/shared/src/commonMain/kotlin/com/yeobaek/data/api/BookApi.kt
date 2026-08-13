@@ -6,8 +6,8 @@ import de.jensklingenberg.ktorfit.http.Path
 
 interface BookApi {
 
-    @GET("api/books/{id}")
+    @GET("api/books/{bookId}")
     suspend fun getBookDetail(
-        @Path("id") id: Int,
+        @Path("bookId") bookId: Int,
     ): BookDetailResponse
 }
