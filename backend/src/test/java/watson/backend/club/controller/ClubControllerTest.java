@@ -6,6 +6,8 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -164,11 +166,13 @@ class ClubControllerTest extends ControllerTest {
                 new MyProgressResponse(42, 13, LocalDateTime.of(2026, 8, 5, 14, 30)),
                 List.of(new ClubMemberResponse(1L, "민서", true), new ClubMemberResponse(2L, "지수", false))));
 
-        mockMvc.perform(get("/api/clubs/1").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/clubs/{clubId}", 1L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.joinCode").value("A3F9KQ"))
                 .andExpect(jsonPath("$.members[0].mine").value(true))
-                .andDo(document("club-detail", resource(ResourceSnippetParameters.builder()
+                .andDo(document("club-detail",
+                        pathParameters(parameterWithName("clubId").description("모임 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("모임")
                         .summary("모임 상세 조회")
                         .description("모임 상세 화면용: 초대 코드, 참여자 목록(참여 시각 오름차순), 내 진도. 모임 미소속은 403(NOT_CLUB_MEMBER).")
