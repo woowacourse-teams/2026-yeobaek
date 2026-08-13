@@ -10,9 +10,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
-import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
-import com.yeobaek.data.repositoryImpl.MockUserRepositoryImpl
+import com.yeobaek.data.repositoryImpl.mock.MockBookRepositoryImpl
+import com.yeobaek.data.repositoryImpl.mock.MockGroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.mock.MockUserRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStateHolder
 import com.yeobaek.feature.group.detail.DetailScreen

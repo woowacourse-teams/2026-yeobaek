@@ -1,4 +1,4 @@
-package com.yeobaek.data.repositoryImpl
+package com.yeobaek.data.repositoryImpl.mock
 
 import com.yeobaek.data.MockData
 import com.yeobaek.data.model.BookDetailModel
