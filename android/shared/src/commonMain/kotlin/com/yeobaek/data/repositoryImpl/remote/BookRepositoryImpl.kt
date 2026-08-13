@@ -17,7 +17,7 @@ class BookRepositoryImpl(
         TODO("Not yet implemented")
     }
 
-    override suspend fun getBookDetail(id: Int): BookDetailModel = bookApi
-        .getBookDetail(bookId = id)
+    override suspend fun getBookDetail(bookId: Int): BookDetailModel = bookApi
+        .getBookDetail(bookId = bookId)
         .toModel()
 }

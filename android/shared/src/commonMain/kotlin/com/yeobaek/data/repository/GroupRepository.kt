@@ -10,5 +10,5 @@ interface GroupRepository {
     fun createGroup(groupName: String, userData: UserModel, book: BookModel)
     fun joinGroup(code: String, userData: UserModel)
     fun checkCode(code: String): Boolean
-    suspend fun getGroupDetail(id: Int): GroupDetailModel
+    suspend fun getGroupDetail(groupId: Int): GroupDetailModel
 }
