@@ -71,9 +71,12 @@ fun OnboardingScreen(
                     },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("입력한 닉네임은 앞으로 앱에 반영됩니다.", style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.secondary,
-                ))
+                Text(
+                    "입력한 닉네임은 앞으로 앱에 반영됩니다.",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.secondary,
+                    ),
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 OnboardingYeobaekTextField(
                     title = if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드 입력 (선택)",

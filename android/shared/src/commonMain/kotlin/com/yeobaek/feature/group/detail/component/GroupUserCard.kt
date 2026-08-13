@@ -90,7 +90,7 @@ fun GroupUserCard(
                 ) { user ->
                     UserCard(
                         name = user.name,
-                        itsMe = user.itsMe
+                        itsMe = user.itsMe,
                     )
                 }
             }
