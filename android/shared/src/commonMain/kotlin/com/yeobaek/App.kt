@@ -176,7 +176,10 @@ fun App(
                         groupRepository = groupRepository,
                     ),
                 )
-                homeViewModel.initGroups()
+
+                LaunchedEffect(true) {
+                    homeViewModel.initGroups()
+                }
 
                 HomeScreen(
                     currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
