@@ -23,7 +23,7 @@ interface ClubApi {
     suspend fun createClub(
         @Header("X-member-Id") userId: Int,
         @Body request: ClubRequest,
-    )
+    ): Response<Unit>
 
     @Headers("Content-Type: application/json")
     @GET("api/clubs/{clubId}")

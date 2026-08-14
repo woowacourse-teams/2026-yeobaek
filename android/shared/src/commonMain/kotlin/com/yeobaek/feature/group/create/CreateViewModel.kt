@@ -78,18 +78,25 @@ class CreateViewModel(
 
     fun createGroup() {
         viewModelScope.launch {
-            val userId = userRepository.getUserId()
-            val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
+            try {
+                val userId = userRepository.getUserId()
+                val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
 
-            groupRepository.createGroup(
-                groupName = uiState.groupNameValue,
-                userId = userId,
-                bookId = bookId,
-            )
+                groupRepository.createGroup(
+                    groupName = uiState.groupNameValue,
+                    userId = userId,
+                    bookId = bookId,
+                )
 
-            uiState = uiState.copy(
-                successCreate = true,
-            )
+                uiState = uiState.copy(
+                    successCreate = true,
+                )
+            } catch(e: Exception) {
+                uiState = uiState.copy(
+                    successCreate = false,
+                )
+            }
+
         }
     }
 

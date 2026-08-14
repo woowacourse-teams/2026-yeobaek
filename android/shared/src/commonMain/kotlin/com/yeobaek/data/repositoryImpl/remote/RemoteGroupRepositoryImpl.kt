@@ -28,10 +28,14 @@ class RemoteGroupRepositoryImpl(
         userId: Int,
         bookId: Int,
     ) {
-        clubApi.createClub(
+        val response = clubApi.createClub(
             userId = userId,
             request = ClubRequest(bookId = bookId, name = groupName),
         )
+
+        if (!response.isSuccessful) {
+            throw IllegalArgumentException("그룹을 생성하는데 실패했습니다.")
+        }
     }
 
     override suspend fun joinGroup(joinCode: String, userId: Int) {
