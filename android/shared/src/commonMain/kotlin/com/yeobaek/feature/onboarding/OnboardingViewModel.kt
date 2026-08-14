@@ -26,29 +26,6 @@ class OnboardingViewModel(
         )
     }
 
-    fun onNicknameValueChange(inputValue: String) {
-        uiState = uiState.copy(
-            nicknameState = false,
-            nicknameValue = inputValue,
-        )
-    }
-
-    fun setNickname(screenState: ScreenState) {
-        viewModelScope.launch {
-            try {
-                userRepository.setUserData(uiState.nicknameValue)
-                uiState = uiState.copy(
-                    screenState = screenState,
-                )
-            } catch (e: Exception) {
-                uiState = uiState.copy(
-                    nicknameState = true,
-                    codeState = screenState == ScreenState.Join
-                )
-            }
-        }
-    }
-
     fun joinGroup() {
         viewModelScope.launch {
             val user = userRepository.userModel

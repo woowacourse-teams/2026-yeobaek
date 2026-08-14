@@ -3,6 +3,9 @@ package com.yeobaek.feature.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
+data object Nickname
+
+@Serializable
 data object Onboarding
 
 @Serializable

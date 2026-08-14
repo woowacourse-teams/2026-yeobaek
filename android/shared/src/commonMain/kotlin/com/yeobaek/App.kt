@@ -27,7 +27,10 @@ import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
+import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.nickname.NicknameScreen
+import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
 import com.yeobaek.feature.onboarding.OnboardingStateHolder
@@ -56,8 +59,21 @@ fun App(
 
         NavHost(
             navController = navController,
-            startDestination = Onboarding,
+            startDestination = Nickname,
         ) {
+            composable<Nickname> {
+                val nicknameViewModel: NicknameViewModel = viewModel(
+                    factory = NicknameViewModel.nicknameViewModelFactory(
+                        userRepository = userRepository,
+                    ),
+                )
+
+                NicknameScreen(
+                    uiState = nicknameViewModel.uiState,
+                    onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
+                    navigateToOnboarding = nicknameViewModel::setNickname
+                )
+            }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
                 val readerViewModel = viewModel<ReaderViewModel>(
@@ -131,21 +147,14 @@ fun App(
                 OnboardingScreen(
                     uiState = onboardingViewModel.uiState,
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
-                    onNicknameValueChange = onboardingViewModel::onNicknameValueChange,
                     navigateToCreate = {
-                        onboardingViewModel.setNickname(
-                            screenState = ScreenState.Create,
-                        )
+
                     },
                     navigateToHome = {
-                        onboardingViewModel.setNickname(
-                            screenState = ScreenState.Join,
-                        )
+
                     },
                     navigateToAroundHome = {
-                        onboardingViewModel.setNickname(
-                            screenState = ScreenState.Home,
-                        )
+
                     },
                 )
             }
