@@ -4,10 +4,8 @@ import com.yeobaek.data.api.ClubApi
 import com.yeobaek.data.dto.ClubRequest
 import com.yeobaek.data.dto.JoinRequest
 import com.yeobaek.data.dto.toModel
-import com.yeobaek.data.model.BookModel
 import com.yeobaek.data.model.GroupDetailModel
 import com.yeobaek.data.model.GroupModel
-import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.GroupRepository
 
 class RemoteGroupRepositoryImpl(
@@ -16,13 +14,19 @@ class RemoteGroupRepositoryImpl(
     override suspend fun getGroups(
         userId: Int,
     ): List<GroupModel> {
-        return clubApi.getUserClubs(userId).toModel()
+        val response = clubApi.getUserClubs(userId)
+
+        return if (response.isSuccessful) {
+            response.body()?.toModel() ?: throw IllegalArgumentException("그룹 정보가 없네요")
+        } else {
+            throw IllegalArgumentException("그룹 정보를 가져오는데 실패했습니다 ${response.status}")
+        }
     }
 
     override suspend fun createGroup(
         groupName: String,
         userId: Int,
-        bookId: Int
+        bookId: Int,
     ) {
         clubApi.createClub(
             userId = userId,
@@ -31,16 +35,28 @@ class RemoteGroupRepositoryImpl(
     }
 
     override suspend fun joinGroup(joinCode: String, userId: Int) {
-        clubApi.joinClub(
+        val response = clubApi.joinClub(
             userId = userId,
             request = JoinRequest(joinCode = joinCode),
         )
+
+        return if (response.isSuccessful) {
+            Unit
+        } else {
+            throw IllegalArgumentException("그룹 가입에 실패했습니다 ${response.status}")
+        }
     }
 
     override suspend fun getGroupDetail(userId: Int, groupId: Int): GroupDetailModel {
-        return clubApi.getClubDetail(
+        val response = clubApi.getClubDetail(
             userId = userId,
             clubId = groupId,
-        ).toModel()
+        )
+
+        return if (response.isSuccessful) {
+            response.body()?.toModel() ?: throw IllegalArgumentException("그룹 정보가 없네요")
+        } else {
+            throw IllegalArgumentException("그룹 정보를 가져오는데 실패했습니다 ${response.status}")
+        }
     }
 }

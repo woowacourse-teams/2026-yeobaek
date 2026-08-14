@@ -2,6 +2,9 @@ package com.yeobaek.data.api
 
 import com.yeobaek.data.dto.ClubDetailResponse
 import com.yeobaek.data.dto.ClubsResponse
+import com.yeobaek.data.dto.JoinRequest
+import de.jensklingenberg.ktorfit.Response
+import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.GET
 import de.jensklingenberg.ktorfit.http.Header
 import de.jensklingenberg.ktorfit.http.Headers
@@ -13,7 +16,7 @@ interface ClubApi {
     @GET("api/clubs")
     suspend fun getUserClubs(
         @Header("X-member-Id") userId: Int,
-    ): ClubsResponse
+    ): Response<ClubsResponse>
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs")
@@ -27,12 +30,12 @@ interface ClubApi {
     suspend fun getClubDetail(
         @Header("X-member-Id") userId: Int,
         @Path("clubId") clubId: Int,
-    ): ClubDetailResponse
+    ): Response<ClubDetailResponse>
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs/join")
     suspend fun joinClub(
         @Header("X-member-Id") userId: Int,
         @Body request: JoinRequest,
-    )
+    ): Response<Unit>
 }

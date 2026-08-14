@@ -11,9 +11,12 @@ class RemoteBookRepositoryImpl(
     override suspend fun getBooks(
         userId: Int
     ): List<BookModel> {
-        return bookApi.getBooks(
-            userId = userId
-        ).toModel()
+        val response = bookApi.getBooks(userId)
+        return if (response.isSuccessful) {
+            response.body()?.toModel() ?: throw IllegalArgumentException("책 정보가 없네요")
+        } else {
+            throw IllegalArgumentException("책 정보를 가져오는데 실패했습니다 ${response.status}")
+        }
     }
 
     override suspend fun getBook(userId: Int, bookId: Int): BookModel {
