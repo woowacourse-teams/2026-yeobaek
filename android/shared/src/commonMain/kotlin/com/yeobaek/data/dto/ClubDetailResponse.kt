@@ -9,7 +9,7 @@ data class ClubDetailResponse(
     val clubId: Int,
     val joinCode: String,
     val members: List<Member>,
-    val myProgress: MyProgress,
+    val myProgress: MyProgress?,
     val name: String,
 )
 
@@ -19,6 +19,6 @@ fun ClubDetailResponse.toModel(): GroupDetailModel =
         groupId = clubId,
         joinCode = joinCode,
         members = members.map { it.toModel() },
-        myProgress = myProgress.toModel(),
+        myProgress = myProgress?.toModel(),
         name = name,
     )

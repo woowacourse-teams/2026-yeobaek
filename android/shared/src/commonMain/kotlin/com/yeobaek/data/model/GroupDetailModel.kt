@@ -5,6 +5,6 @@ data class GroupDetailModel(
     val groupId: Int,
     val joinCode: String,
     val members: List<MemberModel>,
-    val myProgress: MyProgressModel,
+    val myProgress: MyProgressModel?,
     val name: String,
 )

@@ -9,7 +9,7 @@ import com.yeobaek.core.app.AppContainer
 fun MainViewController() = ComposeUIViewController {
     val appContainer = remember {
         AppContainer(
-            memberId = 1,
+            memberId = 7,
         )
     }
 

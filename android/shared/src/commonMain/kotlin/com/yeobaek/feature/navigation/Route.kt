@@ -18,3 +18,8 @@ data object Create
 
 @Serializable
 data object Join
+
+@Serializable
+data class Reader(
+    val groupId: Int,
+)

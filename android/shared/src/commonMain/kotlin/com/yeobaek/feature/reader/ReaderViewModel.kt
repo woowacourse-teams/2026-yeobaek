@@ -5,18 +5,150 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import kotlin.reflect.KClass
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class ReaderViewModel(
-    val groupId: Int,
-    initialUiState: ReaderUiState = defaultReaderUiState,
+    private val groupId: Int,
+    private val groupRepository: GroupRepository,
+    private val readerRepository: ReaderRepository,
 ) : ViewModel() {
-    var uiState by mutableStateOf(initialUiState)
+    var uiState by mutableStateOf(ReaderUiState(isLoading = true))
         private set
+
+    init {
+        loadReader()
+    }
+
+    private fun loadReader() {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isLoading = true,
+                loadErrorMessage = null,
+            )
+
+            try {
+                val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
+                val passageCount = groupDetail.book.passageCount
+                val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
+                    .coerceIn(
+                        minimumValue = 0,
+                        maximumValue = passageCount,
+                    )
+                val resumeSequence = currentSequence.coerceAtLeast(FIRST_PASSAGE_SEQUENCE)
+                val firstSequence = maxOf(
+                    FIRST_PASSAGE_SEQUENCE,
+                    resumeSequence - PREVIOUS_PASSAGE_COUNT,
+                )
+                val passageModels = if (passageCount == 0) {
+                    emptyList()
+                } else {
+                    readerRepository.getPassages(
+                        groupId = groupId,
+                        from = firstSequence,
+                        to = minOf(
+                            passageCount,
+                            firstSequence + MAX_PASSAGES_PER_REQUEST - 1,
+                        ),
+                    ).passages
+                }
+
+                uiState = uiState.copy(
+                    title = groupDetail.book.title,
+                    author = groupDetail.book.authors.joinToString(", "),
+                    passages = passageModels.map(PassageModel::toUiModel),
+                    currentSequence = currentSequence,
+                    totalPassageCount = passageCount,
+                    isLoading = false,
+                    loadErrorMessage = null,
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                uiState = uiState.copy(
+                    isLoading = false,
+                    loadErrorMessage = "본문을 불러오지 못했습니다.",
+                )
+            }
+        }
+    }
+
+    fun loadPreviousPassages() {
+        val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return
+        if (uiState.isLoadingPrevious || firstSequence <= FIRST_PASSAGE_SEQUENCE) return
+
+        val to = firstSequence - 1
+        val from = maxOf(
+            FIRST_PASSAGE_SEQUENCE,
+            to - MAX_PASSAGES_PER_REQUEST + 1,
+        )
+
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoadingPrevious = true)
+
+            try {
+                val previousPassages = readerRepository.getPassages(
+                    groupId = groupId,
+                    from = from,
+                    to = to,
+                ).passages.map(PassageModel::toUiModel)
+
+                uiState = uiState.copy(
+                    passages = (previousPassages + uiState.passages)
+                        .distinctBy(PassageUiModel::sequence)
+                        .sortedBy(PassageUiModel::sequence),
+                    isLoadingPrevious = false,
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                uiState = uiState.copy(isLoadingPrevious = false)
+            }
+        }
+    }
+
+    fun loadNextPassages() {
+        val lastSequence = uiState.passages.lastOrNull()?.sequence ?: return
+        if (uiState.isLoadingNext || lastSequence >= uiState.totalPassageCount) return
+
+        val from = lastSequence + 1
+        val to = minOf(
+            uiState.totalPassageCount,
+            from + MAX_PASSAGES_PER_REQUEST - 1,
+        )
+
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoadingNext = true)
+
+            try {
+                val nextPassages = readerRepository.getPassages(
+                    groupId = groupId,
+                    from = from,
+                    to = to,
+                ).passages.map(PassageModel::toUiModel)
+
+                uiState = uiState.copy(
+                    passages = (uiState.passages + nextPassages)
+                        .distinctBy(PassageUiModel::sequence)
+                        .sortedBy(PassageUiModel::sequence),
+                    isLoadingNext = false,
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                uiState = uiState.copy(isLoadingNext = false)
+            }
+        }
+    }
 
     fun toggleTextSettingMenu() {
         uiState = uiState.copy(
@@ -199,6 +331,15 @@ private fun List<PassageUiModel>.withCommentCount(
     }
 }
 
+private fun PassageModel.toUiModel(): PassageUiModel =
+    PassageUiModel(
+        passageId = passageId.toLong(),
+        sequence = sequence,
+        chapterId = chapterId,
+        content = content,
+        commentCount = commentCount,
+    )
+
 val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
     2L to listOf(
         PassageCommentUiModel(
@@ -317,16 +458,10 @@ val mockPassages: List<PassageUiModel> = listOf(
     ),
 )
 
-private val defaultReaderUiState = ReaderUiState(
-    title = "데미안",
-    author = "헤르만 헤세",
-    passages = mockPassages,
-    currentSequence = 12,
-    totalPassageCount = 100,
-)
-
 class ReaderViewModelFactory(
     private val groupId: Int,
+    private val groupRepository: GroupRepository,
+    private val readerRepository: ReaderRepository,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(
         modelClass: KClass<T>,
@@ -334,9 +469,17 @@ class ReaderViewModelFactory(
     ): T {
         if (modelClass == ReaderViewModel::class) {
             @Suppress("UNCHECKED_CAST")
-            return ReaderViewModel(groupId = groupId) as T
+            return ReaderViewModel(
+                groupId = groupId,
+                groupRepository = groupRepository,
+                readerRepository = readerRepository,
+            ) as T
         }
 
         throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
     }
 }
+
+private const val FIRST_PASSAGE_SEQUENCE = 1
+private const val PREVIOUS_PASSAGE_COUNT = 20
+private const val MAX_PASSAGES_PER_REQUEST = 100
