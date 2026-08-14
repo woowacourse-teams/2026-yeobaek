@@ -283,7 +283,6 @@ fun App(
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        createViewModel.createConditionCheck()
                         if (!createViewModel.createConditionCheck()) {
                             createViewModel.createGroup()
                         }
