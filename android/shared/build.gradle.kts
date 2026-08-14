@@ -91,6 +91,9 @@ kotlin {
             // image loading (coil3)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
+
+            // multiplatform settings
+            implementation(libs.multiplatform.settings)
         }
 
         commonTest.dependencies {
