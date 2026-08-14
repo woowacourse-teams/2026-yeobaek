@@ -36,11 +36,11 @@ class JoinViewModel(
 
     fun joinGroup() {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val userId = userRepository.getUserId()
 
             groupRepository.joinGroup(
                 joinCode = uiState.codeValue,
-                userId = user.id,
+                userId = userId,
             )
         }
     }

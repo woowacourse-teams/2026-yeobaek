@@ -27,9 +27,9 @@ class DetailViewModel(
 
     fun initGroupData(groupId: Int) {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val userId = userRepository.getUserId()
             val groupDetail = groupRepository.getGroupDetail(
-                userId = user.id,
+                userId = userId,
                 groupId = groupId
             )
             uiState = uiState.copy(

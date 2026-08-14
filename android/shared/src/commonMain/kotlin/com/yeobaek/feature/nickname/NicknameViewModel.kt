@@ -8,12 +8,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.ScreenState
 import kotlinx.coroutines.launch
 
 class NicknameViewModel(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     var uiState by mutableStateOf(NicknameUiState())
         private set

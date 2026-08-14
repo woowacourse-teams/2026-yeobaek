@@ -19,6 +19,12 @@ class OnboardingViewModel(
     var uiState by mutableStateOf(OnboardingUiState())
         private set
 
+    init {
+        uiState = uiState.copy(
+            username = userRepository.getUsername()
+        )
+    }
+
     fun onCodeValueChange(inputValue: String) {
         uiState = uiState.copy(
             codeState = false,
@@ -28,11 +34,11 @@ class OnboardingViewModel(
 
     fun joinGroup() {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val userId = userRepository.getUserId()
 
             groupRepository.joinGroup(
                 joinCode = uiState.codeValue,
-                userId = user.id,
+                userId = userId,
             )
         }
     }

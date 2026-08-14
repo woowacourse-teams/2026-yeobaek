@@ -39,11 +39,12 @@ class HomeViewModel(
 
     fun initGroups() {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val username = userRepository.getUsername()
+            val userId = userRepository.getUserId()
 
             uiState = uiState.copy(
-                username = user.name,
-                groups = groupRepository.getGroups(user.id).map {
+                username = username,
+                groups = groupRepository.getGroups(userId).map {
                     GroupUiModel(
                         groupId = it.clubId,
                         uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",

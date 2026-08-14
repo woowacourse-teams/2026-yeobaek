@@ -49,6 +49,7 @@ fun App(
 
         val userRepository = RemoteUserRepositoryImpl(
             userApi = appContainer.apiProvider.userApi,
+            userPreferences = appContainer.userPreferences,
         )
         val bookRepository = RemoteBookRepositoryImpl(
             bookApi = appContainer.apiProvider.booksApi,
@@ -59,7 +60,7 @@ fun App(
 
         NavHost(
             navController = navController,
-            startDestination = Nickname,
+            startDestination = if(appContainer.userPreferences.getUserId() == null) Nickname else Onboarding,
         ) {
             composable<Nickname> {
                 val nicknameViewModel: NicknameViewModel = viewModel(

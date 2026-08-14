@@ -29,9 +29,9 @@ class CreateViewModel(
 
     fun initBookList() {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val userId = userRepository.getUserId()
 
-            val groups = bookRepository.getBooks(userId = user.id)
+            val groups = bookRepository.getBooks(userId = userId)
             uiState = CreateUiState(
                 bookList = groups.map {
                     CreateBookUiModel(
@@ -79,12 +79,12 @@ class CreateViewModel(
 
     fun createGroup() {
         viewModelScope.launch {
-            val user = userRepository.userModel
+            val userId = userRepository.getUserId()
             val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
 
             groupRepository.createGroup(
                 groupName = uiState.groupNameValue,
-                userId = user.id,
+                userId = userId,
                 bookId = bookId,
             )
 
