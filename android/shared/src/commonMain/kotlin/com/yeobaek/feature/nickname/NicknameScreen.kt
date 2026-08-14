@@ -42,6 +42,7 @@ fun NicknameScreen(
         bottomBar = {
             YeobaekButton(
                 text = "시작하기",
+                enabled = uiState.isEnabled && !uiState.successNicknameSet,
                 onClick = onNicknameSet,
                 modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp).fillMaxWidth(),
             )

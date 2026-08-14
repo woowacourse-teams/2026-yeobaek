@@ -69,8 +69,8 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(nicknameViewModel.uiState.screenState) {
-                    if (nicknameViewModel.uiState.screenState == ScreenState.Onboarding) {
+                LaunchedEffect(nicknameViewModel.uiState.successNicknameSet) {
+                    if (nicknameViewModel.uiState.successNicknameSet) {
                         navController.navigate(Onboarding) {
                             popUpTo<Nickname> {
                                 inclusive = true
@@ -83,7 +83,7 @@ fun App(
                     uiState = nicknameViewModel.uiState,
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
-                        nicknameViewModel.setNickname(screenState = ScreenState.Onboarding)
+                        nicknameViewModel.setNickname()
                     },
                 )
             }

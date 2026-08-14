@@ -25,17 +25,26 @@ class NicknameViewModel(
         )
     }
 
-    fun setNickname(screenState: ScreenState) {
+    fun setNickname() {
         viewModelScope.launch {
-            try {
-                userRepository.setUserData(uiState.nicknameValue)
-                uiState = uiState.copy(
-                    screenState = screenState,
-                )
-            } catch (e: Exception) {
-                uiState = uiState.copy(
-                    nicknameState = true,
-                )
+            uiState = uiState.copy(
+                isEnabled = false,
+            )
+            if (!uiState.isEnabled) {
+                try {
+                    userRepository.setUserData(uiState.nicknameValue)
+                    uiState = uiState.copy(
+                        successNicknameSet = true,
+                    )
+                } catch (e: Exception) {
+                    uiState = uiState.copy(
+                        nicknameState = true,
+                    )
+                } finally {
+                    uiState = uiState.copy(
+                        isEnabled = true,
+                    )
+                }
             }
         }
     }
