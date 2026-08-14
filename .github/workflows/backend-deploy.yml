@@ -9,9 +9,8 @@ on:
     branches: [develop]
     paths:
       # 배포 이미지에 반영되는 서버 코드·리소스와 빌드/런타임 설정만 감지한다.
+      # 테스트 변경은 배포물에 영향이 없으므로 제외한다 (스펙은 springdoc이 런타임 생성).
       - 'backend/src/main/**'
-      # 테스트가 생성한 REST Docs 기반 OpenAPI 스펙도 bootJar에 포함된다.
-      - 'backend/src/test/**'
       - 'backend/build.gradle*'
       - 'backend/settings.gradle*'
       - 'backend/gradle.properties'
