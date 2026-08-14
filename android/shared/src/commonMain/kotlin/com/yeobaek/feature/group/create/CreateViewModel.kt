@@ -28,20 +28,24 @@ class CreateViewModel(
 
     fun initBookList() {
         viewModelScope.launch {
-            val userId = userRepository.getUserId()
+            try {
+                val userId = userRepository.getUserId()
 
-            val groups = bookRepository.getBooks(userId = userId)
-            uiState = CreateUiState(
-                bookList = groups.map {
-                    CreateBookUiModel(
-                        id = it.id,
-                        uri = it.uri,
-                        title = it.title,
-                        author = it.author,
-                        description = it.description,
-                    )
-                },
-            )
+                val groups = bookRepository.getBooks(userId = userId)
+                uiState = CreateUiState(
+                    bookList = groups.map {
+                        CreateBookUiModel(
+                            id = it.id,
+                            uri = it.uri,
+                            title = it.title,
+                            author = it.author,
+                            description = it.description,
+                        )
+                    },
+                )
+            } catch(e: Exception) {
+                initBookList()
+            }
         }
     }
 
