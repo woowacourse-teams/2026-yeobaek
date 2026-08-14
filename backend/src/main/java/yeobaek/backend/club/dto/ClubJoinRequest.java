@@ -1,4 +1,8 @@
 package yeobaek.backend.club.dto;
 
-public record ClubJoinRequest(String joinCode) {
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record ClubJoinRequest(
+        @Schema(description = "참여 코드") String joinCode
+) {
 }

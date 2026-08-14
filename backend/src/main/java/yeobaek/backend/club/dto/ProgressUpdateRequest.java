@@ -1,4 +1,8 @@
 package yeobaek.backend.club.dto;
 
-public record ProgressUpdateRequest(Long passageId) {
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record ProgressUpdateRequest(
+        @Schema(description = "열람한 본문 ID") Long passageId
+) {
 }

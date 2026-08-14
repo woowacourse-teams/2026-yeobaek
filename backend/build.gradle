@@ -3,7 +3,6 @@ plugins {
     id 'pmd'
     id 'org.springframework.boot' version '4.1.0'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.epages.restdocs-api-spec' version '0.20.1'
     id 'com.github.spotbugs' version '6.5.10'
 }
 
@@ -26,15 +25,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     // 관리자 페이지 (2026-08-06 M7 결정: Thymeleaf 서버 렌더링)
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-    runtimeOnly 'org.webjars:swagger-ui:5.32.11'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-restdocs'
-    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
-    testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.20.1'
     testImplementation platform('org.testcontainers:testcontainers-bom:1.21.3')
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'
@@ -61,21 +57,4 @@ tasks.named('pmdTest') {
 
 spotbugs {
     excludeFilter = file('config/spotbugs/exclude.xml')
-}
-
-// 배포 잼에 생성된 OpenAPI 스펙을 정적 리소스로 동봉해 Swagger UI(/docs/index.html)가 읽는다
-tasks.named('bootJar') {
-    dependsOn tasks.named('openapi3')
-    from("${layout.buildDirectory.get()}/api-spec") {
-        into 'BOOT-INF/classes/static'
-    }
-}
-
-openapi3 {
-    // 상대 URL: Swagger UI가 스펙을 서빙한 서버(로컬·배포 모두)로 Try it out 요청을 보낸다
-    server = '/'
-    title = '여백 API'
-    description = '여백 백엔드 API 문서'
-    version = project.version
-    format = 'yaml'
 }
