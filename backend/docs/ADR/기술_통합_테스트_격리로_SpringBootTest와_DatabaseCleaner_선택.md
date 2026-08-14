@@ -253,3 +253,40 @@ DB Context가 1개였다. 충돌 테스트 2개는 Mockito 단위 테스트로 �
 - 결과를 CI나 다른 PC의 성능으로 일반화할 수 없다.
 - 컨테이너 시간은 Context 시간에 포함되므로 두 값을 합산하면 안 된다.
 - DatabaseCleaner의 순수 비용을 분리하는 microbenchmark는 수행하지 않았다.
+
+## 장기적 의미와 트레이드오프
+
+### 유지되는 장점
+
+- 공통 IntegrationTest가 Spring Context 캐시 경계를 제공한다. 공통 Context의
+  cache key가 유지되는 동안 서비스 테스트 수가 늘어나도 Context 수가 서비스
+  테스트 수와 함께 증가하지 않는다.
+- 운영과 동일한 DBMS인 MySQL에서 실제 커밋까지 검증할 수 있다.
+- 통합 테스트가 공통 Context와 DatabaseCleaner를 사용하므로 테스트 격리 구조가
+  일관되게 유지된다.
+
+### 함께 유지되는 비용
+
+- 전체 Bean을 등록하므로 테스트 대상과 무관한 Bean의 문제도 통합 테스트 실패로
+  이어질 수 있다.
+- Docker와 운영 DBMS 기반 컨테이너를 실행하는 시간 및 환경 비용이 필요하다.
+- DatabaseCleaner가 각 테스트 케이스 전에 테이블을 `TRUNCATE`하는 비용이 발생한다.
+- 하나의 DB를 공유하고 커밋 후 정리하므로 현재 구조에서는 병렬 실행이 제한된다.
+- 공통 Context의 annotation이나 mock override가 달라지면 cache key가 달라져 새
+  Context가 만들어질 수 있으므로 해당 구성을 관리해야 한다.
+- 스키마와 제약조건이 변하면 DatabaseCleaner가 계속 정상적으로 정리하고 복구하는지
+  유지보수해야 한다.
+
+### 실측 결과의 적용 범위
+
+이번 실측은 현재 테스트 구성에서 Context 시작 감소분이 DatabaseCleaner를 포함한
+Context 외 비용 증가분보다 컸다는 증거다. 모든 테스트 규모와 실행 환경에서 이
+구조가 항상 더 빠르다는 의미는 아니다.
+
+### 미래 판단 신호
+
+- 실행 시간이 다시 증가하면 Context cache miss와 DatabaseCleaner 비용을 분리해
+  계측한다.
+- 병렬 실행이 필요해지면 worker별 DB 또는 schema 제공 방식에 대한 새 결정이
+  필요하다.
+- 이 결정은 빠른 피드백을 위한 단위 테스트나 slice 테스트를 폐기하는 결정이 아니다.
