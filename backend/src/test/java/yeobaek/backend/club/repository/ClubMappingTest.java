@@ -7,15 +7,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.BookRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-class ClubMappingTest extends RepositoryTest {
+class ClubMappingTest extends IntegrationTest {
 
     @Autowired
     private ClubRepository clubRepository;
@@ -29,6 +30,9 @@ class ClubMappingTest extends RepositoryTest {
     @Autowired
     private BookRepository bookRepository;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     private Book saveBook() {
         return bookRepository.save(new Book("운수 좋은 날", null, 1924, 10));
     }
@@ -38,10 +42,12 @@ class ClubMappingTest extends RepositoryTest {
     void saveAndFind() {
         Club saved = clubRepository.save(new Club("교환독서 1기", saveBook(), "A3F9KQ"));
 
-        Club found = clubRepository.findById(saved.getId()).orElseThrow();
+        transactionTemplate.executeWithoutResult(status -> {
+            Club found = clubRepository.findById(saved.getId()).orElseThrow();
 
-        assertThat(found.getJoinCode()).isEqualTo("A3F9KQ");
-        assertThat(found.getBook().getTitle()).isEqualTo("운수 좋은 날");
+            assertThat(found.getJoinCode()).isEqualTo("A3F9KQ");
+            assertThat(found.getBook().getTitle()).isEqualTo("운수 좋은 날");
+        });
     }
 
     @Test

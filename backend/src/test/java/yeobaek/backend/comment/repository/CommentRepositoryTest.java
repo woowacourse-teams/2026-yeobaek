@@ -18,9 +18,9 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-class CommentRepositoryTest extends RepositoryTest {
+class CommentRepositoryTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;

@@ -6,9 +6,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-class MemberRepositoryTest extends RepositoryTest {
+class MemberRepositoryTest extends IntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;

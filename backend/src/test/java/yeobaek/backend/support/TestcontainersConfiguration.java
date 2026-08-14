@@ -1,5 +1,6 @@
 package yeobaek.backend.support;
 
+import javax.sql.DataSource;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -12,5 +13,10 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     MySQLContainer<?> mysqlContainer() {
         return new MySQLContainer<>("mysql:8.4");
+    }
+
+    @Bean
+    DatabaseCleaner databaseCleaner(DataSource dataSource) {
+        return new DatabaseCleaner(dataSource);
     }
 }

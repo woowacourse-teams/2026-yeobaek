@@ -6,7 +6,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import yeobaek.backend.admin.dto.AdminAuthorResponse;
 import yeobaek.backend.admin.dto.AdminAuthorsResponse;
 import yeobaek.backend.book.domain.Author;
@@ -15,10 +14,9 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookRepository;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-@Import(AdminAuthorService.class)
-class AdminAuthorServiceTest extends RepositoryTest {
+class AdminAuthorServiceTest extends IntegrationTest {
 
     @Autowired
     private AdminAuthorService adminAuthorService;

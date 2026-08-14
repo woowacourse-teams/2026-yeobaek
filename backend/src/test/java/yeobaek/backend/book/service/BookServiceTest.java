@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
@@ -21,10 +20,9 @@ import yeobaek.backend.book.repository.BookRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-@Import(BookService.class)
-class BookServiceTest extends RepositoryTest {
+class BookServiceTest extends IntegrationTest {
 
     @Autowired
     private BookService bookService;

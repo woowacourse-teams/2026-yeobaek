@@ -7,7 +7,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import yeobaek.backend.admin.dto.AuthorEntryRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
@@ -25,10 +24,9 @@ import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-@Import(BookIngestService.class)
-class BookIngestServiceTest extends RepositoryTest {
+class BookIngestServiceTest extends IntegrationTest {
 
     @Autowired
     private BookIngestService bookIngestService;

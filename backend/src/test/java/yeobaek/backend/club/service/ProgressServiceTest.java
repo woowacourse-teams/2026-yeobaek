@@ -4,12 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
+import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -26,10 +25,9 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-@Import(ProgressService.class)
-class ProgressServiceTest extends RepositoryTest {
+class ProgressServiceTest extends IntegrationTest {
 
     @Autowired
     private ProgressService progressService;
@@ -53,7 +51,7 @@ class ProgressServiceTest extends RepositoryTest {
     private ClubMemberRepository clubMemberRepository;
 
     @Autowired
-    private TestEntityManager entityManager;
+    private EntityManagerFactory entityManagerFactory;
 
     private Member reader;
     private Club club;
@@ -113,10 +111,10 @@ class ProgressServiceTest extends RepositoryTest {
     }
 
     @Test
-    @DisplayName("영속성 컨텍스트를 비워 모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
+    @DisplayName("모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
     void updateProgressWorksWhenBookIsUninitializedProxy() {
-        entityManager.flush();
-        entityManager.clear();
+        Club loadedClub = clubRepository.findById(club.getId()).orElseThrow();
+        assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedClub, "book")).isFalse();
 
         ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
 

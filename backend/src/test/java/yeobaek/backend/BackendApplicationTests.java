@@ -1,13 +1,9 @@
 package yeobaek.backend;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import yeobaek.backend.support.TestcontainersConfiguration;
+import yeobaek.backend.support.IntegrationTest;
 
-@SpringBootTest
-@Import(TestcontainersConfiguration.class)
-class BackendApplicationTests {
+class BackendApplicationTests extends IntegrationTest {
 
     @Test
     void contextLoads() {

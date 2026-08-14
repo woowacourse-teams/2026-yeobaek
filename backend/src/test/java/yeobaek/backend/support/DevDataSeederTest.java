@@ -15,7 +15,7 @@ import yeobaek.backend.book.repository.BookRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 
-class DevDataSeederTest extends RepositoryTest {
+class DevDataSeederTest extends IntegrationTest {
 
     @Autowired
     private BookRepository bookRepository;

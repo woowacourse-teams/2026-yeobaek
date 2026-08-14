@@ -5,14 +5,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.support.RepositoryTest;
+import yeobaek.backend.support.IntegrationTest;
 
-class BookMappingTest extends RepositoryTest {
+class BookMappingTest extends IntegrationTest {
 
     @Autowired
     private BookRepository bookRepository;
@@ -29,6 +30,9 @@ class BookMappingTest extends RepositoryTest {
     @Autowired
     private PassageRepository passageRepository;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     @Test
     @DisplayName("도서-목차-본문 구조를 저장하고 본문에서 도서까지 연관을 타고 조회할 수 있다")
     void bookChapterPassageMapping() {
@@ -36,11 +40,13 @@ class BookMappingTest extends RepositoryTest {
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         Passage saved = passageRepository.save(new Passage(chapter, 1, "새침하게 흐린 품이 눈이 올 듯하더니..."));
 
-        Passage found = passageRepository.findById(saved.getId()).orElseThrow();
+        transactionTemplate.executeWithoutResult(status -> {
+            Passage found = passageRepository.findById(saved.getId()).orElseThrow();
 
-        assertThat(found.getSequence()).isEqualTo(1);
-        assertThat(found.getContent()).isEqualTo("새침하게 흐린 품이 눈이 올 듯하더니...");
-        assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
+            assertThat(found.getSequence()).isEqualTo(1);
+            assertThat(found.getContent()).isEqualTo("새침하게 흐린 품이 눈이 올 듯하더니...");
+            assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
+        });
     }
 
     @Test
@@ -52,8 +58,9 @@ class BookMappingTest extends RepositoryTest {
         authorBookRepository.save(new AuthorBook(first, book));
         authorBookRepository.save(new AuthorBook(second, book));
 
-        assertThat(authorBookRepository.findAll())
-                .extracting(mapping -> mapping.getAuthor().getName())
-                .containsExactlyInAnyOrder("작가1", "작가2");
+        transactionTemplate.executeWithoutResult(status ->
+                assertThat(authorBookRepository.findAll())
+                        .extracting(mapping -> mapping.getAuthor().getName())
+                        .containsExactlyInAnyOrder("작가1", "작가2"));
     }
 }
