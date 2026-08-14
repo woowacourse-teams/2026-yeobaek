@@ -226,6 +226,16 @@ fun App(
                     joinViewModel.initInputValue()
                 }
 
+                LaunchedEffect(joinViewModel.uiState.successJoin) {
+                    if (joinViewModel.uiState.successJoin) {
+                        navController.navigate(Home) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
                 JoinScreen(
                     uiState = joinViewModel.uiState,
                     onCodeValueChange = joinViewModel::onCodeValueChange,
@@ -234,12 +244,6 @@ fun App(
                     },
                     navigateToHome = {
                         joinViewModel.joinGroup()
-
-                        navController.navigate(Home) {
-                            popUpTo<Home> {
-                                inclusive = true
-                            }
-                        }
                     },
                 )
             }

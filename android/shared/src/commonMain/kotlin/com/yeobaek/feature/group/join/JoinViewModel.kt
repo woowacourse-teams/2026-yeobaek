@@ -42,6 +42,10 @@ class JoinViewModel(
                 joinCode = uiState.codeValue,
                 userId = userId,
             )
+
+            uiState = uiState.copy(
+                successJoin = true,
+            )
         }
     }
 
