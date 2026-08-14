@@ -32,7 +32,7 @@ class CreateViewModel(
                 val userId = userRepository.getUserId()
 
                 val groups = bookRepository.getBooks(userId = userId)
-                uiState = CreateUiState(
+                uiState = uiState.copy(
                     bookList = groups.map {
                         CreateBookUiModel(
                             id = it.id,
