@@ -22,7 +22,7 @@ Gradle은 별도 설치가 필요 없다. 저장소에 포함된 래퍼(`gradlew
 
 - 컴파일, 전체 테스트, 정적 분석(PMD·SpotBugs)이 모두 수행된다. 커밋 전 게이트도 이 명령 하나로 통과 여부를 확인한다 (`docs/지침/커밋_전_게이트.md` 참고).
 - 테스트가 Testcontainers로 MySQL 컨테이너를 띄우므로 **Docker가 실행 중이어야 한다.**
-- 배포용 jar만 필요하면 `./gradlew bootJar`. 이때 OpenAPI 스펙(`openapi3` 태스크)이 자동 생성되어 jar 안에 동봉된다.
+- 배포용 jar만 필요하면 `./gradlew bootJar`를 실행한다. OpenAPI 스펙은 빌드 시 생성하거나 jar에 동봉하지 않고, 실행 중인 애플리케이션이 springdoc으로 제공한다.
 
 ## 2. 실행 방법
 
@@ -32,16 +32,14 @@ Gradle은 별도 설치가 필요 없다. 저장소에 포함된 래퍼(`gradlew
 # 1) 로컬 MySQL 기동 (최초 1회 이후에는 컨테이너가 살아있으면 생략 가능)
 docker compose up -d
 
-# 2) API 문서(Swagger UI)가 읽을 OpenAPI 스펙 생성 — 문서 확인이 필요할 때만
-./gradlew openapi3
-
-# 3) 애플리케이션 실행
+# 2) 애플리케이션 실행
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
 - 서버: http://localhost:8080
-- API 문서(Swagger UI): http://localhost:8080/docs/index.html
-  - 스펙 파일(`build/api-spec/openapi3.yaml`)은 테스트의 REST Docs 스니펫으로부터 생성되므로, 문서가 비어 보이면 `./gradlew openapi3`를 먼저 실행한다.
+- API 문서(Swagger UI): http://localhost:8080/docs
+- OpenAPI 스펙(JSON): http://localhost:8080/v3/api-docs
+  - Swagger UI와 OpenAPI 스펙은 실행 중인 애플리케이션이 springdoc으로 제공한다. 별도의 스펙 생성 태스크나 사전 생성 파일은 없다.
 - `local` 프로파일은 `spring.jpa.hibernate.ddl-auto=create`로 기동 시마다 스키마를 새로 만든다. 데이터를 유지해야 하는 작업에는 주의한다.
 
 로컬 DB 접속 정보 (`docker-compose.yml`과 `application-local.properties`에 정의):
