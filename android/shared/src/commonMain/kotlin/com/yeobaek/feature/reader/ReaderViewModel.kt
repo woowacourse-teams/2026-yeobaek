@@ -150,6 +150,17 @@ class ReaderViewModel(
         }
     }
 
+    fun updateCurrentPassage(passage: PassageUiModel) {
+        if (
+            passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
+            passage.sequence == uiState.currentSequence
+        ) {
+            return
+        }
+
+        uiState = uiState.copy(currentSequence = passage.sequence)
+    }
+
     fun toggleTextSettingMenu() {
         uiState = uiState.copy(
             isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,

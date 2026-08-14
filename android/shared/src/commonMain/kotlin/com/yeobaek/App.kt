@@ -106,6 +106,7 @@ fun App(
                     onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
                     onLoadPrevious = readerViewModel::loadPreviousPassages,
                     onLoadNext = readerViewModel::loadNextPassages,
+                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
                 )
             }
             composable<Onboarding> {

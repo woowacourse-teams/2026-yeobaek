@@ -53,14 +53,18 @@ fun ReaderScreen(
     onCommentDeleteConfirm: () -> Unit,
     onLoadPrevious: () -> Unit,
     onLoadNext: () -> Unit,
+    onVisiblePassageChange: (PassageUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     var hasPositionedInitialPassage by remember { mutableStateOf(false) }
     var previousLoadAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
+    var fontSizeAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
     val currentUiState by rememberUpdatedState(uiState)
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
+    val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
+    val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
     val commentSheet = uiState.commentSheet
 
     LaunchedEffect(
@@ -77,6 +81,50 @@ fun ReaderScreen(
                 listState.scrollToItem(currentPassageIndex)
             }
             hasPositionedInitialPassage = true
+        }
+    }
+
+    LaunchedEffect(uiState.fontSize) {
+        val anchor = fontSizeAnchor
+        if (anchor != null) {
+            val anchorIndex = uiState.passages.indexOfFirst { passage ->
+                passage.passageId == anchor.passageId
+            }
+            if (anchorIndex >= 0) {
+                listState.scrollToItem(anchorIndex)
+                val itemSize = listState.layoutInfo.visibleItemsInfo
+                    .firstOrNull { item -> item.index == anchorIndex }
+                    ?.size
+                    ?: 0
+                listState.scrollToItem(
+                    index = anchorIndex,
+                    scrollOffset = anchor.scrollOffset.coerceAtMost(
+                        maximumValue = (itemSize - 1).coerceAtLeast(0),
+                    ),
+                )
+            }
+            fontSizeAnchor = null
+        }
+    }
+
+    LaunchedEffect(hasPositionedInitialPassage, listState) {
+        if (!hasPositionedInitialPassage) return@LaunchedEffect
+
+        snapshotFlow {
+            val state = currentUiState
+            val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+            val passage = firstVisibleItem?.let { item ->
+                state.passages.getOrNull(item.index)
+            }
+            passage to (
+                state.isLoadingPrevious ||
+                    previousLoadAnchor != null ||
+                    fontSizeAnchor != null
+                )
+        }.distinctUntilChanged().collect { (passage, isRestoringPosition) ->
+            if (!isRestoringPosition && passage != null) {
+                currentOnVisiblePassageChange(passage)
+            }
         }
     }
 
@@ -150,6 +198,21 @@ fun ReaderScreen(
             passage.passageId == sheet.passageId
         }
     }
+    val preservePositionAndChangeFontSize: (Int) -> Unit = { fontSize ->
+        if (fontSize != uiState.fontSize) {
+            val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+            val firstVisiblePassage = firstVisibleItem?.let { item ->
+                uiState.passages.getOrNull(item.index)
+            }
+            if (firstVisiblePassage != null) {
+                fontSizeAnchor = PassageAnchor(
+                    passageId = firstVisiblePassage.passageId,
+                    scrollOffset = listState.firstVisibleItemScrollOffset,
+                )
+            }
+            currentOnFontSizeChange(fontSize)
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -162,7 +225,7 @@ fun ReaderScreen(
                 onBackClick = onBackClick,
                 onTextSettingClick = onTextSettingClick,
                 onTextSettingDismiss = onTextSettingDismiss,
-                onFontSizeChange = onFontSizeChange,
+                onFontSizeChange = preservePositionAndChangeFontSize,
             )
         },
         bottomBar = {
@@ -302,6 +365,7 @@ private fun ReaderScreenPreview() {
             onCommentDeleteConfirm = {},
             onLoadPrevious = {},
             onLoadNext = {},
+            onVisiblePassageChange = {},
         )
     }
 }
