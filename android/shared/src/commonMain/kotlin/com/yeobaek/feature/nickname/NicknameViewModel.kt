@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.UserRepository
-import com.yeobaek.feature.onboarding.ScreenState
+import com.yeobaek.feature.ScreenState
 import kotlinx.coroutines.launch
 
 class NicknameViewModel(
@@ -25,11 +25,13 @@ class NicknameViewModel(
         )
     }
 
-    fun setNickname() {
+    fun setNickname(screenState: ScreenState) {
         viewModelScope.launch {
             try {
                 userRepository.setUserData(uiState.nicknameValue)
-                uiState = uiState.copy()
+                uiState = uiState.copy(
+                    screenState = screenState
+                )
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     nicknameState = true,

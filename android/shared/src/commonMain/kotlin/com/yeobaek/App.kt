@@ -15,6 +15,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
+import com.yeobaek.feature.ScreenState
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -38,7 +39,6 @@ import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
 import com.yeobaek.feature.onboarding.OnboardingViewModel
-import com.yeobaek.feature.onboarding.ScreenState
 
 @Composable
 fun App(
@@ -68,10 +68,22 @@ fun App(
                     ),
                 )
 
+                LaunchedEffect(nicknameViewModel.uiState.screenState) {
+                    if (nicknameViewModel.uiState.screenState == ScreenState.Onboarding) {
+                        navController.navigate(Onboarding) {
+                            popUpTo<Nickname> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
                 NicknameScreen(
                     uiState = nicknameViewModel.uiState,
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
-                    navigateToOnboarding = nicknameViewModel::setNickname
+                    onNicknameSet = {
+                        nicknameViewModel.setNickname(screenState = ScreenState.Onboarding)
+                    },
                 )
             }
             composable<Reader> { backStackEntry ->
@@ -128,9 +140,11 @@ fun App(
                                 }
                             }
                         }
+
                         ScreenState.Create -> {
                             navController.navigate(Create)
                         }
+
                         ScreenState.Join -> {
                             onboardingViewModel.joinGroup()
                             if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
@@ -140,7 +154,8 @@ fun App(
                                 }
                             }
                         }
-                        ScreenState.Onboarding -> return@LaunchedEffect
+
+                        ScreenState.Onboarding, ScreenState.Nickname -> return@LaunchedEffect
                     }
                 }
 

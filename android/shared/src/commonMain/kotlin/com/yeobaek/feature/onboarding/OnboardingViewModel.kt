@@ -52,10 +52,3 @@ class OnboardingViewModel(
             }
     }
 }
-
-sealed interface ScreenState {
-    object Onboarding : ScreenState
-    object Home : ScreenState
-    object Join : ScreenState
-    object Create : ScreenState
-}

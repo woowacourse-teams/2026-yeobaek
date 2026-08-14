@@ -24,7 +24,7 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 fun NicknameScreen(
     uiState: NicknameUiState,
     onNicknameValueChange: (String) -> Unit,
-    navigateToOnboarding: () -> Unit,
+    onNicknameSet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -42,7 +42,7 @@ fun NicknameScreen(
         bottomBar = {
             YeobaekButton(
                 text = "시작하기",
-                onClick = navigateToOnboarding,
+                onClick = onNicknameSet,
                 modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp).fillMaxWidth(),
             )
         },
@@ -83,7 +83,7 @@ private fun NicknameScreenPreview() {
         NicknameScreen(
             uiState = NicknameUiState(),
             onNicknameValueChange = {},
-            navigateToOnboarding = {}
+            onNicknameSet = {}
         )
     }
 }
