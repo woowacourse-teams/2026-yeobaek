@@ -60,7 +60,7 @@ fun App(
 
         NavHost(
             navController = navController,
-            startDestination = if(appContainer.userPreferences.getUserId() == null) Nickname else Onboarding,
+            startDestination = if(appContainer.userPreferences.getUserId() == null) Nickname else Home,
         ) {
             composable<Nickname> {
                 val nicknameViewModel: NicknameViewModel = viewModel(
@@ -134,20 +134,7 @@ fun App(
 
                 LaunchedEffect(onboardingViewModel.uiState.screenState) {
                     when (onboardingViewModel.uiState.screenState) {
-                        ScreenState.Home -> {
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
-                            }
-                        }
-
-                        ScreenState.Create -> {
-                            navController.navigate(Create)
-                        }
-
                         ScreenState.Join -> {
-                            onboardingViewModel.joinGroup()
                             if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
                             navController.navigate(Home) {
                                 popUpTo<Onboarding> {
@@ -156,7 +143,7 @@ fun App(
                             }
                         }
 
-                        ScreenState.Onboarding, ScreenState.Nickname -> return@LaunchedEffect
+                        ScreenState.Onboarding, ScreenState.Create, ScreenState.Home, ScreenState.Nickname -> return@LaunchedEffect
                     }
                 }
 
@@ -164,13 +151,19 @@ fun App(
                     uiState = onboardingViewModel.uiState,
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
                     navigateToCreate = {
-
+                        navController.navigate(Create)
                     },
                     navigateToHome = {
-
+                        onboardingViewModel.joinGroup(
+                            screenState = ScreenState.Join
+                        )
                     },
                     navigateToAroundHome = {
-
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
                     },
                 )
             }

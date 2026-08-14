@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
+import com.yeobaek.feature.ScreenState
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
@@ -21,7 +22,8 @@ class OnboardingViewModel(
 
     init {
         uiState = uiState.copy(
-            username = userRepository.getUsername()
+            username = userRepository.getUsername(),
+            userId = userRepository.getUserId()
         )
     }
 
@@ -32,14 +34,24 @@ class OnboardingViewModel(
         )
     }
 
-    fun joinGroup() {
+    fun joinGroup(screenState: ScreenState) {
         viewModelScope.launch {
-            val userId = userRepository.getUserId()
+            try {
+                val userId = userRepository.getUserId()
 
-            groupRepository.joinGroup(
-                joinCode = uiState.codeValue,
-                userId = userId,
-            )
+                groupRepository.joinGroup(
+                    joinCode = uiState.codeValue,
+                    userId = userId,
+                )
+
+                uiState = uiState.copy(
+                    screenState = screenState,
+                )
+            } catch(e: Exception) {
+                uiState = uiState.copy(
+                    codeState = true,
+                )
+            }
         }
     }
 

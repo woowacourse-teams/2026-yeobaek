@@ -35,7 +35,7 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            AppTitle(title = "여백")
+            AppTitle(title = "여백 | ${uiState.username}")
         },
         bottomBar = {
             GroupButtonSection(
@@ -57,7 +57,7 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임 (닉네임 : ${uiState.username})",
+                title = "내 모임",
                 groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
