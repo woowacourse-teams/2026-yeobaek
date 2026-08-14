@@ -43,7 +43,7 @@ class CreateViewModel(
                         )
                     },
                 )
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 initBookList()
             }
         }
@@ -95,12 +95,11 @@ class CreateViewModel(
                 uiState = uiState.copy(
                     successCreate = true,
                 )
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 uiState = uiState.copy(
                     successCreate = false,
                 )
             }
-
         }
     }
 
