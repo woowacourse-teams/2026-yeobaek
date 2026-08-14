@@ -57,7 +57,7 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임 (닉네임 : 아직 연결 안함)",
+                title = "내 모임 (닉네임 : ${uiState.username})",
                 groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),

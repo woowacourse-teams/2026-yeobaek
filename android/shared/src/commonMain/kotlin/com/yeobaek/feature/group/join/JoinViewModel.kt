@@ -13,6 +13,7 @@ import com.yeobaek.data.repository.UserRepository
 import kotlinx.coroutines.launch
 
 class JoinViewModel(
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
 
@@ -33,21 +34,25 @@ class JoinViewModel(
         )
     }
 
-    fun joinGroup(userId: Int) {
+    fun joinGroup() {
         viewModelScope.launch {
+            val user = userRepository.userModel
+
             groupRepository.joinGroup(
                 joinCode = uiState.codeValue,
-                userId = userId,
+                userId = user.id,
             )
         }
     }
 
     companion object {
         fun joinViewModelFactory(
+            userRepository: UserRepository,
             groupRepository: GroupRepository
         ) : ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
+                    userRepository = userRepository,
                     groupRepository = groupRepository,
                 )
             }

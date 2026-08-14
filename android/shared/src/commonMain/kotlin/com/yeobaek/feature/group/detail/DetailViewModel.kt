@@ -19,15 +19,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
 
-    fun initGroupData(userId: Int, groupId: Int) {
+    fun initGroupData(groupId: Int) {
         viewModelScope.launch {
+            val user = userRepository.userModel
             val groupDetail = groupRepository.getGroupDetail(
-                userId = userId,
+                userId = user.id,
                 groupId = groupId
             )
             uiState = uiState.copy(
@@ -54,10 +56,12 @@ class DetailViewModel(
 
     companion object {
         fun detailViewModelFactory(
+            userRepository: UserRepository,
             groupRepository: GroupRepository,
         ) : ViewModelProvider.Factory = viewModelFactory{
             initializer {
                 DetailViewModel(
+                    userRepository = userRepository,
                     groupRepository = groupRepository,
                 )
             }

@@ -35,13 +35,19 @@ class OnboardingViewModel(
 
     fun setNickname() {
         viewModelScope.launch {
-            userRepository.setUserData(uiState.nicknameValue)
+            val user = userRepository.setUserData(uiState.nicknameValue)
+
+            uiState = uiState.copy(
+                setUser = true
+            )
+
+            println("온보딩에서 유저 정보 : ${user.id}, ${user.name}")
         }
     }
 
     fun joinGroup() {
         viewModelScope.launch {
-            val user = userRepository.setUserData(uiState.nicknameValue)
+            val user = userRepository.userModel
 
             groupRepository.joinGroup(
                 joinCode = uiState.codeValue,
@@ -59,7 +65,7 @@ class OnboardingViewModel(
                 initializer {
                     OnboardingViewModel(
                         userRepository = userRepository,
-                        groupRepository = groupRepository
+                        groupRepository = groupRepository,
                     )
                 }
             }

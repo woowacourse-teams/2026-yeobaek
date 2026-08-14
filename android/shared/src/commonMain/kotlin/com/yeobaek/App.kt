@@ -36,8 +36,6 @@ import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
 import com.yeobaek.feature.onboarding.OnboardingViewModel
 
-private val userId = 90
-
 @Composable
 fun App(
     appContainer: AppContainer,
@@ -104,6 +102,16 @@ fun App(
                     ),
                 )
 
+                LaunchedEffect(onboardingViewModel.uiState.setUser) {
+                    if (onboardingViewModel.uiState.setUser) {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
                 OnboardingScreen(
                     uiState = onboardingViewModel.uiState,
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
@@ -124,26 +132,17 @@ fun App(
                     },
                     navigateToAroundHome = {
                         onboardingViewModel.setNickname()
-
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
-                            }
-                        }
                     },
                 )
             }
             composable<Home> {
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.homeViewModelFactory(
+                        userRepository = userRepository,
                         groupRepository = groupRepository,
                     ),
                 )
-                LaunchedEffect(true) {
-                    homeViewModel.initGroups(
-                        userId = userId,
-                    )
-                }
+                homeViewModel.initGroups()
 
                 HomeScreen(
                     currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
@@ -164,11 +163,12 @@ fun App(
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
+                        userRepository = userRepository,
                         groupRepository = groupRepository,
                     ),
                 )
 
-                detailViewModel.initGroupData(userId = userId, groupId = route.groupId)
+                detailViewModel.initGroupData(groupId = route.groupId)
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
@@ -180,6 +180,7 @@ fun App(
             composable<Join> {
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
+                        userRepository = userRepository,
                         groupRepository = groupRepository,
                     ),
                 )
@@ -195,9 +196,7 @@ fun App(
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        joinViewModel.joinGroup(
-                            userId = userId,
-                        )
+                        joinViewModel.joinGroup()
 
                         navController.navigate(Home) {
                             popUpTo<Home> {
@@ -220,6 +219,21 @@ fun App(
                     createViewModel.initInputValue()
                 }
 
+                LaunchedEffect(createViewModel.uiState.successCreate) {
+                    if (createViewModel.uiState.successCreate) {
+                        val popped = navController.popBackStack<Home>(
+                            inclusive = false,
+                        )
+                        if (!popped) {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    }
+                }
+
                 CreateScreen(
                     uiState = createViewModel.uiState,
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
@@ -230,20 +244,7 @@ fun App(
                     navigateToHome = {
                         createViewModel.createConditionCheck()
                         if (!createViewModel.createConditionCheck()) {
-                            createViewModel.createGroup(
-                                userId = userId,
-                            )
-
-                            val popped = navController.popBackStack<Home>(
-                                inclusive = false,
-                            )
-                            if (!popped) {
-                                navController.navigate(Home) {
-                                    popUpTo<Onboarding> {
-                                        inclusive = true
-                                    }
-                                }
-                            }
+                            createViewModel.createGroup()
                         }
                     },
                 )

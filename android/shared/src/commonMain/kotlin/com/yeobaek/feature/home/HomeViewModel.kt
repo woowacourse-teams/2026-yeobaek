@@ -9,11 +9,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 import com.yeobaek.feature.home.model.GroupUiModel
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
     var uiState by mutableStateOf(HomeUiState())
@@ -35,10 +37,13 @@ class HomeViewModel(
         )
     }
 
-    fun initGroups(userId: Int) {
+    fun initGroups() {
         viewModelScope.launch {
+            val user = userRepository.userModel
+
             uiState = uiState.copy(
-                groups = groupRepository.getGroups(userId).map {
+                username = user.name,
+                groups = groupRepository.getGroups(user.id).map {
                     GroupUiModel(
                         groupId = it.clubId,
                         uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",
@@ -53,10 +58,12 @@ class HomeViewModel(
 
     companion object {
         fun homeViewModelFactory(
+            userRepository: UserRepository,
             groupRepository: GroupRepository,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
+                    userRepository = userRepository,
                     groupRepository = groupRepository,
                 )
             }

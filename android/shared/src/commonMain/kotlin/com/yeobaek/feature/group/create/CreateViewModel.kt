@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
@@ -15,6 +16,7 @@ import com.yeobaek.feature.group.create.model.CreateBookUiModel
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
 ) : ViewModel() {
@@ -22,12 +24,14 @@ class CreateViewModel(
         private set
 
     init {
-        initBookList(userId = 90)
+        initBookList()
     }
 
-    fun initBookList(userId: Int) {
+    fun initBookList() {
         viewModelScope.launch {
-            val groups = bookRepository.getBooks(userId = 90)
+            val user = userRepository.userModel
+
+            val groups = bookRepository.getBooks(userId = user.id)
             uiState = CreateUiState(
                 bookList = groups.map {
                     CreateBookUiModel(
@@ -73,17 +77,19 @@ class CreateViewModel(
         )
     }
 
-    fun createGroup(
-        userId: Int,
-    ) {
+    fun createGroup() {
         viewModelScope.launch {
+            val user = userRepository.userModel
             val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
-            val selectedBook = bookRepository.getBook(userId = userId, bookId = bookId)
 
             groupRepository.createGroup(
                 groupName = uiState.groupNameValue,
-                userId = userId,
-                book = selectedBook,
+                userId = user.id,
+                bookId = bookId,
+            )
+
+            uiState = uiState.copy(
+                successCreate = true,
             )
         }
     }
@@ -120,6 +126,7 @@ class CreateViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
+                    userRepository = userRepository,
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
                 )
