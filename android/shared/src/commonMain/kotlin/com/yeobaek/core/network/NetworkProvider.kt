@@ -1,6 +1,7 @@
 package com.yeobaek.core.network
 
 import de.jensklingenberg.ktorfit.Ktorfit
+import de.jensklingenberg.ktorfit.converter.ResponseConverterFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -49,6 +50,9 @@ class NetworkProvider {
         Ktorfit.Builder()
             .baseUrl(BASE_URL)
             .httpClient(httpClient)
+            .converterFactories(
+                ResponseConverterFactory(),
+            )
             .build()
 
     companion object {
