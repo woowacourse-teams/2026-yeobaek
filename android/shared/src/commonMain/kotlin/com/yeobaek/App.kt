@@ -92,7 +92,11 @@ fun App(
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
                     onPassageClick = readerViewModel::openPassageComments,
-                    onBackClick = navController::popBackStack,
+                    onBackClick = {
+                        readerViewModel.saveCurrentPassage(
+                            onComplete = navController::popBackStack,
+                        )
+                    },
                     onTextSettingClick = readerViewModel::toggleTextSettingMenu,
                     onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
                     onFontSizeChange = readerViewModel::updateFontSize,

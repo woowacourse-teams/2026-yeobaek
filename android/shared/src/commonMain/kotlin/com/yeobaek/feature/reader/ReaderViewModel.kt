@@ -29,6 +29,7 @@ class ReaderViewModel(
     private var previousPassagesJob: Job? = null
     private var nextPassagesJob: Job? = null
     private var progressSeekJob: Job? = null
+    private var saveCurrentPassageJob: Job? = null
 
     init {
         loadReader()
@@ -180,6 +181,33 @@ class ReaderViewModel(
         }
 
         uiState = uiState.copy(currentSequence = passage.sequence)
+    }
+
+    fun saveCurrentPassage(onComplete: () -> Unit) {
+        if (saveCurrentPassageJob?.isActive == true) return
+
+        val currentPassage = uiState.passages.firstOrNull { passage ->
+            passage.sequence == uiState.currentSequence
+        }
+        if (currentPassage == null) {
+            onComplete()
+            return
+        }
+
+        saveCurrentPassageJob = viewModelScope.launch {
+            try {
+                readerRepository.updatePassage(
+                    clubId = groupId,
+                    passageId = currentPassage.passageId.toInt(),
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+            }
+
+            saveCurrentPassageJob = null
+            onComplete()
+        }
     }
 
     fun updateSeekProgress(progress: Float) {
