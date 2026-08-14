@@ -30,7 +30,7 @@ fun HomeScreen(
     myNickname: String,
     groupUiModelList: List<GroupUiModel>,
     navigateToJoin: () -> Unit,
-    navigateToDetail: (String) -> Unit,
+    navigateToDetail: (Int, String) -> Unit,
     navigateToCreate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -118,7 +118,7 @@ private fun HomeScreenPreview() {
             ),
             myNickname = "하로",
             navigateToJoin = {},
-            navigateToDetail = {},
+            navigateToDetail = { _, _ -> },
             navigateToCreate = {},
         )
     }

@@ -17,6 +17,7 @@ class MockGroupRepositoryImpl : GroupRepository {
         book: BookModel,
     ) {
         val groupData = GroupModel(
+            groupId = (totalGroup.maxOfOrNull { it.groupId } ?: 0) + 1,
             groupCode = "EXAM${totalGroup.size}",
             groupName = groupName,
             book = book,
@@ -51,7 +52,7 @@ class MockGroupRepositoryImpl : GroupRepository {
         return totalCheck || !myGroupCheck
     }
 
-    override suspend fun getGroupDetail(id: Int): GroupDetailModel {
+    override suspend fun getGroupDetail(groupId: Int): GroupDetailModel {
         TODO("Not yet implemented")
     }
 }

@@ -45,6 +45,7 @@ fun DetailScreen(
     groupUiModel: GroupUiModel,
     bookUiModel: DetailBookUiModel,
     onBackClick: () -> Unit,
+    onReadClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
@@ -66,7 +67,7 @@ fun DetailScreen(
             ) {
                 YeobaekButton(
                     text = "책 이어 읽기 ->",
-                    onClick = {},
+                    onClick = onReadClick,
                     modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
                 )
             }
@@ -172,6 +173,7 @@ private fun DetailScreenPreview() {
             groupUiModel = GroupUiModel(),
             bookUiModel = DetailBookUiModel(),
             onBackClick = {},
+            onReadClick = {},
         )
     }
 }

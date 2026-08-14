@@ -77,7 +77,7 @@ fun App(
 
         NavHost(
             navController = navController,
-            startDestination = Reader(groupId = 2),
+            startDestination = Onboarding,
         ) {
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
@@ -168,8 +168,13 @@ fun App(
                     navigateToJoin = {
                         navController.navigate(Join)
                     },
-                    navigateToDetail = { groupCode ->
-                        navController.navigate(Detail(groupCode))
+                    navigateToDetail = { groupId, groupCode ->
+                        navController.navigate(
+                            Detail(
+                                groupId = groupId,
+                                groupCode = groupCode,
+                            ),
+                        )
                     },
                     navigateToCreate = {
                         navController.navigate(Create)
@@ -186,6 +191,9 @@ fun App(
                     bookUiModel = detailStateHolder.uiState.bookUiModel,
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onReadClick = {
+                        navController.navigate(Reader(groupId = route.groupId))
                     },
                 )
             }

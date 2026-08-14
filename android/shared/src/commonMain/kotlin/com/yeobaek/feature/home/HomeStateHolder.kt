@@ -33,6 +33,7 @@ class HomeStateHolder(
         uiState = uiState.copy(
             groups = groupRepository.getGroups().map {
                 GroupUiModel(
+                    groupId = it.groupId,
                     groupCode = it.groupCode,
                     uri = it.book.uri,
                     title = it.book.title,
