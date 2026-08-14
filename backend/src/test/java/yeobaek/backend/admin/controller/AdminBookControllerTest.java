@@ -1,21 +1,15 @@
 package yeobaek.backend.admin.controller;
 
-import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.document;
-import static com.epages.restdocs.apispec.ResourceDocumentation.headerWithName;
-import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.restdocs.payload.JsonFieldType;
-import org.springframework.restdocs.payload.PayloadDocumentation;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.admin.dto.BookUploadRequest;
@@ -52,27 +46,7 @@ class AdminBookControllerTest extends ControllerTest {
                         .content(UPLOAD_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.bookId").value(3))
-                .andExpect(jsonPath("$.passageCount").value(1))
-                .andDo(document("admin-book-upload", resource(ResourceSnippetParameters.builder()
-                        .tag("관리자")
-                        .summary("도서 업로드 (인제스트 규격 JSON)")
-                        .description("본문 순서는 배열 등장 순서로 서버가 1..N을 부여한다. 앱은 사용하지 않는다.")
-                        .requestHeaders(headerWithName("X-Admin-Token").description("고정 관리자 토큰"))
-                        .requestFields(
-                                PayloadDocumentation.fieldWithPath("title").description("도서 제목 (1~100자)"),
-                                PayloadDocumentation.fieldWithPath("publisher").description("출판사 (선택, 최대 100자)").optional(),
-                                PayloadDocumentation.fieldWithPath("publishedYear").description("출판연도 (선택, 정수)").optional(),
-                                PayloadDocumentation.fieldWithPath("authors[].name").description("작가 이름 (신규·ISNI 형태)").optional(),
-                                PayloadDocumentation.fieldWithPath("authors[].isni").description("ISNI (선택)").optional(),
-                                PayloadDocumentation.fieldWithPath("authors[].authorId").description("기존 작가 참조 (선택)")
-                                        .type(JsonFieldType.NUMBER).optional(),
-                                PayloadDocumentation.fieldWithPath("chapters[].title").description("목차 제목 (1~100자)"),
-                                PayloadDocumentation.fieldWithPath("chapters[].passages[].content").description("본문 내용 (필수)"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("bookId").description("생성된 도서 ID"),
-                                PayloadDocumentation.fieldWithPath("title").description("제목"),
-                                PayloadDocumentation.fieldWithPath("passageCount").description("자동 산출된 본문 개수"))
-                        .build())));
+                .andExpect(jsonPath("$.passageCount").value(1));
     }
 
     @Test

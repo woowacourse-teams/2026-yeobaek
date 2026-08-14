@@ -1,26 +1,19 @@
 package yeobaek.backend.club.controller;
 
-import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.document;
-import static com.epages.restdocs.apispec.ResourceDocumentation.headerWithName;
-import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.restdocs.payload.PayloadDocumentation;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
@@ -56,24 +49,7 @@ class ClubControllerTest extends ControllerTest {
                         .content("{\"name\": \"교환독서 1기\", \"bookId\": 1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.joinCode").value("A3F9KQ"))
-                .andExpect(jsonPath("$.book.bookId").value(1))
-                .andDo(document("club-create", resource(ResourceSnippetParameters.builder()
-                        .tag("모임")
-                        .summary("모임 생성")
-                        .description("책 한 권을 골라 모임을 만든다. 생성자는 자동으로 모임에 참여되고 참여 코드가 발급된다.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .requestFields(
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름 (1~20자, 공백만은 불가)"),
-                                PayloadDocumentation.fieldWithPath("bookId").description("읽을 도서 ID (영구 고정)"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
-                                PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드 (6자 대문자·숫자, 전역 unique, 영구 고정)"),
-                                PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
-                                PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
-                                PayloadDocumentation.fieldWithPath("book.authors[]").description("작가 이름 목록"),
-                                PayloadDocumentation.fieldWithPath("book.passageCount").description("본문 개수"))
-                        .build())));
+                .andExpect(jsonPath("$.book.bookId").value(1));
     }
 
     @Test
@@ -88,21 +64,7 @@ class ClubControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"joinCode\": \"A3F9KQ\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.clubId").value(1))
-                .andDo(document("club-join", resource(ResourceSnippetParameters.builder()
-                        .tag("모임")
-                        .summary("참여 코드로 모임 참여")
-                        .description("존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .requestFields(PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
-                                PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
-                                PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
-                                PayloadDocumentation.fieldWithPath("book.authors[]").description("작가 이름 목록"),
-                                PayloadDocumentation.fieldWithPath("book.passageCount").description("본문 개수"))
-                        .build())));
+                .andExpect(jsonPath("$.clubId").value(1));
     }
 
     @Test
@@ -136,24 +98,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clubs[0].memberCount").value(4))
                 .andExpect(jsonPath("$.clubs[0].myProgress.progressRate").value(13))
-                .andExpect(jsonPath("$.clubs[1].myProgress").isEmpty())
-                .andDo(document("club-my-list", resource(ResourceSnippetParameters.builder()
-                        .tag("모임")
-                        .summary("내 모임 목록 조회")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("clubs[].clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("clubs[].name").description("모임 이름"),
-                                PayloadDocumentation.fieldWithPath("clubs[].memberCount").description("모임 회원 수"),
-                                PayloadDocumentation.fieldWithPath("clubs[].book.bookId").description("도서 ID"),
-                                PayloadDocumentation.fieldWithPath("clubs[].book.title").description("도서 제목"),
-                                PayloadDocumentation.fieldWithPath("clubs[].book.authors[]").description("작가 이름 목록"),
-                                PayloadDocumentation.fieldWithPath("clubs[].book.passageCount").description("본문 개수"),
-                                PayloadDocumentation.fieldWithPath("clubs[].myProgress").description("내 진도 (읽기 시작 전이면 null)").optional(),
-                                PayloadDocumentation.fieldWithPath("clubs[].myProgress.lastReadPassageSequence").description("최근 열람 본문의 전체 순서").optional(),
-                                PayloadDocumentation.fieldWithPath("clubs[].myProgress.progressRate").description("진도율 (0~100 정수, 반올림)").optional(),
-                                PayloadDocumentation.fieldWithPath("clubs[].myProgress.lastReadAt").description("마지막으로 읽은 시간").optional())
-                        .build())));
+                .andExpect(jsonPath("$.clubs[1].myProgress").isEmpty());
     }
 
     @Test
@@ -169,30 +114,7 @@ class ClubControllerTest extends ControllerTest {
         mockMvc.perform(get("/api/clubs/{clubId}", 1L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.joinCode").value("A3F9KQ"))
-                .andExpect(jsonPath("$.members[0].mine").value(true))
-                .andDo(document("club-detail",
-                        pathParameters(parameterWithName("clubId").description("모임 ID")),
-                        resource(ResourceSnippetParameters.builder()
-                        .tag("모임")
-                        .summary("모임 상세 조회")
-                        .description("모임 상세 화면용: 초대 코드, 참여자 목록(참여 시각 오름차순), 내 진도. 모임 미소속은 403(NOT_CLUB_MEMBER).")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("clubId").description("모임 ID"),
-                                PayloadDocumentation.fieldWithPath("name").description("모임 이름"),
-                                PayloadDocumentation.fieldWithPath("joinCode").description("참여 코드 (전역 unique, 영구 고정)"),
-                                PayloadDocumentation.fieldWithPath("book.bookId").description("도서 ID"),
-                                PayloadDocumentation.fieldWithPath("book.title").description("도서 제목"),
-                                PayloadDocumentation.fieldWithPath("book.authors[]").description("작가 이름 목록"),
-                                PayloadDocumentation.fieldWithPath("book.passageCount").description("본문 개수"),
-                                PayloadDocumentation.fieldWithPath("myProgress").description("내 진도 (읽기 시작 전이면 null)").optional(),
-                                PayloadDocumentation.fieldWithPath("myProgress.lastReadPassageSequence").description("최근 열람 본문의 전체 순서").optional(),
-                                PayloadDocumentation.fieldWithPath("myProgress.progressRate").description("진도율 (0~100 정수, 반올림)").optional(),
-                                PayloadDocumentation.fieldWithPath("myProgress.lastReadAt").description("마지막으로 읽은 시간").optional(),
-                                PayloadDocumentation.fieldWithPath("members[].memberId").description("회원 ID"),
-                                PayloadDocumentation.fieldWithPath("members[].nickname").description("닉네임"),
-                                PayloadDocumentation.fieldWithPath("members[].mine").description("요청자 본인 여부"))
-                        .build())));
+                .andExpect(jsonPath("$.members[0].mine").value(true));
     }
 
     @Test

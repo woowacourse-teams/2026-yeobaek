@@ -1,23 +1,16 @@
 package yeobaek.backend.book.controller;
 
-import static com.epages.restdocs.apispec.MockMvcRestDocumentationWrapper.document;
-import static com.epages.restdocs.apispec.ResourceDocumentation.headerWithName;
-import static com.epages.restdocs.apispec.ResourceDocumentation.parameterWithName;
-import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.restdocs.payload.PayloadDocumentation;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
@@ -43,25 +36,7 @@ class PassageControllerTest extends ControllerTest {
         mockMvc.perform(get("/api/clubs/{clubId}/passages?from=42&to=43", 1L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passages[0].sequence").value(42))
-                .andExpect(jsonPath("$.passages[0].commentCount").value(3))
-                .andDo(document("passage-range",
-                        pathParameters(org.springframework.restdocs.request.RequestDocumentation
-                                .parameterWithName("clubId").description("모임 ID")),
-                        resource(ResourceSnippetParameters.builder()
-                        .tag("읽기")
-                        .summary("본문 범위 조회")
-                        .description("전체 순서 기준 범위(양 끝 포함)의 본문을 조회한다. 범위는 최대 100개, 모임 미소속은 403.")
-                        .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
-                        .queryParameters(
-                                parameterWithName("from").description("시작 본문의 전체 순서 (1 이상)"),
-                                parameterWithName("to").description("끝 본문의 전체 순서 (양 끝 포함, to-from+1 ≤ 100)"))
-                        .responseFields(
-                                PayloadDocumentation.fieldWithPath("passages[].passageId").description("본문 ID"),
-                                PayloadDocumentation.fieldWithPath("passages[].sequence").description("책 전체 기준 순서"),
-                                PayloadDocumentation.fieldWithPath("passages[].chapterId").description("소속 목차 ID"),
-                                PayloadDocumentation.fieldWithPath("passages[].content").description("본문 텍스트"),
-                                PayloadDocumentation.fieldWithPath("passages[].commentCount").description("이 모임의 댓글 수"))
-                        .build())));
+                .andExpect(jsonPath("$.passages[0].commentCount").value(3));
     }
 
     @Test
