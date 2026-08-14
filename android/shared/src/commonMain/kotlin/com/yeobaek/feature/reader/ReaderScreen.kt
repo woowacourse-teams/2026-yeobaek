@@ -24,9 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
@@ -54,6 +56,9 @@ fun ReaderScreen(
     onLoadPrevious: () -> Unit,
     onLoadNext: () -> Unit,
     onVisiblePassageChange: (PassageUiModel) -> Unit,
+    onProgressChange: (Float) -> Unit,
+    onProgressChangeFinished: () -> Unit,
+    onProgressSeekCompleted: (PassageUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -65,6 +70,7 @@ fun ReaderScreen(
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
     val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
     val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
+    val currentOnProgressSeekCompleted by rememberUpdatedState(onProgressSeekCompleted)
     val commentSheet = uiState.commentSheet
 
     LaunchedEffect(
@@ -81,6 +87,20 @@ fun ReaderScreen(
                 listState.scrollToItem(currentPassageIndex)
             }
             hasPositionedInitialPassage = true
+        }
+    }
+
+    LaunchedEffect(
+        uiState.seekTargetSequence,
+        uiState.passages,
+    ) {
+        val targetSequence = uiState.seekTargetSequence ?: return@LaunchedEffect
+        val targetIndex = uiState.passages.indexOfFirst { passage ->
+            passage.sequence == targetSequence
+        }
+        if (targetIndex >= 0) {
+            listState.scrollToItem(targetIndex)
+            currentOnProgressSeekCompleted(uiState.passages[targetIndex])
         }
     }
 
@@ -119,7 +139,9 @@ fun ReaderScreen(
             passage to (
                 state.isLoadingPrevious ||
                     previousLoadAnchor != null ||
-                    fontSizeAnchor != null
+                    fontSizeAnchor != null ||
+                    state.isProgressDragging ||
+                    state.isSeeking
                 )
         }.distinctUntilChanged().collect { (passage, isRestoringPosition) ->
             if (!isRestoringPosition && passage != null) {
@@ -160,7 +182,13 @@ fun ReaderScreen(
             }
         }.distinctUntilChanged().collect { (isNearStart, isNearEnd) ->
             val state = currentUiState
-            if (!hasPositionedInitialPassage || state.isLoading || state.loadErrorMessage != null) {
+            if (
+                !hasPositionedInitialPassage ||
+                state.isLoading ||
+                state.isProgressDragging ||
+                state.isSeeking ||
+                state.loadErrorMessage != null
+            ) {
                 return@collect
             }
 
@@ -226,12 +254,15 @@ fun ReaderScreen(
                 onTextSettingClick = onTextSettingClick,
                 onTextSettingDismiss = onTextSettingDismiss,
                 onFontSizeChange = preservePositionAndChangeFontSize,
+                modifier = Modifier.zIndex(1f),
             )
         },
         bottomBar = {
             if (!uiState.isLoading && uiState.loadErrorMessage == null) {
                 ReaderProgressBar(
-                    progress = uiState.progress,
+                    progress = uiState.displayProgress,
+                    onProgressChange = onProgressChange,
+                    onProgressChangeFinished = onProgressChangeFinished,
                     modifier = Modifier.navigationBarsPadding(),
                 )
             }
@@ -252,7 +283,9 @@ fun ReaderScreen(
                 fontSize = uiState.fontSize,
                 listState = listState,
                 onPassageClick = onPassageClick,
-                modifier = Modifier.padding(innerPadding),
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .clipToBounds(),
             )
         }
     }
@@ -366,6 +399,9 @@ private fun ReaderScreenPreview() {
             onLoadPrevious = {},
             onLoadNext = {},
             onVisiblePassageChange = {},
+            onProgressChange = {},
+            onProgressChangeFinished = {},
+            onProgressSeekCompleted = {},
         )
     }
 }

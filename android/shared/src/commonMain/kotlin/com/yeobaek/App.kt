@@ -107,6 +107,9 @@ fun App(
                     onLoadPrevious = readerViewModel::loadPreviousPassages,
                     onLoadNext = readerViewModel::loadNextPassages,
                     onVisiblePassageChange = readerViewModel::updateCurrentPassage,
+                    onProgressChange = readerViewModel::updateSeekProgress,
+                    onProgressChangeFinished = readerViewModel::seekToProgress,
+                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
                 )
             }
             composable<Onboarding> {

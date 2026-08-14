@@ -14,7 +14,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -25,13 +29,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import kotlin.math.roundToInt
 
 @Composable
 fun ReaderProgressBar(
     progress: Float,
+    onProgressChange: (Float) -> Unit,
+    onProgressChangeFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val sliderProgress = progress.coerceIn(0f, 100f)
+    var dragProgress by remember { mutableStateOf<Float?>(null) }
+    val sliderProgress = (dragProgress ?: progress).coerceIn(0f, 100f)
     val interactionSource = remember { MutableInteractionSource() }
     val sliderColors = SliderDefaults.colors(
         thumbColor = MaterialTheme.colorScheme.secondary,
@@ -61,8 +69,14 @@ fun ReaderProgressBar(
         ) {
             Slider(
                 value = sliderProgress,
-                onValueChange = {},
-                enabled = false,
+                onValueChange = { value ->
+                    dragProgress = value
+                    onProgressChange(value)
+                },
+                onValueChangeFinished = {
+                    onProgressChangeFinished()
+                    dragProgress = null
+                },
                 valueRange = 0f..100f,
                 colors = sliderColors,
                 interactionSource = interactionSource,
@@ -90,7 +104,7 @@ fun ReaderProgressBar(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "${sliderProgress.toInt()}%",
+                text = "${sliderProgress.roundToInt()}%",
                 maxLines = 1,
                 modifier = Modifier.padding(start = 4.dp),
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -107,9 +121,13 @@ fun ReaderProgressBar(
 @Preview(showBackground = true, name = "읽기 진행률")
 @Composable
 private fun ReaderProgressBarPreview() {
+    var progress by remember { mutableFloatStateOf(12f) }
+
     YeobaekTheme {
         ReaderProgressBar(
-            progress = 12f,
+            progress = progress,
+            onProgressChange = { progress = it },
+            onProgressChangeFinished = {},
         )
     }
 }

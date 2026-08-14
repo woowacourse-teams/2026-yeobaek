@@ -15,6 +15,7 @@ import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
@@ -24,6 +25,10 @@ class ReaderViewModel(
 ) : ViewModel() {
     var uiState by mutableStateOf(ReaderUiState(isLoading = true))
         private set
+
+    private var previousPassagesJob: Job? = null
+    private var nextPassagesJob: Job? = null
+    private var progressSeekJob: Job? = null
 
     init {
         loadReader()
@@ -84,7 +89,14 @@ class ReaderViewModel(
 
     fun loadPreviousPassages() {
         val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return
-        if (uiState.isLoadingPrevious || firstSequence <= FIRST_PASSAGE_SEQUENCE) return
+        if (
+            uiState.isLoadingPrevious ||
+            uiState.isProgressDragging ||
+            uiState.isSeeking ||
+            firstSequence <= FIRST_PASSAGE_SEQUENCE
+        ) {
+            return
+        }
 
         val to = firstSequence - 1
         val from = maxOf(
@@ -92,7 +104,7 @@ class ReaderViewModel(
             to - MAX_PASSAGES_PER_REQUEST + 1,
         )
 
-        viewModelScope.launch {
+        previousPassagesJob = viewModelScope.launch {
             uiState = uiState.copy(isLoadingPrevious = true)
 
             try {
@@ -118,7 +130,14 @@ class ReaderViewModel(
 
     fun loadNextPassages() {
         val lastSequence = uiState.passages.lastOrNull()?.sequence ?: return
-        if (uiState.isLoadingNext || lastSequence >= uiState.totalPassageCount) return
+        if (
+            uiState.isLoadingNext ||
+            uiState.isProgressDragging ||
+            uiState.isSeeking ||
+            lastSequence >= uiState.totalPassageCount
+        ) {
+            return
+        }
 
         val from = lastSequence + 1
         val to = minOf(
@@ -126,7 +145,7 @@ class ReaderViewModel(
             from + MAX_PASSAGES_PER_REQUEST - 1,
         )
 
-        viewModelScope.launch {
+        nextPassagesJob = viewModelScope.launch {
             uiState = uiState.copy(isLoadingNext = true)
 
             try {
@@ -152,6 +171,8 @@ class ReaderViewModel(
 
     fun updateCurrentPassage(passage: PassageUiModel) {
         if (
+            uiState.isProgressDragging ||
+            uiState.isSeeking ||
             passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
             passage.sequence == uiState.currentSequence
         ) {
@@ -159,6 +180,97 @@ class ReaderViewModel(
         }
 
         uiState = uiState.copy(currentSequence = passage.sequence)
+    }
+
+    fun updateSeekProgress(progress: Float) {
+        if (!uiState.isProgressDragging) {
+            progressSeekJob?.cancel()
+            cancelPaginationLoads()
+        }
+
+        uiState = uiState.copy(
+            seekProgress = progress.coerceIn(0f, 100f),
+            seekTargetSequence = null,
+            isProgressDragging = true,
+            isSeeking = false,
+            isLoadingPrevious = false,
+            isLoadingNext = false,
+        )
+    }
+
+    fun seekToProgress() {
+        val progress = uiState.seekProgress ?: return
+        val targetSequence = progressToSequence(
+            progress = progress,
+            totalPassageCount = uiState.totalPassageCount,
+        )
+        if (targetSequence < FIRST_PASSAGE_SEQUENCE) {
+            uiState = uiState.copy(
+                seekProgress = null,
+                isProgressDragging = false,
+                isSeeking = false,
+            )
+            return
+        }
+
+        val isTargetLoaded = uiState.passages.any { passage ->
+            passage.sequence == targetSequence
+        }
+        uiState = uiState.copy(
+            seekTargetSequence = targetSequence.takeIf { isTargetLoaded },
+            isProgressDragging = false,
+            isSeeking = true,
+        )
+        if (isTargetLoaded) return
+
+        val passageRange = passageWindowFor(
+            targetSequence = targetSequence,
+            totalPassageCount = uiState.totalPassageCount,
+        )
+        progressSeekJob = viewModelScope.launch {
+            try {
+                val passages = readerRepository.getPassages(
+                    groupId = groupId,
+                    from = passageRange.first,
+                    to = passageRange.last,
+                ).passages.map(PassageModel::toUiModel)
+                val loadedTargetSequence = targetSequence.takeIf { sequence ->
+                    passages.any { passage -> passage.sequence == sequence }
+                }
+
+                uiState = if (loadedTargetSequence == null) {
+                    uiState.copy(
+                        seekProgress = null,
+                        isSeeking = false,
+                    )
+                } else {
+                    uiState.copy(
+                        passages = passages,
+                        seekTargetSequence = loadedTargetSequence,
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                uiState = uiState.copy(
+                    seekProgress = null,
+                    seekTargetSequence = null,
+                    isSeeking = false,
+                )
+            }
+        }
+    }
+
+    fun completeProgressSeek(passage: PassageUiModel) {
+        if (passage.sequence != uiState.seekTargetSequence) return
+
+        progressSeekJob = null
+        uiState = uiState.copy(
+            currentSequence = passage.sequence,
+            seekProgress = null,
+            seekTargetSequence = null,
+            isSeeking = false,
+        )
     }
 
     fun toggleTextSettingMenu() {
@@ -329,6 +441,13 @@ class ReaderViewModel(
     }
 
     private val commentsByPassageId = mockCommentsByPassageId.toMutableMap()
+
+    private fun cancelPaginationLoads() {
+        previousPassagesJob?.cancel()
+        nextPassagesJob?.cancel()
+        previousPassagesJob = null
+        nextPassagesJob = null
+    }
 }
 
 private fun List<PassageUiModel>.withCommentCount(
@@ -350,6 +469,25 @@ private fun PassageModel.toUiModel(): PassageUiModel =
         content = content,
         commentCount = commentCount,
     )
+
+internal fun passageWindowFor(
+    targetSequence: Int,
+    totalPassageCount: Int,
+): IntRange {
+    val initialFrom = maxOf(
+        FIRST_PASSAGE_SEQUENCE,
+        targetSequence - PREVIOUS_PASSAGE_COUNT,
+    )
+    val to = minOf(
+        totalPassageCount,
+        initialFrom + MAX_PASSAGES_PER_REQUEST - 1,
+    )
+    val from = maxOf(
+        FIRST_PASSAGE_SEQUENCE,
+        to - MAX_PASSAGES_PER_REQUEST + 1,
+    )
+    return from..to
+}
 
 val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
     2L to listOf(
