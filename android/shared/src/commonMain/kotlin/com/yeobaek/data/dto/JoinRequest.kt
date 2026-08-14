@@ -4,5 +4,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class JoinRequest(
-    val joinCode: String
+    val joinCode: String,
 )

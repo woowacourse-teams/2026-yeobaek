@@ -8,8 +8,6 @@ data class BooksResponse(
     val books: List<Book>,
 )
 
-fun BooksResponse.toModel(): List<BookModel> {
-    return books.map { book ->
-        book.toModel()
-    }
+fun BooksResponse.toModel(): List<BookModel> = books.map { book ->
+    book.toModel()
 }

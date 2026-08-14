@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.ScreenState
 import kotlinx.coroutines.launch
@@ -31,7 +30,7 @@ class NicknameViewModel(
             try {
                 userRepository.setUserData(uiState.nicknameValue)
                 uiState = uiState.copy(
-                    screenState = screenState
+                    screenState = screenState,
                 )
             } catch (e: Exception) {
                 uiState = uiState.copy(
@@ -43,7 +42,7 @@ class NicknameViewModel(
 
     companion object {
         fun nicknameViewModelFactory(
-            userRepository: UserRepository
+            userRepository: UserRepository,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 NicknameViewModel(userRepository)

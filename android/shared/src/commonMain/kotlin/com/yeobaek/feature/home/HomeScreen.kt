@@ -85,7 +85,7 @@ private fun AppTitle(
             containerColor = MaterialTheme.colorScheme.background,
         ),
 
-        )
+    )
 }
 
 @Preview(showBackground = true, name = "리더홈화면")

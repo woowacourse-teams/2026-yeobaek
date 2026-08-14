@@ -9,15 +9,13 @@ data class Club(
     val clubId: Int,
     val memberCount: Int,
     val myProgress: MyProgress?,
-    val name: String
+    val name: String,
 )
 
-fun Club.toModel(): GroupModel {
-    return GroupModel(
-        book = book,
-        clubId = clubId,
-        memberCount = memberCount,
-        myProgress = null,
-        name = name,
-    )
-}
+fun Club.toModel(): GroupModel = GroupModel(
+    book = book,
+    clubId = clubId,
+    memberCount = memberCount,
+    myProgress = null,
+    name = name,
+)

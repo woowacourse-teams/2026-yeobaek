@@ -9,7 +9,7 @@ import com.yeobaek.data.repository.UserRepository
 
 class RemoteUserRepositoryImpl(
     private val userApi: UserApi,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
 ) : UserRepository {
     override suspend fun setUserData(nickname: String): UserModel {
         val response = userApi.createUser(UserRequest(nickname = nickname))
@@ -19,7 +19,7 @@ class RemoteUserRepositoryImpl(
 
             userPreferences.saveUser(
                 setUser.id,
-                setUser.name
+                setUser.name,
             )
             setUser
         } else {
@@ -27,11 +27,9 @@ class RemoteUserRepositoryImpl(
         }
     }
 
-    override fun getUserId(): Int {
-        return userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
-    }
+    override fun getUserId(): Int = userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
 
-    override fun getUsername(): String {
-        return userPreferences.getUsername() ?: throw IllegalArgumentException("유저 이름 정보가 없네요")
-    }
+    override fun getUsername(): String = userPreferences.getUsername() ?: throw IllegalArgumentException(
+        "유저 이름 정보가 없네요",
+    )
 }

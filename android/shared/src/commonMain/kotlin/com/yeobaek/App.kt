@@ -60,7 +60,7 @@ fun App(
 
         NavHost(
             navController = navController,
-            startDestination = if(appContainer.userPreferences.getUserId() == null) Nickname else Home,
+            startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
         ) {
             composable<Nickname> {
                 val nicknameViewModel: NicknameViewModel = viewModel(
@@ -143,7 +143,9 @@ fun App(
                             }
                         }
 
-                        ScreenState.Onboarding, ScreenState.Create, ScreenState.Home, ScreenState.Nickname -> return@LaunchedEffect
+                        ScreenState.Onboarding, ScreenState.Create,
+                        ScreenState.Home, ScreenState.Nickname,
+                        -> return@LaunchedEffect
                     }
                 }
 
@@ -155,7 +157,7 @@ fun App(
                     },
                     navigateToHome = {
                         onboardingViewModel.joinGroup(
-                            screenState = ScreenState.Join
+                            screenState = ScreenState.Join,
                         )
                     },
                     navigateToAroundHome = {

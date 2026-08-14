@@ -8,14 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.yeobaek.data.model.GroupModel
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
-import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
@@ -30,7 +27,7 @@ class DetailViewModel(
             val userId = userRepository.getUserId()
             val groupDetail = groupRepository.getGroupDetail(
                 userId = userId,
-                groupId = groupId
+                groupId = groupId,
             )
             uiState = uiState.copy(
                 bookUiModel = DetailBookUiModel(
@@ -58,7 +55,7 @@ class DetailViewModel(
         fun detailViewModelFactory(
             userRepository: UserRepository,
             groupRepository: GroupRepository,
-        ) : ViewModelProvider.Factory = viewModelFactory{
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
                     userRepository = userRepository,

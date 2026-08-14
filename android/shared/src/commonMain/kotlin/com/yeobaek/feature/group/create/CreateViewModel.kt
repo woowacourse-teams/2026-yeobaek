@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
@@ -96,7 +95,7 @@ class CreateViewModel(
 
     fun groupNameCheck() {
         uiState = uiState.copy(
-            groupNameCondition = uiState.groupNameValue.isBlank()
+            groupNameCondition = uiState.groupNameValue.isBlank(),
         )
 
         if (uiState.groupNameCondition) {

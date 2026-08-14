@@ -6,10 +6,10 @@ import com.yeobaek.data.model.BookModel
 import com.yeobaek.data.repository.BookRepository
 
 class RemoteBookRepositoryImpl(
-    private val bookApi: BookApi
+    private val bookApi: BookApi,
 ) : BookRepository {
     override suspend fun getBooks(
-        userId: Int
+        userId: Int,
     ): List<BookModel> {
         val response = bookApi.getBooks(userId)
         return if (response.isSuccessful) {
@@ -19,7 +19,7 @@ class RemoteBookRepositoryImpl(
         }
     }
 
-    override suspend fun getBook(userId: Int, bookId: Int): BookModel {
-        return getBooks(userId).find { it.id == bookId } ?: throw IllegalArgumentException("존재하지 않는 책입니다.")
-    }
+    override suspend fun getBook(userId: Int, bookId: Int): BookModel = getBooks(userId).find {
+        it.id == bookId
+    } ?: throw IllegalArgumentException("존재하지 않는 책입니다.")
 }

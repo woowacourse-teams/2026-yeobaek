@@ -83,7 +83,7 @@ private fun NicknameScreenPreview() {
         NicknameScreen(
             uiState = NicknameUiState(),
             onNicknameValueChange = {},
-            onNicknameSet = {}
+            onNicknameSet = {},
         )
     }
 }

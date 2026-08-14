@@ -3,23 +3,19 @@ package com.yeobaek.data.local
 import com.russhwolf.settings.Settings
 
 class UserPreferences(
-    private val settings: Settings
+    private val settings: Settings,
 ) {
     fun saveUser(
         userId: Int,
-        username: String
+        username: String,
     ) {
         settings.putInt(USER_ID, userId)
         settings.putString(USERNAME, username)
     }
 
-    fun getUserId(): Int? {
-        return settings.getIntOrNull(USER_ID)
-    }
+    fun getUserId(): Int? = settings.getIntOrNull(USER_ID)
 
-    fun getUsername(): String? {
-        return settings.getStringOrNull(USERNAME)
-    }
+    fun getUsername(): String? = settings.getStringOrNull(USERNAME)
 
     fun clearUser() {
         settings.remove(USER_ID)
@@ -30,5 +26,4 @@ class UserPreferences(
         private const val USER_ID = "userId"
         private const val USERNAME = "username"
     }
-
 }

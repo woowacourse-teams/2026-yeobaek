@@ -6,12 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserResponse(
     val memberId: Int,
-    val nickname: String
+    val nickname: String,
 )
 
-fun UserResponse.toModel(): UserModel {
-    return UserModel(
-        id = memberId,
-        name = nickname,
-    )
-}
+fun UserResponse.toModel(): UserModel = UserModel(
+    id = memberId,
+    name = nickname,
+)

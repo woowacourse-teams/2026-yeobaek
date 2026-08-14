@@ -7,5 +7,5 @@ data class GroupModel(
     val clubId: Int,
     val memberCount: Int,
     val myProgress: MyProgress?,
-    val name: String
+    val name: String,
 )

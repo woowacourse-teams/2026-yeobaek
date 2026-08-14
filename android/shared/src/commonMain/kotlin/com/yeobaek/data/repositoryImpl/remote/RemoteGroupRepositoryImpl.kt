@@ -40,9 +40,7 @@ class RemoteGroupRepositoryImpl(
             request = JoinRequest(joinCode = joinCode),
         )
 
-        return if (response.isSuccessful) {
-            Unit
-        } else {
+        if (!response.isSuccessful) {
             throw IllegalArgumentException("그룹 가입에 실패했습니다 ${response.status}")
         }
     }

@@ -48,8 +48,8 @@ class JoinViewModel(
     companion object {
         fun joinViewModelFactory(
             userRepository: UserRepository,
-            groupRepository: GroupRepository
-        ) : ViewModelProvider.Factory = viewModelFactory {
+            groupRepository: GroupRepository,
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
                     userRepository = userRepository,

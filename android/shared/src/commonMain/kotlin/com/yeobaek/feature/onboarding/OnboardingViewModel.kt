@@ -23,7 +23,7 @@ class OnboardingViewModel(
     init {
         uiState = uiState.copy(
             username = userRepository.getUsername(),
-            userId = userRepository.getUserId()
+            userId = userRepository.getUserId(),
         )
     }
 
@@ -47,7 +47,7 @@ class OnboardingViewModel(
                 uiState = uiState.copy(
                     screenState = screenState,
                 )
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 uiState = uiState.copy(
                     codeState = true,
                 )

@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ClubRequest(
     val bookId: Int,
-    val name: String
+    val name: String,
 )

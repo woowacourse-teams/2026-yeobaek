@@ -5,11 +5,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ClubsResponse(
-    val clubs: List<Club>
+    val clubs: List<Club>,
 )
 
-fun ClubsResponse.toModel(): List<GroupModel> {
-    return clubs.map { club ->
-        club.toModel()
-    }
+fun ClubsResponse.toModel(): List<GroupModel> = clubs.map { club ->
+    club.toModel()
 }

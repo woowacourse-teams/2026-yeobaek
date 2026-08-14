@@ -11,6 +11,6 @@ interface UserApi {
     @Headers("Content-Type: application/json")
     @POST("api/members")
     suspend fun createUser(
-        @Body request: UserRequest
+        @Body request: UserRequest,
     ): Response<UserResponse>
 }

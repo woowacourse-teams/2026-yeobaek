@@ -8,16 +8,14 @@ data class Book(
     val authors: List<String>,
     val bookId: Int,
     val passageCount: Int,
-    val title: String
+    val title: String,
 )
 
-fun Book.toModel(): BookModel {
-    return BookModel(
-        id = bookId,
-        uri = "",
-        title = title,
-        author = authors.joinToString(),
-        progressRate = 0f,
-        description = "",
-    )
-}
+fun Book.toModel(): BookModel = BookModel(
+    id = bookId,
+    uri = "",
+    title = title,
+    author = authors.joinToString(),
+    progressRate = 0f,
+    description = "",
+)
