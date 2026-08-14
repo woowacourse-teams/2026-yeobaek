@@ -12,12 +12,17 @@ class RemoteUserRepositoryImpl(
     override var userModel = UserModel()
 
     override suspend fun setUserData(nickname: String): UserModel {
-        val setUser = userApi.createUser(UserRequest(nickname = nickname)).toModel()
-        userModel =userModel.copy(
-            id = setUser.id,
-            name = setUser.name
-        )
-        println("레파지토리에서 유저 정보 : ${userModel.id}, ${userModel.name}")
-        return userModel
+        val response = userApi.createUser(UserRequest(nickname = nickname))
+
+        return if (response.isSuccessful) {
+            val setUser = response.body()?.toModel() ?: throw IllegalArgumentException("유저 정보가 없네요")
+            userModel = userModel.copy(
+                id = setUser.id,
+                name = setUser.name,
+            )
+            userModel
+        } else {
+            throw IllegalArgumentException("회원 생성 실패 ${response.status}")
+        }
     }
 }

@@ -33,15 +33,19 @@ class OnboardingViewModel(
         )
     }
 
-    fun setNickname() {
+    fun setNickname(screenState: ScreenState) {
         viewModelScope.launch {
-            val user = userRepository.setUserData(uiState.nicknameValue)
-
-            uiState = uiState.copy(
-                setUser = true
-            )
-
-            println("온보딩에서 유저 정보 : ${user.id}, ${user.name}")
+            try {
+                userRepository.setUserData(uiState.nicknameValue)
+                uiState = uiState.copy(
+                    screenState = screenState,
+                )
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    nicknameState = true,
+                    codeState = screenState == ScreenState.Join
+                )
+            }
         }
     }
 
@@ -69,6 +73,12 @@ class OnboardingViewModel(
                     )
                 }
             }
-
     }
+}
+
+sealed interface ScreenState {
+    object Onboarding : ScreenState
+    object Home : ScreenState
+    object Join : ScreenState
+    object Create : ScreenState
 }

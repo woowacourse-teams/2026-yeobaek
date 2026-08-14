@@ -5,5 +5,5 @@ data class OnboardingUiState(
     val codeState: Boolean = false,
     val nicknameValue: String = "",
     val nicknameState: Boolean = false,
-    val setUser: Boolean = false
+    val screenState: ScreenState = ScreenState.Onboarding,
 )

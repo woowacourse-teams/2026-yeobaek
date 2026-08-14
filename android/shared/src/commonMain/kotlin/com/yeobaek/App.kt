@@ -35,6 +35,7 @@ import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
 import com.yeobaek.feature.onboarding.OnboardingViewModel
+import com.yeobaek.feature.onboarding.ScreenState
 
 @Composable
 fun App(
@@ -102,13 +103,28 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(onboardingViewModel.uiState.setUser) {
-                    if (onboardingViewModel.uiState.setUser) {
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
+                LaunchedEffect(onboardingViewModel.uiState.screenState) {
+                    when (onboardingViewModel.uiState.screenState) {
+                        ScreenState.Home -> {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
                             }
                         }
+                        ScreenState.Create -> {
+                            navController.navigate(Create)
+                        }
+                        ScreenState.Join -> {
+                            onboardingViewModel.joinGroup()
+                            if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                        ScreenState.Onboarding -> return@LaunchedEffect
                     }
                 }
 
@@ -117,21 +133,19 @@ fun App(
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
                     onNicknameValueChange = onboardingViewModel::onNicknameValueChange,
                     navigateToCreate = {
-                        onboardingViewModel.setNickname()
-                        navController.navigate(Create)
+                        onboardingViewModel.setNickname(
+                            screenState = ScreenState.Create,
+                        )
                     },
                     navigateToHome = {
-                        onboardingViewModel.setNickname()
-                        onboardingViewModel.joinGroup()
-
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
-                            }
-                        }
+                        onboardingViewModel.setNickname(
+                            screenState = ScreenState.Join,
+                        )
                     },
                     navigateToAroundHome = {
-                        onboardingViewModel.setNickname()
+                        onboardingViewModel.setNickname(
+                            screenState = ScreenState.Home,
+                        )
                     },
                 )
             }
