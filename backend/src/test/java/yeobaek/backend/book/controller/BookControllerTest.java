@@ -6,6 +6,7 @@ import static com.epages.restdocs.apispec.ResourceDocumentation.parameterWithNam
 import static com.epages.restdocs.apispec.ResourceDocumentation.resource;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -79,11 +80,14 @@ class BookControllerTest extends ControllerTest {
         given(bookService.findBook(1L)).willReturn(new BookDetailResponse(1L, "운수 좋은 날", List.of("현진건"),
                 "자체 제작", 1924, 312, List.of(new ChapterResponse(1L, "1장", 1, 1, 105))));
 
-        mockMvc.perform(get("/api/books/1").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/books/{bookId}", 1L).header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.chapters[0].startPassageSequence").value(1))
                 .andExpect(jsonPath("$.chapters[0].endPassageSequence").value(105))
-                .andDo(document("book-detail", resource(ResourceSnippetParameters.builder()
+                .andDo(document("book-detail",
+                        pathParameters(org.springframework.restdocs.request.RequestDocumentation
+                                .parameterWithName("bookId").description("도서 ID")),
+                        resource(ResourceSnippetParameters.builder()
                         .tag("도서")
                         .summary("도서 상세 + 목차 조회")
                         .requestHeaders(headerWithName("X-Member-Id").description("회원 ID"))
