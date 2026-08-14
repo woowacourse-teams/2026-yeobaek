@@ -15,7 +15,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
-import com.yeobaek.feature.ScreenState
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -132,20 +131,14 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(onboardingViewModel.uiState.screenState) {
-                    when (onboardingViewModel.uiState.screenState) {
-                        ScreenState.Join -> {
-                            if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
+                LaunchedEffect(onboardingViewModel.uiState.successJoin) {
+                    if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
+                    if (onboardingViewModel.uiState.successJoin) {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
                             }
                         }
-
-                        ScreenState.Onboarding, ScreenState.Create,
-                        ScreenState.Home, ScreenState.Nickname,
-                        -> return@LaunchedEffect
                     }
                 }
 
@@ -156,9 +149,7 @@ fun App(
                         navController.navigate(Create)
                     },
                     navigateToHome = {
-                        onboardingViewModel.joinGroup(
-                            screenState = ScreenState.Join,
-                        )
+                        onboardingViewModel.joinGroup()
                     },
                     navigateToAroundHome = {
                         navController.navigate(Home) {
