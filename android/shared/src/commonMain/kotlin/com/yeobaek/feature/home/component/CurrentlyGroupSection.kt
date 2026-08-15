@@ -17,7 +17,7 @@ import com.yeobaek.feature.home.model.GroupUiModel
 fun CurrentlyGroupSection(
     title: String,
     groupUiModelList: List<GroupUiModel>,
-    navigateToDetail: (String) -> Unit,
+    navigateToDetail: (Int, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -35,7 +35,7 @@ fun CurrentlyGroupSection(
                     groupName = groupUiModel.groupName,
                     groupCount = groupUiModel.groupCount,
                     navigateToDetail = {
-                        navigateToDetail(groupUiModel.groupCode)
+                        navigateToDetail(groupUiModel.groupId, groupUiModel.groupCode)
                     },
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -66,7 +66,7 @@ private fun CurrentlyGroupSectionPreview() {
                     groupCount = 4,
                 ),
             ),
-            navigateToDetail = {},
+            navigateToDetail = { _, _ -> },
         )
     }
 }

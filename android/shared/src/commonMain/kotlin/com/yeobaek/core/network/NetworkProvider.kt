@@ -4,10 +4,14 @@ import de.jensklingenberg.ktorfit.Ktorfit
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.request.header
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-class NetworkProvider {
+class NetworkProvider(
+    private val memberId: Int,
+) {
     private val httpClient: HttpClient =
         createHttpClient()
 
@@ -31,6 +35,12 @@ class NetworkProvider {
         install(HttpTimeout) {
             requestTimeoutMillis = 15_000
             socketTimeoutMillis = 15_000
+        }
+        defaultRequest {
+            header(
+                "X-Member-Id",
+                memberId.toString(),
+            )
         }
     }
 

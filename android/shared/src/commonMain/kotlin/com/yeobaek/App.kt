@@ -3,6 +3,7 @@ package com.yeobaek
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -25,8 +26,12 @@ import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
 import com.yeobaek.feature.onboarding.OnboardingStateHolder
+import com.yeobaek.feature.reader.ReaderScreen
+import com.yeobaek.feature.reader.ReaderViewModel
+import com.yeobaek.feature.reader.ReaderViewModelFactory
 
 @Composable
 fun App(
@@ -74,6 +79,43 @@ fun App(
             navController = navController,
             startDestination = Onboarding,
         ) {
+            composable<Reader> { backStackEntry ->
+                val route = backStackEntry.toRoute<Reader>()
+                val readerViewModel = viewModel<ReaderViewModel>(
+                    factory = ReaderViewModelFactory(
+                        groupId = route.groupId,
+                        groupRepository = appContainer.groupRepository,
+                        readerRepository = appContainer.readerRepository,
+                    ),
+                )
+
+                ReaderScreen(
+                    uiState = readerViewModel.uiState,
+                    onPassageClick = readerViewModel::openPassageComments,
+                    onBackClick = {
+                        readerViewModel.saveCurrentPassage(
+                            onComplete = navController::popBackStack,
+                        )
+                    },
+                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+                    onFontSizeChange = readerViewModel::updateFontSize,
+                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
+                    onCommentInputChange = readerViewModel::updateCommentInput,
+                    onCommentSubmit = readerViewModel::submitComment,
+                    onCommentEdit = readerViewModel::startEditingComment,
+                    onCommentEditCancel = readerViewModel::cancelEditingComment,
+                    onCommentDelete = readerViewModel::requestDeleteComment,
+                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
+                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
+                    onLoadPrevious = readerViewModel::loadPreviousPassages,
+                    onLoadNext = readerViewModel::loadNextPassages,
+                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
+                    onProgressChange = readerViewModel::updateSeekProgress,
+                    onProgressChangeFinished = readerViewModel::seekToProgress,
+                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
+                )
+            }
             composable<Onboarding> {
                 OnboardingScreen(
                     codeValue = onboardingStateHolder.codeValue,
@@ -130,8 +172,13 @@ fun App(
                     navigateToJoin = {
                         navController.navigate(Join)
                     },
-                    navigateToDetail = { groupCode ->
-                        navController.navigate(Detail(groupCode))
+                    navigateToDetail = { groupId, groupCode ->
+                        navController.navigate(
+                            Detail(
+                                groupId = groupId,
+                                groupCode = groupCode,
+                            ),
+                        )
                     },
                     navigateToCreate = {
                         navController.navigate(Create)
@@ -148,6 +195,9 @@ fun App(
                     bookUiModel = detailStateHolder.uiState.bookUiModel,
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onReadClick = {
+                        navController.navigate(Reader(groupId = route.groupId))
                     },
                 )
             }

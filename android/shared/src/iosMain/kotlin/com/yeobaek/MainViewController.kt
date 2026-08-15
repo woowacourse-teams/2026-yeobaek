@@ -8,7 +8,9 @@ import com.yeobaek.core.app.AppContainer
 @Suppress("FunctionName")
 fun MainViewController() = ComposeUIViewController {
     val appContainer = remember {
-        AppContainer()
+        AppContainer(
+            memberId = 7,
+        )
     }
 
     DisposableEffect(appContainer) {

@@ -66,6 +66,7 @@ object MockData {
     )
 
     val group1 = GroupModel(
+        groupId = 1,
         groupCode = "BOOK42",
         groupName = "어른이들을 위한 동화 읽기",
         book = theLittlePrince,
@@ -78,6 +79,7 @@ object MockData {
     )
 
     val group2 = GroupModel(
+        groupId = 2,
         groupCode = "YEOBAEK",
         groupName = "고전 읽는 오후 모임",
         book = demian,

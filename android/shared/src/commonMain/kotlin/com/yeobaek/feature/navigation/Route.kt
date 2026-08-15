@@ -10,6 +10,7 @@ data object Home
 
 @Serializable
 data class Detail(
+    val groupId: Int,
     val groupCode: String,
 )
 
@@ -18,3 +19,8 @@ data object Create
 
 @Serializable
 data object Join
+
+@Serializable
+data class Reader(
+    val groupId: Int,
+)
