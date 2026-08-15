@@ -24,30 +24,37 @@ class DetailViewModel(
 
     fun initGroupData(groupId: Int) {
         viewModelScope.launch {
-            val userId = userRepository.getUserId()
-            val groupDetail = groupRepository.getGroupDetail(
-                userId = userId,
-                groupId = groupId,
-            )
-            uiState = uiState.copy(
-                bookUiModel = DetailBookUiModel(
-                    uri = groupDetail.book.uri,
-                    title = groupDetail.book.title,
-                    author = groupDetail.book.author,
-                    currentProgress = groupDetail.book.progressRate,
-                ),
-                groupUiModel = GroupUiModel(
-                    name = groupDetail.name,
-                    groupCode = groupDetail.joinCode,
-                    users = groupDetail.members.map { member ->
-                        UserUiModel(
-                            id = member.id,
-                            name = member.name,
-                            itsMe = member.mine,
-                        )
-                    },
-                ),
-            )
+            try {
+                val userId = userRepository.getUserId()
+                val groupDetail = groupRepository.getGroupDetail(
+                    userId = userId,
+                    groupId = groupId,
+                )
+                uiState = uiState.copy(
+                    bookUiModel = DetailBookUiModel(
+                        uri = groupDetail.book.uri,
+                        title = groupDetail.book.title,
+                        author = groupDetail.book.author,
+                        currentProgress = groupDetail.book.progressRate,
+                    ),
+                    groupUiModel = GroupUiModel(
+                        name = groupDetail.name,
+                        groupCode = groupDetail.joinCode,
+                        users = groupDetail.members.map { member ->
+                            UserUiModel(
+                                id = member.id,
+                                name = member.name,
+                                itsMe = member.mine,
+                            )
+                        },
+                    ),
+                    successDetail = true,
+                )
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    successDetail = false,
+                )
+            }
         }
     }
 
