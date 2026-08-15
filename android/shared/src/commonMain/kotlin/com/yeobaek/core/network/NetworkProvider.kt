@@ -41,11 +41,11 @@ class NetworkProvider(
         }
         install(Logging) {
             logger = Logger.SIMPLE
-            level = if(isDebug) LogLevel.BODY else LogLevel.NONE
+            level = if (isDebug) LogLevel.BODY else LogLevel.NONE
             sanitizeHeader { header ->
                 header.equals(
                     "X-Member-Id",
-                    ignoreCase = true
+                    ignoreCase = true,
                 )
             }
         }

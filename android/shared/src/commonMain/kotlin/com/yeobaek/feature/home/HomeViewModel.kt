@@ -55,14 +55,13 @@ class HomeViewModel(
                             groupCount = it.memberCount,
                         )
                     },
-                    successGroupLoading = true
+                    successGroupLoading = true,
                 )
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    successGroupLoading = false
+                    successGroupLoading = false,
                 )
             }
-
         }
     }
 

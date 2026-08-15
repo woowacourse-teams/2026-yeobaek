@@ -37,12 +37,12 @@ class CreateViewModel(
                             description = it.description,
                         )
                     },
-                    successBookLoading = true
+                    successBookLoading = true,
                 )
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successBookLoading = false,
-                    bookList = emptyList()
+                    bookList = emptyList(),
                 )
             }
         }

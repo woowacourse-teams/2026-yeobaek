@@ -26,7 +26,7 @@ class NicknameViewModel(
 
     fun checkNickname() {
         uiState = uiState.copy(
-            nicknameState = uiState.nicknameValue.isBlank()
+            nicknameState = uiState.nicknameValue.isBlank(),
         )
     }
 

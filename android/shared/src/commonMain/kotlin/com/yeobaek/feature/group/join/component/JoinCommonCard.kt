@@ -73,7 +73,6 @@ fun JoinCommonCard(modifier: Modifier = Modifier) {
             ),
         )
     }
-
 }
 
 @Preview(showBackground = true, name = "참여 화면 설명 카드")

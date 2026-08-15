@@ -8,7 +8,7 @@ class AppContainer(
     private val isDebug: Boolean,
 ) {
     private val networkProvider = NetworkProvider(
-        isDebug = isDebug
+        isDebug = isDebug,
     )
     private val settings = Settings()
 

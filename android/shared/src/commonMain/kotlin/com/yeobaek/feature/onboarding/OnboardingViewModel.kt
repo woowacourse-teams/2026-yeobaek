@@ -35,7 +35,7 @@ class OnboardingViewModel(
 
     fun checkCodeBlank() {
         uiState = uiState.copy(
-            codeState = uiState.codeValue.isBlank()
+            codeState = uiState.codeValue.isBlank(),
         )
     }
 

@@ -36,7 +36,7 @@ class JoinViewModel(
 
     fun checkCodeBlank() {
         uiState = uiState.copy(
-            codeState = uiState.codeValue.isBlank()
+            codeState = uiState.codeValue.isBlank(),
         )
     }
 
@@ -53,13 +53,12 @@ class JoinViewModel(
                 uiState = uiState.copy(
                     successJoin = true,
                 )
-            } catch(e: Exception) {
+            } catch (e: Exception) {
                 uiState = uiState.copy(
                     successJoin = false,
                     codeState = true,
                 )
             }
-
         }
     }
 

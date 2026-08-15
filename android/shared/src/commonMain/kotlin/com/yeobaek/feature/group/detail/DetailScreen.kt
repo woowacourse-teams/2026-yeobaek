@@ -54,7 +54,7 @@ fun DetailScreen(
             .fillMaxSize(),
         topBar = {
             DetailTopAppBar(
-                title = if(uiState.successDetail) uiState.groupUiModel.name else "모임 정보를 가져오는데 \n실패했습니다.",
+                title = if (uiState.successDetail) uiState.groupUiModel.name else "모임 정보를 가져오는데 \n실패했습니다.",
                 onBackClick = onBackClick,
             )
         },
