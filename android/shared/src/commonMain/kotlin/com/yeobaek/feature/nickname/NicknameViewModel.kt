@@ -24,6 +24,12 @@ class NicknameViewModel(
         )
     }
 
+    fun checkNickname() {
+        uiState = uiState.copy(
+            nicknameState = uiState.nicknameValue.isBlank()
+        )
+    }
+
     fun setNickname() {
         viewModelScope.launch {
             uiState = uiState.copy(

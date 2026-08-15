@@ -56,7 +56,7 @@ fun NicknameScreen(
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
             ) {
                 OnboardingYeobaekTextField(
-                    title = if (uiState.nicknameState) "중복된 닉네임입니다. 다시 입력해주세요." else "닉네임 입력 (필수)",
+                    title = if (uiState.nicknameState) "허용하지 않는 닉네임입니다. 다시 입력해주세요." else "닉네임 입력 (필수)",
                     isError = uiState.nicknameState,
                     value = uiState.nicknameValue,
                     placeholder = "예: 하로, 엘리",
