@@ -468,7 +468,7 @@ class ReaderViewModel(
         )
     }
 
-    private val commentsByPassageId = mockCommentsByPassageId.toMutableMap()
+    private val commentsByPassageId = mutableMapOf<Long, List<PassageCommentUiModel>>()
 
     private fun cancelPaginationLoads() {
         previousPassagesJob?.cancel()
