@@ -24,6 +24,10 @@ class DetailViewModel(
         private set
 
     fun initGroupData(groupId: Int) {
+        uiState = uiState.copy(
+            screenState = ScreenState.Loading("모임 정보를 \n가져오는 중입니다. . "),
+        )
+
         viewModelScope.launch {
             try {
                 val userId = userRepository.getUserId()
@@ -49,13 +53,13 @@ class DetailViewModel(
                             )
                         },
                     ),
-                    successDetail = true,
+                    screenState = ScreenState.Success
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    successDetail = false,
+                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다.")
                 )
             }
         }
@@ -74,4 +78,10 @@ class DetailViewModel(
             }
         }
     }
+}
+
+sealed interface ScreenState {
+    data class Error(val message: String): ScreenState
+    data class Loading(val message: String): ScreenState
+    object Success: ScreenState
 }
