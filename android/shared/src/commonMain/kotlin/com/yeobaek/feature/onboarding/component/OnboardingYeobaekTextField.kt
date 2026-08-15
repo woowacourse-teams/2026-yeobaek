@@ -20,7 +20,7 @@ fun OnboardingYeobaekTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
-    ) {
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
