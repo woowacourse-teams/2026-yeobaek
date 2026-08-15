@@ -14,9 +14,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
@@ -61,8 +63,18 @@ fun HomeScreen(
                 groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
-                successGroupLoading = uiState.successGroupLoading,
             )
+            if (uiState.screenState != ScreenState.Success) {
+                Text(
+                    text = when (uiState.screenState) {
+                        is ScreenState.Error -> uiState.screenState.message
+                        is ScreenState.Loading -> uiState.screenState.message
+                        is ScreenState.Success -> ""
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
@@ -39,6 +40,9 @@ class HomeViewModel(
     }
 
     fun initGroups() {
+        uiState = uiState.copy(
+            screenState = ScreenState.Loading("모임 정보를 불러오는 중입니다. . .")
+        )
         viewModelScope.launch {
             try {
                 val username = userRepository.getUsername()
@@ -56,13 +60,13 @@ class HomeViewModel(
                             groupCount = it.memberCount,
                         )
                     },
-                    successGroupLoading = true,
+                    screenState = ScreenState.Success
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    successGroupLoading = false,
+                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다.")
                 )
             }
         }

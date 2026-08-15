@@ -21,7 +21,6 @@ fun CurrentlyGroupSection(
     groupUiModelList: List<GroupUiModel>,
     navigateToDetail: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    successGroupLoading: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -30,13 +29,6 @@ fun CurrentlyGroupSection(
             title = title,
         )
         Spacer(modifier = Modifier.height(16.dp))
-        if (!successGroupLoading) {
-            Text(
-                "모임을 불러오는 중입니다. . .",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
-        }
         LazyColumn {
             items(items = groupUiModelList, key = { it.groupId }) { groupUiModel ->
                 HomeGroupCard(
