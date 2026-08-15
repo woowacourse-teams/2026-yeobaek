@@ -1,5 +1,6 @@
 package com.yeobaek.feature.group.detail
 
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 
