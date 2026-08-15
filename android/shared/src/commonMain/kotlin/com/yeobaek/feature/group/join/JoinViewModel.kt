@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class JoinViewModel(
@@ -53,6 +54,8 @@ class JoinViewModel(
                 uiState = uiState.copy(
                     successJoin = true,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successJoin = false,

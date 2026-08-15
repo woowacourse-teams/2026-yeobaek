@@ -13,6 +13,7 @@ import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
@@ -50,6 +51,8 @@ class DetailViewModel(
                     ),
                     successDetail = true,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successDetail = false,

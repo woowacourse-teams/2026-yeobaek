@@ -12,6 +12,7 @@ import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
@@ -21,6 +22,7 @@ class CreateViewModel(
 ) : ViewModel() {
     var uiState by mutableStateOf(CreateUiState())
         private set
+
     fun initBookList() {
         viewModelScope.launch {
             try {
@@ -39,6 +41,8 @@ class CreateViewModel(
                     },
                     successBookLoading = true,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successBookLoading = false,
@@ -94,6 +98,8 @@ class CreateViewModel(
                 uiState = uiState.copy(
                     successCreate = true,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successCreate = false,

@@ -12,6 +12,7 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 import com.yeobaek.feature.home.model.GroupUiModel
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
@@ -57,6 +58,8 @@ class HomeViewModel(
                     },
                     successGroupLoading = true,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     successGroupLoading = false,
