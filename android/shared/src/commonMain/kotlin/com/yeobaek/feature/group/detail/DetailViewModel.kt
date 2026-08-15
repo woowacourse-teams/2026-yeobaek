@@ -26,7 +26,7 @@ class DetailViewModel(
 
     fun initGroupData(groupId: Int) {
         uiState = uiState.copy(
-            screenState = ScreenState.Loading("모임 정보를 \n가져오는 중입니다. . "),
+            screenState = ScreenState.Loading("모임 정보를 \n가져오는 중입니다. . ."),
         )
 
         viewModelScope.launch {
