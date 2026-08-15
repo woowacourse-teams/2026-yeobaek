@@ -39,21 +39,30 @@ class HomeViewModel(
 
     fun initGroups() {
         viewModelScope.launch {
-            val username = userRepository.getUsername()
-            val userId = userRepository.getUserId()
+            try {
+                val username = userRepository.getUsername()
+                val userId = userRepository.getUserId()
+                val groups = groupRepository.getGroups(userId)
 
-            uiState = uiState.copy(
-                username = username,
-                groups = groupRepository.getGroups(userId).map {
-                    GroupUiModel(
-                        groupId = it.clubId,
-                        uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",
-                        title = it.book.title,
-                        groupName = it.name,
-                        groupCount = it.memberCount,
-                    )
-                },
-            )
+                uiState = uiState.copy(
+                    username = username,
+                    groups = groups.map {
+                        GroupUiModel(
+                            groupId = it.clubId,
+                            uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",
+                            title = it.book.title,
+                            groupName = it.name,
+                            groupCount = it.memberCount,
+                        )
+                    },
+                    successGroupLoading = true
+                )
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    successGroupLoading = false
+                )
+            }
+
         }
     }
 

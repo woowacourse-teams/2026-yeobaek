@@ -61,6 +61,7 @@ fun HomeScreen(
                 groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
+                successGroupLoading = uiState.successGroupLoading,
             )
         }
     }

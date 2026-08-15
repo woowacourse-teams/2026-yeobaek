@@ -7,4 +7,5 @@ data class HomeUiState(
     val username: String = "",
     val currentlyReadingBookUiModel: CurrentlyReadingBookUiModel? = null,
     val groups: List<GroupUiModel> = emptyList(),
+    val successGroupLoading: Boolean = false,
 )
