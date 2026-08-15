@@ -36,16 +36,23 @@ class JoinViewModel(
 
     fun joinGroup() {
         viewModelScope.launch {
-            val userId = userRepository.getUserId()
+            try {
+                val userId = userRepository.getUserId()
 
-            groupRepository.joinGroup(
-                joinCode = uiState.codeValue,
-                userId = userId,
-            )
+                groupRepository.joinGroup(
+                    joinCode = uiState.codeValue,
+                    userId = userId,
+                )
 
-            uiState = uiState.copy(
-                successJoin = true,
-            )
+                uiState = uiState.copy(
+                    successJoin = true,
+                )
+            } catch(e: Exception) {
+                uiState = uiState.copy(
+                    successJoin = false,
+                )
+            }
+
         }
     }
 
