@@ -24,6 +24,7 @@ import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.join.component.JoinCodeTextField
+import com.yeobaek.feature.group.join.component.JoinCommonCard
 
 @Composable
 fun JoinScreen(
@@ -50,52 +51,7 @@ fun JoinScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(64.dp))
-            Box(
-                modifier = Modifier
-                    .background(color = MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
-                    .border(width = 1.dp, color = MaterialTheme.colorScheme.secondary, shape = CircleShape)
-                    .size(100.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        "6",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontSize = 40.sp,
-                            color = MaterialTheme.colorScheme.secondary,
-                        ),
-                    )
-                    Text(
-                        "자리",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = MaterialTheme.colorScheme.secondary,
-                        ),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                "JOIN A READING CLUB",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    color = MaterialTheme.colorScheme.secondary,
-                ),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                "친구에게 받은 \n참여 코드를 입력해주세요",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                "코드를 확인하면 함께 읽는 책과 \n친구들의 모임에 바로 참여할 수 있어요.",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground,
-                ),
-            )
+            JoinCommonCard()
             Spacer(modifier = Modifier.height(36.dp))
             JoinCodeTextField(
                 codeValue = uiState.codeValue,

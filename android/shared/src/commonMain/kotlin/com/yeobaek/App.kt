@@ -219,7 +219,7 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(true) {
+                LaunchedEffect(Unit) {
                     joinViewModel.initInputValue()
                 }
 
@@ -240,7 +240,10 @@ fun App(
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        joinViewModel.joinGroup()
+                        joinViewModel.checkCodeBlank()
+                        if (!joinViewModel.uiState.codeState) {
+                            joinViewModel.joinGroup()
+                        }
                     },
                 )
             }

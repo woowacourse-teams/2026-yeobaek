@@ -34,6 +34,12 @@ class JoinViewModel(
         )
     }
 
+    fun checkCodeBlank() {
+        uiState = uiState.copy(
+            codeState = uiState.codeValue.isBlank()
+        )
+    }
+
     fun joinGroup() {
         viewModelScope.launch {
             try {
@@ -50,6 +56,7 @@ class JoinViewModel(
             } catch(e: Exception) {
                 uiState = uiState.copy(
                     successJoin = false,
+                    codeState = true,
                 )
             }
 
