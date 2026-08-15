@@ -106,9 +106,8 @@ class ReaderViewModel(
             to - MAX_PASSAGES_PER_REQUEST + 1,
         )
 
+        uiState = uiState.copy(isLoadingPrevious = true)
         previousPassagesJob = viewModelScope.launch {
-            uiState = uiState.copy(isLoadingPrevious = true)
-
             try {
                 val previousPassages = readerRepository.getPassages(
                     groupId = groupId,
@@ -148,9 +147,8 @@ class ReaderViewModel(
             from + MAX_PASSAGES_PER_REQUEST - 1,
         )
 
+        uiState = uiState.copy(isLoadingNext = true)
         nextPassagesJob = viewModelScope.launch {
-            uiState = uiState.copy(isLoadingNext = true)
-
             try {
                 val nextPassages = readerRepository.getPassages(
                     groupId = groupId,
