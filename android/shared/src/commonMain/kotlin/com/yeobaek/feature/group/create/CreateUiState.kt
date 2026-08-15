@@ -8,4 +8,5 @@ data class CreateUiState(
     val groupNameCondition: Boolean = false,
     val selectedBookCondition: Boolean = false,
     val successCreate: Boolean = false,
+    val successBookLoading: Boolean = false
 )

@@ -21,11 +21,6 @@ class CreateViewModel(
 ) : ViewModel() {
     var uiState by mutableStateOf(CreateUiState())
         private set
-
-    init {
-        initBookList()
-    }
-
     fun initBookList() {
         viewModelScope.launch {
             try {
@@ -42,9 +37,13 @@ class CreateViewModel(
                             description = it.description,
                         )
                     },
+                    successBookLoading = true
                 )
             } catch (e: Exception) {
-                initBookList()
+                uiState = uiState.copy(
+                    successBookLoading = false,
+                    bookList = emptyList()
+                )
             }
         }
     }

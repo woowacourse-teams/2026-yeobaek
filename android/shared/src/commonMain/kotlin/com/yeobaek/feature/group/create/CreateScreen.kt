@@ -62,6 +62,7 @@ fun CreateScreen(
                 },
                 subTitle = if (uiState.selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
                 isError = uiState.selectedBookCondition,
+                isLoading = uiState.successBookLoading,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }

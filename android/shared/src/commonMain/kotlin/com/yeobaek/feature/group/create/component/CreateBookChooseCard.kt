@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -22,6 +24,7 @@ fun CreateBookChooseCard(
     onClickBook: (Int) -> Unit,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    isLoading: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -38,6 +41,7 @@ fun CreateBookChooseCard(
             ),
         )
         Spacer(modifier = Modifier.height(12.dp))
+        if (!isLoading) Text("책 로딩중...", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
         LazyColumn {
             items(items = books, key = { it.id }) { book ->
                 CreateBookCard(

@@ -252,6 +252,10 @@ fun App(
                     createViewModel.initInputValue()
                 }
 
+                LaunchedEffect(createViewModel.uiState.successBookLoading) {
+                    createViewModel.initBookList()
+                }
+
                 LaunchedEffect(createViewModel.uiState.successCreate) {
                     if (createViewModel.uiState.successCreate) {
                         val popped = navController.popBackStack<Home>(
