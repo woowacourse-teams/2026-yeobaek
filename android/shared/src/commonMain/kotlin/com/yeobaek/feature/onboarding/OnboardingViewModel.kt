@@ -33,6 +33,12 @@ class OnboardingViewModel(
         )
     }
 
+    fun checkCodeBlank() {
+        uiState = uiState.copy(
+            codeState = uiState.codeValue.isBlank()
+        )
+    }
+
     fun joinGroup() {
         viewModelScope.launch {
             try {
@@ -45,6 +51,7 @@ class OnboardingViewModel(
 
                 uiState = uiState.copy(
                     successJoin = true,
+                    codeState = false,
                 )
             } catch (e: Exception) {
                 uiState = uiState.copy(

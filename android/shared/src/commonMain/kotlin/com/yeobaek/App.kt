@@ -135,8 +135,7 @@ fun App(
                 )
 
                 LaunchedEffect(onboardingViewModel.uiState.successJoin) {
-                    if (onboardingViewModel.uiState.codeState) return@LaunchedEffect
-                    if (onboardingViewModel.uiState.successJoin) {
+                    if (onboardingViewModel.uiState.successJoin && !onboardingViewModel.uiState.codeState) {
                         navController.navigate(Home) {
                             popUpTo<Onboarding> {
                                 inclusive = true
@@ -152,7 +151,10 @@ fun App(
                         navController.navigate(Create)
                     },
                     navigateToHome = {
-                        onboardingViewModel.joinGroup()
+                        onboardingViewModel.checkCodeBlank()
+                        if (!onboardingViewModel.uiState.codeState) {
+                            onboardingViewModel.joinGroup()
+                        }
                     },
                     navigateToAroundHome = {
                         navController.navigate(Home) {
