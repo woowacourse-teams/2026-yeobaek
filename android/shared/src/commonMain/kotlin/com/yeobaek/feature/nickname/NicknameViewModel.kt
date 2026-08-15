@@ -20,7 +20,6 @@ class NicknameViewModel(
 
     fun onNicknameValueChange(inputValue: String) {
         uiState = uiState.copy(
-            nicknameState = false,
             nicknameValue = inputValue,
             isEnabled = true,
         )
@@ -28,29 +27,28 @@ class NicknameViewModel(
 
     fun checkNickname() {
         uiState = uiState.copy(
-            nicknameState = uiState.nicknameValue.isBlank(),
+            isEnabled = uiState.nicknameValue.isNotBlank(),
         )
     }
 
     fun setNickname() {
+        checkNickname()
+        if (!uiState.isEnabled) return
+
         viewModelScope.launch {
-            uiState = uiState.copy(
-                isEnabled = false,
-            )
-            if (!uiState.isEnabled) {
-                try {
-                    userRepository.setUserData(uiState.nicknameValue)
-                    uiState = uiState.copy(
-                        successNicknameSet = true,
-                        isEnabled = true,
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    uiState = uiState.copy(
-                        nicknameState = true,
-                    )
-                }
+            try {
+                userRepository.setUserData(uiState.nicknameValue)
+                uiState = uiState.copy(
+                    isEnabled = true,
+                    successNicknameSet = true,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    isEnabled = false,
+                    successNicknameSet = false,
+                )
             }
         }
     }

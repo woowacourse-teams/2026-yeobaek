@@ -42,7 +42,7 @@ fun NicknameScreen(
         bottomBar = {
             YeobaekButton(
                 text = "시작하기",
-                enabled = uiState.isEnabled && !uiState.successNicknameSet,
+                enabled = uiState.isEnabled,
                 onClick = onNicknameSet,
                 modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp).fillMaxWidth(),
             )
@@ -56,8 +56,8 @@ fun NicknameScreen(
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
             ) {
                 OnboardingYeobaekTextField(
-                    title = if (uiState.nicknameState) "허용하지 않는 닉네임입니다. 다시 입력해주세요." else "닉네임 입력 (필수)",
-                    isError = uiState.nicknameState,
+                    title = if (uiState.isEnabled) "닉네임 입력 (필수)" else "허용하지 않는 닉네임입니다. 다시 입력해주세요.",
+                    isError = !uiState.isEnabled,
                     value = uiState.nicknameValue,
                     placeholder = "예: 하로, 엘리",
                     onValueChange = {

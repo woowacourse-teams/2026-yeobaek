@@ -82,10 +82,7 @@ fun App(
                     uiState = nicknameViewModel.uiState,
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
-                        nicknameViewModel.checkNickname()
-                        if (!nicknameViewModel.uiState.nicknameState) {
-                            nicknameViewModel.setNickname()
-                        }
+                        nicknameViewModel.setNickname()
                     },
                 )
             }
