@@ -88,15 +88,16 @@ class ReaderViewModel(
         }
     }
 
-    fun loadPreviousPassages() {
-        val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return
+    fun loadPreviousPassages(): Boolean {
+        val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return false
         if (
+            previousPassagesJob?.isActive == true ||
             uiState.isLoadingPrevious ||
             uiState.isProgressDragging ||
             uiState.isSeeking ||
             firstSequence <= FIRST_PASSAGE_SEQUENCE
         ) {
-            return
+            return false
         }
 
         val to = firstSequence - 1
@@ -127,6 +128,7 @@ class ReaderViewModel(
                 uiState = uiState.copy(isLoadingPrevious = false)
             }
         }
+        return true
     }
 
     fun loadNextPassages() {

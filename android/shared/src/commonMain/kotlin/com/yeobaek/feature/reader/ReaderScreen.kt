@@ -53,7 +53,7 @@ fun ReaderScreen(
     onCommentDelete: (Long) -> Unit,
     onCommentDeleteCancel: () -> Unit,
     onCommentDeleteConfirm: () -> Unit,
-    onLoadPrevious: () -> Unit,
+    onLoadPrevious: () -> Boolean,
     onLoadNext: () -> Unit,
     onVisiblePassageChange: (PassageUiModel) -> Unit,
     onProgressChange: (Float) -> Unit,
@@ -203,11 +203,13 @@ fun ReaderScreen(
                     state.passages.getOrNull(item.index)
                 }
                 if (firstVisibleItem != null && firstVisiblePassage != null) {
-                    previousLoadAnchor = PassageAnchor(
-                        passageId = firstVisiblePassage.passageId,
-                        scrollOffset = listState.firstVisibleItemScrollOffset,
+                    previousLoadAnchor = previousLoadAnchorAfterRequest(
+                        anchor = PassageAnchor(
+                            passageId = firstVisiblePassage.passageId,
+                            scrollOffset = listState.firstVisibleItemScrollOffset,
+                        ),
+                        requestStarted = currentOnLoadPrevious(),
                     )
-                    currentOnLoadPrevious()
                 }
             }
 
@@ -396,7 +398,7 @@ private fun ReaderScreenPreview() {
             onCommentDelete = {},
             onCommentDeleteCancel = {},
             onCommentDeleteConfirm = {},
-            onLoadPrevious = {},
+            onLoadPrevious = { false },
             onLoadNext = {},
             onVisiblePassageChange = {},
             onProgressChange = {},
@@ -406,10 +408,15 @@ private fun ReaderScreenPreview() {
     }
 }
 
-private data class PassageAnchor(
+internal data class PassageAnchor(
     val passageId: Long,
     val scrollOffset: Int,
 )
+
+internal fun previousLoadAnchorAfterRequest(
+    anchor: PassageAnchor,
+    requestStarted: Boolean,
+): PassageAnchor? = anchor.takeIf { requestStarted }
 
 private const val FIRST_PASSAGE_SEQUENCE = 1
 private const val PAGINATION_THRESHOLD = 5
