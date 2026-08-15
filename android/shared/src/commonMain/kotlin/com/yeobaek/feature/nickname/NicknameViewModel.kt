@@ -35,6 +35,10 @@ class NicknameViewModel(
         checkNickname()
         if (!uiState.isEnabled) return
 
+        uiState = uiState.copy(
+            isEnabled = false,
+        )
+
         viewModelScope.launch {
             try {
                 userRepository.setUserData(uiState.nicknameValue)
