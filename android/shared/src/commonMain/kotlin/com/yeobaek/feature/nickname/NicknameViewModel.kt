@@ -21,6 +21,7 @@ class NicknameViewModel(
         uiState = uiState.copy(
             nicknameState = false,
             nicknameValue = inputValue,
+            isEnabled = true,
         )
     }
 
@@ -40,14 +41,11 @@ class NicknameViewModel(
                     userRepository.setUserData(uiState.nicknameValue)
                     uiState = uiState.copy(
                         successNicknameSet = true,
-                    )
+                        isEnabled = true,
+                        )
                 } catch (e: Exception) {
                     uiState = uiState.copy(
                         nicknameState = true,
-                    )
-                } finally {
-                    uiState = uiState.copy(
-                        isEnabled = true,
                     )
                 }
             }
