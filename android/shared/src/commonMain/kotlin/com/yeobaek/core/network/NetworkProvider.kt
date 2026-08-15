@@ -12,7 +12,9 @@ import io.ktor.client.plugins.logging.SIMPLE
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-class NetworkProvider {
+class NetworkProvider(
+    private val isDebug: Boolean,
+) {
     private val httpClient: HttpClient =
         createHttpClient()
 
@@ -39,7 +41,13 @@ class NetworkProvider {
         }
         install(Logging) {
             logger = Logger.SIMPLE
-            level = LogLevel.BODY
+            level = if(isDebug) LogLevel.BODY else LogLevel.NONE
+            sanitizeHeader { header ->
+                header.equals(
+                    "X-Member-Id",
+                    ignoreCase = true
+                )
+            }
         }
     }
 

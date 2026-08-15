@@ -4,8 +4,12 @@ import com.russhwolf.settings.Settings
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.data.local.UserPreferences
 
-class AppContainer {
-    private val networkProvider = NetworkProvider()
+class AppContainer(
+    private val isDebug: Boolean,
+) {
+    private val networkProvider = NetworkProvider(
+        isDebug = isDebug
+    )
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)

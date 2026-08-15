@@ -6,6 +6,8 @@ import com.yeobaek.core.app.AppContainer
 class YeobaekApplication : Application() {
 
     val appContainer: AppContainer by lazy {
-        AppContainer(memberId = 7)
+        AppContainer(
+            isDebug = BuildConfig.DEBUG
+        )
     }
 }

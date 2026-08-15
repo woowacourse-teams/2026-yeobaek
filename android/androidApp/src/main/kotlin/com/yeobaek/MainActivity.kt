@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
 fun AppAndroidPreview() {
     App(
         appContainer = AppContainer(
-            memberId = 7
+            isDebug = false
         )
     )
 }
