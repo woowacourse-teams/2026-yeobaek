@@ -54,13 +54,13 @@ class DetailViewModel(
                             )
                         },
                     ),
-                    screenState = ScreenState.Success
+                    screenState = ScreenState.Success,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다.")
+                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다."),
                 )
             }
         }
@@ -80,4 +80,3 @@ class DetailViewModel(
         }
     }
 }
-

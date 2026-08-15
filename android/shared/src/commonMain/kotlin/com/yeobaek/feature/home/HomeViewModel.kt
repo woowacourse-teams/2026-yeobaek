@@ -41,7 +41,7 @@ class HomeViewModel(
 
     fun initGroups() {
         uiState = uiState.copy(
-            screenState = ScreenState.Loading("모임 정보를 불러오는 중입니다. . .")
+            screenState = ScreenState.Loading("모임 정보를 불러오는 중입니다. . ."),
         )
         viewModelScope.launch {
             try {
@@ -60,13 +60,13 @@ class HomeViewModel(
                             groupCount = it.memberCount,
                         )
                     },
-                    screenState = ScreenState.Success
+                    screenState = ScreenState.Success,
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다.")
+                    screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다."),
                 )
             }
         }

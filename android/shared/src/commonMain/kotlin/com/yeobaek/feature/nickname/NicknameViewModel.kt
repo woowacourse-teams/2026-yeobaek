@@ -43,7 +43,7 @@ class NicknameViewModel(
                     uiState = uiState.copy(
                         successNicknameSet = true,
                         isEnabled = true,
-                        )
+                    )
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
