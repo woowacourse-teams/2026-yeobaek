@@ -195,8 +195,9 @@ fun App(
                         groupRepository = groupRepository,
                     ),
                 )
-
-                detailViewModel.initGroupData(groupId = route.groupId)
+                LaunchedEffect(route.groupId) {
+                    detailViewModel.initGroupData(groupId = route.groupId)
+                }
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
