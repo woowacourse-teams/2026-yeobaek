@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
+import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 
 class ReaderViewModel(
     private val groupId: Int,
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
 ) : ViewModel() {
@@ -43,7 +45,8 @@ class ReaderViewModel(
             )
 
             try {
-                val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
+                val userId = userRepository.getUserId()
+                val groupDetail = groupRepository.getGroupDetail(userId = userId, groupId = groupId)
                 val passageCount = groupDetail.book.passageCount
                 val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
                     .coerceIn(
@@ -637,6 +640,7 @@ val mockPassages: List<PassageUiModel> = listOf(
 
 class ReaderViewModelFactory(
     private val groupId: Int,
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
 ) : ViewModelProvider.Factory {
@@ -648,6 +652,7 @@ class ReaderViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return ReaderViewModel(
                 groupId = groupId,
+                userRepository = userRepository,
                 groupRepository = groupRepository,
                 readerRepository = readerRepository,
             ) as T

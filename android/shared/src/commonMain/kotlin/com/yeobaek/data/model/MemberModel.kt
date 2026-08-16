@@ -1,7 +1,7 @@
 package com.yeobaek.data.model
 
 data class MemberModel(
-    val memberId: Int,
+    val id: Int,
     val mine: Boolean,
     val nickname: String,
 )

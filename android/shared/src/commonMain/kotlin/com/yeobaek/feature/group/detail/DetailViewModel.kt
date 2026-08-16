@@ -38,10 +38,11 @@ class DetailViewModel(
                 )
                 uiState = uiState.copy(
                     bookUiModel = DetailBookUiModel(
-                        uri = groupDetail.book.uri,
+                        uri = "https://i.namu.wiki/i/92M-9hkuSJpPB-qZD-chkWsMUYe7dIAZE3rSnf0kTHdp5" +
+                            "BrwHyRS1H3Lj74gI6hRcIwcxV3AR6HRa7zWLU1oeQ.webp",
                         title = groupDetail.book.title,
-                        author = groupDetail.book.author,
-                        currentProgress = groupDetail.book.progressRate,
+                        author = groupDetail.book.authors,
+                        currentProgress = groupDetail.myProgress?.progressRate ?: 0,
                     ),
                     groupUiModel = GroupUiModel(
                         name = groupDetail.name,
@@ -49,7 +50,7 @@ class DetailViewModel(
                         users = groupDetail.members.map { member ->
                             UserUiModel(
                                 id = member.id,
-                                name = member.name,
+                                name = member.nickname,
                                 itsMe = member.mine,
                             )
                         },

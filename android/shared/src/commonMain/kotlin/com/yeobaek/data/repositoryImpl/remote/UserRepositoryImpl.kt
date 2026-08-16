@@ -7,7 +7,7 @@ import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.UserRepository
 
-class RemoteUserRepositoryImpl(
+class UserRepositoryImpl(
     private val userApi: UserApi,
     private val userPreferences: UserPreferences,
 ) : UserRepository {

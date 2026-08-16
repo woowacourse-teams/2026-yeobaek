@@ -3,18 +3,15 @@ package com.yeobaek
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.repositoryImpl.remote.RemoteBookRepositoryImpl
-import com.yeobaek.data.repositoryImpl.remote.RemoteGroupRepositoryImpl
-import com.yeobaek.data.repositoryImpl.remote.RemoteUserRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -33,7 +30,6 @@ import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
-import com.yeobaek.feature.onboarding.OnboardingStateHolder
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
@@ -46,17 +42,6 @@ fun App(
     YeobaekTheme {
         val navController = rememberNavController()
 
-        val userRepository = RemoteUserRepositoryImpl(
-            userApi = appContainer.apiProvider.userApi,
-            userPreferences = appContainer.userPreferences,
-        )
-        val bookRepository = RemoteBookRepositoryImpl(
-            bookApi = appContainer.apiProvider.booksApi,
-        )
-        val groupRepository = RemoteGroupRepositoryImpl(
-            clubApi = appContainer.apiProvider.clubApi,
-        )
-
         NavHost(
             navController = navController,
             startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
@@ -64,7 +49,7 @@ fun App(
             composable<Nickname> {
                 val nicknameViewModel: NicknameViewModel = viewModel(
                     factory = NicknameViewModel.nicknameViewModelFactory(
-                        userRepository = userRepository,
+                        userRepository = appContainer.userRepository,
                     ),
                 )
 
@@ -83,6 +68,7 @@ fun App(
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
                         nicknameViewModel.setNickname()
+                        println("nickname set: ${nicknameViewModel.uiState.successNicknameSet}")
                     },
                 )
             }
@@ -91,6 +77,7 @@ fun App(
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
                         groupId = route.groupId,
+                        userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
                     ),
@@ -126,8 +113,8 @@ fun App(
             composable<Onboarding> {
                 val onboardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
-                        userRepository = userRepository,
-                        groupRepository = groupRepository,
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
                     ),
                 )
 
@@ -165,8 +152,8 @@ fun App(
             composable<Home> {
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.homeViewModelFactory(
-                        userRepository = userRepository,
-                        groupRepository = groupRepository,
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
                     ),
                 )
 
@@ -180,8 +167,8 @@ fun App(
                     navigateToJoin = {
                         navController.navigate(Join)
                     },
-                    navigateToDetail = { groupCode ->
-                        navController.navigate(Detail(groupCode))
+                    navigateToDetail = { groupId ->
+                        navController.navigate(Detail(groupId))
                     },
                     navigateToCreate = {
                         navController.navigate(Create)
@@ -193,8 +180,8 @@ fun App(
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
-                        userRepository = userRepository,
-                        groupRepository = groupRepository,
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
                     ),
                 )
                 LaunchedEffect(route.groupId) {
@@ -206,13 +193,16 @@ fun App(
                     onBackClick = {
                         navController.popBackStack()
                     },
+                    onReadClick = {
+
+                    }
                 )
             }
             composable<Join> {
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
-                        userRepository = userRepository,
-                        groupRepository = groupRepository,
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
                     ),
                 )
 
@@ -247,9 +237,9 @@ fun App(
             composable<Create> {
                 val createViewModel: CreateViewModel = viewModel(
                     factory = CreateViewModel.createViewModelFactory(
-                        groupRepository = groupRepository,
-                        bookRepository = bookRepository,
-                        userRepository = userRepository,
+                        groupRepository = appContainer.groupRepository,
+                        bookRepository = appContainer.bookRepository,
+                        userRepository = appContainer.userRepository,
                     ),
                 )
 

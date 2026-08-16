@@ -1,6 +1,7 @@
 package com.yeobaek.data.api
 
 import com.yeobaek.data.dto.ClubDetailResponse
+import com.yeobaek.data.dto.ClubRequest
 import com.yeobaek.data.dto.ClubsResponse
 import com.yeobaek.data.dto.JoinRequest
 import de.jensklingenberg.ktorfit.Response

@@ -91,7 +91,7 @@ fun DetailScreen(
             ) {
                 GroupBookInfoCard(
                     title = uiState.bookUiModel.title,
-                    author = uiState.bookUiModel.author,
+                    authors = uiState.bookUiModel.author,
                     currentProgress = uiState.bookUiModel.currentProgress,
                 )
             }
@@ -127,8 +127,8 @@ fun DetailScreen(
 @Composable
 private fun GroupBookInfoCard(
     title: String,
-    author: String,
-    currentProgress: Float,
+    authors: List<String>,
+    currentProgress: Int,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -138,11 +138,11 @@ private fun GroupBookInfoCard(
         Column {
             Text(title, style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.height(12.dp))
-            Text(author, style = MaterialTheme.typography.bodySmall)
+            Text(authors.joinToString(), style = MaterialTheme.typography.bodySmall)
         }
         Column {
             Text(
-                "독서 진행률 ${(currentProgress * 100).toInt()}%",
+                "독서 진행률 ${currentProgress}%",
                 style = MaterialTheme.typography.labelMedium.copy(
                     color = MaterialTheme.colorScheme.secondary,
                 ),
@@ -154,7 +154,7 @@ private fun GroupBookInfoCard(
             ) {
                 LinearProgressIndicator(
                     progress = {
-                        currentProgress
+                        currentProgress.toFloat()
                     },
                     color = MaterialTheme.colorScheme.secondary,
                     strokeCap = StrokeCap.Butt,

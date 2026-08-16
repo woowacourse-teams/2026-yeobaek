@@ -1,6 +1,6 @@
 package com.yeobaek.data.dto
 
-import com.yeobaek.data.model.UserModel
+import com.yeobaek.data.model.MemberModel
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,7 +12,7 @@ data class Member(
 
 fun Member.toModel(): MemberModel =
     MemberModel(
-        memberId = memberId,
+        id = memberId,
         mine = mine,
         nickname = nickname,
     )
