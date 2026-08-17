@@ -34,8 +34,6 @@ class ReaderViewModel(
     private var progressSeekJob: Job? = null
     private var saveCurrentPassageJob: Job? = null
     private var commentLoadJob: Job? = null
-    private var commentSubmitJob: Job? = null
-    private var commentDeleteJob: Job? = null
 
     init {
         loadReader()
@@ -328,7 +326,7 @@ class ReaderViewModel(
     }
 
     fun openPassageComments(passage: PassageUiModel) {
-        cancelCommentJobs()
+        cancelCommentLoad()
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
             commentSheet = PassageCommentSheetUiState(
@@ -365,7 +363,7 @@ class ReaderViewModel(
     }
 
     fun dismissPassageComments() {
-        cancelCommentJobs()
+        cancelCommentLoad()
         uiState = uiState.copy(commentSheet = null)
     }
 
@@ -455,7 +453,7 @@ class ReaderViewModel(
             ),
         )
 
-        commentDeleteJob = viewModelScope.launch {
+        viewModelScope.launch {
             try {
                 commentRepository.deleteComment(commentId = commentId)
 
@@ -517,7 +515,7 @@ class ReaderViewModel(
             ),
         )
 
-        commentSubmitJob = viewModelScope.launch {
+        viewModelScope.launch {
             try {
                 val savedComment = if (commentSheet.editingCommentId == null) {
                     commentRepository.createComment(
@@ -582,13 +580,9 @@ class ReaderViewModel(
         uiState = uiState.copy(commentSheet = transform(commentSheet))
     }
 
-    private fun cancelCommentJobs() {
+    private fun cancelCommentLoad() {
         commentLoadJob?.cancel()
-        commentSubmitJob?.cancel()
-        commentDeleteJob?.cancel()
         commentLoadJob = null
-        commentSubmitJob = null
-        commentDeleteJob = null
     }
 
     private fun cancelPaginationLoads() {
