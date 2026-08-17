@@ -3,6 +3,7 @@ package com.yeobaek.data.repositoryImpl.remote
 import com.yeobaek.data.api.ReaderApi
 import com.yeobaek.data.dto.UpdatePassageRequest
 import com.yeobaek.data.dto.toModel
+import com.yeobaek.data.model.CommentsModel
 import com.yeobaek.data.model.MyProgressModel
 import com.yeobaek.data.model.PassagesModel
 import com.yeobaek.data.repository.ReaderRepository
@@ -19,6 +20,16 @@ class ReaderRepositoryImpl(
             clubId = groupId,
             from = from,
             to = to,
+        )
+        .toModel()
+
+    override suspend fun getComments(
+        groupId: Int,
+        passageId: Int,
+    ): CommentsModel = readerApi
+        .getComments(
+            clubId = groupId,
+            passageId = passageId,
         )
         .toModel()
 

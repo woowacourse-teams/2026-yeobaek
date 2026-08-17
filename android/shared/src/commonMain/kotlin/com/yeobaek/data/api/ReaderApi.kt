@@ -1,5 +1,6 @@
 package com.yeobaek.data.api
 
+import com.yeobaek.data.dto.CommentsResponse
 import com.yeobaek.data.dto.MyProgress
 import com.yeobaek.data.dto.PassagesResponse
 import com.yeobaek.data.dto.UpdatePassageRequest
@@ -17,6 +18,12 @@ interface ReaderApi {
         @Query("from") from: Int,
         @Query("to") to: Int,
     ): PassagesResponse
+
+    @GET("api/clubs/{clubId}/passages/{passageId}/comments")
+    suspend fun getComments(
+        @Path("clubId") clubId: Int,
+        @Path("passageId") passageId: Int,
+    ): CommentsResponse
 
     @Headers("Content-Type: application/json")
     @PUT("api/clubs/{clubId}/progress")
