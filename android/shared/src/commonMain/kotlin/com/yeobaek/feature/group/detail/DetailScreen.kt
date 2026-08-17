@@ -154,7 +154,7 @@ private fun GroupBookInfoCard(
             ) {
                 LinearProgressIndicator(
                     progress = {
-                        currentProgress.toFloat()
+                        currentProgress.toFloat() / 100
                     },
                     color = MaterialTheme.colorScheme.secondary,
                     strokeCap = StrokeCap.Butt,
