@@ -28,13 +28,13 @@ class NicknameViewModel(
 
     fun checkNickname() {
         uiState = uiState.copy(
-            isEnabled = uiState.nicknameValue.isNotBlank(),
+            nicknameState = uiState.nicknameValue.isNotBlank(),
         )
     }
 
     fun setNickname() {
         checkNickname()
-        if (!uiState.isEnabled) return
+        if (!uiState.nicknameState) return
 
         uiState = uiState.copy(
             isEnabled = false,
