@@ -381,9 +381,9 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = mockPassages,
+                passages = ReaderPreviewData.passages,
                 currentSequence = 4,
-                totalPassageCount = mockPassages.size,
+                totalPassageCount = ReaderPreviewData.passages.size,
             ),
             onPassageClick = {},
             onBackClick = {},

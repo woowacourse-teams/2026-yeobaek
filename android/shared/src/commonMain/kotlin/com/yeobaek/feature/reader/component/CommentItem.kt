@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.reader.mockCommentsByPassageId
+import com.yeobaek.feature.reader.ReaderPreviewData
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 
 @Composable
@@ -142,7 +142,7 @@ private fun String.toDisplayDate(): String {
 private fun CommentItemPreview() {
     YeobaekTheme {
         CommentItem(
-            comment = mockCommentsByPassageId.getValue(2).first(),
+            comment = ReaderPreviewData.commentsByPassageId.getValue(2).first(),
             onEdit = {},
             onDelete = {},
         )
