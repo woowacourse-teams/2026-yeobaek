@@ -21,6 +21,7 @@ class NicknameViewModel(
     fun onNicknameValueChange(inputValue: String) {
         uiState = uiState.copy(
             nicknameValue = inputValue,
+            nicknameState = true,
             isEnabled = true,
         )
     }
@@ -51,6 +52,7 @@ class NicknameViewModel(
             } catch (e: Exception) {
                 uiState = uiState.copy(
                     isEnabled = false,
+                    nicknameState = false,
                     successNicknameSet = false,
                 )
             }
