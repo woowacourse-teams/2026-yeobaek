@@ -1,7 +1,7 @@
 package com.yeobaek.feature.reader.model
 
 data class PassageUiModel(
-    val passageId: Long,
+    val passageId: Int,
     val sequence: Int,
     val chapterId: Int,
     val content: String,

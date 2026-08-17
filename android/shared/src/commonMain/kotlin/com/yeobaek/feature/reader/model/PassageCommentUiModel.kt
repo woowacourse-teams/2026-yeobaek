@@ -1,8 +1,8 @@
 package com.yeobaek.feature.reader.model
 
 data class PassageCommentUiModel(
-    val commentId: Long,
-    val memberId: Long,
+    val commentId: Int,
+    val memberId: Int,
     val nickname: String,
     val content: String,
     val createdAt: String,

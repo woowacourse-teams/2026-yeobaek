@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
@@ -22,6 +24,7 @@ class ReaderViewModel(
     private val groupId: Int,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
+    private val commentRepository: CommentRepository,
 ) : ViewModel() {
     var uiState by mutableStateOf(ReaderUiState(isLoading = true))
         private set
@@ -30,6 +33,9 @@ class ReaderViewModel(
     private var nextPassagesJob: Job? = null
     private var progressSeekJob: Job? = null
     private var saveCurrentPassageJob: Job? = null
+    private var commentLoadJob: Job? = null
+    private var commentSubmitJob: Job? = null
+    private var commentDeleteJob: Job? = null
 
     init {
         loadReader()
@@ -198,7 +204,7 @@ class ReaderViewModel(
             try {
                 readerRepository.updatePassage(
                     clubId = groupId,
-                    passageId = currentPassage.passageId.toInt(),
+                    passageId = currentPassage.passageId,
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -322,16 +328,44 @@ class ReaderViewModel(
     }
 
     fun openPassageComments(passage: PassageUiModel) {
+        cancelCommentJobs()
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
             commentSheet = PassageCommentSheetUiState(
                 passageId = passage.passageId,
-                comments = commentsByPassageId[passage.passageId].orEmpty(),
+                isLoading = true,
             ),
         )
+
+        commentLoadJob = viewModelScope.launch {
+            try {
+                val comments = commentRepository.getComments(
+                    clubId = groupId,
+                    passageId = passage.passageId,
+                ).comments.map(CommentModel::toUiModel)
+
+                updateCommentSheet(passage.passageId) { commentSheet ->
+                    commentSheet.copy(
+                        comments = comments,
+                        isLoading = false,
+                        loadErrorMessage = null,
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                updateCommentSheet(passage.passageId) { commentSheet ->
+                    commentSheet.copy(
+                        isLoading = false,
+                        loadErrorMessage = "댓글을 불러오지 못했습니다.",
+                    )
+                }
+            }
+        }
     }
 
     fun dismissPassageComments() {
+        cancelCommentJobs()
         uiState = uiState.copy(commentSheet = null)
     }
 
@@ -346,8 +380,9 @@ class ReaderViewModel(
         )
     }
 
-    fun startEditingComment(commentId: Long) {
+    fun startEditingComment(commentId: Int) {
         val commentSheet = uiState.commentSheet ?: return
+        if (commentSheet.isSubmitting || commentSheet.isDeleting) return
         val comment = commentSheet.comments.firstOrNull { comment ->
             comment.commentId == commentId && comment.mine
         } ?: return
@@ -358,12 +393,14 @@ class ReaderViewModel(
                 editingCommentId = comment.commentId,
                 deletingCommentId = null,
                 submitErrorMessage = null,
+                deleteErrorMessage = null,
             ),
         )
     }
 
     fun cancelEditingComment() {
         val commentSheet = uiState.commentSheet ?: return
+        if (commentSheet.isSubmitting) return
 
         uiState = uiState.copy(
             commentSheet = commentSheet.copy(
@@ -374,101 +411,185 @@ class ReaderViewModel(
         )
     }
 
-    fun requestDeleteComment(commentId: Long) {
+    fun requestDeleteComment(commentId: Int) {
         val commentSheet = uiState.commentSheet ?: return
+        if (commentSheet.isSubmitting || commentSheet.isDeleting) return
         val canDelete = commentSheet.comments.any { comment ->
             comment.commentId == commentId && comment.mine
         }
         if (!canDelete) return
 
         uiState = uiState.copy(
-            commentSheet = commentSheet.copy(deletingCommentId = commentId),
+            commentSheet = commentSheet.copy(
+                deletingCommentId = commentId,
+                deleteErrorMessage = null,
+            ),
         )
     }
 
     fun cancelDeleteComment() {
         val commentSheet = uiState.commentSheet ?: return
+        if (commentSheet.isDeleting) return
 
         uiState = uiState.copy(
-            commentSheet = commentSheet.copy(deletingCommentId = null),
+            commentSheet = commentSheet.copy(
+                deletingCommentId = null,
+                deleteErrorMessage = null,
+            ),
         )
     }
 
     fun confirmDeleteComment() {
         val commentSheet = uiState.commentSheet ?: return
         val commentId = commentSheet.deletingCommentId ?: return
+        if (commentSheet.isDeleting || commentSheet.isSubmitting) return
         val canDelete = commentSheet.comments.any { comment ->
             comment.commentId == commentId && comment.mine
         }
         if (!canDelete) return
 
-        val updatedComments = commentSheet.comments.filterNot { comment ->
-            comment.commentId == commentId
-        }
-        commentsByPassageId[commentSheet.passageId] = updatedComments
         uiState = uiState.copy(
-            passages = uiState.passages.withCommentCount(
-                passageId = commentSheet.passageId,
-                commentCount = updatedComments.size,
-            ),
             commentSheet = commentSheet.copy(
-                comments = updatedComments,
-                input = if (commentSheet.editingCommentId == commentId) "" else commentSheet.input,
-                editingCommentId = commentSheet.editingCommentId.takeUnless { it == commentId },
-                deletingCommentId = null,
-                submitErrorMessage = null,
+                isDeleting = true,
+                deleteErrorMessage = null,
             ),
         )
+
+        commentDeleteJob = viewModelScope.launch {
+            try {
+                commentRepository.deleteComment(commentId = commentId)
+
+                val currentSheet = uiState.commentSheet
+                    ?.takeIf { sheet -> sheet.passageId == commentSheet.passageId }
+                    ?: return@launch
+                val updatedComments = currentSheet.comments.filterNot { comment ->
+                    comment.commentId == commentId
+                }
+                uiState = uiState.copy(
+                    passages = uiState.passages.withCommentCount(
+                        passageId = currentSheet.passageId,
+                        commentCount = updatedComments.size,
+                    ),
+                    commentSheet = currentSheet.copy(
+                        comments = updatedComments,
+                        input = if (currentSheet.editingCommentId == commentId) {
+                            ""
+                        } else {
+                            currentSheet.input
+                        },
+                        editingCommentId = currentSheet.editingCommentId
+                            .takeUnless { editingCommentId -> editingCommentId == commentId },
+                        deletingCommentId = null,
+                        isDeleting = false,
+                        submitErrorMessage = null,
+                        deleteErrorMessage = null,
+                    ),
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                updateCommentSheet(commentSheet.passageId) { currentSheet ->
+                    currentSheet.copy(
+                        isDeleting = false,
+                        deleteErrorMessage = "댓글을 삭제하지 못했습니다.",
+                    )
+                }
+            }
+        }
     }
 
     fun submitComment() {
         val commentSheet = uiState.commentSheet ?: return
         val content = commentSheet.input.trim()
-        if (content.isEmpty()) return
-
-        val updatedComments = if (commentSheet.editingCommentId == null) {
-            val nextCommentId = commentSheet.comments.maxOfOrNull { comment ->
-                comment.commentId
-            }?.plus(1) ?: 1L
-            commentSheet.comments +
-                PassageCommentUiModel(
-                    commentId = nextCommentId,
-                    memberId = 1L,
-                    nickname = "나",
-                    content = content,
-                    createdAt = "2026-08-11T00:00:00",
-                    updatedAt = null,
-                    mine = true,
-                )
-        } else {
-            commentSheet.comments.map { comment ->
-                if (comment.commentId == commentSheet.editingCommentId && comment.mine) {
-                    comment.copy(
-                        content = content,
-                        updatedAt = "2026-08-11T00:00:00",
-                    )
-                } else {
-                    comment
-                }
-            }
+        if (
+            content.isEmpty() ||
+            commentSheet.isLoading ||
+            commentSheet.isSubmitting ||
+            commentSheet.isDeleting
+        ) {
+            return
         }
 
-        commentsByPassageId[commentSheet.passageId] = updatedComments
         uiState = uiState.copy(
-            passages = uiState.passages.withCommentCount(
-                passageId = commentSheet.passageId,
-                commentCount = updatedComments.size,
-            ),
             commentSheet = commentSheet.copy(
-                comments = updatedComments,
-                input = "",
-                editingCommentId = null,
+                isSubmitting = true,
                 submitErrorMessage = null,
             ),
         )
+
+        commentSubmitJob = viewModelScope.launch {
+            try {
+                val savedComment = if (commentSheet.editingCommentId == null) {
+                    commentRepository.createComment(
+                        clubId = groupId,
+                        passageId = commentSheet.passageId,
+                        content = content,
+                    )
+                } else {
+                    commentRepository.updateComment(
+                        commentId = commentSheet.editingCommentId,
+                        content = content,
+                    )
+                }.toUiModel()
+
+                val currentSheet = uiState.commentSheet
+                    ?.takeIf { sheet -> sheet.passageId == commentSheet.passageId }
+                    ?: return@launch
+                val updatedComments = if (commentSheet.editingCommentId == null) {
+                    currentSheet.comments + savedComment
+                } else {
+                    currentSheet.comments.map { comment ->
+                        if (comment.commentId == commentSheet.editingCommentId) {
+                            savedComment
+                        } else {
+                            comment
+                        }
+                    }
+                }
+                uiState = uiState.copy(
+                    passages = uiState.passages.withCommentCount(
+                        passageId = currentSheet.passageId,
+                        commentCount = updatedComments.size,
+                    ),
+                    commentSheet = currentSheet.copy(
+                        comments = updatedComments,
+                        input = "",
+                        editingCommentId = null,
+                        isSubmitting = false,
+                        submitErrorMessage = null,
+                    ),
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                updateCommentSheet(commentSheet.passageId) { currentSheet ->
+                    currentSheet.copy(
+                        isSubmitting = false,
+                        submitErrorMessage = "댓글을 저장하지 못했습니다.",
+                    )
+                }
+            }
+        }
     }
 
-    private val commentsByPassageId = mutableMapOf<Long, List<PassageCommentUiModel>>()
+    private fun updateCommentSheet(
+        passageId: Int,
+        transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
+    ) {
+        val commentSheet = uiState.commentSheet
+            ?.takeIf { sheet -> sheet.passageId == passageId }
+            ?: return
+        uiState = uiState.copy(commentSheet = transform(commentSheet))
+    }
+
+    private fun cancelCommentJobs() {
+        commentLoadJob?.cancel()
+        commentSubmitJob?.cancel()
+        commentDeleteJob?.cancel()
+        commentLoadJob = null
+        commentSubmitJob = null
+        commentDeleteJob = null
+    }
 
     private fun cancelPaginationLoads() {
         previousPassagesJob?.cancel()
@@ -479,7 +600,7 @@ class ReaderViewModel(
 }
 
 private fun List<PassageUiModel>.withCommentCount(
-    passageId: Long,
+    passageId: Int,
     commentCount: Int,
 ): List<PassageUiModel> = map { passage ->
     if (passage.passageId == passageId) {
@@ -491,11 +612,22 @@ private fun List<PassageUiModel>.withCommentCount(
 
 private fun PassageModel.toUiModel(): PassageUiModel =
     PassageUiModel(
-        passageId = passageId.toLong(),
+        passageId = passageId,
         sequence = sequence,
         chapterId = chapterId,
         content = content,
         commentCount = commentCount,
+    )
+
+private fun CommentModel.toUiModel(): PassageCommentUiModel =
+    PassageCommentUiModel(
+        commentId = commentId,
+        memberId = memberId,
+        nickname = nickname,
+        content = content,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        mine = mine,
     )
 
 internal fun passageWindowFor(
@@ -517,11 +649,11 @@ internal fun passageWindowFor(
     return from..to
 }
 
-val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
-    2L to listOf(
+val mockCommentsByPassageId: Map<Int, List<PassageCommentUiModel>> = mapOf(
+    2 to listOf(
         PassageCommentUiModel(
-            commentId = 7L,
-            memberId = 2L,
+            commentId = 7,
+            memberId = 2,
             nickname = "지수",
             content = "이 문장에서 멈칫했어요.",
             createdAt = "2026-08-05T14:30:00",
@@ -529,8 +661,8 @@ val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
             mine = false,
         ),
         PassageCommentUiModel(
-            commentId = 8L,
-            memberId = 3L,
+            commentId = 8,
+            memberId = 3,
             nickname = "민서",
             content = "세계를 깨뜨린다는 표현이 오래 남네요.",
             createdAt = "2026-08-06T09:12:00",
@@ -538,10 +670,10 @@ val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
             mine = false,
         ),
     ),
-    3L to listOf(
+    3 to listOf(
         PassageCommentUiModel(
-            commentId = 9L,
-            memberId = 4L,
+            commentId = 9,
+            memberId = 4,
             nickname = "서준",
             content = "답장을 알아보는 순간의 긴장감이 인상 깊어요.",
             createdAt = "2026-08-07T21:03:00",
@@ -549,10 +681,10 @@ val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
             mine = false,
         ),
     ),
-    5L to listOf(
+    5 to listOf(
         PassageCommentUiModel(
-            commentId = 10L,
-            memberId = 5L,
+            commentId = 10,
+            memberId = 5,
             nickname = "하윤",
             content = "젊은 선생님을 바라보는 시선이 재미있어요.",
             createdAt = "2026-08-08T08:45:00",
@@ -560,8 +692,8 @@ val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
             mine = false,
         ),
         PassageCommentUiModel(
-            commentId = 11L,
-            memberId = 6L,
+            commentId = 11,
+            memberId = 6,
             nickname = "도윤",
             content = "거짓 품위를 보이지 않았다는 말에 공감했어요.",
             createdAt = "2026-08-08T18:20:00",
@@ -569,8 +701,8 @@ val mockCommentsByPassageId: Map<Long, List<PassageCommentUiModel>> = mapOf(
             mine = false,
         ),
         PassageCommentUiModel(
-            commentId = 12L,
-            memberId = 1L,
+            commentId = 12,
+            memberId = 1,
             nickname = "나",
             content = "호감의 이유가 아주 선명하게 드러나는 문단 같아요.",
             createdAt = "2026-08-09T13:10:00",
@@ -639,6 +771,7 @@ class ReaderViewModelFactory(
     private val groupId: Int,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
+    private val commentRepository: CommentRepository,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(
         modelClass: KClass<T>,
@@ -650,6 +783,7 @@ class ReaderViewModelFactory(
                 groupId = groupId,
                 groupRepository = groupRepository,
                 readerRepository = readerRepository,
+                commentRepository = commentRepository,
             ) as T
         }
 

@@ -99,7 +99,7 @@ private fun String.toDisplayDate(): String {
 private fun CommentItemPreview() {
     YeobaekTheme {
         CommentItem(
-            comment = mockCommentsByPassageId.getValue(2L).first(),
+            comment = mockCommentsByPassageId.getValue(2).first(),
             onEdit = {},
             onDelete = {},
         )

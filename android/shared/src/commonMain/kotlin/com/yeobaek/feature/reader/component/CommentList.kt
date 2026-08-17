@@ -19,8 +19,8 @@ import com.yeobaek.feature.reader.mockCommentsByPassageId
 @Composable
 fun CommentList(
     uiState: PassageCommentSheetUiState,
-    onEditComment: (Long) -> Unit,
-    onDeleteComment: (Long) -> Unit,
+    onEditComment: (Int) -> Unit,
+    onDeleteComment: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -94,8 +94,8 @@ private fun CommentListPreview() {
     YeobaekTheme {
         CommentList(
             uiState = PassageCommentSheetUiState(
-                passageId = 5L,
-                comments = mockCommentsByPassageId.getValue(5L),
+                passageId = 5,
+                comments = mockCommentsByPassageId.getValue(5),
             ),
             onEditComment = {},
             onDeleteComment = {},
