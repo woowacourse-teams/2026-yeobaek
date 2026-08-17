@@ -18,7 +18,6 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
@@ -31,7 +30,6 @@ class DetailViewModel(
 
         viewModelScope.launch {
             try {
-                val userId = userRepository.getUserId()
                 val groupDetail = groupRepository.getGroupDetail(
                     groupId = groupId,
                 )
@@ -68,12 +66,10 @@ class DetailViewModel(
 
     companion object {
         fun detailViewModelFactory(
-            userRepository: UserRepository,
             groupRepository: GroupRepository,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
-                    userRepository = userRepository,
                     groupRepository = groupRepository,
                 )
             }

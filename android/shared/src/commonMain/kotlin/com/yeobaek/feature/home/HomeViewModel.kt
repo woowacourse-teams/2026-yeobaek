@@ -46,7 +46,6 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 val username = userRepository.getUsername()
-                val userId = userRepository.getUserId()
                 val groups = groupRepository.getGroups()
 
                 uiState = uiState.copy(

@@ -9,9 +9,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
-import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
-import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -26,14 +23,14 @@ import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
-import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.onboarding.OnboardingScreen
+import com.yeobaek.feature.onboarding.OnboardingViewModel
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
-import com.yeobaek.feature.onboarding.OnboardingViewModel
 
 @Composable
 fun App(
@@ -72,48 +69,9 @@ fun App(
                     },
                 )
             }
-            composable<Reader> { backStackEntry ->
-                val route = backStackEntry.toRoute<Reader>()
-                val readerViewModel = viewModel<ReaderViewModel>(
-                    factory = ReaderViewModelFactory(
-                        groupId = route.groupId,
-                        userRepository = appContainer.userRepository,
-                        groupRepository = appContainer.groupRepository,
-                        readerRepository = appContainer.readerRepository,
-                    ),
-                )
-
-                ReaderScreen(
-                    uiState = readerViewModel.uiState,
-                    onPassageClick = readerViewModel::openPassageComments,
-                    onBackClick = {
-                        readerViewModel.saveCurrentPassage(
-                            onComplete = navController::popBackStack,
-                        )
-                    },
-                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
-                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
-                    onFontSizeChange = readerViewModel::updateFontSize,
-                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
-                    onCommentInputChange = readerViewModel::updateCommentInput,
-                    onCommentSubmit = readerViewModel::submitComment,
-                    onCommentEdit = readerViewModel::startEditingComment,
-                    onCommentEditCancel = readerViewModel::cancelEditingComment,
-                    onCommentDelete = readerViewModel::requestDeleteComment,
-                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
-                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
-                    onLoadPrevious = readerViewModel::loadPreviousPassages,
-                    onLoadNext = readerViewModel::loadNextPassages,
-                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateSeekProgress,
-                    onProgressChangeFinished = readerViewModel::seekToProgress,
-                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
-                )
-            }
             composable<Onboarding> {
                 val onboardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
-                        userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                     ),
                 )
@@ -180,7 +138,6 @@ fun App(
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
-                        userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                     ),
                 )
@@ -195,7 +152,44 @@ fun App(
                     },
                     onReadClick = {
                         navController.navigate(Reader(groupId = route.groupId))
-                    }
+                    },
+                )
+            }
+            composable<Reader> { backStackEntry ->
+                val route = backStackEntry.toRoute<Reader>()
+                val readerViewModel = viewModel<ReaderViewModel>(
+                    factory = ReaderViewModelFactory(
+                        groupId = route.groupId,
+                        groupRepository = appContainer.groupRepository,
+                        readerRepository = appContainer.readerRepository,
+                    ),
+                )
+
+                ReaderScreen(
+                    uiState = readerViewModel.uiState,
+                    onPassageClick = readerViewModel::openPassageComments,
+                    onBackClick = {
+                        readerViewModel.saveCurrentPassage(
+                            onComplete = navController::popBackStack,
+                        )
+                    },
+                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+                    onFontSizeChange = readerViewModel::updateFontSize,
+                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
+                    onCommentInputChange = readerViewModel::updateCommentInput,
+                    onCommentSubmit = readerViewModel::submitComment,
+                    onCommentEdit = readerViewModel::startEditingComment,
+                    onCommentEditCancel = readerViewModel::cancelEditingComment,
+                    onCommentDelete = readerViewModel::requestDeleteComment,
+                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
+                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
+                    onLoadPrevious = readerViewModel::loadPreviousPassages,
+                    onLoadNext = readerViewModel::loadNextPassages,
+                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
+                    onProgressChange = readerViewModel::updateSeekProgress,
+                    onProgressChangeFinished = readerViewModel::seekToProgress,
+                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
                 )
             }
             composable<Join> {
@@ -239,7 +233,6 @@ fun App(
                     factory = CreateViewModel.createViewModelFactory(
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
-                        userRepository = appContainer.userRepository,
                     ),
                 )
 

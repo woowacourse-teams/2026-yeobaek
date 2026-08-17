@@ -14,18 +14,10 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
     var uiState by mutableStateOf(OnboardingUiState())
         private set
-
-    init {
-        uiState = uiState.copy(
-            username = userRepository.getUsername(),
-            userId = userRepository.getUserId(),
-        )
-    }
 
     fun onCodeValueChange(inputValue: String) {
         uiState = uiState.copy(
@@ -43,8 +35,6 @@ class OnboardingViewModel(
     fun joinGroup() {
         viewModelScope.launch {
             try {
-                val userId = userRepository.getUserId()
-
                 groupRepository.joinGroup(
                     joinCode = uiState.codeValue,
                 )
@@ -65,13 +55,11 @@ class OnboardingViewModel(
 
     companion object {
         fun onboardingViewModelFactory(
-            userRepository: UserRepository,
             groupRepository: GroupRepository,
         ): ViewModelProvider.Factory =
             viewModelFactory {
                 initializer {
                     OnboardingViewModel(
-                        userRepository = userRepository,
                         groupRepository = groupRepository,
                     )
                 }

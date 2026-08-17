@@ -14,7 +14,6 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class JoinViewModel(
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
 
@@ -44,8 +43,6 @@ class JoinViewModel(
     fun joinGroup() {
         viewModelScope.launch {
             try {
-                val userId = userRepository.getUserId()
-
                 groupRepository.joinGroup(
                     joinCode = uiState.codeValue,
                 )
@@ -71,7 +68,6 @@ class JoinViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
-                    userRepository = userRepository,
                     groupRepository = groupRepository,
                 )
             }

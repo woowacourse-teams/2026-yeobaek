@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 
 class ReaderViewModel(
     private val groupId: Int,
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
 ) : ViewModel() {
@@ -45,7 +44,6 @@ class ReaderViewModel(
             )
 
             try {
-                val userId = userRepository.getUserId()
                 val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
                 val passageCount = groupDetail.book.passageCount
                 val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
@@ -640,7 +638,6 @@ val mockPassages: List<PassageUiModel> = listOf(
 
 class ReaderViewModelFactory(
     private val groupId: Int,
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
 ) : ViewModelProvider.Factory {
@@ -652,7 +649,6 @@ class ReaderViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return ReaderViewModel(
                 groupId = groupId,
-                userRepository = userRepository,
                 groupRepository = groupRepository,
                 readerRepository = readerRepository,
             ) as T

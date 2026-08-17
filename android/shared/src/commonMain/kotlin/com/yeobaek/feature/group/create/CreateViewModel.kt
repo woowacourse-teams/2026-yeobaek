@@ -16,7 +16,6 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
-    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
 ) : ViewModel() {
@@ -26,8 +25,6 @@ class CreateViewModel(
     fun initBookList() {
         viewModelScope.launch {
             try {
-                val userId = userRepository.getUserId()
-
                 val groups = bookRepository.getBooks()
                 uiState = uiState.copy(
                     bookList = groups.map {
@@ -86,7 +83,6 @@ class CreateViewModel(
     fun createGroup() {
         viewModelScope.launch {
             try {
-                val userId = userRepository.getUserId()
                 val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
 
                 groupRepository.createGroup(
@@ -135,11 +131,9 @@ class CreateViewModel(
         fun createViewModelFactory(
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
-            userRepository: UserRepository,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
-                    userRepository = userRepository,
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
                 )

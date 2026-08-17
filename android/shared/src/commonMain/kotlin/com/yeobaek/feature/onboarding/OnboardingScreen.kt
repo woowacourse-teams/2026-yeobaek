@@ -39,7 +39,7 @@ fun OnboardingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "여백 | ${uiState.username}",
+                        "여백",
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.fillMaxWidth(),
                     )
