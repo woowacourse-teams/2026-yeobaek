@@ -7,7 +7,6 @@ import com.yeobaek.data.dto.JoinRequest
 import de.jensklingenberg.ktorfit.Response
 import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.GET
-import de.jensklingenberg.ktorfit.http.Header
 import de.jensklingenberg.ktorfit.http.Headers
 import de.jensklingenberg.ktorfit.http.POST
 import de.jensklingenberg.ktorfit.http.Path
@@ -15,8 +14,7 @@ import de.jensklingenberg.ktorfit.http.Path
 interface ClubApi {
     @Headers("Content-Type: application/json")
     @GET("api/clubs")
-    suspend fun getUserClubs(
-    ): Response<ClubsResponse>
+    suspend fun getUserClubs(): Response<ClubsResponse>
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs")

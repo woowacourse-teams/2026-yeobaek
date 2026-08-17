@@ -10,7 +10,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
-import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch

@@ -142,7 +142,7 @@ private fun GroupBookInfoCard(
         }
         Column {
             Text(
-                "독서 진행률 ${currentProgress}%",
+                "독서 진행률 $currentProgress%",
                 style = MaterialTheme.typography.labelMedium.copy(
                     color = MaterialTheme.colorScheme.secondary,
                 ),

@@ -36,7 +36,7 @@ class NetworkProvider(
             userPreferences.getUserId()?.let { userId ->
                 header(
                     key = "X-Member-Id",
-                    value = userId
+                    value = userId,
                 )
             }
         }

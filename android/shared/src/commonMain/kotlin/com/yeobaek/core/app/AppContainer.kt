@@ -31,16 +31,16 @@ class AppContainer(
 
     val userRepository: UserRepository = UserRepositoryImpl(
         userApi = apiProvider.userApi,
-        userPreferences = userPreferences
+        userPreferences = userPreferences,
     )
     val bookRepository: BookRepository = BookRepositoryImpl(
-        bookApi = apiProvider.bookApi
+        bookApi = apiProvider.bookApi,
     )
     val groupRepository: GroupRepository = GroupRepositoryImpl(
-        clubApi = apiProvider.clubApi
+        clubApi = apiProvider.clubApi,
     )
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
-        readerApi = apiProvider.readerApi
+        readerApi = apiProvider.readerApi,
     )
 
     fun close() {

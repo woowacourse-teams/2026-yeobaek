@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.GroupRepository
-import com.yeobaek.data.repository.UserRepository
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 

@@ -10,7 +10,6 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
-import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize

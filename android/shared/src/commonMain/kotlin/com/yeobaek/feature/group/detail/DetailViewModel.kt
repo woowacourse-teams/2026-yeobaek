@@ -10,7 +10,6 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.data.repository.GroupRepository
-import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel

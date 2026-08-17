@@ -11,8 +11,7 @@ import com.yeobaek.data.repository.GroupRepository
 class GroupRepositoryImpl(
     private val clubApi: ClubApi,
 ) : GroupRepository {
-    override suspend fun getGroups(
-    ): List<GroupModel> {
+    override suspend fun getGroups(): List<GroupModel> {
         val response = clubApi.getUserClubs()
 
         return if (response.isSuccessful) {
