@@ -15,6 +15,7 @@ import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
+import com.yeobaek.feature.reader.model.toUiModel
 import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -603,26 +604,6 @@ private fun List<PassageUiModel>.withCommentCount(
         passage
     }
 }
-
-private fun PassageModel.toUiModel(): PassageUiModel =
-    PassageUiModel(
-        passageId = passageId,
-        sequence = sequence,
-        chapterId = chapterId,
-        content = content,
-        commentCount = commentCount,
-    )
-
-private fun CommentModel.toUiModel(): PassageCommentUiModel =
-    PassageCommentUiModel(
-        commentId = commentId,
-        memberId = memberId,
-        nickname = nickname,
-        content = content,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        mine = mine,
-    )
 
 internal fun passageWindowFor(
     targetSequence: Int,
