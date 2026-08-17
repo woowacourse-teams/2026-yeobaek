@@ -1,6 +1,7 @@
 package com.yeobaek.feature.reader.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,9 +14,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -30,37 +38,72 @@ fun CommentItem(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        CommentAvatar(nickname = comment.nickname)
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = comment.nickname,
-                    style = MaterialTheme.typography.labelMedium,
+    var isActionMenuExpanded by remember(comment.commentId) {
+        mutableStateOf(false)
+    }
+    val longPressModifier = if (comment.mine) {
+        Modifier
+            .pointerInput(comment.commentId) {
+                detectTapGestures(
+                    onLongPress = {
+                        isActionMenuExpanded = true
+                    },
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = comment.createdAt.toDisplayDate(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (comment.mine) {
-                    CommentActionMenu(
-                        onEdit = onEdit,
-                        onDelete = onDelete,
-                    )
+            }
+            .semantics {
+                onLongClick(label = "댓글 수정 및 삭제 메뉴 열기") {
+                    isActionMenuExpanded = true
+                    true
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = comment.content,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(longPressModifier),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            CommentAvatar(nickname = comment.nickname)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = comment.nickname,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = comment.createdAt.toDisplayDate(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = comment.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
+
+        CommentActionMenu(
+            expanded = isActionMenuExpanded,
+            onDismissRequest = { isActionMenuExpanded = false },
+            onEdit = {
+                isActionMenuExpanded = false
+                onEdit()
+            },
+            onDelete = {
+                isActionMenuExpanded = false
+                onDelete()
+            },
+        )
     }
 }
 
