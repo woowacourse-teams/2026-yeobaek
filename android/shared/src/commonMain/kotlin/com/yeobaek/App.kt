@@ -65,7 +65,6 @@ fun App(
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
                         nicknameViewModel.setNickname()
-                        println("nickname set: ${nicknameViewModel.uiState.successNicknameSet}")
                     },
                 )
             }
