@@ -1,15 +1,10 @@
 package com.yeobaek.feature.group.join
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -19,19 +14,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.join.component.JoinCodeTextField
+import com.yeobaek.feature.group.join.component.JoinCommonCard
 
 @Composable
 fun JoinScreen(
-    codeValue: String,
+    uiState: JoinUiState,
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
     navigateToHome: () -> Unit,
-    codeState: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -51,56 +45,11 @@ fun JoinScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(modifier = Modifier.height(64.dp))
-            Box(
-                modifier = Modifier
-                    .background(color = MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape)
-                    .border(width = 1.dp, color = MaterialTheme.colorScheme.secondary, shape = CircleShape)
-                    .size(100.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        "6",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontSize = 40.sp,
-                            color = MaterialTheme.colorScheme.secondary,
-                        ),
-                    )
-                    Text(
-                        "자리",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = MaterialTheme.colorScheme.secondary,
-                        ),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                "JOIN A READING CLUB",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    color = MaterialTheme.colorScheme.secondary,
-                ),
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                "친구에게 받은 \n참여 코드를 입력해주세요",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                "코드를 확인하면 함께 읽는 책과 \n친구들의 모임에 바로 참여할 수 있어요.",
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground,
-                ),
-            )
+            JoinCommonCard()
             Spacer(modifier = Modifier.height(36.dp))
             JoinCodeTextField(
-                codeValue = codeValue,
-                codeState = codeState,
+                codeValue = uiState.codeValue,
+                codeState = uiState.codeState,
                 onCodeValueChange = onCodeValueChange,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -127,11 +76,10 @@ fun JoinScreen(
 private fun JoinScreenPreview() {
     YeobaekTheme {
         JoinScreen(
-            codeValue = "",
+            uiState = JoinUiState(),
             onCodeValueChange = {},
             onBackClick = {},
             navigateToHome = {},
-            codeState = false,
         )
     }
 }

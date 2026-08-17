@@ -14,30 +14,30 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupButtonSection
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
-import com.yeobaek.feature.home.model.GroupUiModel
 
 @Composable
 fun HomeScreen(
     currentlyReadingBookUiModel: CurrentlyReadingBookUiModel?,
-    myNickname: String,
-    groupUiModelList: List<GroupUiModel>,
+    uiState: HomeUiState,
     navigateToJoin: () -> Unit,
-    navigateToDetail: (Int, String) -> Unit,
+    navigateToDetail: (Int) -> Unit,
     navigateToCreate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            AppTitle(title = "여백")
+            AppTitle(title = "여백 | ${uiState.username}")
         },
         bottomBar = {
             GroupButtonSection(
@@ -59,11 +59,22 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(32.dp))
             CurrentlyGroupSection(
-                title = "내 모임 (닉네임 : $myNickname)",
-                groupUiModelList = groupUiModelList,
+                title = "내 모임",
+                groupUiModelList = uiState.groups,
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
+            if (uiState.screenState != ScreenState.Success) {
+                Text(
+                    text = when (uiState.screenState) {
+                        is ScreenState.Error -> uiState.screenState.message
+                        is ScreenState.Loading -> uiState.screenState.message
+                        is ScreenState.Success -> ""
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -102,23 +113,9 @@ private fun HomeScreenPreview() {
                 authors = "헤르만 헤세",
                 progressRate = 12f,
             ),
-            groupUiModelList = listOf(
-                GroupUiModel(
-                    groupCode = "XXXXXX",
-                    title = "어린 왕자",
-                    groupName = "어른이들을 위한 동화 읽기",
-                    groupCount = 8,
-                ),
-                GroupUiModel(
-                    groupCode = "BOOK42",
-                    title = "데미안",
-                    groupName = "고전 읽는 오후 모임",
-                    groupCount = 4,
-                ),
-            ),
-            myNickname = "하로",
+            uiState = HomeUiState(),
             navigateToJoin = {},
-            navigateToDetail = { _, _ -> },
+            navigateToDetail = {},
             navigateToCreate = {},
         )
     }

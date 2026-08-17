@@ -4,7 +4,7 @@ import com.yeobaek.data.model.BookDetailModel
 import com.yeobaek.data.model.BookModel
 
 interface BookRepository {
-    fun getBooks(): List<BookModel>
-    fun getBook(id: Int): BookModel
+    suspend fun getBooks(): List<BookModel>
+    suspend fun getBook(bookId: Int): BookModel
     suspend fun getBookDetail(bookId: Int): BookDetailModel
 }

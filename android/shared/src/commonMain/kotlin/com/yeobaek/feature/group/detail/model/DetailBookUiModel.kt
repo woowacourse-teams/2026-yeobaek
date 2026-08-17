@@ -3,6 +3,6 @@ package com.yeobaek.feature.group.detail.model
 data class DetailBookUiModel(
     val uri: String = "",
     val title: String = "",
-    val author: String = "",
-    val currentProgress: Float = 0f,
+    val author: List<String> = emptyList(),
+    val currentProgress: Int = 0,
 )

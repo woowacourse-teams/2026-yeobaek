@@ -2,7 +2,6 @@ package com.yeobaek
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -10,25 +9,25 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.data.repositoryImpl.MockBookRepositoryImpl
-import com.yeobaek.data.repositoryImpl.MockGroupRepositoryImpl
-import com.yeobaek.data.repositoryImpl.MockUserRepositoryImpl
 import com.yeobaek.feature.group.create.CreateScreen
-import com.yeobaek.feature.group.create.CreateStateHolder
+import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
-import com.yeobaek.feature.group.detail.DetailStateHolder
+import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.join.JoinScreen
-import com.yeobaek.feature.group.join.JoinStateHolder
+import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.home.HomeScreen
-import com.yeobaek.feature.home.HomeStateHolder
+import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
+import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
+import com.yeobaek.feature.nickname.NicknameScreen
+import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.onboarding.OnboardingScreen
-import com.yeobaek.feature.onboarding.OnboardingStateHolder
+import com.yeobaek.feature.onboarding.OnboardingViewModel
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
@@ -40,45 +39,121 @@ fun App(
     YeobaekTheme {
         val navController = rememberNavController()
 
-        val userRepository = MockUserRepositoryImpl()
-        val bookRepository = MockBookRepositoryImpl()
-        val groupRepository = MockGroupRepositoryImpl()
-
-        val onboardingStateHolder = remember {
-            OnboardingStateHolder(
-                userRepository = userRepository,
-                groupRepository = groupRepository,
-            )
-        }
-        val homeUiState = remember {
-            HomeStateHolder(
-                groupRepository = groupRepository,
-            )
-        }
-        val detailStateHolder = remember {
-            DetailStateHolder(
-                groupRepository = groupRepository,
-                userRepository = userRepository,
-            )
-        }
-        val joinStateHolder = remember {
-            JoinStateHolder(
-                userRepository = userRepository,
-                groupRepository = groupRepository,
-            )
-        }
-        val createStateHolder = remember {
-            CreateStateHolder(
-                bookRepository = bookRepository,
-                groupRepository = groupRepository,
-                userRepository = userRepository,
-            )
-        }
-
         NavHost(
             navController = navController,
-            startDestination = Onboarding,
+            startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
         ) {
+            composable<Nickname> {
+                val nicknameViewModel: NicknameViewModel = viewModel(
+                    factory = NicknameViewModel.nicknameViewModelFactory(
+                        userRepository = appContainer.userRepository,
+                    ),
+                )
+
+                LaunchedEffect(nicknameViewModel.uiState.successNicknameSet) {
+                    if (nicknameViewModel.uiState.successNicknameSet) {
+                        navController.navigate(Onboarding) {
+                            popUpTo<Nickname> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
+                NicknameScreen(
+                    uiState = nicknameViewModel.uiState,
+                    onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
+                    onNicknameSet = {
+                        nicknameViewModel.setNickname()
+                    },
+                )
+            }
+            composable<Onboarding> {
+                val onboardingViewModel: OnboardingViewModel = viewModel(
+                    factory = OnboardingViewModel.onboardingViewModelFactory(
+                        groupRepository = appContainer.groupRepository,
+                    ),
+                )
+
+                LaunchedEffect(onboardingViewModel.uiState.successJoin) {
+                    if (onboardingViewModel.uiState.successJoin && !onboardingViewModel.uiState.codeState) {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
+                OnboardingScreen(
+                    uiState = onboardingViewModel.uiState,
+                    onCodeValueChange = onboardingViewModel::onCodeValueChange,
+                    navigateToCreate = {
+                        navController.navigate(Create)
+                    },
+                    navigateToHome = {
+                        onboardingViewModel.checkCodeBlank()
+                        if (!onboardingViewModel.uiState.codeState) {
+                            onboardingViewModel.joinGroup()
+                        }
+                    },
+                    navigateToAroundHome = {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    },
+                )
+            }
+            composable<Home> {
+                val homeViewModel: HomeViewModel = viewModel(
+                    factory = HomeViewModel.homeViewModelFactory(
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
+                    ),
+                )
+
+                LaunchedEffect(true) {
+                    homeViewModel.initGroups()
+                }
+
+                HomeScreen(
+                    currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
+                    uiState = homeViewModel.uiState,
+                    navigateToJoin = {
+                        navController.navigate(Join)
+                    },
+                    navigateToDetail = { groupId ->
+                        navController.navigate(Detail(groupId))
+                    },
+                    navigateToCreate = {
+                        navController.navigate(Create)
+                    },
+                )
+            }
+            composable<Detail> { backStackEntry ->
+                val route = backStackEntry.toRoute<Detail>()
+
+                val detailViewModel: DetailViewModel = viewModel(
+                    factory = DetailViewModel.detailViewModelFactory(
+                        groupRepository = appContainer.groupRepository,
+                    ),
+                )
+                LaunchedEffect(route.groupId) {
+                    detailViewModel.initGroupData(groupId = route.groupId)
+                }
+
+                DetailScreen(
+                    uiState = detailViewModel.uiState,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onReadClick = {
+                        navController.navigate(Reader(groupId = route.groupId))
+                    },
+                )
+            }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
                 val readerViewModel = viewModel<ReaderViewModel>(
@@ -116,145 +191,83 @@ fun App(
                     onProgressSeekCompleted = readerViewModel::completeProgressSeek,
                 )
             }
-            composable<Onboarding> {
-                OnboardingScreen(
-                    codeValue = onboardingStateHolder.codeValue,
-                    codeState = onboardingStateHolder.codeState,
-                    onCodeValueChange = onboardingStateHolder::onCodeValueChange,
-                    nicknameValue = onboardingStateHolder.nicknameValue,
-                    nicknameState = onboardingStateHolder.nicknameState,
-                    onNicknameValueChange = onboardingStateHolder::onNicknameValueChange,
-                    navigateToCreate = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        if (!onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
-
-                            navController.navigate(Create)
-                        }
-                    },
-                    navigateToHome = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        onboardingStateHolder.codeValueCheck()
-                        if (!onboardingStateHolder.codeState && !onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
-                            onboardingStateHolder.joinGroup()
-
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
-                            }
-                        }
-                    },
-                    navigateToAroundHome = {
-                        onboardingStateHolder.nicknameValueCheck()
-                        if (!onboardingStateHolder.nicknameState) {
-                            onboardingStateHolder.setNickname()
-
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-            composable<Home> {
-                LaunchedEffect(true) {
-                    homeUiState.initGroups()
-                }
-
-                HomeScreen(
-                    currentlyReadingBookUiModel = homeUiState.uiState.currentlyReadingBookUiModel,
-                    groupUiModelList = homeUiState.uiState.groups,
-                    myNickname = onboardingStateHolder.nicknameValue,
-                    navigateToJoin = {
-                        navController.navigate(Join)
-                    },
-                    navigateToDetail = { groupId, groupCode ->
-                        navController.navigate(
-                            Detail(
-                                groupId = groupId,
-                                groupCode = groupCode,
-                            ),
-                        )
-                    },
-                    navigateToCreate = {
-                        navController.navigate(Create)
-                    },
-                )
-            }
-            composable<Detail> { backStackEntry ->
-                val route = backStackEntry.toRoute<Detail>()
-
-                detailStateHolder.initGroupData(route.groupCode)
-
-                DetailScreen(
-                    groupUiModel = detailStateHolder.uiState.groupUiModel,
-                    bookUiModel = detailStateHolder.uiState.bookUiModel,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    onReadClick = {
-                        navController.navigate(Reader(groupId = route.groupId))
-                    },
-                )
-            }
             composable<Join> {
-                LaunchedEffect(true) {
-                    joinStateHolder.initInputValue()
+                val joinViewModel: JoinViewModel = viewModel(
+                    factory = JoinViewModel.joinViewModelFactory(
+                        userRepository = appContainer.userRepository,
+                        groupRepository = appContainer.groupRepository,
+                    ),
+                )
+
+                LaunchedEffect(Unit) {
+                    joinViewModel.initInputValue()
                 }
+
+                LaunchedEffect(joinViewModel.uiState.successJoin) {
+                    if (joinViewModel.uiState.successJoin) {
+                        navController.navigate(Home) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
                 JoinScreen(
-                    codeValue = joinStateHolder.codeValue,
-                    codeState = joinStateHolder.codeState,
-                    onCodeValueChange = joinStateHolder::onCodeValueChange,
+                    uiState = joinViewModel.uiState,
+                    onCodeValueChange = joinViewModel::onCodeValueChange,
                     onBackClick = {
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        joinStateHolder.checkValue()
-                        if (!joinStateHolder.codeState) {
-                            joinStateHolder.joinGroup()
-
-                            navController.navigate(Home) {
-                                popUpTo<Home> {
-                                    inclusive = true
-                                }
-                            }
+                        joinViewModel.checkCodeBlank()
+                        if (!joinViewModel.uiState.codeState) {
+                            joinViewModel.joinGroup()
                         }
                     },
                 )
             }
             composable<Create> {
+                val createViewModel: CreateViewModel = viewModel(
+                    factory = CreateViewModel.createViewModelFactory(
+                        groupRepository = appContainer.groupRepository,
+                        bookRepository = appContainer.bookRepository,
+                    ),
+                )
+
                 LaunchedEffect(true) {
-                    createStateHolder.initInputValue()
+                    createViewModel.initInputValue()
+                }
+
+                LaunchedEffect(createViewModel.uiState.successBookLoading) {
+                    createViewModel.initBookList()
+                }
+
+                LaunchedEffect(createViewModel.uiState.successCreate) {
+                    if (createViewModel.uiState.successCreate) {
+                        val popped = navController.popBackStack<Home>(
+                            inclusive = false,
+                        )
+                        if (!popped) {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    }
                 }
 
                 CreateScreen(
-                    uiState = createStateHolder.uiState,
-                    groupNameCondition = createStateHolder.groupNameCondition,
-                    selectedBookCondition = createStateHolder.selectedBookCondition,
-                    updateGroupNameValue = createStateHolder::updateGroupNameValue,
-                    selectBook = createStateHolder::selectBook,
+                    uiState = createViewModel.uiState,
+                    updateGroupNameValue = createViewModel::updateGroupNameValue,
+                    selectBook = createViewModel::selectBook,
                     onBackClick = {
                         navController.popBackStack()
                     },
                     navigateToHome = {
-                        createStateHolder.createConditionCheck()
-                        if (!createStateHolder.createConditionCheck()) {
-                            createStateHolder.createGroup()
-
-                            val popped = navController.popBackStack<Home>(
-                                inclusive = false,
-                            )
-                            if (!popped) {
-                                navController.navigate(Home) {
-                                    popUpTo<Onboarding> {
-                                        inclusive = true
-                                    }
-                                }
-                            }
+                        if (!createViewModel.createConditionCheck()) {
+                            createViewModel.createGroup()
                         }
                     },
                 )

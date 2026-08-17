@@ -15,11 +15,11 @@ import com.yeobaek.core.designsystem.component.YeobaekTextField
 @Composable
 fun OnboardingYeobaekTextField(
     title: String,
-    isError: Boolean,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),

@@ -1,0 +1,142 @@
+package com.yeobaek.feature.group.create
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.repository.BookRepository
+import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.feature.group.create.model.CreateBookUiModel
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.launch
+
+class CreateViewModel(
+    private val groupRepository: GroupRepository,
+    private val bookRepository: BookRepository,
+) : ViewModel() {
+    var uiState by mutableStateOf(CreateUiState())
+        private set
+
+    fun initBookList() {
+        viewModelScope.launch {
+            try {
+                val groups = bookRepository.getBooks()
+                uiState = uiState.copy(
+                    bookList = groups.map {
+                        CreateBookUiModel(
+                            id = it.id,
+                            uri = it.uri,
+                            title = it.title,
+                            author = it.author,
+                            description = it.description,
+                        )
+                    },
+                    successBookLoading = true,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    successBookLoading = false,
+                    bookList = emptyList(),
+                )
+            }
+        }
+    }
+
+    fun initInputValue() {
+        uiState = uiState.copy(
+            groupNameValue = "",
+            bookList = uiState.bookList.map {
+                it.copy(selected = false)
+            },
+            groupNameCondition = false,
+            selectedBookCondition = false,
+        )
+    }
+
+    fun updateGroupNameValue(value: String) {
+        uiState = uiState.copy(
+            groupNameValue = value.take(20),
+            groupNameCondition = false,
+        )
+    }
+
+    fun selectBook(index: Int) {
+        uiState = uiState.copy(
+            bookList = uiState.bookList.mapIndexed { i, book ->
+                if (i == index) {
+                    book.copy(selected = !book.selected)
+                } else {
+                    book.copy(selected = false)
+                }
+            },
+            selectedBookCondition = false,
+        )
+    }
+
+    fun createGroup() {
+        viewModelScope.launch {
+            try {
+                val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
+
+                groupRepository.createGroup(
+                    groupName = uiState.groupNameValue,
+                    bookId = bookId,
+                )
+
+                uiState = uiState.copy(
+                    successCreate = true,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    successCreate = false,
+                )
+            }
+        }
+    }
+
+    fun groupNameCheck() {
+        uiState = uiState.copy(
+            groupNameCondition = uiState.groupNameValue.isBlank(),
+        )
+
+        if (uiState.groupNameCondition) {
+            uiState = uiState.copy(
+                groupNameValue = "",
+            )
+        }
+    }
+
+    fun selectedBookCheck() {
+        uiState = uiState.copy(
+            selectedBookCondition = uiState.bookList.all { !it.selected },
+        )
+    }
+
+    fun createConditionCheck(): Boolean {
+        groupNameCheck()
+        selectedBookCheck()
+        return uiState.groupNameCondition || uiState.selectedBookCondition
+    }
+
+    companion object {
+        fun createViewModelFactory(
+            groupRepository: GroupRepository,
+            bookRepository: BookRepository,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                CreateViewModel(
+                    groupRepository = groupRepository,
+                    bookRepository = bookRepository,
+                )
+            }
+        }
+    }
+}

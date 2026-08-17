@@ -12,7 +12,7 @@ data class Member(
 
 fun Member.toModel(): MemberModel =
     MemberModel(
-        memberId = memberId,
+        id = memberId,
         mine = mine,
         nickname = nickname,
     )

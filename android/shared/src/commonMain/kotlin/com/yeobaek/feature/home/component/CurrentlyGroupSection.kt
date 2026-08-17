@@ -17,7 +17,7 @@ import com.yeobaek.feature.home.model.GroupUiModel
 fun CurrentlyGroupSection(
     title: String,
     groupUiModelList: List<GroupUiModel>,
-    navigateToDetail: (Int, String) -> Unit,
+    navigateToDetail: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -28,14 +28,14 @@ fun CurrentlyGroupSection(
         )
         Spacer(modifier = Modifier.height(16.dp))
         LazyColumn {
-            items(items = groupUiModelList, key = { it.groupCode }) { groupUiModel ->
+            items(items = groupUiModelList, key = { it.groupId }) { groupUiModel ->
                 HomeGroupCard(
                     uri = groupUiModel.uri,
                     title = groupUiModel.title,
                     groupName = groupUiModel.groupName,
                     groupCount = groupUiModel.groupCount,
                     navigateToDetail = {
-                        navigateToDetail(groupUiModel.groupId, groupUiModel.groupCode)
+                        navigateToDetail(groupUiModel.groupId)
                     },
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -50,23 +50,8 @@ private fun CurrentlyGroupSectionPreview() {
     YeobaekTheme {
         CurrentlyGroupSection(
             title = "내 모임",
-            groupUiModelList = listOf(
-                GroupUiModel(
-                    groupCode = "BOOK42",
-                    uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791187192596.jpg?t=2977195",
-                    title = "어린 왕자",
-                    groupName = "어른이들을 위한 동화 읽기",
-                    groupCount = 8,
-                ),
-                GroupUiModel(
-                    groupCode = "XXXXXX",
-                    uri = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
-                    title = "데미안",
-                    groupName = "고전 읽는 오후 모임",
-                    groupCount = 4,
-                ),
-            ),
-            navigateToDetail = { _, _ -> },
+            groupUiModelList = emptyList(),
+            navigateToDetail = {},
         )
     }
 }

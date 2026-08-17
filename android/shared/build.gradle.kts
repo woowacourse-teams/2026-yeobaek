@@ -82,6 +82,8 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktorfit.lib)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.ktorfit.converters.response)
 
             // kotlinx-serialization (json parsing)
             implementation(libs.kotlinx.serialization.json)
@@ -89,6 +91,9 @@ kotlin {
             // image loading (coil3)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
+
+            // multiplatform settings
+            implementation(libs.multiplatform.settings)
         }
 
         commonTest.dependencies {

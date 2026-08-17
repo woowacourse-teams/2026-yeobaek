@@ -16,10 +16,12 @@ fun YeobaekButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
         shape = MaterialTheme.shapes.small,
     ) {
         Text(
