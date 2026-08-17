@@ -12,9 +12,8 @@ class GroupRepositoryImpl(
     private val clubApi: ClubApi,
 ) : GroupRepository {
     override suspend fun getGroups(
-        userId: Int,
     ): List<GroupModel> {
-        val response = clubApi.getUserClubs(userId)
+        val response = clubApi.getUserClubs()
 
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("그룹 정보가 없네요")
@@ -25,11 +24,9 @@ class GroupRepositoryImpl(
 
     override suspend fun createGroup(
         groupName: String,
-        userId: Int,
         bookId: Int,
     ) {
         val response = clubApi.createClub(
-            userId = userId,
             request = ClubRequest(bookId = bookId, name = groupName),
         )
 
@@ -38,9 +35,8 @@ class GroupRepositoryImpl(
         }
     }
 
-    override suspend fun joinGroup(joinCode: String, userId: Int) {
+    override suspend fun joinGroup(joinCode: String) {
         val response = clubApi.joinClub(
-            userId = userId,
             request = JoinRequest(joinCode = joinCode),
         )
 
@@ -49,9 +45,8 @@ class GroupRepositoryImpl(
         }
     }
 
-    override suspend fun getGroupDetail(userId: Int, groupId: Int): GroupDetailModel {
+    override suspend fun getGroupDetail(groupId: Int): GroupDetailModel {
         val response = clubApi.getClubDetail(
-            userId = userId,
             clubId = groupId,
         )
 

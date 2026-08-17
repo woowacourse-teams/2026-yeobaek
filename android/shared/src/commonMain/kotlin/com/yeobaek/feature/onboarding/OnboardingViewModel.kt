@@ -47,7 +47,6 @@ class OnboardingViewModel(
 
                 groupRepository.joinGroup(
                     joinCode = uiState.codeValue,
-                    userId = userId,
                 )
 
                 uiState = uiState.copy(

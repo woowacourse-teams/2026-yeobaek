@@ -47,7 +47,7 @@ class HomeViewModel(
             try {
                 val username = userRepository.getUsername()
                 val userId = userRepository.getUserId()
-                val groups = groupRepository.getGroups(userId)
+                val groups = groupRepository.getGroups()
 
                 uiState = uiState.copy(
                     username = username,

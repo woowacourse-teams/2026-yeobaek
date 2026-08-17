@@ -28,7 +28,7 @@ class CreateViewModel(
             try {
                 val userId = userRepository.getUserId()
 
-                val groups = bookRepository.getBooks(userId = userId)
+                val groups = bookRepository.getBooks()
                 uiState = uiState.copy(
                     bookList = groups.map {
                         CreateBookUiModel(
@@ -91,7 +91,6 @@ class CreateViewModel(
 
                 groupRepository.createGroup(
                     groupName = uiState.groupNameValue,
-                    userId = userId,
                     bookId = bookId,
                 )
 

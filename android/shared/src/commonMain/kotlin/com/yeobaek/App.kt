@@ -194,7 +194,7 @@ fun App(
                         navController.popBackStack()
                     },
                     onReadClick = {
-
+                        navController.navigate(Reader(groupId = route.groupId))
                     }
                 )
             }

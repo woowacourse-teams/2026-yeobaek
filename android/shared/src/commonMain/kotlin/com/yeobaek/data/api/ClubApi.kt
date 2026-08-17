@@ -16,27 +16,23 @@ interface ClubApi {
     @Headers("Content-Type: application/json")
     @GET("api/clubs")
     suspend fun getUserClubs(
-        @Header("X-member-Id") userId: Int,
     ): Response<ClubsResponse>
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs")
     suspend fun createClub(
-        @Header("X-member-Id") userId: Int,
         @Body request: ClubRequest,
     ): Response<Unit>
 
     @Headers("Content-Type: application/json")
     @GET("api/clubs/{clubId}")
     suspend fun getClubDetail(
-        @Header("X-member-Id") userId: Int,
         @Path("clubId") clubId: Int,
     ): Response<ClubDetailResponse>
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs/join")
     suspend fun joinClub(
-        @Header("X-member-Id") userId: Int,
         @Body request: JoinRequest,
     ): Response<Unit>
 }

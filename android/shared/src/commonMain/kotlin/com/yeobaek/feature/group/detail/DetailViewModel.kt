@@ -33,7 +33,6 @@ class DetailViewModel(
             try {
                 val userId = userRepository.getUserId()
                 val groupDetail = groupRepository.getGroupDetail(
-                    userId = userId,
                     groupId = groupId,
                 )
                 uiState = uiState.copy(

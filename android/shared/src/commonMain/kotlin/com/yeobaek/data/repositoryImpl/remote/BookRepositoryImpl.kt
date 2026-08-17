@@ -10,9 +10,8 @@ class BookRepositoryImpl(
     private val bookApi: BookApi,
 ) : BookRepository {
     override suspend fun getBooks(
-        userId: Int,
     ): List<BookModel> {
-        val response = bookApi.getBooks(userId)
+        val response = bookApi.getBooks()
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("책 정보가 없네요")
         } else {
@@ -20,7 +19,7 @@ class BookRepositoryImpl(
         }
     }
 
-    override suspend fun getBook(userId: Int, bookId: Int): BookModel = getBooks(userId).find {
+    override suspend fun getBook(bookId: Int): BookModel = getBooks().find {
         it.id == bookId
     } ?: throw IllegalArgumentException("존재하지 않는 책입니다.")
 

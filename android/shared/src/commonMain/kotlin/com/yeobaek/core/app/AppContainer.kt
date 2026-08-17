@@ -16,21 +16,32 @@ import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 class AppContainer(
     private val isDebug: Boolean,
 ) {
-    private val networkProvider = NetworkProvider(
-        isDebug = isDebug,
-    )
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)
+
+    private val networkProvider = NetworkProvider(
+        userPreferences = userPreferences,
+        isDebug = isDebug,
+    )
 
     private val apiProvider = ApiProvider(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val userRepository: UserRepository = UserRepositoryImpl(apiProvider.userApi, userPreferences)
-    val bookRepository: BookRepository = BookRepositoryImpl(apiProvider.bookApi)
-    val groupRepository: GroupRepository = GroupRepositoryImpl(apiProvider.clubApi)
-    val readerRepository: ReaderRepository = ReaderRepositoryImpl(apiProvider.readerApi)
+    val userRepository: UserRepository = UserRepositoryImpl(
+        userApi = apiProvider.userApi,
+        userPreferences = userPreferences
+    )
+    val bookRepository: BookRepository = BookRepositoryImpl(
+        bookApi = apiProvider.bookApi
+    )
+    val groupRepository: GroupRepository = GroupRepositoryImpl(
+        clubApi = apiProvider.clubApi
+    )
+    val readerRepository: ReaderRepository = ReaderRepositoryImpl(
+        readerApi = apiProvider.readerApi
+    )
 
     fun close() {
         networkProvider.close()

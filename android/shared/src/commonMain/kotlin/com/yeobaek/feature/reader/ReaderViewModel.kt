@@ -46,7 +46,7 @@ class ReaderViewModel(
 
             try {
                 val userId = userRepository.getUserId()
-                val groupDetail = groupRepository.getGroupDetail(userId = userId, groupId = groupId)
+                val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
                 val passageCount = groupDetail.book.passageCount
                 val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
                     .coerceIn(
