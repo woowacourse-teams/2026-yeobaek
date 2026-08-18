@@ -25,22 +25,31 @@ class HomeViewModel(
 
     fun initCurrentlyBook() {
         viewModelScope.launch {
-            val lastReading = userRepository.getLastReading()
+            try {
+                val lastReading = userRepository.getLastReading()
 
-            uiState = uiState.copy(
-                currentlyReadingBookUiModel = if (lastReading != null) {
-                    CurrentlyReadingBookUiModel(
-                        clubId = lastReading.clubId,
-                        groupName = lastReading.clubName,
-                        title = lastReading.book.title,
-                        coverImageUrl = "https://i.pinimg.com/736x/06/2b/21/062b21a8759dcd25158bfe2b792e4f7b.jpg",
-                        authors = lastReading.book.authors,
-                        progressRate = lastReading.progressRate,
-                    )
-                } else {
-                    null
-                },
-            )
+                uiState = uiState.copy(
+                    currentlyReadingBookUiModel = if (lastReading != null) {
+                        CurrentlyReadingBookUiModel(
+                            clubId = lastReading.clubId,
+                            groupName = lastReading.clubName,
+                            title = lastReading.book.title,
+                            coverImageUrl = "https://i.pinimg.com/736x/06/2b/21/062b21a8759dcd25158bfe2b792e4f7b.jpg",
+                            authors = lastReading.book.authors,
+                            progressRate = lastReading.progressRate,
+                        )
+                    } else {
+                        null
+                    },
+                )
+            } catch (e: io.ktor.utils.io.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    currentlyReadingBookUiModel = null,
+                )
+            }
+
         }
     }
 
