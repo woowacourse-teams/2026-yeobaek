@@ -49,7 +49,6 @@ class HomeViewModel(
                     currentlyReadingBookUiModel = null,
                 )
             }
-
         }
     }
 
