@@ -15,7 +15,7 @@ fun Book.toModel(): BookModel = BookModel(
     id = bookId,
     uri = "",
     title = title,
-    author = authors.joinToString(),
+    authors = authors.joinToString(),
     progressRate = 0f,
     description = "",
 )

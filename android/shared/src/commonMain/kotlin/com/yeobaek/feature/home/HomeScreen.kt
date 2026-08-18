@@ -23,11 +23,9 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupButtonSection
-import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 
 @Composable
 fun HomeScreen(
-    currentlyReadingBookUiModel: CurrentlyReadingBookUiModel?,
     uiState: HomeUiState,
     navigateToJoin: () -> Unit,
     navigateToDetail: (Int) -> Unit,
@@ -50,7 +48,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
-            currentlyReadingBookUiModel?.let { book ->
+            uiState.currentlyReadingBookUiModel?.let { book ->
                 Spacer(modifier = Modifier.height(36.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
@@ -106,13 +104,6 @@ private fun AppTitle(
 private fun HomeScreenPreview() {
     YeobaekTheme {
         HomeScreen(
-            currentlyReadingBookUiModel = CurrentlyReadingBookUiModel(
-                groupName = "고전 읽는 오후 모임",
-                title = "데미안",
-                coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
-                authors = "헤르만 헤세",
-                progressRate = 12f,
-            ),
             uiState = HomeUiState(),
             navigateToJoin = {},
             navigateToDetail = {},
