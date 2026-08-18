@@ -30,6 +30,7 @@ fun HomeScreen(
     navigateToJoin: () -> Unit,
     navigateToDetail: (Int) -> Unit,
     navigateToCreate: () -> Unit,
+    navigateToReader: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -52,6 +53,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(36.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
+                    navigateToReader = navigateToReader,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -108,6 +110,7 @@ private fun HomeScreenPreview() {
             navigateToJoin = {},
             navigateToDetail = {},
             navigateToCreate = {},
+            navigateToReader = {},
         )
     }
 }

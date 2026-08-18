@@ -130,6 +130,9 @@ fun App(
                     navigateToCreate = {
                         navController.navigate(Create)
                     },
+                    navigateToReader = {
+                        navController.navigate(Reader(groupId = it))
+                    },
                 )
             }
             composable<Detail> { backStackEntry ->
