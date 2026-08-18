@@ -11,8 +11,8 @@ class CommentRepositoryImpl(
     private val commentApi: CommentApi,
 ) : CommentRepository {
     override suspend fun getComments(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
     ): CommentsModel = commentApi
         .getComments(
             clubId = clubId,
@@ -21,8 +21,8 @@ class CommentRepositoryImpl(
         .toModel()
 
     override suspend fun createComment(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
         content: String,
     ): CommentModel = commentApi
         .createComment(
@@ -33,7 +33,7 @@ class CommentRepositoryImpl(
         .toModel()
 
     override suspend fun updateComment(
-        commentId: Int,
+        commentId: Long,
         content: String,
     ): CommentModel = commentApi
         .updateComment(
@@ -42,7 +42,7 @@ class CommentRepositoryImpl(
         )
         .toModel()
 
-    override suspend fun deleteComment(commentId: Int) {
+    override suspend fun deleteComment(commentId: Long) {
         commentApi.deleteComment(commentId = commentId)
     }
 }

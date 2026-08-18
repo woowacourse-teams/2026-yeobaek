@@ -28,9 +28,9 @@ import com.yeobaek.feature.home.component.GroupButtonSection
 fun HomeScreen(
     uiState: HomeUiState,
     navigateToJoin: () -> Unit,
-    navigateToDetail: (Int) -> Unit,
+    navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
-    navigateToReader: (Int) -> Unit,
+    navigateToReader: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(

@@ -5,10 +5,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Passage(
-    val chapterId: Int,
+    val chapterId: Long,
     val commentCount: Int,
     val content: String,
-    val passageId: Int,
+    val passageId: Long,
     val sequence: Int,
 )
 

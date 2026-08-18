@@ -23,7 +23,7 @@ class GroupRepositoryImpl(
 
     override suspend fun createGroup(
         groupName: String,
-        bookId: Int,
+        bookId: Long,
     ) {
         val response = clubApi.createClub(
             request = ClubRequest(bookId = bookId, name = groupName),
@@ -44,7 +44,7 @@ class GroupRepositoryImpl(
         }
     }
 
-    override suspend fun getGroupDetail(groupId: Int): GroupDetailModel {
+    override suspend fun getGroupDetail(groupId: Long): GroupDetailModel {
         val response = clubApi.getClubDetail(
             clubId = groupId,
         )

@@ -5,6 +5,6 @@ import com.yeobaek.data.model.BookModel
 
 interface BookRepository {
     suspend fun getBooks(): List<BookModel>
-    suspend fun getBook(bookId: Int): BookModel
-    suspend fun getBookDetail(bookId: Int): BookDetailModel
+    suspend fun getBook(bookId: Long): BookModel
+    suspend fun getBookDetail(bookId: Long): BookDetailModel
 }

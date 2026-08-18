@@ -15,7 +15,7 @@ import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 @Composable
 fun CurrentlyReadingBookSection(
     bookUiModel: CurrentlyReadingBookUiModel,
-    navigateToReader: (Int) -> Unit,
+    navigateToReader: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(

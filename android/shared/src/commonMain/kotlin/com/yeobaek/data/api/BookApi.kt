@@ -12,6 +12,6 @@ interface BookApi {
 
     @GET("api/books/{bookId}")
     suspend fun getBookDetail(
-        @Path("bookId") bookId: Int,
+        @Path("bookId") bookId: Long,
     ): BookDetailResponse
 }

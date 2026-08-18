@@ -19,8 +19,8 @@ import com.yeobaek.feature.reader.ReaderPreviewData
 @Composable
 fun CommentList(
     uiState: PassageCommentSheetUiState,
-    onEditComment: (Int) -> Unit,
-    onDeleteComment: (Int) -> Unit,
+    onEditComment: (Long) -> Unit,
+    onDeleteComment: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {

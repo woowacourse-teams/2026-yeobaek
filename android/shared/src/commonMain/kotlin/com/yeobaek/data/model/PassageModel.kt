@@ -1,9 +1,9 @@
 package com.yeobaek.data.model
 
 data class PassageModel(
-    val chapterId: Int,
+    val chapterId: Long,
     val commentCount: Int,
     val content: String,
-    val passageId: Int,
+    val passageId: Long,
     val sequence: Int,
 )

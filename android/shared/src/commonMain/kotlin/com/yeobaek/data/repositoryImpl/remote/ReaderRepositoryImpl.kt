@@ -11,7 +11,7 @@ class ReaderRepositoryImpl(
     private val readerApi: ReaderApi,
 ) : ReaderRepository {
     override suspend fun getPassages(
-        groupId: Int,
+        groupId: Long,
         from: Int,
         to: Int,
     ): PassagesModel = readerApi
@@ -23,8 +23,8 @@ class ReaderRepositoryImpl(
         .toModel()
 
     override suspend fun updatePassage(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
     ): MyProgressModel = readerApi
         .updatePassage(
             clubId = clubId,

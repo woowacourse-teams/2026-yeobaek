@@ -1,7 +1,7 @@
 package com.yeobaek.feature.home.model
 
 data class CurrentlyReadingBookUiModel(
-    val clubId: Int,
+    val clubId: Long,
     val groupName: String,
     val title: String,
     val coverImageUrl: String,

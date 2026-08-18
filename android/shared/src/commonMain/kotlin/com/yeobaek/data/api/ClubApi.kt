@@ -25,7 +25,7 @@ interface ClubApi {
     @Headers("Content-Type: application/json")
     @GET("api/clubs/{clubId}")
     suspend fun getClubDetail(
-        @Path("clubId") clubId: Int,
+        @Path("clubId") clubId: Long,
     ): Response<ClubDetailResponse>
 
     @Headers("Content-Type: application/json")

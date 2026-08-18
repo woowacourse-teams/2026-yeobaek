@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LastReadingResponse(
     val book: Book,
-    val clubId: Int,
+    val clubId: Long,
     val clubName: String,
     val lastReadAt: String,
     val lastReadPassageSequence: Int,

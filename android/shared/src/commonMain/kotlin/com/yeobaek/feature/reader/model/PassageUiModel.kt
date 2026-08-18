@@ -3,9 +3,9 @@ package com.yeobaek.feature.reader.model
 import com.yeobaek.data.model.PassageModel
 
 data class PassageUiModel(
-    val passageId: Int,
+    val passageId: Long,
     val sequence: Int,
-    val chapterId: Int,
+    val chapterId: Long,
     val content: String,
     val commentCount: Int,
 ) {
