@@ -161,6 +161,7 @@ fun App(
                         groupId = route.groupId,
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
+                        commentRepository = appContainer.commentRepository,
                     ),
                 )
 

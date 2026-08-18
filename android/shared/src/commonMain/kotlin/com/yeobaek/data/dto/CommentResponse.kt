@@ -1,8 +1,10 @@
-package com.yeobaek.feature.reader.model
+package com.yeobaek.data.dto
 
 import com.yeobaek.data.model.CommentModel
+import kotlinx.serialization.Serializable
 
-data class PassageCommentUiModel(
+@Serializable
+data class CommentResponse(
     val commentId: Int,
     val memberId: Int,
     val nickname: String,
@@ -10,13 +12,10 @@ data class PassageCommentUiModel(
     val createdAt: String,
     val updatedAt: String?,
     val mine: Boolean,
-) {
-    val isEdited: Boolean
-        get() = updatedAt != null
-}
+)
 
-fun CommentModel.toUiModel(): PassageCommentUiModel =
-    PassageCommentUiModel(
+fun CommentResponse.toModel(): CommentModel =
+    CommentModel(
         commentId = commentId,
         memberId = memberId,
         nickname = nickname,

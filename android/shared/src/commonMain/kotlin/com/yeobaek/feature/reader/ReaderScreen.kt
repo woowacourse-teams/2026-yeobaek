@@ -48,9 +48,9 @@ fun ReaderScreen(
     onCommentSheetDismiss: () -> Unit,
     onCommentInputChange: (String) -> Unit,
     onCommentSubmit: () -> Unit,
-    onCommentEdit: (Long) -> Unit,
+    onCommentEdit: (Int) -> Unit,
     onCommentEditCancel: () -> Unit,
-    onCommentDelete: (Long) -> Unit,
+    onCommentDelete: (Int) -> Unit,
     onCommentDeleteCancel: () -> Unit,
     onCommentDeleteConfirm: () -> Unit,
     onLoadPrevious: () -> Boolean,
@@ -381,9 +381,9 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = mockPassages,
+                passages = ReaderPreviewData.passages,
                 currentSequence = 4,
-                totalPassageCount = mockPassages.size,
+                totalPassageCount = ReaderPreviewData.passages.size,
             ),
             onPassageClick = {},
             onBackClick = {},
@@ -409,7 +409,7 @@ private fun ReaderScreenPreview() {
 }
 
 internal data class PassageAnchor(
-    val passageId: Long,
+    val passageId: Int,
     val scrollOffset: Int,
 )
 

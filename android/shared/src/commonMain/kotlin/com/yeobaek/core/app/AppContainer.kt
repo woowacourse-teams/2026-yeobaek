@@ -5,10 +5,12 @@ import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
+import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
@@ -35,6 +37,9 @@ class AppContainer(
     )
     val bookRepository: BookRepository = BookRepositoryImpl(
         bookApi = apiProvider.bookApi,
+    )
+    val commentRepository: CommentRepository = CommentRepositoryImpl(
+        commentApi = apiProvider.commentApi,
     )
     val groupRepository: GroupRepository = GroupRepositoryImpl(
         clubApi = apiProvider.clubApi,
