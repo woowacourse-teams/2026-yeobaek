@@ -11,6 +11,7 @@
       [--meta 메타데이터.json]
       [--chapter-re 정규식]   원문 장 제목 패턴 (기본: 로마숫자 "I. 제목")
       [-o ingest.json]
+      [--zip-output 책이름.zip]   보관용 ZIP 경로 (생략 시 메타데이터 title 기반)
       [--partial]     완료된 장까지만 대조 (진행 중 검증용)
       [--no-verify]   원문 대조를 건너뜀
       [--force]       검증 실패해도 JSON을 출력
@@ -24,7 +25,12 @@ import argparse
 import json
 import re
 import sys
+import zipfile
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 # 기본값: 열 0에서 시작하는 로마숫자 장 제목 ("I. Silver Blaze" 형태)
 # 다른 형식의 책은 --chapter-re로 교체한다. 예: "^CHAPTER [IVXLCDM]+" , "^Chapter \d+"
@@ -166,6 +172,57 @@ def list_chapters(original, chapter_re):
     print(f"\n장 {len(chapters)}개, 문단 총 {total}개")
 
 
+def create_archive(zip_output, book_dir, ingest_path, meta_path):
+    """최종 보관용 ZIP을 만든다. 원문 입력 파일은 포함하지 않는다."""
+    book_dir = book_dir.resolve()
+    zip_output = zip_output.resolve()
+    fixed_files = [
+        ingest_path,
+        meta_path,
+        book_dir / "장_정보.md",
+        book_dir / "번역_공통_가이드.md",
+    ]
+    output_dirs = [
+        book_dir / "번역본",
+        book_dir / "리뷰",
+    ]
+
+    zip_output.parent.mkdir(parents=True, exist_ok=True)
+    seen = set()
+    with zipfile.ZipFile(zip_output, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in fixed_files:
+            if not path or not path.exists() or not path.is_file():
+                continue
+            resolved = path.resolve()
+            arcname = resolved.relative_to(book_dir).as_posix()
+            zf.write(resolved, arcname)
+            seen.add(resolved)
+
+        for directory in output_dirs:
+            if not directory.exists() or not directory.is_dir():
+                continue
+            for path in sorted(directory.rglob("*")):
+                if not path.is_file():
+                    continue
+                resolved = path.resolve()
+                if resolved in seen:
+                    continue
+                arcname = resolved.relative_to(book_dir).as_posix()
+                zf.write(resolved, arcname)
+                seen.add(resolved)
+
+
+def default_archive_name(title, fallback):
+    """메타데이터 제목을 파일명으로 안전하게 바꾼다."""
+    stem = (title or fallback or "book").strip()
+    stem = re.sub(r"\s+", "_", stem)
+    stem = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", stem)
+    stem = re.sub(r"_+", "_", stem).strip("._ ")
+    if not stem:
+        stem = "book"
+    return f"{stem}.zip"
+
+
 def main():
     ap = argparse.ArgumentParser(description="번역본 → 인제스트 JSON 변환/검증")
     ap.add_argument("translations", nargs="*", type=Path, help="번역본 .md 파일(순서대로 병합)")
@@ -175,6 +232,9 @@ def main():
                     help="원문 장 제목 정규식 (기본: 로마숫자 'I. 제목' 형태)")
     ap.add_argument("-o", "--output", type=Path,
                     help="출력 경로 (기본: 메타데이터.json과 같은 폴더의 ingest.json)")
+    ap.add_argument("--zip-output", type=Path,
+                    help="최종 변환 성공 후 보관용 ZIP을 생성할 경로 "
+                         "(생략 시 메타데이터 title 기반 책이름.zip)")
     ap.add_argument("--list-chapters", action="store_true",
                     help="원문의 장 제목·라인 범위·문단 수만 출력하고 종료")
     ap.add_argument("--no-verify", action="store_true", help="원문 문단 수 대조를 건너뜀")
@@ -249,6 +309,12 @@ def main():
     output = args.output or args.meta.parent / "ingest.json"
     output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"저장 완료: {output}")
+
+    zip_output = args.zip_output or Path(default_archive_name(meta.get("title", ""), output.parent.name))
+    if not zip_output.is_absolute():
+        zip_output = output.parent / zip_output
+    create_archive(zip_output, output.parent, output, args.meta)
+    print(f"ZIP 저장 완료: {zip_output}")
 
 
 if __name__ == "__main__":
