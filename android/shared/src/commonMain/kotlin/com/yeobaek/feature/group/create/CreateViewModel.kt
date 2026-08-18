@@ -31,7 +31,7 @@ class CreateViewModel(
                             id = it.id,
                             uri = it.uri,
                             title = it.title,
-                            author = it.author,
+                            authors = it.authors,
                             description = it.description,
                         )
                     },

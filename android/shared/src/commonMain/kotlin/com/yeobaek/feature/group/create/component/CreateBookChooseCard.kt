@@ -46,7 +46,7 @@ fun CreateBookChooseCard(
                 CreateBookCard(
                     uri = book.uri,
                     title = book.title,
-                    author = book.author,
+                    author = book.authors,
                     description = book.description,
                     selected = book.selected,
                     onClickBook = {
