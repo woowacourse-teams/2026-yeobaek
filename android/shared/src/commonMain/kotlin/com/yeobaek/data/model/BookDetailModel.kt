@@ -2,7 +2,7 @@ package com.yeobaek.data.model
 
 data class BookDetailModel(
     val authors: List<String>,
-    val bookId: Int,
+    val bookId: Long,
     val chapters: List<ChapterModel>,
     val passageCount: Int,
     val publishedYear: Int,
