@@ -110,9 +110,30 @@ def validate(book):
     check_len("출판사", book.get("publisher", ""))
     if not book.get("authors"):
         errors.append("authors가 비어 있음")
-    for a in book.get("authors", []):
-        if "name" in a:
-            check_len("작가명", a["name"])
+    for i, a in enumerate(book.get("authors", []), 1):
+        if not isinstance(a, dict):
+            errors.append(f"{i}번째 작가 정보가 객체가 아님")
+            continue
+        check_len(f"{i}번째 작가명", a.get("name", ""))
+        isni = str(a.get("isni", "")).strip()
+        if not isni:
+            errors.append(f"{i}번째 작가 ISNI가 비어 있음: {a.get('name', '')}")
+        else:
+            normalized_isni = re.sub(r"[\s-]", "", isni).upper()
+            if not re.fullmatch(r"\d{15}[\dX]", normalized_isni):
+                errors.append(
+                    f"{i}번째 작가 ISNI 형식 오류(16자리, 마지막은 숫자 또는 X): {isni}"
+                )
+            else:
+                # ISO/IEC 7064 MOD 11-2: 15자리 데이터와 체크 문자의
+                # 가중합이 1 (mod 11)이 되도록 한다.
+                weights = (10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
+                total = sum(int(digit) * weight
+                            for digit, weight in zip(normalized_isni[:15], weights))
+                expected = (1 - total) % 11
+                actual = 10 if normalized_isni[-1] == "X" else int(normalized_isni[-1])
+                if actual != expected:
+                    errors.append(f"{i}번째 작가 ISNI 체크디짓 불일치: {isni}")
     if not book.get("chapters"):
         errors.append("chapters가 비어 있음")
     for i, ch in enumerate(book.get("chapters", []), 1):
