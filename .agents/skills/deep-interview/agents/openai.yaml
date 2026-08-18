@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deep Interview"
+  short_description: "Clarify vague requirements one decision at a time"
+  default_prompt: "Use $deep-interview to clarify this vague request before planning or implementation."

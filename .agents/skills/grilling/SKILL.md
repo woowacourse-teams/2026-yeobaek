@@ -1,22 +1,52 @@
 ---
 name: grilling
-description: Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.
+description: 설계 초안의 결정 트리와 누락된 경계를 집요하게 검증한다. 사용자가 grill, grill-me, 그릴, 설계 압박 검증을 요청하거나 되돌리기 비싼 설계를 구현 전에 점검하려 할 때 사용한다. 백지 상태의 모호한 요구에는 deep-interview를 먼저 사용한다.
 ---
 
-Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
+# Grilling
 
-Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
+먼저 `../../../backend/docs/지침/피드백_루프_하네스.md`와
+`../../../backend/docs/지침/그릴_활용.md`를 끝까지 읽고 우선 적용한다.
 
-Each question should be formatted like so:
+개발자가 자기 언어로 2~3문단의 설계 방향을 설명할 수 있고, 모호한 요구사항은
+`deep-interview`를 통과한 뒤에만 시작한다.
 
+각 frontier 항목을 질문하기 전에 반드시 분류한다.
+
+- 글자 수, 형식, 중복, 공백 처리 같은 미시 정책이면 일반 그릴 질문으로 묻지 말고
+  `정책 관문 대기`로 보내 정책 질의서에서 한 번만 묻는다.
+- 데이터 모델·스키마·저장 방식·외부 API 계약·새 의존성·구조·성능·동시성·실패 처리·
+  기존 컨벤션 이탈이면 일반 그릴 질문으로 묻지 말고 `결정 관문 대기`로 보내 하네스의
+  결정 요청서 형식으로 전환한다.
+- 위 관문에 해당하지 않는 설계 가정, 누락, 경계와 반례만 그릴 질문으로 묻는다.
+
+현재 frontier 전체가 공식 관문 대상이면 그릴 질문을 만들지 않는다. 대신 정책 질의서나
+결정 요청서를 제출하고, 개발자의 승인 전에는 해당 가지를 더 전개하거나 구현하지 않는다.
+
+설계를 결정 트리로 만들고, 선행 결정이 끝난 질문만 현재 frontier에 둔다. 같은 frontier의
+독립 질문은 번호를 붙여 한 라운드에 묻고 답을 기다린다. 답에 따라 트리를 다시 계산한다.
+
+각 질문은 다음 형식을 사용한다.
+
+```md
+❓ **Q1 — 질문 제목**: 질문 본문
+
+근거: 코드·문서·측정 위치
 ```
-❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
 
-➡️ <your recommended answer>
-```
+다음 프로젝트 규칙을 지킨다.
 
-Each round the user answers reshapes the tree — settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
+- 저장소에서 찾을 수 있는 사실은 직접 조사하고, 개발자에게는 판단만 묻는다.
+- `deep-interview`나 요구사항 전달물에서 이미 답한 실질 질문을 반복하지 않는다.
+- 추천 답변을 기본으로 붙이지 않는다. 개발자가 명시적으로 추천을 요청한 경우에만
+  관찰 근거와 함께 제안으로 표시한다.
+- 개발자의 선택 이유, 구조 설명, 회고를 대신 작성·요약·윤문하지 않는다.
+- 미시 정책과 하네스 2장 결정을 위 분류 없이 일반 질문에 섞지 않는다. 같은 실질 내용을
+  그릴과 공식 관문에서 두 번 묻지 않는다.
+- 개발자가 관문 전에 답을 자발적으로 제공하면 원문을 그대로 넘기고, 공식 관문에서는
+  승인 또는 정정만 받는다.
+- 인터뷰 답변은 요구·설계 맥락이지 R1의 승인 기록이 아니다.
 
-Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it — don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report — ask the rest of the frontier now. The _decisions_ are the user's — put each to them and wait.
-
-The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
+frontier가 비었거나 남은 모든 가지가 `범위 제외`, `연기`, `정책 관문 대기`,
+`결정 관문 대기` 중 하나로 배정되면 종료한다. 공유 이해를 개발자가 확인하고 필요한
+공식 관문이 닫히기 전에는 구현하지 않는다.
