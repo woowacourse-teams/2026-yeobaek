@@ -384,7 +384,6 @@ private fun ReaderContent(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             horizontal = 32.dp,
-            vertical = 32.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
