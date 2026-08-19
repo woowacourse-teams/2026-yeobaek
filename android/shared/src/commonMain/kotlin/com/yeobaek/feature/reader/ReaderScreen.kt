@@ -1,6 +1,5 @@
 package com.yeobaek.feature.reader
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,7 +25,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -352,7 +350,7 @@ private fun ReaderContent(
 ) {
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize().background(color = Color.Blue),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             horizontal = 32.dp,
         ),
@@ -369,7 +367,6 @@ private fun ReaderContent(
                     onPassageClick(passage)
                 },
                 showUnderline = passage.hasComment,
-                modifier = Modifier.background(color = Color.Red),
             )
         }
     }
