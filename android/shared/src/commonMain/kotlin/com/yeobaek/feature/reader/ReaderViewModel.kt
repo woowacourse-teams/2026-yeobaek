@@ -9,9 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
+import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import com.yeobaek.feature.reader.model.toUiModel
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 
 class ReaderViewModel(
     private val groupId: Long,
+    private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
@@ -48,6 +51,9 @@ class ReaderViewModel(
 
             try {
                 val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
+                val bookDetail = bookRepository.getBookDetail(
+                    bookId = groupDetail.book.bookId,
+                )
                 val passageCount = groupDetail.book.passageCount
                 val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
                     .coerceIn(
@@ -75,6 +81,7 @@ class ReaderViewModel(
                 uiState = uiState.copy(
                     title = groupDetail.book.title,
                     author = groupDetail.book.authors.joinToString(", "),
+                    chapters = bookDetail.chapters.map { chapter -> chapter.toUiModel() },
                     passages = passageModels.map(PassageModel::toUiModel),
                     currentSequence = currentSequence,
                     totalPassageCount = passageCount,
@@ -236,6 +243,33 @@ class ReaderViewModel(
             progress = progress,
             totalPassageCount = uiState.totalPassageCount,
         )
+        seekToSequence(targetSequence)
+    }
+
+    fun openTableOfContents() {
+        uiState = uiState.copy(
+            isTableOfContentsVisible = true,
+            isTextSettingMenuExpanded = false,
+        )
+    }
+
+    fun dismissTableOfContents() {
+        uiState = uiState.copy(isTableOfContentsVisible = false)
+    }
+
+    fun selectChapter(chapter: ChapterUiModel) {
+        val targetSequence = chapter.startPassageSequence
+        uiState = uiState.copy(
+            isTableOfContentsVisible = false,
+            seekProgress = sequenceToProgress(
+                sequence = targetSequence,
+                totalPassageCount = uiState.totalPassageCount,
+            ),
+        )
+        seekToSequence(targetSequence)
+    }
+
+    private fun seekToSequence(targetSequence: Int) {
         if (targetSequence < FIRST_PASSAGE_SEQUENCE) {
             uiState = uiState.copy(
                 seekProgress = null,
@@ -244,6 +278,9 @@ class ReaderViewModel(
             )
             return
         }
+
+        progressSeekJob?.cancel()
+        cancelPaginationLoads()
 
         val isTargetLoaded = uiState.passages.any { passage ->
             passage.sequence == targetSequence
@@ -625,6 +662,7 @@ internal fun passageWindowFor(
 
 class ReaderViewModelFactory(
     private val groupId: Long,
+    private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
@@ -637,6 +675,7 @@ class ReaderViewModelFactory(
             @Suppress("UNCHECKED_CAST")
             return ReaderViewModel(
                 groupId = groupId,
+                bookRepository = bookRepository,
                 groupRepository = groupRepository,
                 readerRepository = readerRepository,
                 commentRepository = commentRepository,

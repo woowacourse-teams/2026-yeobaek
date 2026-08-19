@@ -165,6 +165,7 @@ fun App(
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
                         groupId = route.groupId,
+                        bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
                         commentRepository = appContainer.commentRepository,
@@ -179,6 +180,9 @@ fun App(
                             onComplete = navController::popBackStack,
                         )
                     },
+                    onTableOfContentsClick = readerViewModel::openTableOfContents,
+                    onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+                    onChapterClick = readerViewModel::selectChapter,
                     onTextSettingClick = readerViewModel::toggleTextSettingMenu,
                     onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
                     onFontSizeChange = readerViewModel::updateFontSize,
