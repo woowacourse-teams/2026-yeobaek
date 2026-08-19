@@ -1,0 +1,9 @@
+package com.yeobaek.feature.reader
+
+import androidx.compose.runtime.Composable
+
+@Composable
+internal expect fun PlatformBackHandler(
+    enabled: Boolean = true,
+    onBack: () -> Unit,
+)

@@ -66,6 +66,8 @@ fun ReaderScreen(
     onProgressSeekCompleted: (PassageUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    PlatformBackHandler(onBack = onBackClick)
+
     val listState = rememberLazyListState()
     var hasPositionedInitialPassage by remember { mutableStateOf(false) }
     var previousLoadAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
