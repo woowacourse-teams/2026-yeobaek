@@ -5,13 +5,13 @@ import com.yeobaek.data.model.PassagesModel
 
 interface ReaderRepository {
     suspend fun getPassages(
-        groupId: Int,
+        groupId: Long,
         from: Int,
         to: Int,
     ): PassagesModel
 
     suspend fun updatePassage(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
     ): MyProgressModel
 }

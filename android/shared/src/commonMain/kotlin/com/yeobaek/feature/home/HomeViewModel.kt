@@ -23,20 +23,33 @@ class HomeViewModel(
     var uiState by mutableStateOf(HomeUiState())
         private set
 
-    init {
-        initCurrentlyBook()
-    }
-
     fun initCurrentlyBook() {
-        uiState = uiState.copy(
-            currentlyReadingBookUiModel = CurrentlyReadingBookUiModel(
-                groupName = "고전 읽는 오후 모임",
-                title = "데미안",
-                coverImageUrl = "https://contents.kyobobook.co.kr/sih/fit-in/400x0/pdt/9791189413408.jpg",
-                authors = "헤르만 헤세",
-                progressRate = 12f,
-            ),
-        )
+        viewModelScope.launch {
+            try {
+                val lastReading = userRepository.getLastReading()
+
+                uiState = uiState.copy(
+                    currentlyReadingBookUiModel = if (lastReading != null) {
+                        CurrentlyReadingBookUiModel(
+                            clubId = lastReading.clubId,
+                            groupName = lastReading.clubName,
+                            title = lastReading.book.title,
+                            coverImageUrl = "https://i.pinimg.com/736x/06/2b/21/062b21a8759dcd25158bfe2b792e4f7b.jpg",
+                            authors = lastReading.book.authors,
+                            progressRate = lastReading.progressRate,
+                        )
+                    } else {
+                        null
+                    },
+                )
+            } catch (e: io.ktor.utils.io.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    currentlyReadingBookUiModel = null,
+                )
+            }
+        }
     }
 
     fun initGroups() {

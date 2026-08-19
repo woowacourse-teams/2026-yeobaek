@@ -10,6 +10,8 @@ data class PassageCommentSheetUiState(
     val deletingCommentId: Long? = null,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
+    val isDeleting: Boolean = false,
     val loadErrorMessage: String? = null,
     val submitErrorMessage: String? = null,
+    val deleteErrorMessage: String? = null,
 )

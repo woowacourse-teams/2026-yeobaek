@@ -2,11 +2,13 @@ package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
+import android.shared.generated.resources.ic_table_of_contents
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -34,6 +36,7 @@ fun ReaderTopBar(
     fontSize: Int,
     isTextSettingMenuExpanded: Boolean,
     onBackClick: () -> Unit,
+    onTableOfContentsClick: () -> Unit,
     onTextSettingClick: () -> Unit,
     onTextSettingDismiss: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
@@ -77,41 +80,58 @@ fun ReaderTopBar(
             }
         },
         actions = {
-            Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(end = 8.dp),
+            ) {
                 IconButton(
-                    onClick = onTextSettingClick,
+                    onClick = onTableOfContentsClick,
+                    modifier = Modifier.size(40.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Text(
-                            text = "가",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                        )
-
-                        Spacer(
-                            modifier = Modifier.width(1.dp),
-                        )
-
-                        Text(
-                            text = "가",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_table_of_contents),
+                        contentDescription = "목차 열기",
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
 
-                ReaderTextSettingMenu(
-                    expanded = isTextSettingMenuExpanded,
-                    fontSize = fontSize,
-                    onDismissRequest = onTextSettingDismiss,
-                    onFontSizeChange = onFontSizeChange,
-                )
+                Box {
+                    IconButton(
+                        onClick = onTextSettingClick,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "가",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                            )
+
+                            Spacer(
+                                modifier = Modifier.width(1.dp),
+                            )
+
+                            Text(
+                                text = "가",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                            )
+                        }
+                    }
+
+                    ReaderTextSettingMenu(
+                        expanded = isTextSettingMenuExpanded,
+                        fontSize = fontSize,
+                        onDismissRequest = onTextSettingDismiss,
+                        onFontSizeChange = onFontSizeChange,
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -130,6 +150,7 @@ private fun ReaderTopBarPreview() {
             fontSize = ReaderFontSize.DEFAULT,
             isTextSettingMenuExpanded = true,
             onBackClick = {},
+            onTableOfContentsClick = {},
             onTextSettingClick = {},
             onTextSettingDismiss = {},
             onFontSizeChange = {},

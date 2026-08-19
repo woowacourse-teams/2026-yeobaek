@@ -22,6 +22,7 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 
 @Composable
 fun NicknameScreen(
+    appName: String,
     uiState: NicknameUiState,
     onNicknameValueChange: (String) -> Unit,
     onNicknameSet: () -> Unit,
@@ -32,7 +33,7 @@ fun NicknameScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("여백", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth())
+                    Text(appName, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth())
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -82,6 +83,7 @@ fun NicknameScreen(
 private fun NicknameScreenPreview() {
     YeobaekTheme {
         NicknameScreen(
+            appName = "여백",
             uiState = NicknameUiState(),
             onNicknameValueChange = {},
             onNicknameSet = {},

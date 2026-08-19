@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ClubRequest(
-    val bookId: Int,
+    val bookId: Long,
     val name: String,
 )

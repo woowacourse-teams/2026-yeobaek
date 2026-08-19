@@ -61,6 +61,7 @@ fun App(
                 }
 
                 NicknameScreen(
+                    appName = appContainer.appName,
                     uiState = nicknameViewModel.uiState,
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
@@ -86,6 +87,7 @@ fun App(
                 }
 
                 OnboardingScreen(
+                    appName = appContainer.appName,
                     uiState = onboardingViewModel.uiState,
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
                     navigateToCreate = {
@@ -115,11 +117,12 @@ fun App(
                 )
 
                 LaunchedEffect(true) {
+                    homeViewModel.initCurrentlyBook()
                     homeViewModel.initGroups()
                 }
 
                 HomeScreen(
-                    currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
+                    appName = appContainer.appName,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)
@@ -129,6 +132,9 @@ fun App(
                     },
                     navigateToCreate = {
                         navController.navigate(Create)
+                    },
+                    navigateToReader = {
+                        navController.navigate(Reader(groupId = it))
                     },
                 )
             }
@@ -159,8 +165,10 @@ fun App(
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
                         groupId = route.groupId,
+                        bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
+                        commentRepository = appContainer.commentRepository,
                     ),
                 )
 
@@ -172,6 +180,9 @@ fun App(
                             onComplete = navController::popBackStack,
                         )
                     },
+                    onTableOfContentsClick = readerViewModel::openTableOfContents,
+                    onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+                    onChapterClick = readerViewModel::selectChapter,
                     onTextSettingClick = readerViewModel::toggleTextSettingMenu,
                     onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
                     onFontSizeChange = readerViewModel::updateFontSize,

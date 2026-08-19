@@ -13,7 +13,7 @@ data object Home
 
 @Serializable
 data class Detail(
-    val groupId: Int,
+    val groupId: Long,
 )
 
 @Serializable
@@ -24,5 +24,5 @@ data object Join
 
 @Serializable
 data class Reader(
-    val groupId: Int,
+    val groupId: Long,
 )

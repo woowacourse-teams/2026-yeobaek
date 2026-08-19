@@ -33,7 +33,9 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
+import com.yeobaek.feature.reader.component.ReaderTableOfContents
 import com.yeobaek.feature.reader.component.ReaderTopBar
+import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -42,6 +44,9 @@ fun ReaderScreen(
     uiState: ReaderUiState,
     onPassageClick: (PassageUiModel) -> Unit,
     onBackClick: () -> Unit,
+    onTableOfContentsClick: () -> Unit,
+    onTableOfContentsDismiss: () -> Unit,
+    onChapterClick: (ChapterUiModel) -> Unit,
     onTextSettingClick: () -> Unit,
     onTextSettingDismiss: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
@@ -253,6 +258,7 @@ fun ReaderScreen(
                 fontSize = uiState.fontSize,
                 isTextSettingMenuExpanded = uiState.isTextSettingMenuExpanded,
                 onBackClick = onBackClick,
+                onTableOfContentsClick = onTableOfContentsClick,
                 onTextSettingClick = onTextSettingClick,
                 onTextSettingDismiss = onTextSettingDismiss,
                 onFontSizeChange = preservePositionAndChangeFontSize,
@@ -304,6 +310,15 @@ fun ReaderScreen(
             onDeleteComment = onCommentDelete,
             onCancelDelete = onCommentDeleteCancel,
             onConfirmDelete = onCommentDeleteConfirm,
+        )
+    }
+
+    if (uiState.isTableOfContentsVisible) {
+        ReaderTableOfContents(
+            chapters = uiState.chapters,
+            currentPassageSequence = uiState.currentSequence,
+            onDismissRequest = onTableOfContentsDismiss,
+            onChapterClick = onChapterClick,
         )
     }
 }
@@ -381,12 +396,15 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = mockPassages,
+                passages = ReaderPreviewData.passages,
                 currentSequence = 4,
-                totalPassageCount = mockPassages.size,
+                totalPassageCount = ReaderPreviewData.passages.size,
             ),
             onPassageClick = {},
             onBackClick = {},
+            onTableOfContentsClick = {},
+            onTableOfContentsDismiss = {},
+            onChapterClick = {},
             onTextSettingClick = {},
             onTextSettingDismiss = {},
             onFontSizeChange = {},

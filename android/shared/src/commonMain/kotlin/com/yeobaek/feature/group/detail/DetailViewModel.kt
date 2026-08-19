@@ -22,7 +22,7 @@ class DetailViewModel(
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
 
-    fun initGroupData(groupId: Int) {
+    fun initGroupData(groupId: Long) {
         uiState = uiState.copy(
             screenState = ScreenState.Loading("모임 정보를 \n가져오는 중입니다. . ."),
         )

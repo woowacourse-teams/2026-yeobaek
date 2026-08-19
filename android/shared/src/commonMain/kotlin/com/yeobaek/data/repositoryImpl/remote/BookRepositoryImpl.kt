@@ -18,11 +18,11 @@ class BookRepositoryImpl(
         }
     }
 
-    override suspend fun getBook(bookId: Int): BookModel = getBooks().find {
+    override suspend fun getBook(bookId: Long): BookModel = getBooks().find {
         it.id == bookId
     } ?: throw IllegalArgumentException("존재하지 않는 책입니다.")
 
-    override suspend fun getBookDetail(bookId: Int): BookDetailModel = bookApi
+    override suspend fun getBookDetail(bookId: Long): BookDetailModel = bookApi
         .getBookDetail(bookId = bookId)
         .toModel()
 }

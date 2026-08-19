@@ -18,7 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yeobaek.feature.reader.mockPassages
+import com.yeobaek.feature.reader.ReaderPreviewData
 
 @Composable
 fun PassageQuote(
@@ -55,6 +55,6 @@ fun PassageQuote(
 @Composable
 private fun PassageQuotePreview() {
     PassageQuote(
-        content = mockPassages[0].content,
+        content = ReaderPreviewData.passages[0].content,
     )
 }
