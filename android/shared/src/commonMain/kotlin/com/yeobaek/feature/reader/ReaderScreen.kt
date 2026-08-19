@@ -30,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
@@ -66,6 +67,8 @@ fun ReaderScreen(
     onProgressSeekCompleted: (PassageUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    PlatformBackHandler(onBack = onBackClick)
+
     val listState = rememberLazyListState()
     var hasPositionedInitialPassage by remember { mutableStateOf(false) }
     var previousLoadAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
@@ -137,9 +140,22 @@ fun ReaderScreen(
 
         snapshotFlow {
             val state = currentUiState
-            val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
-            val passage = firstVisibleItem?.let { item ->
+            val layoutInfo = listState.layoutInfo
+            val firstVisibleItem = layoutInfo.visibleItemsInfo.firstOrNull()
+            val firstVisiblePassage = firstVisibleItem?.let { item ->
                 state.passages.getOrNull(item.index)
+            }
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
+            val lastVisiblePassage = lastVisibleItem?.let { item ->
+                state.passages.getOrNull(item.index)
+            }
+            val isLastPassageFullyVisible = lastVisibleItem != null &&
+                lastVisiblePassage?.sequence == state.totalPassageCount &&
+                lastVisibleItem.offset + lastVisibleItem.size <= layoutInfo.viewportEndOffset
+            val passage = if (isLastPassageFullyVisible) {
+                lastVisiblePassage
+            } else {
+                firstVisiblePassage
             }
             passage to (
                 state.isLoadingPrevious ||

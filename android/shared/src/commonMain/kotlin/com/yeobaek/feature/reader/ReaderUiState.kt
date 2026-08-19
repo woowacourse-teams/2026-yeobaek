@@ -39,7 +39,10 @@ internal fun sequenceToProgress(
     sequence: Int,
     totalPassageCount: Int,
 ): Float {
-    if (totalPassageCount <= 1) return 0f
+    if (totalPassageCount <= 0) return 0f
+    if (totalPassageCount == 1) {
+        return if (sequence >= 1) 100f else 0f
+    }
 
     val normalizedSequence = sequence.coerceIn(1, totalPassageCount)
     return ((normalizedSequence - 1) * 100f) / (totalPassageCount - 1)
