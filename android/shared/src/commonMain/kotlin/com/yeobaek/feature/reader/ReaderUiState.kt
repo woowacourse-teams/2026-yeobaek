@@ -1,5 +1,6 @@
 package com.yeobaek.feature.reader
 
+import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import kotlin.math.roundToInt
@@ -7,6 +8,7 @@ import kotlin.math.roundToInt
 data class ReaderUiState(
     val title: String = "",
     val author: String = "",
+    val chapters: List<ChapterUiModel> = emptyList(),
     val passages: List<PassageUiModel> = emptyList(),
     val currentSequence: Int = 0,
     val totalPassageCount: Int = 0,
@@ -19,6 +21,7 @@ data class ReaderUiState(
     val isProgressDragging: Boolean = false,
     val isSeeking: Boolean = false,
     val loadErrorMessage: String? = null,
+    val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
     val commentSheet: PassageCommentSheetUiState? = null,
 ) {
