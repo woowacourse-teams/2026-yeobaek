@@ -1,4 +1,4 @@
-package com.yeobaek.feature.reader
+package com.yeobaek.core.platform
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable

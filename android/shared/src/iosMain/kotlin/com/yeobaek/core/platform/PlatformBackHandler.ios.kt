@@ -1,4 +1,4 @@
-package com.yeobaek.feature.reader
+package com.yeobaek.core.platform
 
 import androidx.compose.runtime.Composable
 

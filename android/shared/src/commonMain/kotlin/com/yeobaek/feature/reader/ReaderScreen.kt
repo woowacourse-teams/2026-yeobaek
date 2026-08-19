@@ -30,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
