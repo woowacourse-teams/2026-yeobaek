@@ -137,9 +137,22 @@ fun ReaderScreen(
 
         snapshotFlow {
             val state = currentUiState
-            val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
-            val passage = firstVisibleItem?.let { item ->
+            val layoutInfo = listState.layoutInfo
+            val firstVisibleItem = layoutInfo.visibleItemsInfo.firstOrNull()
+            val firstVisiblePassage = firstVisibleItem?.let { item ->
                 state.passages.getOrNull(item.index)
+            }
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
+            val lastVisiblePassage = lastVisibleItem?.let { item ->
+                state.passages.getOrNull(item.index)
+            }
+            val isLastPassageFullyVisible = lastVisibleItem != null &&
+                lastVisiblePassage?.sequence == state.totalPassageCount &&
+                lastVisibleItem.offset + lastVisibleItem.size <= layoutInfo.viewportEndOffset
+            val passage = if (isLastPassageFullyVisible) {
+                lastVisiblePassage
+            } else {
+                firstVisiblePassage
             }
             passage to (
                 state.isLoadingPrevious ||
