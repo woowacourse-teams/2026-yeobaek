@@ -22,6 +22,8 @@ class AppContainer(
 
     val userPreferences = UserPreferences(settings)
 
+    val appName = if (isDebug) "조밀" else "여백"
+
     private val networkProvider = NetworkProvider(
         userPreferences = userPreferences,
         isDebug = isDebug,

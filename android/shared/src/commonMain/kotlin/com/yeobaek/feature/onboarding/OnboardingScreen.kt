@@ -26,6 +26,7 @@ import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 
 @Composable
 fun OnboardingScreen(
+    appName: String,
     uiState: OnboardingUiState,
     onCodeValueChange: (String) -> Unit,
     navigateToHome: () -> Unit,
@@ -39,7 +40,7 @@ fun OnboardingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "여백",
+                        appName,
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -93,6 +94,7 @@ fun OnboardingScreen(
 private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
+            appName = "여백",
             uiState = OnboardingUiState(),
             onCodeValueChange = {},
             navigateToHome = {},

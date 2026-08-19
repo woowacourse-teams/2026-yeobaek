@@ -61,6 +61,7 @@ fun App(
                 }
 
                 NicknameScreen(
+                    appName = appContainer.appName,
                     uiState = nicknameViewModel.uiState,
                     onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
                     onNicknameSet = {
@@ -86,6 +87,7 @@ fun App(
                 }
 
                 OnboardingScreen(
+                    appName = appContainer.appName,
                     uiState = onboardingViewModel.uiState,
                     onCodeValueChange = onboardingViewModel::onCodeValueChange,
                     navigateToCreate = {
@@ -120,6 +122,7 @@ fun App(
                 }
 
                 HomeScreen(
+                    appName = appContainer.appName,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)

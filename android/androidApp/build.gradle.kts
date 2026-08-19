@@ -54,6 +54,13 @@ android {
                 "proguard-rules.pro",
             )
         }
+        debug {
+            applicationIdSuffix = ".debug"
+        }
+
+        release {
+            isMinifyEnabled = false
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
