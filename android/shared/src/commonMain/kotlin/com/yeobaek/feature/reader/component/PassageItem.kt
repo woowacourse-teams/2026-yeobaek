@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.noRippleClickable
+import com.yeobaek.core.designsystem.theme.YeobaekBatang
 import com.yeobaek.core.designsystem.theme.YeobaekLine
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.ReaderPreviewData
@@ -43,6 +44,7 @@ fun PassageItem(
                 .fillMaxWidth()
                 .noRippleClickable(onClick = onClick),
             style = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = YeobaekBatang,
                 fontSize = fontSize.sp,
                 lineHeight = (fontSize * 2f).sp,
                 letterSpacing = 1.sp,
@@ -100,6 +102,7 @@ private fun UnderlinedPassageText(
             }
             .noRippleClickable(onClick = onClick),
         style = MaterialTheme.typography.bodyLarge.copy(
+            fontFamily = YeobaekBatang,
             fontSize = fontSize.sp,
             lineHeight = (fontSize * 2f).sp,
             letterSpacing = 1.sp,
