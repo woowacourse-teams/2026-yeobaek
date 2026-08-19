@@ -5,20 +5,20 @@ import com.yeobaek.data.model.CommentsModel
 
 interface CommentRepository {
     suspend fun getComments(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
     ): CommentsModel
 
     suspend fun createComment(
-        clubId: Int,
-        passageId: Int,
+        clubId: Long,
+        passageId: Long,
         content: String,
     ): CommentModel
 
     suspend fun updateComment(
-        commentId: Int,
+        commentId: Long,
         content: String,
     ): CommentModel
 
-    suspend fun deleteComment(commentId: Int)
+    suspend fun deleteComment(commentId: Long)
 }

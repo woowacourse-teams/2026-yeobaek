@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Club(
     val book: Book,
-    val clubId: Int,
+    val clubId: Long,
     val memberCount: Int,
     val myProgress: MyProgress?,
     val name: String,

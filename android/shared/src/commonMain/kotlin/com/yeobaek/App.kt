@@ -115,11 +115,11 @@ fun App(
                 )
 
                 LaunchedEffect(true) {
+                    homeViewModel.initCurrentlyBook()
                     homeViewModel.initGroups()
                 }
 
                 HomeScreen(
-                    currentlyReadingBookUiModel = homeViewModel.uiState.currentlyReadingBookUiModel,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)
@@ -129,6 +129,9 @@ fun App(
                     },
                     navigateToCreate = {
                         navController.navigate(Create)
+                    },
+                    navigateToReader = {
+                        navController.navigate(Reader(groupId = it))
                     },
                 )
             }

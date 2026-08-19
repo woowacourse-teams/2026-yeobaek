@@ -14,27 +14,27 @@ import de.jensklingenberg.ktorfit.http.Path
 interface CommentApi {
     @GET("api/clubs/{clubId}/passages/{passageId}/comments")
     suspend fun getComments(
-        @Path("clubId") clubId: Int,
-        @Path("passageId") passageId: Int,
+        @Path("clubId") clubId: Long,
+        @Path("passageId") passageId: Long,
     ): CommentsResponse
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs/{clubId}/passages/{passageId}/comments")
     suspend fun createComment(
-        @Path("clubId") clubId: Int,
-        @Path("passageId") passageId: Int,
+        @Path("clubId") clubId: Long,
+        @Path("passageId") passageId: Long,
         @Body request: CommentRequest,
     ): CommentResponse
 
     @Headers("Content-Type: application/json")
     @PUT("api/comments/{commentId}")
     suspend fun updateComment(
-        @Path("commentId") commentId: Int,
+        @Path("commentId") commentId: Long,
         @Body request: CommentRequest,
     ): CommentResponse
 
     @DELETE("api/comments/{commentId}")
     suspend fun deleteComment(
-        @Path("commentId") commentId: Int,
+        @Path("commentId") commentId: Long,
     )
 }

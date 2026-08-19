@@ -13,7 +13,7 @@ import de.jensklingenberg.ktorfit.http.Query
 interface ReaderApi {
     @GET("api/clubs/{clubId}/passages")
     suspend fun getPassages(
-        @Path("clubId") clubId: Int,
+        @Path("clubId") clubId: Long,
         @Query("from") from: Int,
         @Query("to") to: Int,
     ): PassagesResponse
@@ -21,7 +21,7 @@ interface ReaderApi {
     @Headers("Content-Type: application/json")
     @PUT("api/clubs/{clubId}/progress")
     suspend fun updatePassage(
-        @Path("clubId") clubId: Int,
+        @Path("clubId") clubId: Long,
         @Body request: UpdatePassageRequest,
     ): MyProgress
 }

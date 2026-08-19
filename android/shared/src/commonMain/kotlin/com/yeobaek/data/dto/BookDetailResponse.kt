@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class BookDetailResponse(
     val authors: List<String>,
-    val bookId: Int,
+    val bookId: Long,
     val chapters: List<Chapter>,
     val passageCount: Int,
     val publishedYear: Int,

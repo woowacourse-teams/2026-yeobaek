@@ -48,9 +48,9 @@ fun ReaderScreen(
     onCommentSheetDismiss: () -> Unit,
     onCommentInputChange: (String) -> Unit,
     onCommentSubmit: () -> Unit,
-    onCommentEdit: (Int) -> Unit,
+    onCommentEdit: (Long) -> Unit,
     onCommentEditCancel: () -> Unit,
-    onCommentDelete: (Int) -> Unit,
+    onCommentDelete: (Long) -> Unit,
     onCommentDeleteCancel: () -> Unit,
     onCommentDeleteConfirm: () -> Unit,
     onLoadPrevious: () -> Boolean,
@@ -409,7 +409,7 @@ private fun ReaderScreenPreview() {
 }
 
 internal data class PassageAnchor(
-    val passageId: Int,
+    val passageId: Long,
     val scrollOffset: Int,
 )
 

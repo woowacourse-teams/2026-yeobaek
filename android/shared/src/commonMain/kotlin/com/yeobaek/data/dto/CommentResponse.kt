@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CommentResponse(
-    val commentId: Int,
+    val commentId: Long,
     val memberId: Int,
     val nickname: String,
     val content: String,

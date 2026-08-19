@@ -3,7 +3,7 @@ package com.yeobaek.feature.reader.model
 import com.yeobaek.data.model.CommentModel
 
 data class PassageCommentUiModel(
-    val commentId: Int,
+    val commentId: Long,
     val memberId: Int,
     val nickname: String,
     val content: String,

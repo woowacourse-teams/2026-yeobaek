@@ -21,7 +21,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
-    private val groupId: Int,
+    private val groupId: Long,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
@@ -378,7 +378,7 @@ class ReaderViewModel(
         )
     }
 
-    fun startEditingComment(commentId: Int) {
+    fun startEditingComment(commentId: Long) {
         val commentSheet = uiState.commentSheet ?: return
         if (commentSheet.isSubmitting || commentSheet.isDeleting) return
         val comment = commentSheet.comments.firstOrNull { comment ->
@@ -409,7 +409,7 @@ class ReaderViewModel(
         )
     }
 
-    fun requestDeleteComment(commentId: Int) {
+    fun requestDeleteComment(commentId: Long) {
         val commentSheet = uiState.commentSheet ?: return
         if (commentSheet.isSubmitting || commentSheet.isDeleting) return
         val canDelete = commentSheet.comments.any { comment ->
@@ -571,7 +571,7 @@ class ReaderViewModel(
     }
 
     private fun updateCommentSheet(
-        passageId: Int,
+        passageId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
     ) {
         val commentSheet = uiState.commentSheet
@@ -594,7 +594,7 @@ class ReaderViewModel(
 }
 
 private fun List<PassageUiModel>.withCommentCount(
-    passageId: Int,
+    passageId: Long,
     commentCount: Int,
 ): List<PassageUiModel> = map { passage ->
     if (passage.passageId == passageId) {
@@ -624,7 +624,7 @@ internal fun passageWindowFor(
 }
 
 class ReaderViewModelFactory(
-    private val groupId: Int,
+    private val groupId: Long,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
