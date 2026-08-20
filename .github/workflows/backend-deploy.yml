@@ -1,12 +1,12 @@
 # 백엔드 CI/CD (M8 배포 구성 결정, 2026-08-06)
-# develop에 서버 빌드·실행 관련 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 → Docker Hub 푸시(빌드 잡)
+# main에 서버 빌드·실행 관련 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 → Docker Hub 푸시(빌드 잡)
 # → EC2의 셀프 호스티드 러너에서 pull & 재기동(배포 잡). 보안 그룹이 SSH를 막고 있어
 # SSH 대신 EC2에 상주하는 러너(라벨: ec2-prod)가 배포를 수행한다. 시크릿은 backend/docs/배포_가이드.md 참고.
 name: backend-deploy
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       # 배포 이미지에 반영되는 서버 코드·리소스와 빌드/런타임 설정만 감지한다.
       # 테스트 변경은 배포물에 영향이 없으므로 제외한다 (스펙은 springdoc이 런타임 생성).
