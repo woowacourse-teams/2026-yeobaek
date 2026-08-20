@@ -37,8 +37,8 @@ android {
         applicationId = "com.yeobaek"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 2026020
-        versionName = "0.2.0"
+        versionCode = "${libs.versions.android.versionCode.get()}${libs.versions.android.majorVersion.get()}${libs.versions.android.minorVersion.get()}${libs.versions.android.patchVersion.get()}".toInt()
+        versionName = "${libs.versions.android.majorVersion.get()}.${libs.versions.android.minorVersion.get()}.${libs.versions.android.patchVersion.get()}"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
