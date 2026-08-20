@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
+import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
 
@@ -33,7 +34,12 @@ fun NicknameScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(appName, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        text = appName,
+                        fontFamily = YeobaekSerif,
+                        style = MaterialTheme.typography.headlineLarge,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,

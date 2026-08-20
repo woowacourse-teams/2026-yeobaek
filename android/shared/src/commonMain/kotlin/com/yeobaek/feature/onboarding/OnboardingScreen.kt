@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
+import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.onboarding.component.OnboardingBottomCard
 import com.yeobaek.feature.onboarding.component.OnboardingHorizontalDivider
@@ -40,7 +41,8 @@ fun OnboardingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        appName,
+                        text = appName,
+                        fontFamily = YeobaekSerif,
                         style = MaterialTheme.typography.headlineLarge,
                         modifier = Modifier.fillMaxWidth(),
                     )

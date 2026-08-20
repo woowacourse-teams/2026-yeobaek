@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.yeobaek.core.designsystem.theme.YeobaekBatang
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import org.jetbrains.compose.resources.painterResource
 
@@ -100,6 +101,7 @@ fun ReaderTableOfContents(
                                 } else {
                                     FontWeight.Normal
                                 },
+                                fontFamily = YeobaekBatang,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
@@ -90,6 +91,7 @@ private fun AppTitle(
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineLarge.copy(
+                    fontFamily = YeobaekSerif,
                     letterSpacing = 1.sp,
                 ),
             )
