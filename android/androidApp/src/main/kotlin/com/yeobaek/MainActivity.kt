@@ -17,6 +17,9 @@ class MainActivity : ComponentActivity() {
         val appContainer = (application as YeobaekApplication).appContainer
 
         setContent {
+            DoubleBackToExit(this) {
+                finish()
+            }
             App(
                 appContainer = appContainer,
             )
