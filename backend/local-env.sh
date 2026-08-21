@@ -34,7 +34,7 @@ wait_backend() {
   attempt=1
   while [ "$attempt" -le 60 ]; do
     if curl --fail --silent --show-error --max-time 3 "$url" >/dev/null 2>&1; then
-      echo "백엔드 준비 완료: $url"
+      echo "백엔드 준비 완료: http://localhost:8080/swagger-ui/index.html"
       return
     fi
     sleep 2

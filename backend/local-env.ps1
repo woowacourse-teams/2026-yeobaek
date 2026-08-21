@@ -39,7 +39,7 @@ function Wait-Backend {
         try {
             $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3
             if ($response.StatusCode -eq 200) {
-                Write-Host "백엔드 준비 완료: $url"
+                Write-Host '백엔드 준비 완료: http://localhost:8080/swagger-ui/index.html'
                 return
             }
         } catch {
