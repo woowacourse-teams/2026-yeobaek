@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
@@ -105,7 +103,6 @@ fun PassageCommentInput(
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
                 .focusRequester(focusRequester)
                 .semantics {
                     contentDescription = "댓글 입력"
@@ -149,8 +146,8 @@ fun PassageCommentInput(
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
             keyboardActions = KeyboardActions(onSend = { submit() }),
-            singleLine = true,
-            shape = CircleShape,
+            shape = MaterialTheme.shapes.extraLarge,
+            maxLines = 5,
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 fontSize = 13.sp,
             ),
