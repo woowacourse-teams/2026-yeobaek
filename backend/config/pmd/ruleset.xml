@@ -9,7 +9,7 @@
         category/java/codestyle.xml에서 UnnecessaryImport만 개별로 추가하되,
         이 프로젝트의 정상적인 관례와 충돌하는 개별 룰을 조정한다.
         테스트 소스에는 config/pmd/ruleset-test.xml이 별도로 적용된다.
-        조정 내역과 사유는 backend/docs/지침/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
+        조정 내역과 사유는 backend/docs/지침/검증/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
     </description>
 
     <rule ref="category/java/bestpractices.xml">
