@@ -1,8 +1,11 @@
 package yeobaek.backend.book.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
 import yeobaek.backend.book.service.PassageService;
@@ -63,12 +67,21 @@ class PassageControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("범위 파라미터가 없으면 400을 응답한다")
-    void missingRangeParameter() throws Exception {
+    @DisplayName("to 파라미터가 없으면 서비스를 호출하지 않는다")
+    void missingToParameter() throws Exception {
         givenValidMember(1L);
 
-        mockMvc.perform(get("/api/clubs/1/passages?from=1").header("X-Member-Id", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("필수 파라미터가 없습니다: to"));
+        mockMvc.perform(get("/api/clubs/{clubId}/passages", 1L)
+                        .header("X-Member-Id", "1")
+                        .param("from", "1"))
+                .andExpect(result -> {
+                    var exception = assertInstanceOf(
+                            MissingServletRequestParameterException.class,
+                            result.getResolvedException(),
+                            "필수 파라미터 누락 예외가 발생해야 한다");
+                    assertEquals("to", exception.getParameterName(), "누락된 파라미터는 to여야 한다");
+                });
+
+        verifyNoInteractions(passageService);
     }
 }

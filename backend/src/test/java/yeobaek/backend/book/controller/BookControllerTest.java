@@ -1,7 +1,9 @@
 package yeobaek.backend.book.controller;
 
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -65,15 +67,20 @@ class BookControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 도서는 400과 BOOK_NOT_FOUND 코드를 응답한다")
-    void findBookNotFound() throws Exception {
+    @DisplayName("서비스 예외를 변경하지 않고 전파한다")
+    void propagateServiceException() throws Exception {
         givenValidMember(1L);
-        given(bookService.findBook(anyLong())).willThrow(new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+        var serviceException = new NotFoundException(ErrorCode.BOOK_NOT_FOUND);
+        given(bookService.findBook(999L)).willThrow(serviceException);
 
-        mockMvc.perform(get("/api/books/999").header("X-Member-Id", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("BOOK_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("존재하지 않는 도서입니다."));
+        mockMvc.perform(get("/api/books/{bookId}", 999L)
+                        .header("X-Member-Id", "1"))
+                .andExpect(result -> assertSame(
+                        serviceException,
+                        result.getResolvedException(),
+                        "컨트롤러는 서비스 예외의 동일한 인스턴스를 전파해야 한다"));
+
+        verify(bookService, times(1)).findBook(999L);
     }
 
     @Test

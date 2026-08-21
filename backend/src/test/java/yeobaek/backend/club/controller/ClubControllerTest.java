@@ -3,8 +3,11 @@ package yeobaek.backend.club.controller;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -36,20 +39,36 @@ class ClubControllerTest extends ControllerTest {
     private ClubService clubService;
 
     @Test
-    @DisplayName("모임을 생성하면 201과 참여 코드를 응답한다")
+    @DisplayName("모임 생성 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
     void createClub() throws Exception {
         givenValidMember(1L);
-        given(clubService.create(anyLong(), anyString(), anyLong())).willReturn(new ClubCreateResponse(
-                1L, "교환독서 1기", "A3F9KQ",
-                new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312)));
+        var response = new ClubCreateResponse(
+                1L,
+                "교환독서 1기",
+                "A3F9KQ",
+                new ClubBookResponse(1L, "운수 좋은 날", List.of("현진건"), 312));
+        given(clubService.create(1L, "교환독서 1기", 1L)).willReturn(response);
 
         mockMvc.perform(post("/api/clubs")
                         .header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\": \"교환독서 1기\", \"bookId\": 1}"))
+                        .content("""
+                                {"name":"교환독서 1기","bookId":1}
+                                """))
                 .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.clubId").value(1))
+                .andExpect(jsonPath("$.name").value("교환독서 1기"))
                 .andExpect(jsonPath("$.joinCode").value("A3F9KQ"))
-                .andExpect(jsonPath("$.book.bookId").value(1));
+                .andExpect(jsonPath("$.book").isMap())
+                .andExpect(jsonPath("$.book.bookId").value(1))
+                .andExpect(jsonPath("$.book.title").value("운수 좋은 날"))
+                .andExpect(jsonPath("$.book.authors").isArray())
+                .andExpect(jsonPath("$.book.authors.length()").value(1))
+                .andExpect(jsonPath("$.book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.book.passageCount").value(312));
+
+        verify(clubService, times(1)).create(1L, "교환독서 1기", 1L);
     }
 
     @Test
