@@ -147,7 +147,7 @@ fun PassageCommentInput(
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
             ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
             keyboardActions = KeyboardActions(onSend = { submit() }),
             singleLine = true,
             shape = CircleShape,
