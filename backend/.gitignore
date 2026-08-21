@@ -36,5 +36,8 @@ out/
 ### VS Code ###
 .vscode/
 
+### Claude Code 개인 설정 ###
+.claude/
+
 # 개인 Docker Hub 이미지 설정. .env.local.example만 커밋한다.
 .env.local
