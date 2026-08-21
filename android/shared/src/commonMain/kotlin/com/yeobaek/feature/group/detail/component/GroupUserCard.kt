@@ -13,9 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -80,14 +79,13 @@ fun GroupUserCard(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(1),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            LazyColumn(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(
                     items = users,
-                    key = { it.id },
+                    key = { user -> user.id },
                 ) { user ->
                     UserCard(
                         name = user.name,
