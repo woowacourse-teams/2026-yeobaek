@@ -1,6 +1,7 @@
 package com.yeobaek.feature.group.detail.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,7 +81,7 @@ fun GroupUserCard(
             }
             Spacer(modifier = Modifier.height(16.dp))
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(1),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -107,7 +108,7 @@ private fun UserCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            containerColor = MaterialTheme.colorScheme.onPrimary,
         ),
     ) {
         Row(
@@ -123,7 +124,7 @@ private fun UserCard(
                 Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (itsMe) "(나) $name" else name)
+            Text(if (itsMe) "(나) $name" else name, maxLines = 1, modifier = Modifier.basicMarquee())
         }
     }
 }
@@ -154,7 +155,7 @@ private fun GroupUserCardPreview() {
                 ),
                 UserUiModel(
                     id = 3,
-                    name = "하로3",
+                    name = "아메리카노좋아좋아좋아아메리카노어ㅏㄹ어ㅏ러ㅏ머ㅣㅇㄴ러ㅣㅁㅇ러ㅣㅁ3",
                 ),
             ),
         )
