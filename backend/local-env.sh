@@ -29,17 +29,6 @@ assert_docker() {
   }
 }
 
-assert_backend_image() {
-  if [ -n "${BACKEND_IMAGE:-}" ] && ! printf '%s' "$BACKEND_IMAGE" | grep -q 'YOUR_DOCKERHUB_USERNAME'; then
-    return
-  fi
-  if [ -f "$ENV_FILE" ] && grep -E '^[[:space:]]*BACKEND_IMAGE[[:space:]]*=[[:space:]]*[^[:space:]]+' "$ENV_FILE" | grep -qv 'YOUR_DOCKERHUB_USERNAME'; then
-    return
-  fi
-  echo "BACKEND_IMAGE가 설정되지 않았습니다. '.env.local.example'을 '.env.local'로 복사하고 Docker Hub 사용자명을 입력하세요." >&2
-  exit 1
-}
-
 wait_backend() {
   url=http://localhost:8080/v3/api-docs
   attempt=1
@@ -77,7 +66,6 @@ cd "$SCRIPT_DIR"
 case "${1:-help}" in
   up)
     assert_docker
-    assert_backend_image
     command -v curl >/dev/null 2>&1 || {
       echo "HTTP 준비 확인에 curl이 필요합니다." >&2
       exit 1

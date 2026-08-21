@@ -16,7 +16,7 @@ services:
 
   app:
     profiles: [api]
-    image: ${BACKEND_IMAGE:-BACKEND_IMAGE_NOT_CONFIGURED}
+    image: ${BACKEND_IMAGE:-alstj2384/yeobaek-backend:develop}
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/yeobaek

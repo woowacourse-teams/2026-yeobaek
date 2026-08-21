@@ -33,15 +33,6 @@ function Assert-Docker {
     if ($LASTEXITCODE -ne 0) { throw 'Docker 엔진에 연결할 수 없습니다. Docker Desktop 또는 Docker Engine을 시작하세요.' }
 }
 
-function Assert-BackendImage {
-    if ($env:BACKEND_IMAGE -and $env:BACKEND_IMAGE -notmatch 'YOUR_DOCKERHUB_USERNAME') { return }
-    if (Test-Path -LiteralPath $EnvFile) {
-        $configured = Select-String -LiteralPath $EnvFile -Pattern '^\s*BACKEND_IMAGE\s*=\s*(?!.*YOUR_DOCKERHUB_USERNAME)\S+' -Quiet
-        if ($configured) { return }
-    }
-    throw "BACKEND_IMAGE가 설정되지 않았습니다. '.env.local.example'을 '.env.local'로 복사하고 Docker Hub 사용자명을 입력하세요."
-}
-
 function Wait-Backend {
     $url = 'http://localhost:8080/v3/api-docs'
     for ($attempt = 1; $attempt -le 60; $attempt++) {
@@ -80,7 +71,6 @@ try {
     Assert-Docker
     switch ($Command) {
         'up' {
-            Assert-BackendImage
             Invoke-Compose --profile api pull app
             Invoke-Compose --profile api up -d --wait
             Wait-Backend
