@@ -4,44 +4,11 @@
 
 > 팀에 새로 합류한 개발자는 [온보딩 문서](docs/온보딩_프로젝트_개발_방법.md)부터 읽어야 합니다.
 
-## 가장 빠른 로컬 API 테스트 (Android/API 개발자)
+## Android/API 로컬 테스트
 
-Docker만 설치하면 `develop` 브랜치에서 CI가 미리 빌드한 백엔드와 MySQL을 함께 실행할 수 있습니다. JDK는 필요하지 않습니다. macOS/Linux 스크립트는 백엔드 HTTP 준비 확인에 기본 `curl` 명령을 사용합니다.
+Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 JDK는 필요하지 않습니다.
 
-최초 한 번, Docker Hub 이미지 경로를 설정합니다.
-
-```powershell
-# Windows PowerShell
-Copy-Item .env.local.example .env.local
-# .env.local의 YOUR_DOCKERHUB_USERNAME을 실제 팀 계정으로 변경
-```
-
-```bash
-# macOS/Linux
-cp .env.local.example .env.local
-# .env.local의 YOUR_DOCKERHUB_USERNAME을 실제 팀 계정으로 변경
-```
-
-이후에는 아래 단일 명령으로 관리합니다.
-
-| 작업 | Windows PowerShell | macOS/Linux |
-|---|---|---|
-| 서버+DB 시작 | `.\local-env.ps1 up` | `sh ./local-env.sh up` |
-| 서버+DB 종료 | `.\local-env.ps1 down` | `sh ./local-env.sh down` |
-| 상태 확인 | `.\local-env.ps1 status` | `sh ./local-env.sh status` |
-| 로그 확인 | `.\local-env.ps1 logs` | `sh ./local-env.sh logs` |
-
-`up`은 최신 `develop` 이미지를 pull하고 MySQL healthcheck와 백엔드 HTTP 응답까지 기다립니다. `down`은 서버와 DB를 함께 종료하고 로컬 DB 데이터도 정리합니다. 기존 `local` 프로파일의 `ddl-auto=create` 정책을 유지하므로 다음 기동은 항상 깨끗한 스키마에서 시작합니다.
-
-- 서버: http://localhost:8080
-- Swagger UI: http://localhost:8080/docs
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
-
-`BACKEND_IMAGE가 설정되지 않았습니다` 오류가 나오면 `.env.local`이 존재하고 다음 형태인지 확인합니다.
-
-```dotenv
-BACKEND_IMAGE=팀_DOCKERHUB_계정/yeobaek-backend:develop
-```
+처음 환경을 준비하는 방법부터 Android 에뮬레이터·실제 기기에서 접속하는 방법, 종료 및 문제 해결 절차까지는 루트의 **[로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)**을 따라 진행하세요.
 
 ## 백엔드 코드 개발
 
@@ -89,7 +56,7 @@ Windows에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니다.
 
 Compose의 로컬 MySQL 기본값은 데이터베이스 `yeobaek`, 사용자 `root`, 비밀번호 `yeobaek`, 호스트 포트 `13306`입니다. 이 값은 PC에 이미 설치된 MySQL의 기본 포트 `3306`과 충돌하지 않도록 분리되어 있으며, 로컬 개발 전용입니다.
 
-DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. 실제 Android 기기에서 같은 LAN을 통해 접속해야 할 때만 `.env.local`의 `APP_BIND_ADDRESS`를 `0.0.0.0`으로 바꾸고, 테스트가 끝나면 원래 값으로 되돌립니다. 이 경우 로컬 프로파일의 개발용 자격정보가 LAN에 노출될 수 있으므로 신뢰할 수 있는 네트워크에서만 사용합니다.
+DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android 에뮬레이터와 실제 기기의 접속 설정은 [로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)을 참고합니다.
 
 `.env.local`은 개인별 이미지 경로를 담고 Git에서 제외됩니다. 앞으로 운영 DB 비밀번호나 외부 API 키가 생기면 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
 
