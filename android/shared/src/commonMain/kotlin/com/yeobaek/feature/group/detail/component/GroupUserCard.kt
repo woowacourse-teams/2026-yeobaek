@@ -1,6 +1,7 @@
 package com.yeobaek.feature.group.detail.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,9 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -79,14 +79,13 @@ fun GroupUserCard(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            LazyColumn(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(
                     items = users,
-                    key = { it.id },
+                    key = { user -> user.id },
                 ) { user ->
                     UserCard(
                         name = user.name,
@@ -107,7 +106,7 @@ private fun UserCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            containerColor = MaterialTheme.colorScheme.onPrimary,
         ),
     ) {
         Row(
@@ -123,7 +122,7 @@ private fun UserCard(
                 Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (itsMe) "(나) $name" else name)
+            Text(if (itsMe) "(나) $name" else name, maxLines = 1, modifier = Modifier.basicMarquee())
         }
     }
 }
@@ -154,7 +153,7 @@ private fun GroupUserCardPreview() {
                 ),
                 UserUiModel(
                     id = 3,
-                    name = "하로3",
+                    name = "아메리카노좋아좋아좋아아메리카노어ㅏㄹ어ㅏ러ㅏ머ㅣㅇㄴ러ㅣㅁㅇ러ㅣㅁ3",
                 ),
             ),
         )
