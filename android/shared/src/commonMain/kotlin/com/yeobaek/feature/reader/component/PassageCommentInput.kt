@@ -137,7 +137,7 @@ fun PassageCommentInput(
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
             shape = MaterialTheme.shapes.extraLarge,
-            maxLines = 5,
+            maxLines = 3,
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 fontSize = 13.sp,
             ),
