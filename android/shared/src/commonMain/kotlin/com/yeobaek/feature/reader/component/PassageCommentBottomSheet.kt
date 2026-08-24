@@ -1,6 +1,7 @@
 package com.yeobaek.feature.reader.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.PassageCommentSheetUiState
 import com.yeobaek.feature.reader.model.PassageUiModel
@@ -88,10 +91,19 @@ fun PassageCommentBottomSheet(
             }
         },
     ) {
+        val focusManager = LocalFocusManager.current
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.72f),
+                .fillMaxHeight(0.72f)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            focusManager.clearFocus()
+                        },
+                    )
+                },
         ) {
             PassageQuote(
                 content = passage.content,
@@ -112,8 +124,14 @@ fun PassageCommentBottomSheet(
                 enabled = !uiState.isSubmitting,
                 isEditing = uiState.editingCommentId != null,
                 onValueChange = onInputChange,
-                onSubmit = onSubmit,
-                onCancelEdit = onCancelEdit,
+                onSubmit = {
+                    onSubmit()
+                    focusManager.clearFocus()
+                },
+                onCancelEdit = {
+                    onCancelEdit()
+                    focusManager.clearFocus()
+                },
             )
         }
     }

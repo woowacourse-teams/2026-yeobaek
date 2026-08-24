@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -50,19 +48,11 @@ fun PassageCommentInput(
     onCancelEdit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isEditing) {
         if (isEditing) {
             focusRequester.requestFocus()
-        }
-    }
-
-    val submit = {
-        if (enabled && value.isNotBlank()) {
-            onSubmit()
-            focusManager.clearFocus()
         }
     }
 
@@ -92,7 +82,6 @@ fun PassageCommentInput(
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.noRippleClickable {
                         onCancelEdit()
-                        focusManager.clearFocus()
                     },
                 )
             }
@@ -123,7 +112,7 @@ fun PassageCommentInput(
                     LocalRippleConfiguration provides null,
                 ) {
                     TextButton(
-                        onClick = submit,
+                        onClick = onSubmit,
                         enabled = enabled && value.isNotBlank(),
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = YeobaekAccent,
@@ -145,9 +134,8 @@ fun PassageCommentInput(
                 disabledIndicatorColor = Color.Transparent,
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-            keyboardActions = KeyboardActions(onSend = { submit() }),
             shape = MaterialTheme.shapes.extraLarge,
-            maxLines = 5,
+            maxLines = 3,
             textStyle = MaterialTheme.typography.bodyMedium.copy(
                 fontSize = 13.sp,
             ),
