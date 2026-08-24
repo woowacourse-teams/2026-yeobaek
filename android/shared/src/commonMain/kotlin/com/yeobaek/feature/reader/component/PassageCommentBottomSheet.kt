@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,6 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +44,18 @@ fun PassageCommentBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val commentListState = rememberLazyListState()
+    var previousCommentCount by remember(uiState.passageId) { mutableIntStateOf(-1) }
+
+    LaunchedEffect(uiState.passageId, uiState.isLoading, uiState.comments.size) {
+        if (uiState.isLoading) return@LaunchedEffect
+
+        val commentCount = uiState.comments.size
+        if (previousCommentCount in 0..<commentCount) {
+            commentListState.animateScrollToItem(commentCount - 1)
+        }
+        previousCommentCount = commentCount
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -87,6 +105,7 @@ fun PassageCommentBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+                listState = commentListState,
             )
             PassageCommentInput(
                 value = uiState.input,
