@@ -112,9 +112,7 @@ fun PassageCommentInput(
                     LocalRippleConfiguration provides null,
                 ) {
                     TextButton(
-                        onClick = {
-                            onSubmit()
-                        },
+                        onClick = onSubmit,
                         enabled = enabled && value.isNotBlank(),
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = YeobaekAccent,
