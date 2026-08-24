@@ -102,6 +102,15 @@ class ProgressServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("탈퇴 회원의 진도 보고는 거부된다")
+    void rejectDisabledMemberProgress() {
+        disableMembership();
+
+        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 모임·본문의 진도 보고는 실패한다")
     void rejectUnknownTargets() {
         assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), 999L, second.getId()))
@@ -158,5 +167,21 @@ class ProgressServiceTest extends IntegrationTest {
         assertThat(response.get().book().title()).isEqualTo("다른 책");
         assertThat(response.get().lastReadPassageSequence()).isEqualTo(1);
         assertThat(response.get().progressRate()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("탈퇴한 모임은 마지막 읽던 책 후보에서 제외된다")
+    void lastReadingExcludesDisabledMembership() {
+        progressService.updateProgress(reader.getId(), club.getId(), second.getId());
+        disableMembership();
+
+        assertThat(progressService.findLastReading(reader.getId())).isEmpty();
+    }
+
+    private void disableMembership() {
+        ClubMember membership = clubMemberRepository
+                .findByMemberIdAndClubId(reader.getId(), club.getId()).orElseThrow();
+        membership.disable();
+        clubMemberRepository.saveAndFlush(membership);
     }
 }

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,14 @@ public class ClubController {
     @PostMapping("/api/clubs/join")
     public ClubJoinResponse join(@AuthMember Long memberId, @RequestBody ClubJoinRequest request) {
         return clubService.join(memberId, request.joinCode());
+    }
+
+    @Operation(summary = "모임 탈퇴",
+            description = "참여 정보와 댓글·진도는 보존하고 모임 접근을 비활성화한다. 중복 탈퇴는 멱등하게 처리한다.")
+    @DeleteMapping("/api/clubs/{clubId}/members/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leave(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
+        clubService.leave(memberId, clubId);
     }
 
     @Operation(summary = "내 모임 목록 조회")

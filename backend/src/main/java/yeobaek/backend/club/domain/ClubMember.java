@@ -2,6 +2,8 @@ package yeobaek.backend.club.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -44,6 +46,10 @@ public class ClubMember {
     @Column
     private LocalDateTime lastReadAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'ACTIVE'")
+    private ClubMemberStatus status = ClubMemberStatus.ACTIVE;
+
     public ClubMember(Member member, Club club) {
         this.member = member;
         this.club = club;
@@ -52,6 +58,18 @@ public class ClubMember {
     public void updateProgress(Passage passage, LocalDateTime readAt) {
         this.lastReadPassage = passage;
         this.lastReadAt = readAt;
+    }
+
+    public void activate() {
+        this.status = ClubMemberStatus.ACTIVE;
+    }
+
+    public void disable() {
+        this.status = ClubMemberStatus.DISABLED;
+    }
+
+    public boolean isActive() {
+        return status == ClubMemberStatus.ACTIVE;
     }
 
     public boolean isOwnedBy(Long memberId) {

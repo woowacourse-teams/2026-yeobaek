@@ -55,11 +55,21 @@ public class ClubService {
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
-        if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, club.getId())) {
-            clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
-        }
+        clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
+                .ifPresentOrElse(ClubMember::activate,
+                        () -> clubMemberRepository.save(
+                                new ClubMember(memberRepository.getReferenceById(memberId), club)));
         Book book = club.getBook();
         return new ClubJoinResponse(club.getId(), club.getName(), ClubBookResponse.of(book, authorNames(book)));
+    }
+
+    @Transactional
+    public void leave(Long memberId, Long clubId) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+        ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
+                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+        clubMember.disable();
     }
 
     @Transactional(readOnly = true)

@@ -61,13 +61,16 @@ public class CommentService {
         if (!comment.isWrittenBy(memberId)) {
             throw new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, forbiddenMessage);
         }
+        if (!comment.isWriterActive()) {
+            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+        }
         return comment;
     }
 
     private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findActiveByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));

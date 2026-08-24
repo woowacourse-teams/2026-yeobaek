@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -102,6 +103,19 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.passageCount").value(312));
 
         verify(clubService, times(1)).join(2L, "A3F9KQ");
+    }
+
+    @Test
+    @DisplayName("모임 탈퇴 요청의 식별자를 서비스에 전달하고 본문 없이 응답한다")
+    void leaveClub() throws Exception {
+        givenValidMember(8L);
+
+        mockMvc.perform(delete("/api/clubs/{clubId}/members/me", 10L)
+                        .header("X-Member-Id", "8"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(clubService, times(1)).leave(8L, 10L);
     }
 
     @Test
