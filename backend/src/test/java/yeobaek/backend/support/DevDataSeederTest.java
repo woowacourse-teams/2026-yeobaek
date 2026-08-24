@@ -91,7 +91,7 @@ class DevDataSeederTest extends IntegrationTest {
 
         assertThat(club.getId()).isEqualTo(1L);
         assertThat(club.getName()).isEqualTo("교환독서 1기");
-        assertThat(clubMemberRepository.findAllWithMemberByClubId(club.getId()))
+        assertThat(clubMemberRepository.findAllJoinedWithMemberByClubId(club.getId()))
                 .extracting(clubMember -> clubMember.getMember().getNickname())
                 .containsExactly("민서", "지수");
     }
@@ -101,7 +101,7 @@ class DevDataSeederTest extends IntegrationTest {
     void seedCreatesReadingProgress() {
         Long clubId = clubRepository.findByJoinCode("A3F9KQ").orElseThrow().getId();
 
-        assertThat(clubMemberRepository.findAllWithMemberByClubId(clubId))
+        assertThat(clubMemberRepository.findAllJoinedWithMemberByClubId(clubId))
                 .extracting(
                         clubMember -> clubMember.getMember().getNickname(),
                         clubMember -> clubMember.getLastReadPassage().getSequence(),

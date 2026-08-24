@@ -135,6 +135,17 @@
 }
 ```
 - 존재하지 않는 코드: `400` (`JOIN_CODE_NOT_FOUND`). 이미 참여한 모임: `200`과 동일 응답 (멱등).
+- 탈퇴한 모임에 재가입하면 기존 참여 정보와 진도를 복구한다.
+
+### 모임 탈퇴
+`DELETE /api/clubs/{clubId}/members/me`
+
+응답 `204 No Content`.
+
+- 참여 정보는 삭제하지 않고 `LEFT`로 변경하며, 기존 댓글·작성자 정보·진도는 보존한다.
+- 이미 탈퇴한 회원의 중복 요청도 `204`로 처리한다 (멱등).
+- 가입 이력이 없는 회원: `403` (`NOT_CLUB_MEMBER`). 존재하지 않는 모임: `400` (`CLUB_NOT_FOUND`).
+- 탈퇴 회원은 재가입 전까지 모임 상세·본문·진도·댓글 조회 및 작성과 기존 댓글 수정·삭제를 사용할 수 없다.
 
 ### 내 모임 목록
 `GET /api/clubs`
@@ -159,6 +170,7 @@
 ```
 - `myProgress`: 아직 읽기 시작 전이면 `null`.
 - `progressRate`: 0~100 정수 (반올림). `lastReadPassageSequence ÷ passageCount × 100`.
+- 탈퇴한 모임은 목록에서 제외되며 `memberCount`는 참여 중인 회원만 집계한다.
 
 ### 모임 상세 (2026-08-07 추가 — 프로토타입 대조 결정)
 `GET /api/clubs/{clubId}`
@@ -184,7 +196,7 @@
 }
 ```
 - `myProgress`: 내 모임 목록과 동일 형태. 아직 읽기 시작 전이면 `null`.
-- `members`: 참여 시각 오름차순. `mine`은 요청자(`X-Member-Id`) 본인 여부 (댓글의 `mine`과 동일 규약).
+- `members`: 참여 중인 회원만 참여 시각 오름차순으로 반환한다. `mine`은 요청자(`X-Member-Id`) 본인 여부 (댓글의 `mine`과 동일 규약).
 - 모임 미소속 회원: `403` (`NOT_CLUB_MEMBER`). 존재하지 않는 모임: `400` (`CLUB_NOT_FOUND`).
 
 ## 4. 읽기 · 진도
@@ -247,6 +259,7 @@
 }
 ```
 - 어떤 모임에서도 읽기 기록이 없으면 `204 No Content`.
+- 탈퇴한 모임의 읽기 기록은 재가입 전까지 후보에서 제외한다.
 
 ## 5. 댓글
 
@@ -270,6 +283,7 @@
 }
 ```
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
+- 탈퇴한 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반 댓글과 동일하게 반환한다.
 
 ### 댓글 작성
 `POST /api/clubs/{clubId}/passages/{passageId}/comments`
@@ -290,12 +304,12 @@
 { "content": "수정된 내용" }
 ```
 
-응답 `200`: 댓글 목록의 원소와 동일 형태. 본인 댓글이 아니면 `403`.
+응답 `200`: 댓글 목록의 원소와 동일 형태. 본인 댓글이 아니거나 작성자가 해당 모임에서 탈퇴한 상태면 `403`.
 
 ### 댓글 삭제
 `DELETE /api/comments/{commentId}`
 
-응답 `204`. 본인 댓글이 아니면 `403`. 하드 삭제 (PRD 3.5).
+응답 `204`. 본인 댓글이 아니거나 작성자가 해당 모임에서 탈퇴한 상태면 `403`. 하드 삭제 (PRD 3.5).
 
 ## 6. 관리자 (안드로이드 비대상)
 
@@ -379,6 +393,7 @@
 | GET | /api/books/{bookId} | 도서 상세 + 목차 |
 | POST | /api/clubs | 모임 생성 |
 | POST | /api/clubs/join | 참여 코드로 참여 |
+| DELETE | /api/clubs/{clubId}/members/me | 모임 탈퇴 |
 | GET | /api/clubs | 내 모임 목록 |
 | GET | /api/clubs/{clubId} | 모임 상세 (초대 코드 · 참여자 목록) |
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |

@@ -62,6 +62,10 @@ public class Comment {
         return clubMember.isOwnedBy(memberId);
     }
 
+    public boolean isWriterJoined() {
+        return clubMember.isJoined();
+    }
+
     private static void validateContent(String content) {
         if (content == null || content.isBlank() || content.length() > MAX_CONTENT_LENGTH) {
             throw new IllegalArgumentException("댓글 내용은 공백이 아닌 1~" + MAX_CONTENT_LENGTH + "자여야 합니다.");
