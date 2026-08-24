@@ -34,7 +34,7 @@ public class ProgressService {
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        ClubMember clubMember = clubMemberRepository.findActiveByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
@@ -47,7 +47,7 @@ public class ProgressService {
 
     @Transactional(readOnly = true)
     public Optional<LastReadingResponse> findLastReading(Long memberId) {
-        List<ClubMember> readings = clubMemberRepository.findAllWithLastReadingByMemberId(memberId);
+        List<ClubMember> readings = clubMemberRepository.findAllJoinedWithLastReadingByMemberId(memberId);
         if (readings.isEmpty()) {
             return Optional.empty();
         }

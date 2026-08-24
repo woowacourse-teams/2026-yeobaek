@@ -14,30 +14,30 @@ import yeobaek.backend.member.domain.Member;
 class ClubMemberTest {
 
     @Test
-    @DisplayName("모임 참여 정보는 활성 상태로 생성된다")
-    void statusStartsActive() {
+    @DisplayName("모임 참여 정보는 참여 중 상태로 생성된다")
+    void statusStartsJoined() {
         ClubMember clubMember = new ClubMember(
                 new Member("민서"), new Club("1기", new Book("제목", null, null, 1), "CODE01"));
 
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
-        assertThat(clubMember.isActive()).isTrue();
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(clubMember.isJoined()).isTrue();
     }
 
     @Test
-    @DisplayName("모임 참여 정보를 비활성화한 후 다시 활성화할 수 있다")
-    void changeStatus() {
+    @DisplayName("모임을 탈퇴한 후 재가입할 수 있다")
+    void leaveAndRejoin() {
         ClubMember clubMember = new ClubMember(
                 new Member("민서"), new Club("1기", new Book("제목", null, null, 1), "CODE01"));
 
-        clubMember.disable();
+        clubMember.leave();
 
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.DISABLED);
-        assertThat(clubMember.isActive()).isFalse();
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        assertThat(clubMember.isJoined()).isFalse();
 
-        clubMember.activate();
+        clubMember.rejoin();
 
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
-        assertThat(clubMember.isActive()).isTrue();
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(clubMember.isJoined()).isTrue();
     }
 
     @Test

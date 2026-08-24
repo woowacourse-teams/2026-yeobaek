@@ -62,8 +62,8 @@ public class Comment {
         return clubMember.isOwnedBy(memberId);
     }
 
-    public boolean isWriterActive() {
-        return clubMember.isActive();
+    public boolean isWriterJoined() {
+        return clubMember.isJoined();
     }
 
     private static void validateContent(String content) {

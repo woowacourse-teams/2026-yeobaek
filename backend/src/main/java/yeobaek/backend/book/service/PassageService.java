@@ -35,7 +35,7 @@ public class PassageService {
         validateRange(from, to);
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        if (!clubMemberRepository.existsActiveByMemberIdAndClubId(memberId, clubId)) {
+        if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
             throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
         }
         List<Passage> passages = passageRepository.findRangeByBookId(club.getBook().getId(), from, to);

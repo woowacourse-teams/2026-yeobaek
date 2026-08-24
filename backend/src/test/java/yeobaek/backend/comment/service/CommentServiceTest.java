@@ -103,9 +103,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원의 댓글은 작성자 정보와 내용이 그대로 조회된다")
-    void preserveDisabledWritersComment() {
+    void preserveLeftMembersComment() {
         CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "남겨진 댓글");
-        disableMembership(writer, club);
+        leaveClub(writer, club);
 
         CommentsResponse response = commentService.findComments(other.getId(), club.getId(), passage.getId());
 
@@ -128,8 +128,8 @@ class CommentServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원은 댓글을 조회하거나 작성할 수 없다")
-    void rejectCommentContextForDisabledMember() {
-        disableMembership(writer, club);
+    void rejectCommentContextForLeftMember() {
+        leaveClub(writer, club);
 
         assertThatThrownBy(() -> commentService.findComments(writer.getId(), club.getId(), passage.getId()))
                 .isInstanceOf(ForbiddenException.class);
@@ -179,9 +179,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원은 재가입 전까지 기존 댓글을 수정하거나 삭제할 수 없다")
-    void rejectChangingCommentForDisabledMember() {
+    void rejectChangingCommentForLeftMember() {
         CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "보존할 댓글");
-        disableMembership(writer, club);
+        leaveClub(writer, club);
 
         assertThatThrownBy(() -> commentService.update(writer.getId(), created.commentId(), "수정 시도"))
                 .isInstanceOf(ForbiddenException.class);
@@ -210,10 +210,10 @@ class CommentServiceTest extends IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    private void disableMembership(Member member, Club targetClub) {
+    private void leaveClub(Member member, Club targetClub) {
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(member.getId(), targetClub.getId()).orElseThrow();
-        membership.disable();
+        membership.leave();
         clubMemberRepository.saveAndFlush(membership);
     }
 }

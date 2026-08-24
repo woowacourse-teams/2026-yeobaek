@@ -47,8 +47,8 @@ public class ClubMember {
     private LocalDateTime lastReadAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "varchar(20) default 'ACTIVE'")
-    private ClubMemberStatus status = ClubMemberStatus.ACTIVE;
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'JOINED'")
+    private ClubMemberStatus status = ClubMemberStatus.JOINED;
 
     public ClubMember(Member member, Club club) {
         this.member = member;
@@ -60,16 +60,16 @@ public class ClubMember {
         this.lastReadAt = readAt;
     }
 
-    public void activate() {
-        this.status = ClubMemberStatus.ACTIVE;
+    public void rejoin() {
+        this.status = ClubMemberStatus.JOINED;
     }
 
-    public void disable() {
-        this.status = ClubMemberStatus.DISABLED;
+    public void leave() {
+        this.status = ClubMemberStatus.LEFT;
     }
 
-    public boolean isActive() {
-        return status == ClubMemberStatus.ACTIVE;
+    public boolean isJoined() {
+        return status == ClubMemberStatus.JOINED;
     }
 
     public boolean isOwnedBy(Long memberId) {

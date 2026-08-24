@@ -56,7 +56,7 @@ public class ClubService {
         Club club = clubRepository.findByJoinCode(joinCode)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
         clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
-                .ifPresentOrElse(ClubMember::activate,
+                .ifPresentOrElse(ClubMember::rejoin,
                         () -> clubMemberRepository.save(
                                 new ClubMember(memberRepository.getReferenceById(memberId), club)));
         Book book = club.getBook();
@@ -69,14 +69,14 @@ public class ClubService {
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
-        clubMember.disable();
+        clubMember.leave();
     }
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        List<ClubMember> clubMembers = clubMemberRepository.findAllWithClubAndBookByMemberId(memberId);
+        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId);
         List<Long> clubIds = clubMembers.stream().map(clubMember -> clubMember.getClub().getId()).toList();
-        Map<Long, Long> memberCounts = clubMemberRepository.countByClubIds(clubIds).stream()
+        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
         Map<Long, List<String>> authorNames = authorNamesByBookId(
                 clubMembers.stream().map(clubMember -> clubMember.getClub().getBook().getId()).distinct().toList());
@@ -96,7 +96,7 @@ public class ClubService {
     public ClubDetailResponse findDetail(Long memberId, Long clubId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        List<ClubMember> clubMembers = clubMemberRepository.findAllWithMemberByClubId(clubId);
+        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithMemberByClubId(clubId);
         ClubMember myMembership = clubMembers.stream()
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst()

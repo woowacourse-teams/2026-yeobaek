@@ -89,24 +89,24 @@ class ClubMappingTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 참여 상태는 문자열 enum으로 저장되고 조회된다")
-    void statusPersists() {
+    @DisplayName("모임을 탈퇴하면 탈퇴 상태가 저장되고 조회된다")
+    void leaveStatusPersists() {
         Member member = memberRepository.save(new Member("민서"));
         Club club = clubRepository.save(new Club("1기", saveBook(), "CODE03"));
         ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
-        membership.disable();
+        membership.leave();
         clubMemberRepository.saveAndFlush(membership);
 
         transactionTemplate.executeWithoutResult(status -> {
             ClubMember found = clubMemberRepository.findById(membership.getId()).orElseThrow();
 
-            assertThat(found.getStatus()).isEqualTo(ClubMemberStatus.DISABLED);
+            assertThat(found.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
         });
     }
 
     @Test
-    @DisplayName("상태를 지정하지 않은 기존 참여 행은 DB 기본값으로 활성화된다")
-    void statusDefaultsToActive() {
+    @DisplayName("상태를 지정하지 않은 기존 참여 행은 DB 기본값으로 참여 중 상태가 된다")
+    void statusDefaultsToJoined() {
         Member member = memberRepository.save(new Member("민서"));
         Club club = clubRepository.save(new Club("1기", saveBook(), "CODE04"));
 
@@ -116,6 +116,6 @@ class ClubMappingTest extends IntegrationTest {
         String status = jdbcTemplate.queryForObject(
                 "select status from club_members where member_id = ? and club_id = ?",
                 String.class, member.getId(), club.getId());
-        assertThat(status).isEqualTo("ACTIVE");
+        assertThat(status).isEqualTo("JOINED");
     }
 }

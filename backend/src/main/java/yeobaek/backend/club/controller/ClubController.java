@@ -46,7 +46,7 @@ public class ClubController {
     }
 
     @Operation(summary = "모임 탈퇴",
-            description = "참여 정보와 댓글·진도는 보존하고 모임 접근을 비활성화한다. 중복 탈퇴는 멱등하게 처리한다.")
+            description = "참여 정보와 댓글·진도는 보존한 채 모임 탈퇴로 처리한다. 중복 탈퇴는 멱등하게 처리한다.")
     @DeleteMapping("/api/clubs/{clubId}/members/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leave(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {

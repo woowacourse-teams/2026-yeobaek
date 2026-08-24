@@ -97,9 +97,9 @@ class PassageServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원의 본문 조회는 거부된다")
-    void rejectDisabledMember() {
+    void rejectLeftMember() {
         ClubMember membership = clubMemberRepository.save(new ClubMember(reader, club));
-        membership.disable();
+        membership.leave();
         clubMemberRepository.saveAndFlush(membership);
 
         assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 3))

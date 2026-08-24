@@ -84,7 +84,7 @@ class ClubServiceTest extends IntegrationTest {
         assertThat(response.joinCode()).matches("^[A-Z0-9]{6}$");
         assertThat(response.book().authors()).containsExactly("현진건");
         assertThat(clubRepository.findById(response.clubId())).isPresent();
-        assertThat(clubMemberRepository.existsActiveByMemberIdAndClubId(creator.getId(), response.clubId())).isTrue();
+        assertThat(clubMemberRepository.existsJoinedByMemberIdAndClubId(creator.getId(), response.clubId())).isTrue();
     }
 
     @Test
@@ -103,7 +103,7 @@ class ClubServiceTest extends IntegrationTest {
         ClubJoinResponse response = clubService.join(joiner.getId(), created.joinCode());
 
         assertThat(response.clubId()).isEqualTo(created.clubId());
-        assertThat(clubMemberRepository.existsActiveByMemberIdAndClubId(joiner.getId(), created.clubId())).isTrue();
+        assertThat(clubMemberRepository.existsJoinedByMemberIdAndClubId(joiner.getId(), created.clubId())).isTrue();
     }
 
     @Test
@@ -114,12 +114,12 @@ class ClubServiceTest extends IntegrationTest {
         ClubJoinResponse response = clubService.join(creator.getId(), created.joinCode());
 
         assertThat(response.clubId()).isEqualTo(created.clubId());
-        assertThat(clubMemberRepository.countByClubIds(List.of(created.clubId())).getFirst().getMemberCount())
+        assertThat(clubMemberRepository.countJoinedByClubIds(List.of(created.clubId())).getFirst().getMemberCount())
                 .isEqualTo(1);
     }
 
     @Test
-    @DisplayName("모임을 탈퇴하면 참여 정보를 비활성화하고 중복 요청도 성공한다")
+    @DisplayName("모임을 탈퇴하면 참여 정보를 탈퇴 상태로 바꾸고 중복 요청도 성공한다")
     void leaveIsIdempotent() {
         ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
 
@@ -128,8 +128,8 @@ class ClubServiceTest extends IntegrationTest {
 
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
-        assertThat(membership.getStatus()).isEqualTo(ClubMemberStatus.DISABLED);
-        assertThat(clubMemberRepository.existsActiveByMemberIdAndClubId(creator.getId(), created.clubId())).isFalse();
+        assertThat(membership.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        assertThat(clubMemberRepository.existsJoinedByMemberIdAndClubId(creator.getId(), created.clubId())).isFalse();
     }
 
     @Test
@@ -169,7 +169,7 @@ class ClubServiceTest extends IntegrationTest {
         ClubMember restored = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
         assertThat(restored.getId()).isEqualTo(membership.getId());
-        assertThat(restored.getStatus()).isEqualTo(ClubMemberStatus.ACTIVE);
+        assertThat(restored.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
         assertThat(restored.getLastReadPassage().getId()).isEqualTo(passage.getId());
         assertThat(restored.getLastReadAt()).isEqualTo(lastReadAt);
         assertThat(clubMemberRepository.count()).isEqualTo(1);
@@ -192,7 +192,7 @@ class ClubServiceTest extends IntegrationTest {
         ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));
         clubService.join(joiner.getId(), first.joinCode());
-        ClubMember myMembership = clubMemberRepository.findAllWithClubAndBookByMemberId(creator.getId()).stream()
+        ClubMember myMembership = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(creator.getId()).stream()
                 .filter(clubMember -> clubMember.getClub().getId().equals(secondClub.clubId()))
                 .findFirst().orElseThrow();
         myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
@@ -212,8 +212,8 @@ class ClubServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("탈퇴한 모임은 내 목록에서 제외되고 활성 참여자 수에도 포함되지 않는다")
-    void excludeDisabledMembershipFromMyClubsAndCount() {
+    @DisplayName("탈퇴한 모임은 내 목록에서 제외되고 참여자 수에도 포함되지 않는다")
+    void excludeLeftMembershipFromMyClubsAndCount() {
         ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
         Member joiner = memberRepository.save(new Member("지수"));
         clubService.join(joiner.getId(), created.joinCode());
@@ -252,7 +252,7 @@ class ClubServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원은 모임 상세에서 제외되고 자신의 상세 조회도 거부된다")
-    void excludeDisabledMembershipFromDetail() {
+    void excludeLeftMembershipFromDetail() {
         ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
         Member joiner = memberRepository.save(new Member("지수"));
         clubService.join(joiner.getId(), created.joinCode());

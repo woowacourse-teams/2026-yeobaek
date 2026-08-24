@@ -61,7 +61,7 @@ public class CommentService {
         if (!comment.isWrittenBy(memberId)) {
             throw new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, forbiddenMessage);
         }
-        if (!comment.isWriterActive()) {
+        if (!comment.isWriterJoined()) {
             throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
         }
         return comment;
@@ -70,7 +70,7 @@ public class CommentService {
     private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        ClubMember clubMember = clubMemberRepository.findActiveByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));

@@ -103,8 +103,8 @@ class ProgressServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴 회원의 진도 보고는 거부된다")
-    void rejectDisabledMemberProgress() {
-        disableMembership();
+    void rejectLeftMemberProgress() {
+        leaveClub();
 
         assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
                 .isInstanceOf(ForbiddenException.class);
@@ -171,17 +171,17 @@ class ProgressServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("탈퇴한 모임은 마지막 읽던 책 후보에서 제외된다")
-    void lastReadingExcludesDisabledMembership() {
+    void lastReadingExcludesLeftMembership() {
         progressService.updateProgress(reader.getId(), club.getId(), second.getId());
-        disableMembership();
+        leaveClub();
 
         assertThat(progressService.findLastReading(reader.getId())).isEmpty();
     }
 
-    private void disableMembership() {
+    private void leaveClub() {
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(reader.getId(), club.getId()).orElseThrow();
-        membership.disable();
+        membership.leave();
         clubMemberRepository.saveAndFlush(membership);
     }
 }
