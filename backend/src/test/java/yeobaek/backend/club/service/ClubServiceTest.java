@@ -32,12 +32,11 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.ForbiddenException;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class ClubServiceTest extends IntegrationTest {
 
@@ -205,7 +204,7 @@ class ClubServiceTest extends IntegrationTest {
         assertThatThrownBy(() -> clubService.join(joiner.getId(), created.joinCode()))
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
-        assertThat(clubMemberRepository.existsByMemberIdAndClubId(joiner.getId(), created.clubId())).isFalse();
+        assertThat(clubMemberRepository.findByMemberIdAndClubId(joiner.getId(), created.clubId())).isEmpty();
     }
 
     @Test
