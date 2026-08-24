@@ -19,7 +19,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -27,8 +30,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,9 +54,29 @@ fun PassageCommentInput(
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(value))
+    }
+
+    LaunchedEffect(value) {
+        if (textFieldValue.text != value) {
+            val currentSelection = textFieldValue.selection
+            textFieldValue = TextFieldValue(
+                text = value,
+                selection = TextRange(
+                    start = currentSelection.start.coerceAtMost(value.length),
+                    end = currentSelection.end.coerceAtMost(value.length),
+                ),
+            )
+        }
+    }
 
     LaunchedEffect(isEditing) {
         if (isEditing) {
+            textFieldValue = TextFieldValue(
+                text = value,
+                selection = TextRange(value.length),
+            )
             focusRequester.requestFocus()
         }
     }
@@ -88,8 +113,11 @@ fun PassageCommentInput(
         }
 
         TextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = textFieldValue,
+            onValueChange = { newValue ->
+                textFieldValue = newValue
+                onValueChange(newValue.text)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
