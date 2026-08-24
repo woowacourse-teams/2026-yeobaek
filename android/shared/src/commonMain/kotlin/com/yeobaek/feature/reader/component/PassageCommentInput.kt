@@ -63,14 +63,14 @@ fun PassageCommentInput(
 
     LaunchedEffect(value) {
         if (textFieldValue.text != value) {
-            textFieldValue = if (isEditing) {
-                TextFieldValue(
-                    text = value,
-                    selection = TextRange(value.length),
-                )
-            } else {
-                TextFieldValue(value)
-            }
+            val currentSelection = textFieldValue.selection
+            textFieldValue = TextFieldValue(
+                text = value,
+                selection = TextRange(
+                    start = currentSelection.start.coerceAtMost(value.length),
+                    end = currentSelection.end.coerceAtMost(value.length),
+                ),
+            )
         }
     }
 
