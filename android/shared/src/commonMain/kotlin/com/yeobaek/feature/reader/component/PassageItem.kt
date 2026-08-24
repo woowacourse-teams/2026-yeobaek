@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,10 +33,19 @@ fun PassageItem(
     showUnderline: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val passageTextStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontFamily = YeobaekBatang,
+        fontSize = fontSize.sp,
+        lineHeight = (fontSize * 2f).sp,
+        letterSpacing = 1.sp,
+        textAlign = TextAlign.Justify,
+        lineBreak = LineBreak.Paragraph,
+    )
+
     if (showUnderline) {
         UnderlinedPassageText(
             text = passage.content,
-            fontSize = fontSize,
+            style = passageTextStyle,
             onClick = onClick,
             modifier = modifier,
         )
@@ -43,12 +55,7 @@ fun PassageItem(
             modifier = modifier
                 .fillMaxWidth()
                 .noRippleClickable(onClick = onClick),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = YeobaekBatang,
-                fontSize = fontSize.sp,
-                lineHeight = (fontSize * 2f).sp,
-                letterSpacing = 1.sp,
-            ),
+            style = passageTextStyle,
         )
     }
 }
@@ -56,7 +63,7 @@ fun PassageItem(
 @Composable
 private fun UnderlinedPassageText(
     text: String,
-    fontSize: Int,
+    style: TextStyle,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -101,12 +108,7 @@ private fun UnderlinedPassageText(
                 }
             }
             .noRippleClickable(onClick = onClick),
-        style = MaterialTheme.typography.bodyLarge.copy(
-            fontFamily = YeobaekBatang,
-            fontSize = fontSize.sp,
-            lineHeight = (fontSize * 2f).sp,
-            letterSpacing = 1.sp,
-        ),
+        style = style,
     )
 }
 
