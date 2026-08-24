@@ -1,5 +1,7 @@
 package com.yeobaek.feature.reader.component
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_menu
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -8,9 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,9 +32,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.ReaderPreviewData
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CommentItem(
@@ -65,28 +72,49 @@ fun CommentItem(
             .fillMaxWidth()
             .then(longPressModifier),
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
         ) {
-            CommentAvatar(nickname = comment.nickname)
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+            ) {
+                CommentAvatar(nickname = comment.nickname)
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = comment.nickname,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 12.sp,
+                        ),
                     )
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = comment.createdAt.toDisplayDate(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                if (comment.mine) {
+                    IconButton(
+                        onClick = { isActionMenuExpanded = true },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_menu),
+                            contentDescription = "댓글 메뉴 열기",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Spacer(modifier = Modifier.width(42.dp))
                 Text(
                     text = comment.content,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -103,6 +131,7 @@ fun CommentItem(
                 isActionMenuExpanded = false
                 onDelete()
             },
+            modifier = Modifier.padding(top = 32.dp),
         )
     }
 }
@@ -114,7 +143,7 @@ private fun CommentAvatar(
 ) {
     Box(
         modifier = modifier
-            .size(24.dp)
+            .size(32.dp)
             .background(
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = CircleShape,
@@ -137,12 +166,24 @@ private fun String.toDisplayDate(): String {
     return "${substring(0, 4)}.${substring(5, 7)}.${substring(8, 10)}"
 }
 
-@Preview(showBackground = true, name = "댓글")
+@Preview(showBackground = true, name = "타인 댓글")
 @Composable
-private fun CommentItemPreview() {
+private fun OtherCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
             comment = ReaderPreviewData.commentsByPassageId.getValue(2).first(),
+            onEdit = {},
+            onDelete = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "내 댓글")
+@Composable
+private fun MyCommentItemPreview() {
+    YeobaekTheme {
+        CommentItem(
+            comment = ReaderPreviewData.commentsByPassageId.getValue(5).last(),
             onEdit = {},
             onDelete = {},
         )
