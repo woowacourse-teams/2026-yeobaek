@@ -13,8 +13,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.LineBreak
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,20 +36,18 @@ fun PassageItem(
         fontSize = fontSize.sp,
         lineHeight = (fontSize * 2f).sp,
         letterSpacing = 1.sp,
-        textAlign = TextAlign.Justify,
-        lineBreak = LineBreak.Paragraph,
     )
 
     if (showUnderline) {
         UnderlinedPassageText(
-            text = passage.content,
+            text = passage.content.allowCharacterBreaks(),
             style = passageTextStyle,
             onClick = onClick,
             modifier = modifier,
         )
     } else {
         Text(
-            text = passage.content,
+            text = passage.content.allowCharacterBreaks(),
             modifier = modifier
                 .fillMaxWidth()
                 .noRippleClickable(onClick = onClick),
@@ -111,6 +107,17 @@ private fun UnderlinedPassageText(
         style = style,
     )
 }
+
+private fun String.allowCharacterBreaks(): String =
+    buildString {
+        this@allowCharacterBreaks.forEach { character ->
+            append(character)
+
+            if (!character.isWhitespace()) {
+                append('\u200B')
+            }
+        }
+    }
 
 @Preview(showBackground = true)
 @Composable
