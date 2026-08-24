@@ -1,0 +1,48 @@
+name: backend-pr-ci
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: backend-pr-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-pr-verify:
+    name: Backend PR verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend changes
+        id: backend-changes
+        working-directory: .
+        run: |
+          if git diff --quiet \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            -- backend .github/workflows/backend-pr-ci.yml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.backend-changes.outputs.changed == 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build (tests + PMD + SpotBugs)
+        if: steps.backend-changes.outputs.changed == 'true'
+        run: ./gradlew build
