@@ -11,7 +11,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.dto.PassagesResponse;
-import yeobaek.backend.book.repository.BookArchiveRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -34,7 +34,7 @@ class PassageServiceTest extends IntegrationTest {
     private PassageService passageService;
 
     @Autowired
-    private BookArchiveRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;

@@ -11,7 +11,7 @@ import yeobaek.backend.support.NotFoundException;
 
 @Repository
 @RequiredArgsConstructor
-public class BookArchiveRepository {
+public class BookManagementRepository {
 
     private final BookJpaRepository bookJpaRepository;
 

@@ -17,7 +17,7 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookArchiveRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.ClubMember;
@@ -50,7 +50,7 @@ class ClubServiceTest extends IntegrationTest {
     private ClubMemberRepository clubMemberRepository;
 
     @Autowired
-    private BookArchiveRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;

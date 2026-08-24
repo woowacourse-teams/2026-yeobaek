@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.BookArchiveRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -38,7 +38,7 @@ class CommentServiceTest extends IntegrationTest {
     private CommentRepository commentRepository;
 
     @Autowired
-    private BookArchiveRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;

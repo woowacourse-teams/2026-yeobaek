@@ -17,7 +17,7 @@ import yeobaek.backend.support.IntegrationTest;
 class BookMappingTest extends IntegrationTest {
 
     @Autowired
-    private BookArchiveRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;

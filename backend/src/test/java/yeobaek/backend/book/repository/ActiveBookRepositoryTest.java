@@ -20,7 +20,7 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     private ActiveBookRepository activeBookRepository;
 
     @Autowired
-    private BookArchiveRepository bookArchiveRepository;
+    private BookManagementRepository bookManagementRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -31,11 +31,11 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("활성 도서 목록과 검색에서 삭제된 도서를 제외한다")
     void excludesDeletedBooksFromListAndSearch() {
-        Book active = bookArchiveRepository.save(new Book("활성 도서", null, null, 1));
-        Book deleted = bookArchiveRepository.save(new Book("삭제 도서", null, null, 1));
+        Book active = bookManagementRepository.save(new Book("활성 도서", null, null, 1));
+        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1));
         Author author = authorRepository.save(new Author("검색 작가"));
         authorBookRepository.save(new AuthorBook(author, deleted));
-        bookArchiveRepository.delete(deleted.getId());
+        bookManagementRepository.delete(deleted.getId());
 
         assertThat(activeBookRepository.findAll()).extracting(Book::getId).containsExactly(active.getId());
         assertThat(activeBookRepository.searchByTitleOrAuthorName("삭제")).isEmpty();
@@ -45,8 +45,8 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("활성 도서 단건 조회는 미존재와 삭제 상태를 구분한다")
     void distinguishesMissingAndDeletedBook() {
-        Book deleted = bookArchiveRepository.save(new Book("삭제 도서", null, null, 1));
-        bookArchiveRepository.delete(deleted.getId());
+        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1));
+        bookManagementRepository.delete(deleted.getId());
 
         assertThatThrownBy(() -> activeBookRepository.getById(999L))
                 .isInstanceOf(NotFoundException.class)

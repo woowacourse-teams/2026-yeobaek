@@ -16,7 +16,7 @@ import yeobaek.backend.book.dto.BooksResponse;
 import yeobaek.backend.book.dto.ChapterResponse;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookArchiveRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.NotFoundException;
@@ -30,7 +30,7 @@ class BookServiceTest extends IntegrationTest {
     private BookService bookService;
 
     @Autowired
-    private BookArchiveRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
