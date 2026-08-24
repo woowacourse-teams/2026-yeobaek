@@ -2,6 +2,8 @@ package yeobaek.backend.book.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -10,6 +12,9 @@ import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 @Entity
 @Table(name = "books")
@@ -35,6 +40,11 @@ public class Book {
     @Column(nullable = false)
     private int passageCount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @ColumnDefault("'ACTIVE'")
+    private BookStatus status = BookStatus.ACTIVE;
+
     public Book(String title, String publisher, Integer publishedYear, int passageCount) {
         validateTitle(title);
         validatePublisher(publisher);
@@ -52,6 +62,17 @@ public class Book {
         return title.equals(other.getTitle())
                 && Objects.equals(publisher, other.getPublisher())
                 && Objects.equals(publishedYear, other.getPublishedYear());
+    }
+
+    public void delete() {
+        ensureAvailable();
+        this.status = BookStatus.DELETED;
+    }
+
+    public void ensureAvailable() {
+        if (status != BookStatus.ACTIVE) {
+            throw new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE);
+        }
     }
 
     private static void validateTitle(String title) {

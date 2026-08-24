@@ -15,7 +15,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookArchiveRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -27,7 +27,7 @@ import yeobaek.backend.member.repository.MemberRepository;
 class DevDataSeederTest extends IntegrationTest {
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookArchiveRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;

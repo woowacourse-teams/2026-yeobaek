@@ -6,8 +6,31 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class BookTest {
+
+    @Test
+    @DisplayName("새 도서는 ACTIVE 상태이다")
+    void newBookIsActive() {
+        Book book = new Book("제목", null, null, 1);
+
+        assertThat(book.getStatus()).isEqualTo(BookStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("도서를 삭제하면 DELETED 상태가 되고 재삭제는 거부한다")
+    void deleteBook() {
+        Book book = new Book("제목", null, null, 1);
+
+        book.delete();
+
+        assertThat(book.getStatus()).isEqualTo(BookStatus.DELETED);
+        assertThatThrownBy(book::delete)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
 
     @Test
     @DisplayName("같은 id를 가진 도서는 동일한 도서로 판단한다")

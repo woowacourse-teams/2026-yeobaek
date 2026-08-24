@@ -15,7 +15,7 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookArchiveRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -41,7 +41,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final LocalDateTime MINSEO_LAST_READ_AT = LocalDateTime.of(2026, 8, 5, 14, 30);
     private static final LocalDateTime JISOO_LAST_READ_AT = LocalDateTime.of(2026, 8, 5, 15, 0);
 
-    private final BookRepository bookRepository;
+    private final BookArchiveRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;

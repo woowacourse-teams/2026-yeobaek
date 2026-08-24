@@ -12,19 +12,17 @@ import yeobaek.backend.book.dto.BookSummaryResponse;
 import yeobaek.backend.book.dto.BooksResponse;
 import yeobaek.backend.book.dto.ChapterResponse;
 import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.ChapterPassageRange;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class BookService {
 
-    private final BookRepository bookRepository;
+    private final ActiveBookRepository bookRepository;
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
@@ -45,8 +43,7 @@ public class BookService {
     }
 
     public BookDetailResponse findBook(Long bookId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+        Book book = bookRepository.getById(bookId);
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
         return new BookDetailResponse(book.getId(), book.getTitle(), authors,
                 book.getPublisher(), book.getPublishedYear(), book.getPassageCount(), chapters(bookId));

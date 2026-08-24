@@ -10,7 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookArchiveRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
@@ -30,7 +30,7 @@ class ClubMappingTest extends IntegrationTest {
     private MemberRepository memberRepository;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookArchiveRepository bookRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;

@@ -9,6 +9,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.support.IntegrationTest;
@@ -16,7 +17,7 @@ import yeobaek.backend.support.IntegrationTest;
 class BookMappingTest extends IntegrationTest {
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookArchiveRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -62,5 +63,18 @@ class BookMappingTest extends IntegrationTest {
                 assertThat(authorBookRepository.findAll())
                         .extracting(mapping -> mapping.getAuthor().getName())
                         .containsExactlyInAnyOrder("작가1", "작가2"));
+    }
+
+    @Test
+    @DisplayName("도서 삭제 상태를 저장하고 다시 조회할 수 있다")
+    void persistDeletedStatus() {
+        Book book = bookRepository.save(new Book("삭제될 도서", null, null, 1));
+        bookRepository.delete(book.getId());
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Book found = bookRepository.findById(book.getId()).orElseThrow();
+
+            assertThat(found.getStatus()).isEqualTo(BookStatus.DELETED);
+        });
     }
 }

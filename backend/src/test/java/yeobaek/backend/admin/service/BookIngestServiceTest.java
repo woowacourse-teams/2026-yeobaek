@@ -18,7 +18,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookArchiveRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
@@ -32,7 +32,7 @@ class BookIngestServiceTest extends IntegrationTest {
     private BookIngestService bookIngestService;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookArchiveRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -151,6 +151,23 @@ class BookIngestServiceTest extends IntegrationTest {
                 List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문")))));
 
         assertThat(bookIngestService.upload(request).bookId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("삭제된 도서와 서지·작가 구성이 같은 도서를 새 ID로 업로드한다")
+    void allowBibliographicTwinOfDeletedBook() {
+        Author author = authorRepository.save(new Author("현진건"));
+        Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        authorBookRepository.save(new AuthorBook(author, deleted));
+        bookRepository.delete(deleted.getId());
+        BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924,
+                List.of(new AuthorEntryRequest(author.getId(), null, null)),
+                List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문")))));
+
+        BookUploadResponse response = bookIngestService.upload(request);
+
+        assertThat(response.bookId()).isNotEqualTo(deleted.getId());
+        assertThat(bookRepository.findAll()).hasSize(2);
     }
 
     @Test

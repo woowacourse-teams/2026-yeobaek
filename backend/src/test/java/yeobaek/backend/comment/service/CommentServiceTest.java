@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookArchiveRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -23,9 +23,11 @@ import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
-import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class CommentServiceTest extends IntegrationTest {
 
@@ -36,7 +38,7 @@ class CommentServiceTest extends IntegrationTest {
     private CommentRepository commentRepository;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookArchiveRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;
@@ -54,6 +56,7 @@ class CommentServiceTest extends IntegrationTest {
     private ClubMemberRepository clubMemberRepository;
 
     private Member writer;
+    private Book book;
     private Member other;
     private Club club;
     private Club otherClub;
@@ -61,7 +64,7 @@ class CommentServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
+        book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         passage = passageRepository.save(new Passage(chapter, 1, "본문 1"));
         writer = memberRepository.save(new Member("민서"));
@@ -208,6 +211,26 @@ class CommentServiceTest extends IntegrationTest {
 
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(), otherPassage.getId(), "댓글"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 댓글 조회·작성·수정·삭제를 모두 거부하고 기존 댓글을 보존한다")
+    void rejectAllCommentOperationsForDeletedBook() {
+        CommentResponse existing = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+        bookRepository.delete(book.getId());
+
+        assertBookNotAvailable(() -> commentService.findComments(writer.getId(), club.getId(), passage.getId()));
+        assertBookNotAvailable(() -> commentService.create(writer.getId(), club.getId(), passage.getId(), "신규"));
+        assertBookNotAvailable(() -> commentService.update(writer.getId(), existing.commentId(), "수정"));
+        assertBookNotAvailable(() -> commentService.delete(writer.getId(), existing.commentId()));
+        assertThat(commentRepository.findById(existing.commentId())).get()
+                .extracting(Comment::getContent).isEqualTo("원본");
+    }
+
+    private void assertBookNotAvailable(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation) {
+        assertThatThrownBy(operation)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 
     private void leaveClub(Member member, Club targetClub) {

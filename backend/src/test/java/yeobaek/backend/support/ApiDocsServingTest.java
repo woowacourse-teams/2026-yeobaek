@@ -1,6 +1,7 @@
 package yeobaek.backend.support;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +18,20 @@ class ApiDocsServingTest extends IntegrationTest {
     @DisplayName("OpenAPI 스펙이 서빙된다")
     void serveOpenApiSpec() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['paths']['/api/admin/books/{bookId}']['delete']").exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ClubBookResponse']['properties']['status']['enum'][0]")
+                        .value("ACTIVE"))
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ClubBookResponse']['properties']['status']['enum'][1]")
+                        .value("DELETED"))
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['AdminAuthorBookResponse']['properties']['status']['enum'][0]")
+                        .value("ACTIVE"))
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['AdminAuthorBookResponse']['properties']['status']['enum'][1]")
+                        .value("DELETED"));
     }
 
     @Test

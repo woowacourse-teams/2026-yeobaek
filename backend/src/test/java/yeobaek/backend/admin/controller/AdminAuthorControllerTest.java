@@ -20,6 +20,7 @@ import yeobaek.backend.admin.dto.AdminAuthorBookResponse;
 import yeobaek.backend.admin.dto.AdminAuthorResponse;
 import yeobaek.backend.admin.dto.AdminAuthorsResponse;
 import yeobaek.backend.admin.service.AdminAuthorService;
+import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.support.ControllerTest;
 
 @WebMvcTest(AdminAuthorController.class)
@@ -37,7 +38,7 @@ class AdminAuthorControllerTest extends ControllerTest {
                         12L,
                         "현진건",
                         "000000012345964X",
-                        List.of(new AdminAuthorBookResponse(3L, "운수 좋은 날"))),
+                        List.of(new AdminAuthorBookResponse(3L, "운수 좋은 날", BookStatus.DELETED))),
                 new AdminAuthorResponse(13L, "작자 미상", null, List.of())));
         given(adminAuthorService.findAuthors()).willReturn(response);
 
@@ -54,6 +55,7 @@ class AdminAuthorControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.authors[0].books.length()").value(1))
                 .andExpect(jsonPath("$.authors[0].books[0].bookId").value(3))
                 .andExpect(jsonPath("$.authors[0].books[0].title").value("운수 좋은 날"))
+                .andExpect(jsonPath("$.authors[0].books[0].status").value("DELETED"))
                 .andExpect(jsonPath("$.authors[1].authorId").value(13))
                 .andExpect(jsonPath("$.authors[1].name").value("작자 미상"))
                 .andExpect(jsonPath("$.authors[1].isni").value((Object) null))

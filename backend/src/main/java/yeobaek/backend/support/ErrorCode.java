@@ -13,6 +13,7 @@ public enum ErrorCode {
     INVALID_REQUEST("잘못된 요청입니다."),
     MEMBER_NOT_FOUND("존재하지 않는 회원입니다."),
     BOOK_NOT_FOUND("존재하지 않는 도서입니다."),
+    BOOK_NOT_AVAILABLE("더 이상 이용할 수 없는 도서입니다."),
     CLUB_NOT_FOUND("존재하지 않는 모임입니다."),
     JOIN_CODE_NOT_FOUND("존재하지 않는 참여 코드입니다."),
     PASSAGE_NOT_FOUND("존재하지 않는 본문입니다."),

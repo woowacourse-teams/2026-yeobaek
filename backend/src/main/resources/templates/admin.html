@@ -17,6 +17,12 @@
         .result { margin-top: .8rem; white-space: pre-wrap; font-family: monospace; font-size: .85rem; }
         .ok { color: #0a7a2f; }
         .error { color: #c0272d; }
+        .book-entry { display: flex; align-items: center; gap: .5rem; margin: .25rem 0; }
+        .book-title { flex: 1; }
+        .book-status { font-size: .8rem; color: #0a7a2f; }
+        .book-status.deleted { color: #777; }
+        .delete-book { padding: .25rem .6rem; }
+        .delete-book:disabled { cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -64,7 +70,7 @@
         element.className = 'result ' + (isError ? 'error' : 'ok');
     }
 
-    document.getElementById('load-authors').addEventListener('click', async () => {
+    async function loadAuthors() {
         const result = document.getElementById('authors-result');
         const table = document.getElementById('authors-table');
         table.hidden = true;
@@ -81,15 +87,51 @@
                 + '<td>' + author.authorId + '</td>'
                 + '<td>' + escapeHtml(author.name) + '</td>'
                 + '<td>' + (author.isni ?? '-') + '</td>'
-                + '<td>' + author.books.map(book => escapeHtml(book.title) + ' (#' + book.bookId + ')').join(', ') + '</td>'
+                + '<td>' + author.books.map(book => '<div class="book-entry">'
+                    + '<span class="book-title">' + escapeHtml(book.title) + ' (#' + book.bookId + ')</span>'
+                    + '<span class="book-status' + (book.status === 'DELETED' ? ' deleted' : '') + '">'
+                    + (book.status === 'DELETED' ? '삭제됨' : '활성') + '</span>'
+                    + '<button type="button" class="delete-book" data-book-id="' + book.bookId + '"'
+                    + (book.status === 'DELETED' ? ' disabled' : '') + '>삭제</button>'
+                    + '</div>').join('') + '</td>'
                 + '</tr>').join('');
             table.querySelector('tbody').innerHTML = rows;
+            const booksById = new Map(body.authors
+                .flatMap(author => author.books)
+                .map(book => [String(book.bookId), book]));
+            table.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
+                button.addEventListener('click', () => deleteBook(booksById.get(button.dataset.bookId)));
+            });
             table.hidden = false;
             show(result, '작가 ' + body.authors.length + '명', false);
         } catch (error) {
             show(result, '요청 실패: ' + error, true);
         }
-    });
+    }
+
+    document.getElementById('load-authors').addEventListener('click', loadAuthors);
+
+    async function deleteBook(book) {
+        if (!book || !window.confirm('"' + book.title + '" 도서를 삭제하시겠습니까?')) {
+            return;
+        }
+        const result = document.getElementById('authors-result');
+        try {
+            const response = await fetch('/api/admin/books/' + book.bookId, {
+                method: 'DELETE',
+                headers: { 'X-Admin-Token': adminToken() }
+            });
+            if (!response.ok) {
+                const body = await response.json();
+                show(result, body.code + ': ' + body.message, true);
+                return;
+            }
+            await loadAuthors();
+            show(result, '삭제 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+        } catch (error) {
+            show(result, '요청 실패: ' + error, true);
+        }
+    }
 
     document.getElementById('upload-book').addEventListener('click', async () => {
         const result = document.getElementById('upload-result');
