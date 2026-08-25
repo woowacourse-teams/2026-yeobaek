@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Author;
@@ -78,6 +79,34 @@ class ClubServiceTest extends IntegrationTest {
         authorBookRepository.save(new AuthorBook(author, book));
     }
 
+    @Nested
+    @DisplayName("도서를 읽는 모임을 새로 만들거나 참여할 수 있는가")
+    class CreateOrJoinBookClub {
+
+        @Test
+        @DisplayName("삭제된 도서를 읽는 모임은 새로 만들 수 없다")
+        void cannotCreateClubForDeletedBook() {
+            bookRepository.delete(book.getId());
+
+            assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", book.getId()))
+                    .isInstanceOf(BadRequestException.class)
+                    .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+        }
+
+        @Test
+        @DisplayName("삭제된 도서를 읽는 기존 모임에는 새로 참여할 수 없다")
+        void cannotJoinClubForDeletedBook() {
+            ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+            Member joiner = memberRepository.save(new Member("지수"));
+            bookRepository.delete(book.getId());
+
+            assertThatThrownBy(() -> clubService.join(joiner.getId(), created.joinCode()))
+                    .isInstanceOf(BadRequestException.class)
+                    .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+            assertThat(clubMemberRepository.findByMemberIdAndClubId(joiner.getId(), created.clubId())).isEmpty();
+        }
+    }
+
     @Test
     @DisplayName("모임을 생성하면 참여 코드가 발급되고 생성자가 자동으로 참여한다")
     void createClub() {
@@ -94,16 +123,6 @@ class ClubServiceTest extends IntegrationTest {
     void rejectUnknownBook() {
         assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", 999L))
                 .isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("삭제된 도서로는 모임을 생성할 수 없다")
-    void rejectCreatingClubWithDeletedBook() {
-        bookRepository.delete(book.getId());
-
-        assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", book.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 
     @Test
@@ -195,21 +214,8 @@ class ClubServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("삭제된 도서의 기존 모임은 새로 참여할 수 없다")
-    void rejectJoiningClubWithDeletedBook() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
-        bookRepository.delete(book.getId());
-
-        assertThatThrownBy(() -> clubService.join(joiner.getId(), created.joinCode()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
-        assertThat(clubMemberRepository.findByMemberIdAndClubId(joiner.getId(), created.clubId())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("삭제된 도서의 기존 모임은 목록과 상세에 DELETED 상태로 남는다")
-    void retainDeletedBookClubForReadOnlyLookup() {
+    @DisplayName("삭제된 도서가 연결된 기존 모임은 목록과 상세에 DELETED 상태로 보존된다")
+    void preservesClubOfDeletedBook() {
         ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
         bookRepository.delete(book.getId());
 

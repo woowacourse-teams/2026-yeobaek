@@ -59,8 +59,8 @@ class AdminAuthorServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("관리자 작품 목록에 삭제된 도서를 상태와 함께 유지한다")
-    void retainDeletedBook() {
+    @DisplayName("삭제된 도서는 관리자 작품 목록에 DELETED 상태로 보존된다")
+    void preservesDeletedBookInAdminCatalog() {
         Author author = authorRepository.save(new Author("현진건"));
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
         authorBookRepository.save(new AuthorBook(author, book));

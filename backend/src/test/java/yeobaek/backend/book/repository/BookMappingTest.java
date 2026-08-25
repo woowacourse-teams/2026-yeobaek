@@ -66,8 +66,8 @@ class BookMappingTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("도서 삭제 상태를 저장하고 다시 조회할 수 있다")
-    void persistDeletedStatus() {
+    @DisplayName("도서의 DELETED 상태를 영속화한다")
+    void persistsDeletedStatus() {
         Book book = bookRepository.save(new Book("삭제될 도서", null, null, 1));
         bookRepository.delete(book.getId());
 

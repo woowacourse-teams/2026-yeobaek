@@ -20,13 +20,21 @@ class BookTest {
     }
 
     @Test
-    @DisplayName("도서를 삭제하면 DELETED 상태가 되고 재삭제는 거부한다")
-    void deleteBook() {
+    @DisplayName("도서를 삭제하면 DELETED 상태로 전이한다")
+    void transitionsToDeleted() {
         Book book = new Book("제목", null, null, 1);
 
         book.delete();
 
         assertThat(book.getStatus()).isEqualTo(BookStatus.DELETED);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서는 다시 삭제할 수 없다")
+    void cannotDeleteTwice() {
+        Book book = new Book("제목", null, null, 1);
+        book.delete();
+
         assertThatThrownBy(book::delete)
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);

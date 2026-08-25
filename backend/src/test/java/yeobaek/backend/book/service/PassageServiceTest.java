@@ -109,8 +109,8 @@ class PassageServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("삭제된 도서의 본문 조회를 거부한다")
-    void rejectDeletedBook() {
+    @DisplayName("삭제된 도서를 대상으로 본문을 조회할 수 없다")
+    void cannotReadPassagesOfDeletedBook() {
         clubMemberRepository.save(new ClubMember(reader, club));
         Book book = club.getBook();
         bookRepository.delete(book.getId());
