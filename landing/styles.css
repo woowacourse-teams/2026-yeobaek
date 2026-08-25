@@ -1,0 +1,298 @@
+@font-face {
+  font-family: "Ridi Batang";
+  src: url("assets/fonts/ridibatang.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wanted Sans";
+  src: url("assets/fonts/wantedsans-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Wanted Sans";
+  src: url("assets/fonts/wantedsans-semibold.ttf") format("truetype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --paper: #faf7f2;
+  --ink: #3c3833;
+  --accent: #b59a7d;
+  --accent-dark: #92775c;
+  --surface: #fff;
+  --soft-surface: #f5f0e8;
+  --highlight: rgba(218, 198, 173, .48);
+  --highlight-overlap: rgba(187, 151, 112, .55);
+  --selection: rgba(154, 120, 84, .3);
+  --secondary: #6b645e;
+  --muted: #8c857d;
+  --line: #eee7de;
+  --outline: #d8cec3;
+  --error: #c0492f;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: #e8e2da;
+  color: var(--ink);
+  font-family: "Wanted Sans", system-ui, sans-serif;
+}
+
+body { margin: 0; min-width: 320px; }
+body.modal-open { overflow: hidden; }
+button, textarea { font: inherit; }
+button { color: inherit; }
+
+.app-shell {
+  width: min(100%, 430px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--paper);
+  box-shadow: 0 0 35px rgba(60, 56, 51, .08);
+}
+
+.welcome,
+.complete {
+  min-height: 100dvh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: 40px 32px calc(40px + var(--safe-bottom));
+  text-align: center;
+}
+
+.brand {
+  margin: 0;
+  font: 400 42px/1.2 "Ridi Batang", serif;
+  letter-spacing: -.04em;
+}
+
+.welcome h2, .complete h2 {
+  margin: 0;
+  font: 400 24px/1.4 "Ridi Batang", serif;
+}
+
+.welcome p, .complete p {
+  max-width: 310px;
+  margin: 0 0 14px;
+  color: var(--secondary);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.primary-button,
+.secondary-button,
+.text-button,
+.icon-button {
+  min-height: 44px;
+  border: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.primary-button {
+  min-width: 180px;
+  padding: 13px 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  font-weight: 600;
+}
+
+.secondary-button {
+  padding: 11px 18px;
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.text-button { padding: 8px 10px; background: transparent; color: var(--secondary); }
+.text-button.danger { color: var(--error); }
+.icon-button { width: 44px; padding: 0; border-radius: 50%; background: transparent; font-size: 22px; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid rgba(181, 154, 125, .55); outline-offset: 2px; }
+button:disabled { opacity: .38; cursor: default; }
+
+.reader-screen { min-height: 100dvh; padding-bottom: 90px; }
+.reader-header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
+  border-bottom: 1px solid rgba(238, 231, 222, .8);
+  background: rgba(250, 247, 242, .94);
+  backdrop-filter: blur(12px);
+}
+
+.experience-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.experience-name { margin: 0; font-size: 15px; font-weight: 600; }
+.step { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.progress { height: 2px; margin-top: 12px; overflow: hidden; border-radius: 2px; background: var(--line); }
+.progress span { display: block; height: 100%; background: var(--accent); transition: width .2s ease; }
+
+.book-heading { padding: 38px 32px 20px; text-align: center; }
+.book-heading .eyebrow { margin: 0 0 9px; color: var(--muted); font-size: 12px; letter-spacing: .08em; }
+.book-heading h1 { margin: 0; font: 400 24px/1.4 "Ridi Batang", serif; }
+.book-heading .author { margin: 8px 0 0; color: var(--secondary); font-size: 13px; }
+.chapter-divider { width: 36px; height: 1px; margin: 25px auto 0; border: 0; background: var(--outline); }
+
+.reader-content {
+  padding: 12px 32px 42px;
+  font: 400 17px/2.02 "Ridi Batang", serif;
+  letter-spacing: -.006em;
+  overflow-wrap: break-word;
+}
+
+.reader-content.mode-tap { user-select: none; -webkit-user-select: none; }
+.reader-content.mode-drag { user-select: text; -webkit-user-select: text; }
+.passage { margin: 0 0 28px; border-radius: 6px; }
+.passage[role="button"], .sentence[role="button"], .annotation[role="button"] { cursor: pointer; }
+.sentence { border-radius: 4px; }
+.sentence.selected-range { background: var(--selection); box-shadow: inset 0 -2px var(--accent-dark); }
+.annotation { border-radius: 3px; background: var(--highlight); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.annotation.overlap { background: var(--highlight-overlap); box-shadow: inset 0 -1px rgba(146, 119, 92, .55); }
+.annotation:focus-visible { outline: 2px solid var(--accent-dark); }
+.passage:focus-visible, .sentence:focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 3px; }
+
+.selection-notice {
+  position: fixed;
+  z-index: 27;
+  top: calc(76px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  width: min(calc(100% - 40px), 390px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 7px 20px rgba(60, 56, 51, .13);
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.reader-nav {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 0;
+  width: min(100%, 430px);
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 20px calc(12px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+  background: rgba(250, 247, 242, .96);
+  backdrop-filter: blur(12px);
+}
+
+.context-action {
+  position: fixed;
+  z-index: 28;
+  transform: translate(-50%, -100%);
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  box-shadow: 0 7px 22px rgba(60, 56, 51, .24);
+  font-weight: 600;
+}
+
+.scrim {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  background: rgba(47, 43, 39, .34);
+  animation: fade-in .16s ease-out;
+}
+
+.sheet {
+  position: fixed;
+  z-index: 41;
+  left: 50%;
+  bottom: 0;
+  width: min(100%, 430px);
+  max-height: min(82dvh, 720px);
+  transform: translateX(-50%);
+  overflow: auto;
+  border-radius: 20px 20px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -10px 32px rgba(60, 56, 51, .12);
+  animation: slide-up .2s ease-out;
+  overscroll-behavior: contain;
+}
+
+.sheet.short { max-height: 55dvh; }
+.sheet-handle { width: 36px; height: 4px; margin: 10px auto 4px; border-radius: 4px; background: var(--outline); }
+.sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 18px 8px 24px; }
+.sheet-header h2 { margin: 0; font-size: 17px; }
+.sheet-body { padding: 4px 24px calc(24px + var(--safe-bottom)); }
+.quote { margin: 4px 0 22px; padding: 14px 16px; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--soft-surface); font: 400 14px/1.75 "Ridi Batang", serif; color: var(--secondary); }
+.range-list { display: grid; gap: 10px; padding-bottom: 8px; }
+.range-option { width: 100%; padding: 14px 15px; border: 1px solid var(--line); border-radius: 13px; background: white; text-align: left; }
+.range-option strong { display: block; margin-bottom: 5px; color: var(--accent-dark); font-size: 12px; }
+.range-option span { display: -webkit-box; overflow: hidden; color: var(--secondary); line-height: 1.55; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.comments { display: grid; gap: 12px; }
+.empty { margin: 8px 0 20px; color: var(--muted); font-size: 14px; }
+.comment-card { padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.comment-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+.comment-meta strong { color: var(--secondary); font-size: 13px; }
+.comment-text { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.65; }
+.comment-actions { display: flex; justify-content: flex-end; gap: 4px; margin: 8px -6px -8px 0; }
+.comment-actions button { min-height: 38px; }
+.comment-form { position: sticky; bottom: 0; margin: 18px -24px calc(-24px - var(--safe-bottom)); padding: 14px 24px calc(18px + var(--safe-bottom)); border-top: 1px solid var(--line); background: white; }
+.comment-form label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 600; }
+.comment-form textarea { width: 100%; min-height: 82px; resize: vertical; padding: 12px 13px; border: 1px solid var(--outline); border-radius: 12px; color: var(--ink); background: #fff; line-height: 1.55; }
+.form-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; }
+.counter { color: var(--muted); font-size: 12px; }
+.form-error { min-height: 18px; margin: 5px 0 0; color: var(--error); font-size: 12px; }
+
+.choice-actions { display: grid; gap: 9px; }
+.choice-actions button { width: 100%; }
+
+.tutorial-card,
+.confirm-card {
+  position: fixed;
+  z-index: 51;
+  top: 50%;
+  left: 50%;
+  width: min(calc(100% - 48px), 340px);
+  transform: translate(-50%, -50%);
+  padding: 26px 24px 22px;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 18px 48px rgba(60, 56, 51, .2);
+  text-align: center;
+  animation: fade-scale .18s ease-out;
+}
+.tutorial-card .count { color: var(--accent-dark); font-size: 12px; font-weight: 600; }
+.tutorial-card h2, .confirm-card h2 { margin: 8px 0 9px; font: 400 20px/1.45 "Ridi Batang", serif; }
+.tutorial-card p, .confirm-card p { margin: 0 0 20px; color: var(--secondary); font-size: 14px; line-height: 1.65; }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes slide-up { from { transform: translate(-50%, 18px); opacity: 0; } }
+@keyframes fade-scale { from { transform: translate(-50%, -48%) scale(.98); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+@media (max-width: 350px) {
+  .reader-content { padding-inline: 24px; font-size: 16.5px; }
+  .book-heading { padding-inline: 24px; }
+}
