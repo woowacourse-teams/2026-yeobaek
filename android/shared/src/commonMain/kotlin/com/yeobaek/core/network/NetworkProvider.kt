@@ -1,5 +1,6 @@
 package com.yeobaek.core.network
 
+import com.yeobaek.BuildKonfig
 import com.yeobaek.data.local.UserPreferences
 import de.jensklingenberg.ktorfit.Ktorfit
 import de.jensklingenberg.ktorfit.converter.ResponseConverterFactory
@@ -67,14 +68,10 @@ class NetworkProvider(
         httpClient: HttpClient,
     ): Ktorfit =
         Ktorfit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(if (isDebug) BuildKonfig.TEST_BASE_URL else BuildKonfig.BASE_URL)
             .httpClient(httpClient)
             .converterFactories(
                 ResponseConverterFactory(),
             )
             .build()
-
-    companion object {
-        const val BASE_URL = "https://yeobaek.duckdns.org/"
-    }
 }
