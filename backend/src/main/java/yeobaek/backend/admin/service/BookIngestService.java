@@ -21,7 +21,8 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
@@ -37,7 +38,8 @@ public class BookIngestService {
 
     private static final int MAX_CONTENT_BYTES = 65_535;
 
-    private final BookRepository bookRepository;
+    private final ActiveBookRepository activeBookRepository;
+    private final BookManagementRepository bookManagementRepository;
     private final AuthorRepository authorRepository;
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
@@ -50,7 +52,7 @@ public class BookIngestService {
         List<Author> authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
-        bookRepository.save(book);
+        bookManagementRepository.save(book);
         for (Author author : authors) {
             if (author.getId() == null) {
                 authorRepository.save(author);
@@ -140,7 +142,7 @@ public class BookIngestService {
             return;
         }
         Set<Long> authorIds = authors.stream().map(Author::getId).collect(Collectors.toSet());
-        boolean duplicate = bookRepository.findAllByTitle(book.getTitle()).stream()
+        boolean duplicate = activeBookRepository.findAllByTitle(book.getTitle()).stream()
                 .filter(candidate -> candidate.hasSameBibliography(book))
                 .anyMatch(candidate -> authorIdsOf(candidate).equals(authorIds));
         if (duplicate) {

@@ -16,11 +16,13 @@ import yeobaek.backend.book.dto.BooksResponse;
 import yeobaek.backend.book.dto.ChapterResponse;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class BookServiceTest extends IntegrationTest {
 
@@ -28,7 +30,7 @@ class BookServiceTest extends IntegrationTest {
     private BookService bookService;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -127,5 +129,18 @@ class BookServiceTest extends IntegrationTest {
     void findBookNotFound() {
         assertThatThrownBy(() -> bookService.findBook(999L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서는 목록·검색에서 제외하고 상세 조회를 거부한다")
+    void hideDeletedBook() {
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        bookRepository.delete(book.getId());
+
+        assertThat(bookService.findBooks(null).books()).isEmpty();
+        assertThat(bookService.findBooks("운수").books()).isEmpty();
+        assertThatThrownBy(() -> bookService.findBook(book.getId()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 }

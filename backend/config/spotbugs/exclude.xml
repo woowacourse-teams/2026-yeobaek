@@ -9,4 +9,24 @@
         <Package name="~yeobaek\.backend\..*\.domain"/>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
+    <!--
+        Book은 상태 전이를 가진 JPA 엔티티이며 AuthorBook, Chapter, Club은 같은 영속 엔티티
+        참조를 의도적으로 공유한다. 방어적 복사는 JPA 식별성과 연관관계를 깨뜨리므로 이 세
+        생성자에서 발생하는 EI_EXPOSE_REP2만 제외한다.
+    -->
+    <Match>
+        <Class name="yeobaek.backend.book.domain.AuthorBook"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="yeobaek.backend.book.domain.Chapter"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="yeobaek.backend.club.domain.Club"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

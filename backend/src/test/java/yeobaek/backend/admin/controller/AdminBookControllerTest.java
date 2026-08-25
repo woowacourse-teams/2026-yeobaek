@@ -3,9 +3,11 @@ package yeobaek.backend.admin.controller;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -24,7 +26,9 @@ import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.PassageUploadRequest;
+import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
+import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
@@ -35,6 +39,35 @@ class AdminBookControllerTest extends ControllerTest {
 
     @MockitoBean
     private BookIngestService bookIngestService;
+
+    @MockitoBean
+    private AdminBookService adminBookService;
+
+    @Test
+    @DisplayName("도서 삭제 요청의 ID를 서비스에 전달하고 빈 204 응답을 반환한다")
+    void deleteBook() throws Exception {
+        mockMvc.perform(delete("/api/admin/books/{bookId}", 3L)
+                        .header("X-Admin-Token", "controller-test-token"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(adminBookService, times(1)).delete(3L);
+    }
+
+    @Test
+    @DisplayName("이미 삭제된 도서의 삭제 요청은 이용 불가 오류를 반환한다")
+    void rejectAlreadyDeletedBook() throws Exception {
+        willThrow(new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE))
+                .given(adminBookService).delete(3L);
+
+        mockMvc.perform(delete("/api/admin/books/{bookId}", 3L)
+                        .header("X-Admin-Token", "controller-test-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BOOK_NOT_AVAILABLE"))
+                .andExpect(jsonPath("$.message").value("더 이상 이용할 수 없는 도서입니다."));
+
+        verify(adminBookService, times(1)).delete(3L);
+    }
 
     @Test
     @DisplayName("도서 업로드 JSON 전체를 서비스에 전달하고 생성 응답 계약을 반환한다")

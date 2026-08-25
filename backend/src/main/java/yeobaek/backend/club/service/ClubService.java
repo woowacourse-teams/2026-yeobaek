@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.JoinCodeGenerator;
@@ -36,15 +36,14 @@ public class ClubService {
 
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
-    private final BookRepository bookRepository;
+    private final ActiveBookRepository bookRepository;
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final JoinCodeGenerator joinCodeGenerator;
 
     @Transactional
     public ClubCreateResponse create(Long memberId, String name, Long bookId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+        Book book = bookRepository.getById(bookId);
         Club club = clubRepository.save(new Club(name, book, generateUniqueJoinCode()));
         clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
         return new ClubCreateResponse(club.getId(), club.getName(), club.getJoinCode(),
@@ -55,6 +54,7 @@ public class ClubService {
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
+        club.ensureBookAvailable();
         clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
                 .ifPresentOrElse(ClubMember::rejoin,
                         () -> clubMemberRepository.save(

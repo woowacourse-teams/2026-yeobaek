@@ -10,9 +10,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -26,6 +27,8 @@ import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class ProgressServiceTest extends IntegrationTest {
 
@@ -33,7 +36,7 @@ class ProgressServiceTest extends IntegrationTest {
     private ProgressService progressService;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;
@@ -54,13 +57,14 @@ class ProgressServiceTest extends IntegrationTest {
     private EntityManagerFactory entityManagerFactory;
 
     private Member reader;
+    private Book book;
     private Club club;
     private Passage second;
     private Passage fourth;
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 4));
+        book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 4));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         passageRepository.save(new Passage(chapter, 1, "본문 1"));
         second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
@@ -120,6 +124,16 @@ class ProgressServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("삭제된 도서의 진도 갱신을 거부한다")
+    void rejectProgressUpdateForDeletedBook() {
+        bookRepository.delete(book.getId());
+
+        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    @Test
     @DisplayName("모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
     void updateProgressWorksWhenBookIsUninitializedProxy() {
         Club loadedClub = clubRepository.findById(club.getId()).orElseThrow();
@@ -176,6 +190,18 @@ class ProgressServiceTest extends IntegrationTest {
         leaveClub();
 
         assertThat(progressService.findLastReading(reader.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("마지막 읽기 기록은 도서 삭제 후에도 DELETED 상태로 유지한다")
+    void retainDeletedBookAsLastReading() {
+        progressService.updateProgress(reader.getId(), club.getId(), second.getId());
+        bookRepository.delete(book.getId());
+
+        LastReadingResponse response = progressService.findLastReading(reader.getId()).orElseThrow();
+
+        assertThat(response.book().status()).isEqualTo(BookStatus.DELETED);
+        assertThat(response.book().bookId()).isEqualTo(book.getId());
     }
 
     private void leaveClub() {

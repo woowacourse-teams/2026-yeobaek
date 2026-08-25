@@ -45,6 +45,7 @@ public class CommentService {
     @Transactional
     public CommentResponse update(Long memberId, Long commentId, String content) {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 수정할 수 있습니다.");
+        comment.ensureBookAvailable();
         comment.updateContent(content);
         return CommentResponse.of(comment, memberId);
     }
@@ -52,6 +53,7 @@ public class CommentService {
     @Transactional
     public void delete(Long memberId, Long commentId) {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 삭제할 수 있습니다.");
+        comment.ensureBookAvailable();
         commentRepository.delete(comment);
     }
 
@@ -77,6 +79,7 @@ public class CommentService {
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
+        club.ensureBookAvailable();
         return clubMember;
     }
 }

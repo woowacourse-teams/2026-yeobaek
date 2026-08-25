@@ -82,4 +82,8 @@ public class ClubMember {
     public int progressRate() {
         return (int) Math.round(lastReadPassage.getSequence() * 100.0 / club.totalPassageCount());
     }
+
+    public void ensureBookAvailable() {
+        club.ensureBookAvailable();
+    }
 }

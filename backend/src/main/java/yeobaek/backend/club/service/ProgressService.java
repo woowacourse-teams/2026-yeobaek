@@ -41,6 +41,7 @@ public class ProgressService {
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
+        club.ensureBookAvailable();
         clubMember.updateProgress(passage, LocalDateTime.now());
         return new ProgressResponse(passage.getSequence(), clubMember.progressRate(), clubMember.getLastReadAt());
     }

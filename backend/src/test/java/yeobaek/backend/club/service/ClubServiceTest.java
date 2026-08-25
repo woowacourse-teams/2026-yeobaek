@@ -12,11 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.ClubMember;
@@ -31,10 +32,11 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class ClubServiceTest extends IntegrationTest {
 
@@ -48,7 +50,7 @@ class ClubServiceTest extends IntegrationTest {
     private ClubMemberRepository clubMemberRepository;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -92,6 +94,16 @@ class ClubServiceTest extends IntegrationTest {
     void rejectUnknownBook() {
         assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", 999L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서로는 모임을 생성할 수 없다")
+    void rejectCreatingClubWithDeletedBook() {
+        bookRepository.delete(book.getId());
+
+        assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", book.getId()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 
     @Test
@@ -180,6 +192,32 @@ class ClubServiceTest extends IntegrationTest {
     void rejectUnknownJoinCode() {
         assertThatThrownBy(() -> clubService.join(creator.getId(), "NOCODE"))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 기존 모임은 새로 참여할 수 없다")
+    void rejectJoiningClubWithDeletedBook() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+        Member joiner = memberRepository.save(new Member("지수"));
+        bookRepository.delete(book.getId());
+
+        assertThatThrownBy(() -> clubService.join(joiner.getId(), created.joinCode()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+        assertThat(clubMemberRepository.findByMemberIdAndClubId(joiner.getId(), created.clubId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 기존 모임은 목록과 상세에 DELETED 상태로 남는다")
+    void retainDeletedBookClubForReadOnlyLookup() {
+        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+        bookRepository.delete(book.getId());
+
+        MyClubsResponse clubs = clubService.findMyClubs(creator.getId());
+        ClubDetailResponse detail = clubService.findDetail(creator.getId(), created.clubId());
+
+        assertThat(clubs.clubs().getFirst().book().status()).isEqualTo(BookStatus.DELETED);
+        assertThat(detail.book().status()).isEqualTo(BookStatus.DELETED);
     }
 
     @Test
