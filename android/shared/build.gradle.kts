@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -9,7 +10,19 @@ plugins {
     alias(libs.plugins.ktorfit)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.buildkonfig)
 }
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+val baseUrl = localProperties.getProperty("BASE_URL") ?: ""
+val testBaseUrl = localProperties.getProperty("TEST_BASE_URL") ?: ""
 
 kotlin {
     listOf(
@@ -128,5 +141,23 @@ ktlint {
 
     filter {
         exclude { it.file.path.contains("/build/generated/") }
+    }
+}
+
+buildkonfig {
+    packageName = "com.yeobaek"
+
+    defaultConfigs {
+        buildConfigField(
+            type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            name = "BASE_URL",
+            value = baseUrl,
+        )
+
+        buildConfigField(
+            type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            name = "TEST_BASE_URL",
+            value = testBaseUrl,
+        )
     }
 }
