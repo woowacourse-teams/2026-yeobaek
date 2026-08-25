@@ -70,8 +70,8 @@ class AdminBookServiceTest extends IntegrationTest {
     private CommentRepository commentRepository;
 
     @Test
-    @DisplayName("도서만 소프트 삭제하고 모임·본문·댓글과 연결을 보존한다")
-    void deleteBookAndRetainRelationships() {
+    @DisplayName("도서를 삭제해도 기존 모임과 독서 활동 기록의 연결은 보존된다")
+    void preservesExistingClubAndActivityRecords() {
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
         Author author = authorRepository.save(new Author("현진건"));
         AuthorBook authorBook = authorBookRepository.save(new AuthorBook(author, book));
@@ -93,14 +93,19 @@ class AdminBookServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 도서와 이미 삭제된 도서를 구분해 거부한다")
-    void rejectMissingAndAlreadyDeletedBook() {
-        Book book = bookRepository.save(new Book("제목", null, null, 1));
-        adminBookService.delete(book.getId());
-
+    @DisplayName("존재하지 않는 도서는 삭제할 수 없다")
+    void cannotDeleteMissingBook() {
         assertThatThrownBy(() -> adminBookService.delete(999L))
                 .isInstanceOf(NotFoundException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서는 다시 삭제할 수 없다")
+    void cannotDeleteBookTwice() {
+        Book book = bookRepository.save(new Book("제목", null, null, 1));
+        adminBookService.delete(book.getId());
+
         assertThatThrownBy(() -> adminBookService.delete(book.getId()))
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);

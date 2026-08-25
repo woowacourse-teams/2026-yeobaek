@@ -124,8 +124,8 @@ class ProgressServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("삭제된 도서의 진도 갱신을 거부한다")
-    void rejectProgressUpdateForDeletedBook() {
+    @DisplayName("삭제된 도서를 대상으로 진도를 갱신할 수 없다")
+    void cannotUpdateProgressOfDeletedBook() {
         bookRepository.delete(book.getId());
 
         assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
@@ -193,8 +193,8 @@ class ProgressServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("마지막 읽기 기록은 도서 삭제 후에도 DELETED 상태로 유지한다")
-    void retainDeletedBookAsLastReading() {
+    @DisplayName("삭제된 도서의 기존 마지막 읽기 기록은 DELETED 상태로 보존된다")
+    void preservesLastReadingRecordOfDeletedBook() {
         progressService.updateProgress(reader.getId(), club.getId(), second.getId());
         bookRepository.delete(book.getId());
 

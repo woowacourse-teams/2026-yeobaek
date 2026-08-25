@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Book;
@@ -213,18 +214,48 @@ class CommentServiceTest extends IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    @DisplayName("삭제된 도서의 댓글 조회·작성·수정·삭제를 모두 거부하고 기존 댓글을 보존한다")
-    void rejectAllCommentOperationsForDeletedBook() {
-        CommentResponse existing = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
-        bookRepository.delete(book.getId());
+    @Nested
+    @DisplayName("삭제된 도서를 대상으로 독서 활동을 할 수 있는가")
+    class CommentActivityOfDeletedBook {
 
-        assertBookNotAvailable(() -> commentService.findComments(writer.getId(), club.getId(), passage.getId()));
-        assertBookNotAvailable(() -> commentService.create(writer.getId(), club.getId(), passage.getId(), "신규"));
-        assertBookNotAvailable(() -> commentService.update(writer.getId(), existing.commentId(), "수정"));
-        assertBookNotAvailable(() -> commentService.delete(writer.getId(), existing.commentId()));
-        assertThat(commentRepository.findById(existing.commentId())).get()
-                .extracting(Comment::getContent).isEqualTo("원본");
+        private CommentResponse existingComment;
+
+        @BeforeEach
+        void deleteBookAfterWritingComment() {
+            existingComment = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+            bookRepository.delete(book.getId());
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 조회할 수 없다")
+        void cannotReadComments() {
+            assertBookNotAvailable(() ->
+                    commentService.findComments(writer.getId(), club.getId(), passage.getId()));
+        }
+
+        @Test
+        @DisplayName("새 댓글을 작성할 수 없다")
+        void cannotCreateComment() {
+            assertBookNotAvailable(() ->
+                    commentService.create(writer.getId(), club.getId(), passage.getId(), "신규"));
+            assertThat(commentRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 수정할 수 없고 내용은 보존된다")
+        void cannotUpdateCommentAndPreservesContent() {
+            assertBookNotAvailable(() ->
+                    commentService.update(writer.getId(), existingComment.commentId(), "수정"));
+            assertThat(commentRepository.findById(existingComment.commentId())).get()
+                    .extracting(Comment::getContent).isEqualTo("원본");
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 삭제할 수 없고 데이터는 보존된다")
+        void cannotDeleteCommentAndPreservesData() {
+            assertBookNotAvailable(() -> commentService.delete(writer.getId(), existingComment.commentId()));
+            assertThat(commentRepository.findById(existingComment.commentId())).isPresent();
+        }
     }
 
     private void assertBookNotAvailable(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation) {

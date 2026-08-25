@@ -154,8 +154,8 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("삭제된 도서와 서지·작가 구성이 같은 도서를 새 ID로 업로드한다")
-    void allowBibliographicTwinOfDeletedBook() {
+    @DisplayName("삭제된 도서와 같은 서지·작가 구성의 도서는 새 ID로 다시 등록할 수 있다")
+    void canRegisterBibliographicTwinOfDeletedBook() {
         Author author = authorRepository.save(new Author("현진건"));
         Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
         authorBookRepository.save(new AuthorBook(author, deleted));

@@ -132,13 +132,21 @@ class BookServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("삭제된 도서는 목록·검색에서 제외하고 상세 조회를 거부한다")
-    void hideDeletedBook() {
+    @DisplayName("삭제된 도서는 이용 가능한 도서 목록과 검색 결과에 나타나지 않는다")
+    void excludesDeletedBookFromAvailableBooks() {
         Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
         bookRepository.delete(book.getId());
 
         assertThat(bookService.findBooks(null).books()).isEmpty();
         assertThat(bookService.findBooks("운수").books()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("삭제된 도서를 직접 조회하면 BOOK_NOT_AVAILABLE 오류가 발생한다")
+    void cannotFindDeletedBookDetail() {
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        bookRepository.delete(book.getId());
+
         assertThatThrownBy(() -> bookService.findBook(book.getId()))
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
