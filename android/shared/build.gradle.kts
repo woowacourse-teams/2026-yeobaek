@@ -21,8 +21,8 @@ val localProperties = Properties().apply {
     }
 }
 
-val baseUrl = localProperties.getProperty("BASE_URL") ?: ""
-val testBaseUrl = localProperties.getProperty("TEST_BASE_URL") ?: ""
+val baseUrl = localProperties.getProperty("BASE_URL")
+val testBaseUrl = localProperties.getProperty("TEST_BASE_URL")
 
 kotlin {
     listOf(
