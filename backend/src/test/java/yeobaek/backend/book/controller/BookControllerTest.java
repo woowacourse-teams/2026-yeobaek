@@ -39,8 +39,8 @@ class BookControllerTest extends ControllerTest {
         givenValidMember(1L);
         var response = new BooksResponse(List.of(
                 new BookSummaryResponse(1L, "운수 좋은 날", List.of("현진건"),
-                        "자체 제작", 1924, 312),
-                new BookSummaryResponse(2L, "작자 미상 작품", List.of(), null, null, 20)));
+                        "자체 제작", 1924, "https://covers.example/cover.jpg", 312),
+                new BookSummaryResponse(2L, "작자 미상 작품", List.of(), null, null, null, 20)));
         given(bookService.findBooks(null)).willReturn(response);
 
         mockMvc.perform(get("/api/books")
@@ -56,6 +56,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[0].authors[0]").value("현진건"))
                 .andExpect(jsonPath("$.books[0].publisher").value("자체 제작"))
                 .andExpect(jsonPath("$.books[0].publishedYear").value(1924))
+                .andExpect(jsonPath("$.books[0].coverImageUrl").value("https://covers.example/cover.jpg"))
                 .andExpect(jsonPath("$.books[0].passageCount").value(312))
                 .andExpect(jsonPath("$.books[1].bookId").value(2))
                 .andExpect(jsonPath("$.books[1].title").value("작자 미상 작품"))
@@ -63,6 +64,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[1].authors.length()").value(0))
                 .andExpect(jsonPath("$.books[1].publisher").value((Object) null))
                 .andExpect(jsonPath("$.books[1].publishedYear").value((Object) null))
+                .andExpect(jsonPath("$.books[1].coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.books[1].passageCount").value(20));
 
         verify(bookService, times(1)).findBooks(null);
@@ -95,6 +97,7 @@ class BookControllerTest extends ControllerTest {
                 List.of("현진건", "공동 저자"),
                 null,
                 null,
+                "https://covers.example/detail.jpg",
                 312,
                 List.of(new ChapterResponse(11L, "1장", 1, 1, 105)));
         given(bookService.findBook(9L)).willReturn(response);
@@ -111,6 +114,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.authors[1]").value("공동 저자"))
                 .andExpect(jsonPath("$.publisher").value((Object) null))
                 .andExpect(jsonPath("$.publishedYear").value((Object) null))
+                .andExpect(jsonPath("$.coverImageUrl").value("https://covers.example/detail.jpg"))
                 .andExpect(jsonPath("$.passageCount").value(312))
                 .andExpect(jsonPath("$.chapters").isArray())
                 .andExpect(jsonPath("$.chapters.length()").value(1))

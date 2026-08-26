@@ -67,7 +67,7 @@ class ProgressControllerTest extends ControllerTest {
         var response = new LastReadingResponse(
                 7L,
                 "교환독서 1기",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), 312, BookStatus.DELETED),
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.DELETED),
                 42,
                 13,
                 lastReadAt);
@@ -85,6 +85,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.authors").isArray())
                 .andExpect(jsonPath("$.book.authors.length()").value(1))
                 .andExpect(jsonPath("$.book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.book.coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("DELETED"))
                 .andExpect(jsonPath("$.lastReadPassageSequence").value(42))

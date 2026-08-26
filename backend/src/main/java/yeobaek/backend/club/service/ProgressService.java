@@ -10,6 +10,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -29,6 +30,7 @@ public class ProgressService {
     private final ClubMemberRepository clubMemberRepository;
     private final PassageRepository passageRepository;
     private final AuthorBookRepository authorBookRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
@@ -59,7 +61,7 @@ public class ProgressService {
                 .map(authorBook -> authorBook.getAuthor().getName())
                 .toList();
         return Optional.of(new LastReadingResponse(club.getId(), club.getName(),
-                ClubBookResponse.of(book, authors),
+                ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey())),
                 latest.getLastReadPassage().getSequence(), latest.progressRate(), latest.getLastReadAt()));
     }
 }

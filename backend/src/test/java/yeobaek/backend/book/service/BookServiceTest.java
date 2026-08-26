@@ -26,6 +26,8 @@ import yeobaek.backend.support.ErrorCode;
 
 class BookServiceTest extends IntegrationTest {
 
+    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+
     @Autowired
     private BookService bookService;
 
@@ -56,6 +58,16 @@ class BookServiceTest extends IntegrationTest {
         assertThat(response.books()).hasSize(1);
         assertThat(response.books().getFirst().authors()).containsExactly("현진건");
         assertThat(response.books().getFirst().passageCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("도서 목록과 상세는 표지 공개 URL을 동일하게 제공한다")
+    void exposeCoverImageUrl() {
+        Book book = bookRepository.save(new Book("표지 도서", null, null, 1, COVER_KEY));
+
+        String expectedUrl = "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/" + COVER_KEY;
+        assertThat(bookService.findBooks(null).books().getFirst().coverImageUrl()).isEqualTo(expectedUrl);
+        assertThat(bookService.findBook(book.getId()).coverImageUrl()).isEqualTo(expectedUrl);
     }
 
     @Test

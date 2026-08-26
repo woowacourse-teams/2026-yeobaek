@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.JoinCodeGenerator;
@@ -40,6 +41,7 @@ public class ClubService {
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final JoinCodeGenerator joinCodeGenerator;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public ClubCreateResponse create(Long memberId, String name, Long bookId) {
@@ -47,7 +49,7 @@ public class ClubService {
         Club club = clubRepository.save(new Club(name, book, generateUniqueJoinCode()));
         clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
         return new ClubCreateResponse(club.getId(), club.getName(), club.getJoinCode(),
-                ClubBookResponse.of(book, authorNames(book)));
+                toBookResponse(book, authorNames(book)));
     }
 
     @Transactional
@@ -60,7 +62,7 @@ public class ClubService {
                         () -> clubMemberRepository.save(
                                 new ClubMember(memberRepository.getReferenceById(memberId), club)));
         Book book = club.getBook();
-        return new ClubJoinResponse(club.getId(), club.getName(), ClubBookResponse.of(book, authorNames(book)));
+        return new ClubJoinResponse(club.getId(), club.getName(), toBookResponse(book, authorNames(book)));
     }
 
     @Transactional
@@ -86,7 +88,7 @@ public class ClubService {
                     Book book = club.getBook();
                     return new MyClubResponse(club.getId(), club.getName(),
                             memberCounts.getOrDefault(club.getId(), 0L),
-                            ClubBookResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())),
+                            toBookResponse(book, authorNames.getOrDefault(book.getId(), List.of())),
                             toMyProgress(clubMember));
                 })
                 .toList());
@@ -103,7 +105,7 @@ public class ClubService {
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
-                ClubBookResponse.of(book, authorNames(book)),
+                toBookResponse(book, authorNames(book)),
                 toMyProgress(myMembership),
                 clubMembers.stream()
                         .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
@@ -139,5 +141,9 @@ public class ClubService {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
                         Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+    }
+
+    private ClubBookResponse toBookResponse(Book book, List<String> authors) {
+        return ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey()));
     }
 }

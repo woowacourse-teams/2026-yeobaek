@@ -39,6 +39,8 @@ import yeobaek.backend.support.NotFoundException;
 
 class AdminBookServiceTest extends IntegrationTest {
 
+    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg";
+
     @Autowired
     private AdminBookService adminBookService;
 
@@ -133,5 +135,28 @@ class AdminBookServiceTest extends IntegrationTest {
             assertThat(List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)))
                     .containsExactlyInAnyOrder("SUCCESS", "BOOK_NOT_AVAILABLE");
         }
+    }
+
+    @Test
+    @DisplayName("활성 도서의 표지를 교체하고 제거한다")
+    void replaceAndRemoveCoverImage() {
+        Book book = bookRepository.save(new Book("표지 도서", null, null, 1));
+
+        adminBookService.replaceCoverImage(book.getId(), COVER_KEY);
+        assertThat(bookRepository.getById(book.getId()).getCoverImageKey()).isEqualTo(COVER_KEY);
+
+        adminBookService.removeCoverImage(book.getId());
+        assertThat(bookRepository.getById(book.getId()).getCoverImageKey()).isNull();
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 표지는 교체할 수 없다")
+    void cannotReplaceCoverOfDeletedBook() {
+        Book book = bookRepository.save(new Book("삭제 표지 도서", null, null, 1));
+        adminBookService.delete(book.getId());
+
+        assertThatThrownBy(() -> adminBookService.replaceCoverImage(book.getId(), COVER_KEY))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 }

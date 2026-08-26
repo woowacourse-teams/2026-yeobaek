@@ -15,4 +15,14 @@ public class AdminBookService {
     public void delete(Long bookId) {
         bookManagementRepository.delete(bookId);
     }
+
+    @Transactional
+    public void replaceCoverImage(Long bookId, String coverImageKey) {
+        bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);
+    }
+
+    @Transactional
+    public void removeCoverImage(Long bookId) {
+        bookManagementRepository.getByIdForUpdate(bookId).removeCoverImage();
+    }
 }

@@ -12,6 +12,7 @@ import yeobaek.backend.admin.dto.AdminAuthorsResponse;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +20,7 @@ public class AdminAuthorService {
 
     private final AuthorRepository authorRepository;
     private final AuthorBookRepository authorBookRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional(readOnly = true)
     public AdminAuthorsResponse findAuthors() {
@@ -37,7 +39,8 @@ public class AdminAuthorService {
     private Map<Long, List<AdminAuthorBookResponse>> booksByAuthorId(List<Long> authorIds) {
         return authorBookRepository.findAllWithBookByAuthorIdIn(authorIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getAuthor().getId(),
-                        Collectors.mapping(authorBook -> AdminAuthorBookResponse.of(authorBook.getBook()),
+                        Collectors.mapping(authorBook -> AdminAuthorBookResponse.of(authorBook.getBook(),
+                                        bookCoverUrlResolver.resolve(authorBook.getBook().getCoverImageKey())),
                                 Collectors.toList())));
     }
 }

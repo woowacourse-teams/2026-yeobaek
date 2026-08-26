@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +56,34 @@ class AdminBookControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("도서 표지 교체 요청의 ID와 키를 서비스에 전달하고 204를 반환한다")
+    void replaceCoverImage() throws Exception {
+        String key = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+
+        mockMvc.perform(put("/api/admin/books/{bookId}/cover", 3L)
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"coverImageKey":"book-covers/123e4567-e89b-12d3-a456-426614174000.webp"}
+                                """))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(adminBookService).replaceCoverImage(3L, key);
+    }
+
+    @Test
+    @DisplayName("도서 표지 제거 요청의 ID를 서비스에 전달하고 204를 반환한다")
+    void removeCoverImage() throws Exception {
+        mockMvc.perform(delete("/api/admin/books/{bookId}/cover", 3L)
+                        .header("X-Admin-Token", "controller-test-token"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(adminBookService).removeCoverImage(3L);
+    }
+
+    @Test
     @DisplayName("이미 삭제된 도서의 삭제 요청은 이용 불가 오류를 반환한다")
     void rejectAlreadyDeletedBook() throws Exception {
         willThrow(new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE))
@@ -76,6 +105,7 @@ class AdminBookControllerTest extends ControllerTest {
                 "운수 좋은 날",
                 null,
                 1924,
+                "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
                 List.of(
                         new AuthorEntryRequest(null, "현진건", "0000 0001 2345 964X"),
                         new AuthorEntryRequest(12L, null, null)),
@@ -85,7 +115,8 @@ class AdminBookControllerTest extends ControllerTest {
                                 new PassageUploadRequest("둘째 본문"))),
                         new ChapterUploadRequest("2장", List.of(
                                 new PassageUploadRequest("셋째 본문")))));
-        var response = new BookUploadResponse(3L, "운수 좋은 날", 3);
+        var response = new BookUploadResponse(3L, "운수 좋은 날",
+                "https://covers.example/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
         given(bookIngestService.upload(request)).willReturn(response);
 
         mockMvc.perform(post("/api/admin/books")
@@ -96,6 +127,7 @@ class AdminBookControllerTest extends ControllerTest {
                                   "title": "운수 좋은 날",
                                   "publisher": null,
                                   "publishedYear": 1924,
+                                  "coverImageKey": "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
                                   "authors": [
                                     {"name": "현진건", "isni": "0000 0001 2345 964X"},
                                     {"authorId": 12}
@@ -119,9 +151,29 @@ class AdminBookControllerTest extends ControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.bookId").value(3))
                 .andExpect(jsonPath("$.title").value("운수 좋은 날"))
+                .andExpect(jsonPath("$.coverImageUrl").value(response.coverImageUrl()))
                 .andExpect(jsonPath("$.passageCount").value(3));
 
         verify(bookIngestService, times(1)).upload(request);
+    }
+
+    @Test
+    @DisplayName("표지가 없는 도서 업로드 응답은 coverImageUrl을 null로 포함한다")
+    void uploadBookWithoutCover() throws Exception {
+        var request = new BookUploadRequest("표지 없는 책", null, null, null, List.of(), List.of());
+        given(bookIngestService.upload(request))
+                .willReturn(new BookUploadResponse(4L, "표지 없는 책", null, 0));
+
+        mockMvc.perform(post("/api/admin/books")
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"표지 없는 책","authors":[],"chapters":[]}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.coverImageUrl").value((Object) null));
+
+        verify(bookIngestService).upload(request);
     }
 
     @Test
@@ -144,6 +196,7 @@ class AdminBookControllerTest extends ControllerTest {
                 "새 도서",
                 "출판사",
                 2026,
+                null,
                 List.of(new AuthorEntryRequest(999L, null, null)),
                 List.of(new ChapterUploadRequest(
                         "1장",

@@ -26,12 +26,14 @@ public class BookService {
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     public BooksResponse findBooks(String keyword) {
         List<Book> books = search(keyword);
         Map<Long, List<String>> authorNames = authorNamesByBookId(books.stream().map(Book::getId).toList());
         return new BooksResponse(books.stream()
-                .map(book -> BookSummaryResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())))
+                .map(book -> BookSummaryResponse.of(book, authorNames.getOrDefault(book.getId(), List.of()),
+                        bookCoverUrlResolver.resolve(book.getCoverImageKey())))
                 .toList());
     }
 
@@ -46,7 +48,8 @@ public class BookService {
         Book book = bookRepository.getById(bookId);
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
         return new BookDetailResponse(book.getId(), book.getTitle(), authors,
-                book.getPublisher(), book.getPublishedYear(), book.getPassageCount(), chapters(bookId));
+                book.getPublisher(), book.getPublishedYear(), bookCoverUrlResolver.resolve(book.getCoverImageKey()),
+                book.getPassageCount(), chapters(bookId));
     }
 
     private List<ChapterResponse> chapters(Long bookId) {
