@@ -12,6 +12,14 @@ Parameters:
     Type: String
     Description: Name of the existing EC2 instance role used by the backend
 
+  StoragePrefix:
+    Type: String
+    Default: yeobaek
+    MaxLength: 26
+    AllowedPattern: '^[^/]+(?:/[^/]+)*$'
+    Description: Object key prefix used before book-covers
+    ConstraintDescription: Must not start or end with a slash or contain an empty path segment
+
 Resources:
   CoverBucket:
     Type: AWS::S3::Bucket
@@ -57,7 +65,7 @@ Resources:
             Effect: Allow
             Principal: '*'
             Action: s3:GetObject
-            Resource: !Sub '${CoverBucket.Arn}/book-covers/*'
+            Resource: !Sub '${CoverBucket.Arn}/${StoragePrefix}/book-covers/*'
 
   PresignBookCoverPut:
     Type: AWS::IAM::RolePolicy
@@ -70,7 +78,7 @@ Resources:
           - Sid: AllowPresignedBookCoverUpload
             Effect: Allow
             Action: s3:PutObject
-            Resource: !Sub '${CoverBucket.Arn}/book-covers/*'
+            Resource: !Sub '${CoverBucket.Arn}/${StoragePrefix}/book-covers/*'
 
 Outputs:
   CoverBucketName:
@@ -84,3 +92,7 @@ Outputs:
   CoverPublicBaseUrl:
     Description: Value for BOOK_COVER_PUBLIC_BASE_URL
     Value: !Sub 'https://${CoverBucket.RegionalDomainName}'
+
+  CoverStoragePrefix:
+    Description: Value for BOOK_COVER_S3_PREFIX
+    Value: !Ref StoragePrefix

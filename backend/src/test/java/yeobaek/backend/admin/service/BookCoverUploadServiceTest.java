@@ -36,7 +36,7 @@ class BookCoverUploadServiceTest {
     @BeforeEach
     void setUp() {
         service = new BookCoverUploadService(s3Presigner,
-                new S3StorageProperties("cover-bucket", "ap-northeast-2", "https://cover.example"));
+                new S3StorageProperties("cover-bucket", "ap-northeast-2", "https://cover.example", "yeobaek"));
     }
 
     @Test
@@ -49,7 +49,8 @@ class BookCoverUploadServiceTest {
                 new BookCoverUploadUrlRequest("image/webp", 1024));
 
         assertThat(response.coverImageKey()).matches(
-                "^book-covers/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
+                "^yeobaek/book-covers/"
+                        + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
         assertThat(response)
                 .extracting(BookCoverUploadUrlResponse::uploadUrl, BookCoverUploadUrlResponse::expiresAt)
                 .containsExactly("https://s3.example/upload", expiration);
@@ -85,13 +86,14 @@ class BookCoverUploadServiceTest {
                         AwsBasicCredentials.create("test-access-key", "test-secret-key")))
                 .build()) {
             BookCoverUploadService realService = new BookCoverUploadService(realPresigner,
-                    new S3StorageProperties("cover-bucket", "ap-northeast-2", "https://cover.example"));
+                    new S3StorageProperties(
+                            "cover-bucket", "ap-northeast-2", "https://cover.example", "custom-prefix"));
 
             BookCoverUploadUrlResponse response = realService.issueUploadUrl(
                     new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH));
 
             assertThat(response.uploadUrl()).startsWith(
-                    "https://cover-bucket.s3.ap-northeast-2.amazonaws.com/");
+                    "https://cover-bucket.s3.ap-northeast-2.amazonaws.com/custom-prefix/book-covers/");
             assertThat(response.requiredHeaders()).containsEntry("Content-Type", "image/jpeg")
                     .containsEntry("Cache-Control", BookCoverUploadService.CACHE_CONTROL);
             assertThat(response.requiredHeaders()).containsOnlyKeys("Content-Type", "Cache-Control");

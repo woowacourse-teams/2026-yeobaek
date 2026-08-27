@@ -58,13 +58,13 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("도서 표지 교체 요청의 ID와 키를 서비스에 전달하고 204를 반환한다")
     void replaceCoverImage() throws Exception {
-        String key = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+        String key = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
 
         mockMvc.perform(put("/api/admin/books/{bookId}/cover", 3L)
                         .header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"coverImageKey":"book-covers/123e4567-e89b-12d3-a456-426614174000.webp"}
+                                {"coverImageKey":"yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp"}
                                 """))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
@@ -105,7 +105,7 @@ class AdminBookControllerTest extends ControllerTest {
                 "운수 좋은 날",
                 null,
                 1924,
-                "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+                "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
                 List.of(
                         new AuthorEntryRequest(null, "현진건", "0000 0001 2345 964X"),
                         new AuthorEntryRequest(12L, null, null)),
@@ -116,7 +116,7 @@ class AdminBookControllerTest extends ControllerTest {
                         new ChapterUploadRequest("2장", List.of(
                                 new PassageUploadRequest("셋째 본문")))));
         var response = new BookUploadResponse(3L, "운수 좋은 날",
-                "https://covers.example/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
+                "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
         given(bookIngestService.upload(request)).willReturn(response);
 
         mockMvc.perform(post("/api/admin/books")
@@ -127,7 +127,7 @@ class AdminBookControllerTest extends ControllerTest {
                                   "title": "운수 좋은 날",
                                   "publisher": null,
                                   "publishedYear": 1924,
-                                  "coverImageKey": "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+                                  "coverImageKey": "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
                                   "authors": [
                                     {"name": "현진건", "isni": "0000 0001 2345 964X"},
                                     {"authorId": 12}

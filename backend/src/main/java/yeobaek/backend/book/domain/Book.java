@@ -27,7 +27,8 @@ public class Book {
     private static final int MAX_PUBLISHER_LENGTH = 100;
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_KEY_PATTERN = Pattern.compile(
-            "^book-covers/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp)$");
+            "^[^/]+(?:/[^/]+)*/book-covers/"
+                    + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp)$");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -118,7 +119,9 @@ public class Book {
     }
 
     private static void validateCoverImageKey(String coverImageKey) {
-        if (coverImageKey != null && !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches()) {
+        if (coverImageKey != null
+                && (coverImageKey.length() > MAX_COVER_IMAGE_KEY_LENGTH
+                || !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches())) {
             throw new IllegalArgumentException("유효하지 않은 표지 이미지 키입니다.");
         }
     }
