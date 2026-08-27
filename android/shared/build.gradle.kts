@@ -1,4 +1,13 @@
 import java.util.Properties
+import org.gradle.kotlin.dsl.android
+import org.gradle.kotlin.dsl.androidRuntimeClasspath
+import org.gradle.kotlin.dsl.buildkonfig
+import org.gradle.kotlin.dsl.dependencies
+import org.gradle.kotlin.dsl.invoke
+import org.gradle.kotlin.dsl.kotlin
+import org.gradle.kotlin.dsl.ktlint
+import org.gradle.kotlin.dsl.libs
+import org.gradle.kotlin.dsl.sourceSets
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -58,6 +67,7 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
+            api(project.dependencies.platform(libs.firebase.bom))
             // compose tooling
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
@@ -107,6 +117,9 @@ kotlin {
 
             // multiplatform settings
             implementation(libs.multiplatform.settings)
+
+            //
+            implementation(libs.firebase.crashlytics)
         }
 
         commonTest.dependencies {

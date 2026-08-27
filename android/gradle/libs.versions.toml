@@ -61,6 +61,12 @@ multiplatform-settings = "1.3.0"
 # buildKonfig
 buildkonfig = "0.17.1"
 
+# firebase-kotlin-sdk
+firebaseKotlinSdk = "2.6.0"
+googleServices = "4.5.0"
+firebaseCrashlyticsPlugin = "3.0.8"
+firebaseBom = "34.17.0"
+
 [libraries]
 # compose multiplatform
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
@@ -105,6 +111,10 @@ coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.r
 # multiplatform settings
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
 
+# firebase-kotlin-sdk
+firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "firebaseKotlinSdk" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+
 # test
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -126,3 +136,5 @@ ktorfit = { id = "de.jensklingenberg.ktorfit", version.ref = "ktorfit" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintPlugin" }
 buildkonfig = { id = "com.codingfeline.buildkonfig", version.ref = "buildkonfig" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
