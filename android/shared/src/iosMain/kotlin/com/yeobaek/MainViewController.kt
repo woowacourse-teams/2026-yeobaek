@@ -6,10 +6,10 @@ import androidx.compose.ui.window.ComposeUIViewController
 import com.yeobaek.core.app.AppContainer
 
 @Suppress("FunctionName")
-fun MainViewController() = ComposeUIViewController {
+fun MainViewController(isDebug: Boolean) = ComposeUIViewController {
     val appContainer = remember {
         AppContainer(
-            isDebug = false,
+            isDebug = isDebug,
         )
     }
 
