@@ -14,6 +14,9 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}
       ADMIN_TOKEN: ${ADMIN_TOKEN}
+      BOOK_COVER_S3_BUCKET: ${BOOK_COVER_S3_BUCKET}
+      BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
+      BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
     depends_on:
       mysql:
         condition: service_healthy

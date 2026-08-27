@@ -10,6 +10,7 @@
         section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; }
         label { display: block; margin-bottom: .3rem; font-weight: 600; }
         input[type="password"] { width: 100%; max-width: 420px; padding: .4rem; }
+        input[type="file"] { max-width: 250px; }
         textarea { width: 100%; min-height: 260px; font-family: monospace; font-size: .85rem; }
         button { padding: .45rem 1rem; cursor: pointer; }
         table { border-collapse: collapse; width: 100%; margin-top: .8rem; }
@@ -23,6 +24,7 @@
         .book-status.deleted { color: #777; }
         .delete-book { padding: .25rem .6rem; }
         .delete-book:disabled { cursor: not-allowed; }
+        .cover-preview { width: 42px; height: 58px; object-fit: cover; background: #eee; }
     </style>
 </head>
 <body>
@@ -56,6 +58,8 @@
   "authors": [{ "name": "현진건", "isni": "0000 0001 2345 964X" }],
   "chapters": [{ "title": "1장", "passages": [{ "content": "첫 문단" }] }]
 }'></textarea>
+    <label for="new-cover-file">표지 이미지 (선택, JPEG/PNG/WebP, 최대 5 MiB)</label>
+    <input type="file" id="new-cover-file" accept="image/jpeg,image/png,image/webp">
     <button type="button" id="upload-book">업로드</button>
     <div id="upload-result" class="result"></div>
 </section>
@@ -88,11 +92,20 @@
                 + '<td>' + escapeHtml(author.name) + '</td>'
                 + '<td>' + (author.isni ?? '-') + '</td>'
                 + '<td>' + author.books.map(book => '<div class="book-entry">'
+                    + (book.coverImageUrl ? '<img class="cover-preview" src="' + escapeHtml(book.coverImageUrl)
+                        + '" alt="">' : '')
                     + '<span class="book-title">' + escapeHtml(book.title) + ' (#' + book.bookId + ')</span>'
                     + '<span class="book-status' + (book.status === 'DELETED' ? ' deleted' : '') + '">'
                     + (book.status === 'DELETED' ? '삭제됨' : '활성') + '</span>'
                     + '<button type="button" class="delete-book" data-book-id="' + book.bookId + '"'
                     + (book.status === 'DELETED' ? ' disabled' : '') + '>삭제</button>'
+                    + '<input type="file" class="replace-cover-file" data-book-id="' + book.bookId
+                    + '" accept="image/jpeg,image/png,image/webp"'
+                    + (book.status === 'DELETED' ? ' disabled' : '') + '>'
+                    + '<button type="button" class="replace-cover" data-book-id="' + book.bookId + '"'
+                    + (book.status === 'DELETED' ? ' disabled' : '') + '>표지 교체</button>'
+                    + '<button type="button" class="remove-cover" data-book-id="' + book.bookId + '"'
+                    + (book.status === 'DELETED' || !book.coverImageUrl ? ' disabled' : '') + '>표지 제거</button>'
                     + '</div>').join('') + '</td>'
                 + '</tr>').join('');
             table.querySelector('tbody').innerHTML = rows;
@@ -101,6 +114,13 @@
                 .map(book => [String(book.bookId), book]));
             table.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => deleteBook(booksById.get(button.dataset.bookId)));
+            });
+            table.querySelectorAll('.replace-cover:not(:disabled)').forEach(button => {
+                button.addEventListener('click', () => replaceBookCover(
+                    booksById.get(button.dataset.bookId), button.closest('.book-entry').querySelector('input')));
+            });
+            table.querySelectorAll('.remove-cover:not(:disabled)').forEach(button => {
+                button.addEventListener('click', () => removeBookCover(booksById.get(button.dataset.bookId)));
             });
             table.hidden = false;
             show(result, '작가 ' + body.authors.length + '명', false);
@@ -143,6 +163,11 @@
             return;
         }
         try {
+            const coverFile = document.getElementById('new-cover-file').files[0];
+            if (coverFile) {
+                show(result, '표지 이미지를 업로드하는 중입니다.', false);
+                payload.coverImageKey = await uploadCover(coverFile);
+            }
             const response = await fetch('/api/admin/books', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
@@ -158,6 +183,87 @@
             show(result, '요청 실패: ' + error, true);
         }
     });
+
+    async function uploadCover(file) {
+        validateCoverFile(file);
+        const issueResponse = await fetch('/api/admin/book-covers/upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
+            body: JSON.stringify({ contentType: file.type, contentLength: file.size })
+        });
+        const issueBody = await issueResponse.json();
+        if (!issueResponse.ok) {
+            throw new Error(issueBody.code + ': ' + issueBody.message);
+        }
+        const uploadResponse = await fetch(issueBody.uploadUrl, {
+            method: 'PUT',
+            headers: issueBody.requiredHeaders,
+            body: file
+        });
+        if (!uploadResponse.ok) {
+            throw new Error('S3 표지 업로드 실패 (' + uploadResponse.status + ')');
+        }
+        return issueBody.coverImageKey;
+    }
+
+    function validateCoverFile(file) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            throw new Error('표지는 JPEG, PNG, WebP 형식만 허용합니다.');
+        }
+        if (file.size < 1 || file.size > 5 * 1024 * 1024) {
+            throw new Error('표지 이미지 크기는 1바이트 이상 5 MiB 이하여야 합니다.');
+        }
+    }
+
+    async function replaceBookCover(book, input) {
+        const result = document.getElementById('authors-result');
+        const file = input.files[0];
+        if (!file) {
+            show(result, '교체할 표지 파일을 선택하세요.', true);
+            return;
+        }
+        try {
+            show(result, '새 표지 이미지를 업로드하는 중입니다.', false);
+            const coverImageKey = await uploadCover(file);
+            const response = await fetch('/api/admin/books/' + book.bookId + '/cover', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
+                body: JSON.stringify({ coverImageKey })
+            });
+            if (!response.ok) {
+                const body = await response.json();
+                show(result, body.code + ': ' + body.message, true);
+                return;
+            }
+            await loadAuthors();
+            show(result, '표지 교체 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+        } catch (error) {
+            show(result, '표지 교체 실패: ' + error.message, true);
+        }
+    }
+
+    async function removeBookCover(book) {
+        if (!window.confirm('"' + book.title + '" 도서의 표지를 제거하시겠습니까?')) {
+            return;
+        }
+        const result = document.getElementById('authors-result');
+        try {
+            const response = await fetch('/api/admin/books/' + book.bookId + '/cover', {
+                method: 'DELETE',
+                headers: { 'X-Admin-Token': adminToken() }
+            });
+            if (!response.ok) {
+                const body = await response.json();
+                show(result, body.code + ': ' + body.message, true);
+                return;
+            }
+            await loadAuthors();
+            show(result, '표지 제거 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+        } catch (error) {
+            show(result, '표지 제거 실패: ' + error, true);
+        }
+    }
 
     function escapeHtml(text) {
         const div = document.createElement('div');

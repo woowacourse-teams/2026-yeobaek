@@ -49,7 +49,8 @@ class ClubControllerTest extends ControllerTest {
                 10L,
                 "교환독서 1기",
                 "A3F9KQ",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), 312, BookStatus.ACTIVE));
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"),
+                        "https://covers.example/cover.jpg", 312, BookStatus.ACTIVE));
         given(clubService.create(1L, "교환독서 1기", 5L)).willReturn(response);
 
         mockMvc.perform(post("/api/clubs")
@@ -69,6 +70,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.authors").isArray())
                 .andExpect(jsonPath("$.book.authors.length()").value(1))
                 .andExpect(jsonPath("$.book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.book.coverImageUrl").value("https://covers.example/cover.jpg"))
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
@@ -82,7 +84,8 @@ class ClubControllerTest extends ControllerTest {
         var response = new ClubJoinResponse(
                 10L,
                 "교환독서 1기",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건", "공동 저자"), 312, BookStatus.ACTIVE));
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건", "공동 저자"), null,
+                        312, BookStatus.ACTIVE));
         given(clubService.join(2L, "A3F9KQ")).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/join")
@@ -102,6 +105,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.authors.length()").value(2))
                 .andExpect(jsonPath("$.book.authors[0]").value("현진건"))
                 .andExpect(jsonPath("$.book.authors[1]").value("공동 저자"))
+                .andExpect(jsonPath("$.book.coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
@@ -126,7 +130,8 @@ class ClubControllerTest extends ControllerTest {
     void findMyClubs() throws Exception {
         givenValidMember(3L);
         var lastReadAt = LocalDateTime.of(2026, 8, 5, 14, 30);
-        var book = new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), 312, BookStatus.ACTIVE);
+        var book = new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null,
+                312, BookStatus.ACTIVE);
         var response = new MyClubsResponse(List.of(
                 new MyClubResponse(10L, "교환독서 1기", 4, book,
                         new MyProgressResponse(42, 13, lastReadAt)),
@@ -148,6 +153,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.clubs[0].book.authors").isArray())
                 .andExpect(jsonPath("$.clubs[0].book.authors.length()").value(1))
                 .andExpect(jsonPath("$.clubs[0].book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.clubs[0].book.coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.clubs[0].book.passageCount").value(312))
                 .andExpect(jsonPath("$.clubs[0].book.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.clubs[0].myProgress").isMap())
@@ -163,6 +169,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.clubs[1].book.authors").isArray())
                 .andExpect(jsonPath("$.clubs[1].book.authors.length()").value(1))
                 .andExpect(jsonPath("$.clubs[1].book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.clubs[1].book.coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.clubs[1].book.passageCount").value(312))
                 .andExpect(jsonPath("$.clubs[1].book.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.clubs[1].myProgress").value((Object) null));
@@ -179,7 +186,7 @@ class ClubControllerTest extends ControllerTest {
                 10L,
                 "교환독서 1기",
                 "A3F9KQ",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), 312, BookStatus.ACTIVE),
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.ACTIVE),
                 new MyProgressResponse(42, 13, lastReadAt),
                 List.of(
                         new ClubMemberResponse(4L, "민서", true),
@@ -199,6 +206,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.authors").isArray())
                 .andExpect(jsonPath("$.book.authors.length()").value(1))
                 .andExpect(jsonPath("$.book.authors[0]").value("현진건"))
+                .andExpect(jsonPath("$.book.coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.myProgress").isMap())

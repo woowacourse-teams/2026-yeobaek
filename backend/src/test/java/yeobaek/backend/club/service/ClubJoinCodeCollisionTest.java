@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.JoinCodeGenerator;
@@ -47,6 +48,9 @@ class ClubJoinCodeCollisionTest {
 
     @Mock
     private JoinCodeGenerator joinCodeGenerator;
+
+    @Mock
+    private BookCoverUrlResolver bookCoverUrlResolver;
 
     @Mock
     private Book book;

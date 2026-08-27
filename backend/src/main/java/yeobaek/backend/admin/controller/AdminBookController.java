@@ -8,9 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import yeobaek.backend.admin.dto.BookCoverUpdateRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.service.AdminBookService;
@@ -38,5 +40,19 @@ public class AdminBookController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long bookId) {
         adminBookService.delete(bookId);
+    }
+
+    @Operation(summary = "도서 표지 교체", description = "기존 S3 객체는 삭제하지 않고 새 객체 키로 교체한다.")
+    @PutMapping("/api/admin/books/{bookId}/cover")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void replaceCoverImage(@PathVariable Long bookId, @RequestBody BookCoverUpdateRequest request) {
+        adminBookService.replaceCoverImage(bookId, request.coverImageKey());
+    }
+
+    @Operation(summary = "도서 표지 제거", description = "도서의 표지 키만 제거하며 기존 S3 객체는 삭제하지 않는다.")
+    @DeleteMapping("/api/admin/books/{bookId}/cover")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeCoverImage(@PathVariable Long bookId) {
+        adminBookService.removeCoverImage(bookId);
     }
 }

@@ -32,14 +32,17 @@ public class BookManagementRepository {
         return bookJpaRepository.findAll();
     }
 
+    public Book getByIdForUpdate(Long bookId) {
+        return bookJpaRepository.findByIdForUpdate(bookId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+    }
+
     public long count() {
         return bookJpaRepository.count();
     }
 
     @Transactional
     public void delete(Long bookId) {
-        Book book = bookJpaRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
-        book.delete();
+        getByIdForUpdate(bookId).delete();
     }
 }

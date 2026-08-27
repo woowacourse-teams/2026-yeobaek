@@ -38,7 +38,10 @@ class AdminAuthorControllerTest extends ControllerTest {
                         12L,
                         "현진건",
                         "000000012345964X",
-                        List.of(new AdminAuthorBookResponse(3L, "운수 좋은 날", BookStatus.DELETED))),
+                        List.of(
+                                new AdminAuthorBookResponse(3L, "운수 좋은 날",
+                                        "https://covers.example/cover.jpg", BookStatus.DELETED),
+                                new AdminAuthorBookResponse(4L, "표지 없는 책", null, BookStatus.ACTIVE))),
                 new AdminAuthorResponse(13L, "작자 미상", null, List.of())));
         given(adminAuthorService.findAuthors()).willReturn(response);
 
@@ -52,10 +55,13 @@ class AdminAuthorControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.authors[0].name").value("현진건"))
                 .andExpect(jsonPath("$.authors[0].isni").value("000000012345964X"))
                 .andExpect(jsonPath("$.authors[0].books").isArray())
-                .andExpect(jsonPath("$.authors[0].books.length()").value(1))
+                .andExpect(jsonPath("$.authors[0].books.length()").value(2))
                 .andExpect(jsonPath("$.authors[0].books[0].bookId").value(3))
                 .andExpect(jsonPath("$.authors[0].books[0].title").value("운수 좋은 날"))
+                .andExpect(jsonPath("$.authors[0].books[0].coverImageUrl")
+                        .value("https://covers.example/cover.jpg"))
                 .andExpect(jsonPath("$.authors[0].books[0].status").value("DELETED"))
+                .andExpect(jsonPath("$.authors[0].books[1].coverImageUrl").value((Object) null))
                 .andExpect(jsonPath("$.authors[1].authorId").value(13))
                 .andExpect(jsonPath("$.authors[1].name").value("작자 미상"))
                 .andExpect(jsonPath("$.authors[1].isni").value((Object) null))

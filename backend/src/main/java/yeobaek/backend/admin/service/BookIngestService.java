@@ -25,6 +25,7 @@ import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
@@ -44,11 +45,13 @@ public class BookIngestService {
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public BookUploadResponse upload(BookUploadRequest request) {
         validateStructure(request);
-        Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request));
+        Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
+                request.coverImageKey());
         List<Author> authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
@@ -60,7 +63,8 @@ public class BookIngestService {
             authorBookRepository.save(new AuthorBook(author, book));
         }
         saveChapters(book, request.chapters());
-        return new BookUploadResponse(book.getId(), book.getTitle(), book.getPassageCount());
+        return new BookUploadResponse(book.getId(), book.getTitle(),
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount());
     }
 
     private void validateStructure(BookUploadRequest request) {

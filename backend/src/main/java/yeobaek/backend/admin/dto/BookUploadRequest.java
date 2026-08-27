@@ -10,6 +10,7 @@ public record BookUploadRequest(
         @Schema(description = "도서 제목 (1~100자)") String title,
         @Schema(description = "출판사 (선택, 최대 100자)", nullable = true) String publisher,
         @Schema(description = "출판연도 (선택, 정수)", nullable = true) Integer publishedYear,
+        @Schema(description = "표지 이미지 객체 키 (선택)", nullable = true) String coverImageKey,
         @Schema(description = "작가 목록") List<AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") List<ChapterUploadRequest> chapters
 ) {

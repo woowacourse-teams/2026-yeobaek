@@ -99,6 +99,7 @@
       "bookId": 1,
       "title": "운수 좋은 날",
       "authors": ["현진건"],
+      "coverImageUrl": "https://<public-base-url>/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
       "publisher": "자체 제작",
       "publishedYear": 1924,
       "passageCount": 312
@@ -116,6 +117,7 @@
   "bookId": 1,
   "title": "운수 좋은 날",
   "authors": ["현진건"],
+  "coverImageUrl": "https://<public-base-url>/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "passageCount": 312,
@@ -124,6 +126,7 @@
   ]
 }
 ```
+- `coverImageUrl`: 공개 표지 이미지 URL. 표지가 없는 도서는 `null`이며 클라이언트가 기본 이미지를 표시한다.
 - `startPassageSequence`/`endPassageSequence`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
@@ -144,7 +147,7 @@
   "clubId": 1,
   "name": "교환독서 1기",
   "joinCode": "A3F9KQ",
-  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312, "status": "ACTIVE" }
+  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "ACTIVE" }
 }
 ```
 - `joinCode`: 서버 발급, 전역 unique, 영구 고정.
@@ -163,7 +166,7 @@
 {
   "clubId": 1,
   "name": "교환독서 1기",
-  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312, "status": "ACTIVE" }
+  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "ACTIVE" }
 }
 ```
 - 존재하지 않는 코드: `400` (`JOIN_CODE_NOT_FOUND`). 이미 참여한 모임: `200`과 동일 응답 (멱등).
@@ -191,7 +194,7 @@
       "clubId": 1,
       "name": "교환독서 1기",
       "memberCount": 4,
-      "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312, "status": "DELETED" },
+      "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "DELETED" },
       "myProgress": {
         "lastReadPassageSequence": 42,
         "progressRate": 13,
@@ -218,7 +221,7 @@
   "clubId": 1,
   "name": "교환독서 1기",
   "joinCode": "A3F9KQ",
-  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312, "status": "DELETED" },
+  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "DELETED" },
   "myProgress": {
     "lastReadPassageSequence": 42,
     "progressRate": 13,
@@ -291,7 +294,7 @@
 {
   "clubId": 1,
   "clubName": "교환독서 1기",
-  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "passageCount": 312, "status": "DELETED" },
+  "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "DELETED" },
   "lastReadPassageSequence": 42,
   "progressRate": 13,
   "lastReadAt": "2026-08-05T14:30:00"
@@ -366,6 +369,37 @@
 모든 `/api/admin/**` API는 `X-Admin-Token: {고정 토큰}` 헤더가 필수다. 앱은 사용하지 않는다.
 토큰 누락·불일치는 `401` (`UNAUTHORIZED`). 서버에 토큰이 설정되지 않은 경우에도 전부 `401`이다 (기동은 정상).
 
+### 표지 업로드 URL 발급
+`POST /api/admin/book-covers/upload-url`
+
+요청:
+```json
+{ "contentType": "image/jpeg", "contentLength": 245760 }
+```
+
+- 허용 형식: JPEG(`image/jpeg`), PNG(`image/png`), WebP(`image/webp`)
+- 허용 크기: 1바이트 이상 5 MiB 이하
+- 서버는 원본 파일명 대신 `book-covers/{uuid}.{확장자}` 형식의 새 키를 발급한다.
+
+응답 `200`:
+```json
+{
+  "coverImageKey": "book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "uploadUrl": "https://<bucket>.s3.<region>.amazonaws.com/book-covers/...?X-Amz-...",
+  "expiresAt": "2026-08-26T12:10:00Z",
+  "requiredHeaders": {
+    "Content-Type": "image/jpeg",
+    "Cache-Control": "public,max-age=31536000,immutable"
+  }
+}
+```
+
+- Presigned PUT URL의 수명은 10분이다.
+- 관리자는 `requiredHeaders`를 그대로 넣어 이미지 바이트를 `PUT uploadUrl`로 전송한다.
+- S3 업로드가 실패하면 도서 생성·표지 교체 API를 호출하지 않는다.
+- URL 발급 API와 관리자 화면에서 형식·크기를 검사한다. 현재 S3 자체의 엄격한 최대 크기 제한은
+  적용하지 않는다.
+
 ### 도서 업로드 (인제스트 규격 JSON — 2026-08-06 M7에서 확정)
 `POST /api/admin/books`
 
@@ -375,6 +409,7 @@
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
   "publishedYear": 1924,
+  "coverImageKey": "book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -394,6 +429,8 @@
 - `title`: 필수, 1~100자 (공백만 불가)
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
+- `coverImageKey`: 선택(null 허용). 표지 업로드 URL 발급 API가 반환한
+  `book-covers/{uuid}.(jpg|png|webp)` 키만 허용한다.
 - `authors`: **최소 1명.** 각 원소는 두 형태 중 하나
   - `{ "name", "isni"? }` — `name` 필수 1~100자. `isni`는 선택: 공백·하이픈 제거 후 16자리(끝자리 `X` 허용) 형식 검증(체크섬 검증 없음). ISNI가 기존 작가와 일치하면 재사용하되 이름이 다르면 `400` (`AUTHOR_NAME_MISMATCH`). 일치하는 작가가 없으면 신규 생성. ISNI 없이 이름만 주면 항상 신규 생성
   - `{ "authorId" }` — 기존 작가 참조 (관리자가 작가 조회로 확인 후 기재). 미존재 시 `400` (`AUTHOR_NOT_FOUND`)
@@ -412,8 +449,35 @@
 
 응답 `201`:
 ```json
-{ "bookId": 3, "title": "운수 좋은 날", "passageCount": 30 }
+{
+  "bookId": 3,
+  "title": "운수 좋은 날",
+  "coverImageUrl": "https://<public-base-url>/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "passageCount": 30
+}
 ```
+
+표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
+
+### 도서 표지 교체
+`PUT /api/admin/books/{bookId}/cover`
+
+요청:
+```json
+{ "coverImageKey": "book-covers/7b2a5027-65f5-4db8-b3b0-231e4663c90f.webp" }
+```
+
+- 먼저 표지 업로드 URL 발급 API와 S3 PUT을 성공시킨 뒤 새 키를 전달한다.
+- 성공 응답: `204 No Content`.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 교체된 이전 S3 객체는 즉시 삭제하지 않는다. 고아 객체 정리는 후속 작업이다.
+
+### 도서 표지 제거
+`DELETE /api/admin/books/{bookId}/cover`
+
+- DB의 표지 키를 `null`로 바꾸며 S3 객체는 즉시 삭제하지 않는다.
+- 성공 응답: `204 No Content`.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
@@ -426,7 +490,7 @@
       "authorId": 12,
       "name": "현진건",
       "isni": "000000012345964X",
-      "books": [ { "bookId": 3, "title": "운수 좋은 날", "status": "ACTIVE" } ]
+      "books": [ { "bookId": 3, "title": "운수 좋은 날", "coverImageUrl": null, "status": "ACTIVE" } ]
     }
   ]
 }
@@ -445,9 +509,10 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 업로드 폼 + 작가·작품 조회·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 작가·작품 조회·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 활성 작품에는 삭제 버튼을 표시한다.
+- 표지가 있는 작품에는 표지 교체·제거를, 없는 작품에는 표지 추가를 제공한다.
 - 삭제 전 도서명이 포함된 확인 창을 한 번 표시한다.
 - 삭제된 작품은 “삭제됨” 상태를 표시하고 삭제 버튼을 비활성화한다.
 
@@ -471,6 +536,7 @@
   "bookId": 1,
   "title": "운수 좋은 날",
   "authors": ["현진건"],
+  "coverImageUrl": null,
   "passageCount": 312,
   "status": "DELETED"
 }
@@ -520,7 +586,10 @@
 | POST | /api/clubs/{clubId}/passages/{passageId}/comments | 댓글 작성 |
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
+| POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
+| PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
+| DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
 | GET | /api/admin/authors | (관리자) 작가 목록 조회 |
 | GET | /admin | (관리자) 관리자 페이지 (HTML) |
