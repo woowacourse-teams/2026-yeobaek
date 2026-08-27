@@ -11,7 +11,7 @@ import yeobaek.backend.support.ErrorCode;
 
 class BookTest {
 
-    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+    private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
 
     @Test
     @DisplayName("새 도서는 ACTIVE 상태이다")
@@ -93,11 +93,12 @@ class BookTest {
     }
 
     @Test
-    @DisplayName("표지 이미지 키는 없을 수 있고 정해진 UUID 키 형식만 허용한다")
+    @DisplayName("표지 이미지 키는 없을 수 있고 prefix를 포함한 UUID 키 형식만 허용한다")
     void validateCoverImageKey() {
         assertThat(new Book("제목", null, null, 1).getCoverImageKey()).isNull();
         assertThat(new Book("제목", null, null, 1, COVER_KEY).getCoverImageKey()).isEqualTo(COVER_KEY);
-        assertThatThrownBy(() -> new Book("제목", null, null, 1, "book-covers/cover.webp"))
+        assertThatThrownBy(() -> new Book(
+                "제목", null, null, 1, "book-covers/123e4567-e89b-12d3-a456-426614174000.webp"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

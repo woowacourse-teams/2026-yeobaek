@@ -28,7 +28,7 @@ import yeobaek.backend.support.IntegrationTest;
 
 class BookIngestServiceTest extends IntegrationTest {
 
-    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.png";
+    private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.png";
 
     @Autowired
     private BookIngestService bookIngestService;
