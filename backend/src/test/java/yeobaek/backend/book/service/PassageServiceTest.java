@@ -11,7 +11,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.dto.PassagesResponse;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -25,6 +25,8 @@ import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class PassageServiceTest extends IntegrationTest {
 
@@ -32,7 +34,7 @@ class PassageServiceTest extends IntegrationTest {
     private PassageService passageService;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;
@@ -93,6 +95,29 @@ class PassageServiceTest extends IntegrationTest {
     void rejectOutsider() {
         assertThatThrownBy(() -> passageService.findPassages(outsider.getId(), club.getId(), 1, 3))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("탈퇴 회원의 본문 조회는 거부된다")
+    void rejectLeftMember() {
+        ClubMember membership = clubMemberRepository.save(new ClubMember(reader, club));
+        membership.leave();
+        clubMemberRepository.saveAndFlush(membership);
+
+        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 3))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서를 대상으로 본문을 조회할 수 없다")
+    void cannotReadPassagesOfDeletedBook() {
+        clubMemberRepository.save(new ClubMember(reader, club));
+        Book book = club.getBook();
+        bookRepository.delete(book.getId());
+
+        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 3))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 
     @Test

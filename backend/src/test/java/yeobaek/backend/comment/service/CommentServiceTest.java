@@ -5,12 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -23,9 +24,11 @@ import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
-import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class CommentServiceTest extends IntegrationTest {
 
@@ -36,7 +39,7 @@ class CommentServiceTest extends IntegrationTest {
     private CommentRepository commentRepository;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;
@@ -54,6 +57,7 @@ class CommentServiceTest extends IntegrationTest {
     private ClubMemberRepository clubMemberRepository;
 
     private Member writer;
+    private Book book;
     private Member other;
     private Club club;
     private Club otherClub;
@@ -61,7 +65,7 @@ class CommentServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
+        book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         passage = passageRepository.save(new Passage(chapter, 1, "본문 1"));
         writer = memberRepository.save(new Member("민서"));
@@ -102,11 +106,38 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("탈퇴 회원의 댓글은 작성자 정보와 내용이 그대로 조회된다")
+    void preserveLeftMembersComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "남겨진 댓글");
+        leaveClub(writer, club);
+
+        CommentsResponse response = commentService.findComments(other.getId(), club.getId(), passage.getId());
+
+        assertThat(response.comments()).singleElement().satisfies(comment -> {
+            assertThat(comment.commentId()).isEqualTo(created.commentId());
+            assertThat(comment.nickname()).isEqualTo("민서");
+            assertThat(comment.content()).isEqualTo("남겨진 댓글");
+            assertThat(comment.mine()).isFalse();
+        });
+    }
+
+    @Test
     @DisplayName("모임 미소속 회원은 댓글을 작성할 수 없다")
     void rejectOutsider() {
         Member outsider = memberRepository.save(new Member("외부인"));
 
         assertThatThrownBy(() -> commentService.create(outsider.getId(), club.getId(), passage.getId(), "댓글"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    @DisplayName("탈퇴 회원은 댓글을 조회하거나 작성할 수 없다")
+    void rejectCommentContextForLeftMember() {
+        leaveClub(writer, club);
+
+        assertThatThrownBy(() -> commentService.findComments(writer.getId(), club.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(), passage.getId(), "댓글"))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -151,6 +182,19 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("탈퇴 회원은 재가입 전까지 기존 댓글을 수정하거나 삭제할 수 없다")
+    void rejectChangingCommentForLeftMember() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), passage.getId(), "보존할 댓글");
+        leaveClub(writer, club);
+
+        assertThatThrownBy(() -> commentService.update(writer.getId(), created.commentId(), "수정 시도"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> commentService.delete(writer.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(commentRepository.findById(created.commentId())).isPresent();
+    }
+
+    @Test
     @DisplayName("존재하지 않는 댓글의 수정·삭제는 실패한다")
     void rejectUnknownComment() {
         assertThatThrownBy(() -> commentService.update(writer.getId(), 999L, "내용"))
@@ -168,5 +212,62 @@ class CommentServiceTest extends IntegrationTest {
 
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(), otherPassage.getId(), "댓글"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Nested
+    @DisplayName("삭제된 도서를 대상으로 독서 활동을 할 수 있는가")
+    class CommentActivityOfDeletedBook {
+
+        private CommentResponse existingComment;
+
+        @BeforeEach
+        void deleteBookAfterWritingComment() {
+            existingComment = commentService.create(writer.getId(), club.getId(), passage.getId(), "원본");
+            bookRepository.delete(book.getId());
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 조회할 수 없다")
+        void cannotReadComments() {
+            assertBookNotAvailable(() ->
+                    commentService.findComments(writer.getId(), club.getId(), passage.getId()));
+        }
+
+        @Test
+        @DisplayName("새 댓글을 작성할 수 없다")
+        void cannotCreateComment() {
+            assertBookNotAvailable(() ->
+                    commentService.create(writer.getId(), club.getId(), passage.getId(), "신규"));
+            assertThat(commentRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 수정할 수 없고 내용은 보존된다")
+        void cannotUpdateCommentAndPreservesContent() {
+            assertBookNotAvailable(() ->
+                    commentService.update(writer.getId(), existingComment.commentId(), "수정"));
+            assertThat(commentRepository.findById(existingComment.commentId())).get()
+                    .extracting(Comment::getContent).isEqualTo("원본");
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 삭제할 수 없고 데이터는 보존된다")
+        void cannotDeleteCommentAndPreservesData() {
+            assertBookNotAvailable(() -> commentService.delete(writer.getId(), existingComment.commentId()));
+            assertThat(commentRepository.findById(existingComment.commentId())).isPresent();
+        }
+    }
+
+    private void assertBookNotAvailable(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation) {
+        assertThatThrownBy(operation)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    private void leaveClub(Member member, Club targetClub) {
+        ClubMember membership = clubMemberRepository
+                .findByMemberIdAndClubId(member.getId(), targetClub.getId()).orElseThrow();
+        membership.leave();
+        clubMemberRepository.saveAndFlush(membership);
     }
 }

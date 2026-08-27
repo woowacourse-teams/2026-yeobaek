@@ -6,7 +6,7 @@
 
     <description>
         여백 백엔드 PMD 규칙셋(테스트 소스). config/pmd/ruleset.xml과 동일하되 AvoidDuplicateLiterals를 추가로 제외한다.
-        조정 내역과 사유는 backend/docs/지침/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
+        조정 내역과 사유는 backend/docs/지침/검증/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.
     </description>
 
     <rule ref="category/java/bestpractices.xml">

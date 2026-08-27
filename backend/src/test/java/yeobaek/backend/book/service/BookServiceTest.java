@@ -16,19 +16,23 @@ import yeobaek.backend.book.dto.BooksResponse;
 import yeobaek.backend.book.dto.ChapterResponse;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class BookServiceTest extends IntegrationTest {
+
+    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
 
     @Autowired
     private BookService bookService;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private AuthorRepository authorRepository;
@@ -54,6 +58,16 @@ class BookServiceTest extends IntegrationTest {
         assertThat(response.books()).hasSize(1);
         assertThat(response.books().getFirst().authors()).containsExactly("현진건");
         assertThat(response.books().getFirst().passageCount()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("도서 목록과 상세는 표지 공개 URL을 동일하게 제공한다")
+    void exposeCoverImageUrl() {
+        Book book = bookRepository.save(new Book("표지 도서", null, null, 1, COVER_KEY));
+
+        String expectedUrl = "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/" + COVER_KEY;
+        assertThat(bookService.findBooks(null).books().getFirst().coverImageUrl()).isEqualTo(expectedUrl);
+        assertThat(bookService.findBook(book.getId()).coverImageUrl()).isEqualTo(expectedUrl);
     }
 
     @Test
@@ -127,5 +141,26 @@ class BookServiceTest extends IntegrationTest {
     void findBookNotFound() {
         assertThatThrownBy(() -> bookService.findBook(999L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서는 이용 가능한 도서 목록과 검색 결과에 나타나지 않는다")
+    void excludesDeletedBookFromAvailableBooks() {
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        bookRepository.delete(book.getId());
+
+        assertThat(bookService.findBooks(null).books()).isEmpty();
+        assertThat(bookService.findBooks("운수").books()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("삭제된 도서를 직접 조회하면 BOOK_NOT_AVAILABLE 오류가 발생한다")
+    void cannotFindDeletedBookDetail() {
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        bookRepository.delete(book.getId());
+
+        assertThatThrownBy(() -> bookService.findBook(book.getId()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
     }
 }

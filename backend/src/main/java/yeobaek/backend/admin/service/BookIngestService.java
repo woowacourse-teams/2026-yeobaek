@@ -21,9 +21,11 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
@@ -37,20 +39,23 @@ public class BookIngestService {
 
     private static final int MAX_CONTENT_BYTES = 65_535;
 
-    private final BookRepository bookRepository;
+    private final ActiveBookRepository activeBookRepository;
+    private final BookManagementRepository bookManagementRepository;
     private final AuthorRepository authorRepository;
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public BookUploadResponse upload(BookUploadRequest request) {
         validateStructure(request);
-        Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request));
+        Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
+                request.coverImageKey());
         List<Author> authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
-        bookRepository.save(book);
+        bookManagementRepository.save(book);
         for (Author author : authors) {
             if (author.getId() == null) {
                 authorRepository.save(author);
@@ -58,7 +63,8 @@ public class BookIngestService {
             authorBookRepository.save(new AuthorBook(author, book));
         }
         saveChapters(book, request.chapters());
-        return new BookUploadResponse(book.getId(), book.getTitle(), book.getPassageCount());
+        return new BookUploadResponse(book.getId(), book.getTitle(),
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount());
     }
 
     private void validateStructure(BookUploadRequest request) {
@@ -140,7 +146,7 @@ public class BookIngestService {
             return;
         }
         Set<Long> authorIds = authors.stream().map(Author::getId).collect(Collectors.toSet());
-        boolean duplicate = bookRepository.findAllByTitle(book.getTitle()).stream()
+        boolean duplicate = activeBookRepository.findAllByTitle(book.getTitle()).stream()
                 .filter(candidate -> candidate.hasSameBibliography(book))
                 .anyMatch(candidate -> authorIdsOf(candidate).equals(authorIds));
         if (duplicate) {

@@ -7,11 +7,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.ClubMemberStatus;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.IntegrationTest;
@@ -28,10 +30,13 @@ class ClubMappingTest extends IntegrationTest {
     private MemberRepository memberRepository;
 
     @Autowired
-    private BookRepository bookRepository;
+    private BookManagementRepository bookRepository;
 
     @Autowired
     private TransactionTemplate transactionTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private Book saveBook() {
         return bookRepository.save(new Book("운수 좋은 날", null, 1924, 10));
@@ -81,5 +86,36 @@ class ClubMappingTest extends IntegrationTest {
 
         assertThat(saved.getLastReadPassage()).isNull();
         assertThat(saved.getLastReadAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("모임을 탈퇴하면 탈퇴 상태가 저장되고 조회된다")
+    void leaveStatusPersists() {
+        Member member = memberRepository.save(new Member("민서"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE03"));
+        ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
+        membership.leave();
+        clubMemberRepository.saveAndFlush(membership);
+
+        transactionTemplate.executeWithoutResult(status -> {
+            ClubMember found = clubMemberRepository.findById(membership.getId()).orElseThrow();
+
+            assertThat(found.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        });
+    }
+
+    @Test
+    @DisplayName("상태를 지정하지 않은 기존 참여 행은 DB 기본값으로 참여 중 상태가 된다")
+    void statusDefaultsToJoined() {
+        Member member = memberRepository.save(new Member("민서"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE04"));
+
+        jdbcTemplate.update("insert into club_members (member_id, club_id) values (?, ?)",
+                member.getId(), club.getId());
+
+        String status = jdbcTemplate.queryForObject(
+                "select status from club_members where member_id = ? and club_id = ?",
+                String.class, member.getId(), club.getId());
+        assertThat(status).isEqualTo("JOINED");
     }
 }

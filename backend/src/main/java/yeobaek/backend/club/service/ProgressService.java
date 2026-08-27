@@ -10,6 +10,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -29,25 +30,27 @@ public class ProgressService {
     private final ClubMemberRepository clubMemberRepository;
     private final PassageRepository passageRepository;
     private final AuthorBookRepository authorBookRepository;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
+        club.ensureBookAvailable();
         clubMember.updateProgress(passage, LocalDateTime.now());
         return new ProgressResponse(passage.getSequence(), clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
     @Transactional(readOnly = true)
     public Optional<LastReadingResponse> findLastReading(Long memberId) {
-        List<ClubMember> readings = clubMemberRepository.findAllWithLastReadingByMemberId(memberId);
+        List<ClubMember> readings = clubMemberRepository.findAllJoinedWithLastReadingByMemberId(memberId);
         if (readings.isEmpty()) {
             return Optional.empty();
         }
@@ -58,7 +61,7 @@ public class ProgressService {
                 .map(authorBook -> authorBook.getAuthor().getName())
                 .toList();
         return Optional.of(new LastReadingResponse(club.getId(), club.getName(),
-                ClubBookResponse.of(book, authors),
+                ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey())),
                 latest.getLastReadPassage().getSequence(), latest.progressRate(), latest.getLastReadAt()));
     }
 }

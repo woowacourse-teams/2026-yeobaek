@@ -1,11 +1,13 @@
 package yeobaek.backend.support;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
@@ -13,9 +15,17 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.club.domain.Club;
+import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.repository.MemberRepository;
 
 /**
  * 개발용 시드 데이터 투입기. local 프로파일에서만 동작하며 프로덕션에는 포함되지 않는다.
@@ -28,14 +38,21 @@ public class DevDataSeeder implements CommandLineRunner {
 
     private static final int CHAPTER_COUNT = 3;
     private static final int PASSAGES_PER_CHAPTER = 10;
+    private static final LocalDateTime MINSEO_LAST_READ_AT = LocalDateTime.of(2026, 8, 5, 14, 30);
+    private static final LocalDateTime JISOO_LAST_READ_AT = LocalDateTime.of(2026, 8, 5, 15, 0);
 
-    private final BookRepository bookRepository;
+    private final BookManagementRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final AuthorBookRepository authorBookRepository;
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
+    private final MemberRepository memberRepository;
+    private final ClubRepository clubRepository;
+    private final ClubMemberRepository clubMemberRepository;
+    private final CommentRepository commentRepository;
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (bookRepository.count() > 0) {
             return;
@@ -49,14 +66,36 @@ public class DevDataSeeder implements CommandLineRunner {
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, book));
 
+        List<Passage> passages = new ArrayList<>();
         int sequence = 1;
         for (int chapterIndex = 1; chapterIndex <= CHAPTER_COUNT; chapterIndex++) {
             Chapter chapter = chapterRepository.save(new Chapter(book, chapterIndex + "장", chapterIndex));
             for (int i = 0; i < PASSAGES_PER_CHAPTER; i++) {
-                passageRepository.save(new Passage(chapter, sequence, paragraphs.get(sequence - 1)));
+                Passage passage = passageRepository.save(new Passage(chapter, sequence, paragraphs.get(sequence - 1)));
+                passages.add(passage);
                 sequence++;
             }
         }
+
+        seedReadingScenario(book, passages);
+    }
+
+    private void seedReadingScenario(Book book, List<Passage> passages) {
+        Member minseo = memberRepository.save(new Member("민서"));
+        Member jisoo = memberRepository.save(new Member("지수"));
+        Club club = clubRepository.save(new Club("교환독서 1기", book, "A3F9KQ"));
+
+        ClubMember minseoMembership = new ClubMember(minseo, club);
+        minseoMembership.updateProgress(passages.get(9), MINSEO_LAST_READ_AT);
+        clubMemberRepository.save(minseoMembership);
+
+        ClubMember jisooMembership = new ClubMember(jisoo, club);
+        jisooMembership.updateProgress(passages.get(19), JISOO_LAST_READ_AT);
+        clubMemberRepository.save(jisooMembership);
+
+        Passage commentedPassage = passages.get(1);
+        commentRepository.save(new Comment(minseoMembership, commentedPassage, "이 문장에서 멈칫했어요."));
+        commentRepository.save(new Comment(jisooMembership, commentedPassage, "저도 이 대목의 분위기가 오래 남았어요."));
     }
 
     private List<String> paragraphs() {

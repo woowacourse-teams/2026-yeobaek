@@ -12,5 +12,5 @@
 - `/deep-interview`: 설계 초안을 만들기 전의 모호한 요청을 한 번에 한 질문씩 구체화합니다.
   목표·범위·제약·완료 기준·영향 범위가 정리되면 `/grill-me` 또는 공식 승인 관문으로 넘깁니다.
 - 출처: [devbrother2024/skills](https://github.com/devbrother2024/skills) (`deep-interview`) — MIT License.
-- 프로젝트 규칙: `backend/docs/지침/deep-interview_활용.md`와 피드백 루프 하네스가 upstream
+- 프로젝트 규칙: `backend/docs/지침/프로세스/deep-interview_활용.md`와 피드백 루프 하네스가 upstream
   기본 동작보다 우선합니다.

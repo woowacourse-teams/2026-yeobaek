@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Public S3 storage and upload permission for Yeobaek book covers
+
+Parameters:
+  AdminOrigin:
+    Type: String
+    Description: Exact HTTPS origin that serves the admin page
+    AllowedPattern: '^https://[^/]+$'
+    ConstraintDescription: Must be an HTTPS origin without a trailing slash or path
+
+  AppInstanceRoleName:
+    Type: String
+    Description: Name of the existing EC2 instance role used by the backend
+
+Resources:
+  CoverBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      CorsConfiguration:
+        CorsRules:
+          - Id: AllowAdminPresignedPut
+            AllowedOrigins:
+              - !Ref AdminOrigin
+            AllowedMethods:
+              - PUT
+            AllowedHeaders:
+              - Content-Type
+              - Cache-Control
+            ExposedHeaders:
+              - ETag
+            MaxAge: 300
+
+  PublicReadBookCovers:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CoverBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowAnonymousReadOnlyForBookCovers
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub '${CoverBucket.Arn}/book-covers/*'
+
+  PresignBookCoverPut:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      PolicyName: presign-book-cover-put
+      RoleName: !Ref AppInstanceRoleName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPresignedBookCoverUpload
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub '${CoverBucket.Arn}/book-covers/*'
+
+Outputs:
+  CoverBucketName:
+    Description: Value for BOOK_COVER_S3_BUCKET
+    Value: !Ref CoverBucket
+
+  CoverBucketRegion:
+    Description: Value for BOOK_COVER_S3_REGION
+    Value: !Ref AWS::Region
+
+  CoverPublicBaseUrl:
+    Description: Value for BOOK_COVER_PUBLIC_BASE_URL
+    Value: !Sub 'https://${CoverBucket.RegionalDomainName}'

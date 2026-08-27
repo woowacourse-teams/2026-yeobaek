@@ -6,8 +6,41 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class BookTest {
+
+    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+
+    @Test
+    @DisplayName("새 도서는 ACTIVE 상태이다")
+    void newBookIsActive() {
+        Book book = new Book("제목", null, null, 1);
+
+        assertThat(book.getStatus()).isEqualTo(BookStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("도서를 삭제하면 DELETED 상태로 전이한다")
+    void transitionsToDeleted() {
+        Book book = new Book("제목", null, null, 1);
+
+        book.delete();
+
+        assertThat(book.getStatus()).isEqualTo(BookStatus.DELETED);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서는 다시 삭제할 수 없다")
+    void cannotDeleteTwice() {
+        Book book = new Book("제목", null, null, 1);
+        book.delete();
+
+        assertThatThrownBy(book::delete)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
 
     @Test
     @DisplayName("같은 id를 가진 도서는 동일한 도서로 판단한다")
@@ -57,5 +90,26 @@ class BookTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new Book("제목", "가".repeat(101), null, 1))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("표지 이미지 키는 없을 수 있고 정해진 UUID 키 형식만 허용한다")
+    void validateCoverImageKey() {
+        assertThat(new Book("제목", null, null, 1).getCoverImageKey()).isNull();
+        assertThat(new Book("제목", null, null, 1, COVER_KEY).getCoverImageKey()).isEqualTo(COVER_KEY);
+        assertThatThrownBy(() -> new Book("제목", null, null, 1, "book-covers/cover.webp"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("활성 도서의 표지를 교체하고 제거할 수 있다")
+    void replaceAndRemoveCoverImage() {
+        Book book = new Book("제목", null, null, 1);
+
+        book.replaceCoverImage(COVER_KEY);
+        assertThat(book.getCoverImageKey()).isEqualTo(COVER_KEY);
+
+        book.removeCoverImage();
+        assertThat(book.getCoverImageKey()).isNull();
     }
 }

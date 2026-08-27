@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +24,7 @@ fun CommentList(
     onEditComment: (Long) -> Unit,
     onDeleteComment: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     when {
         uiState.isLoading -> {
@@ -66,6 +69,7 @@ fun CommentList(
         else -> {
             LazyColumn(
                 modifier = modifier,
+                state = listState,
                 contentPadding = PaddingValues(
                     start = 24.dp,
                     end = 24.dp,

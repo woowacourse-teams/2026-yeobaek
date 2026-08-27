@@ -60,4 +60,8 @@ public class Club {
     public int totalPassageCount() {
         return book.getPassageCount();
     }
+
+    public void ensureBookAvailable() {
+        book.ensureAvailable();
+    }
 }

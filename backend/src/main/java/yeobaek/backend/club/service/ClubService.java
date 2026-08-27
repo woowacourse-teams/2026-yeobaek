@@ -8,7 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.BookRepository;
+import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.JoinCodeGenerator;
@@ -36,37 +37,48 @@ public class ClubService {
 
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
-    private final BookRepository bookRepository;
+    private final ActiveBookRepository bookRepository;
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final JoinCodeGenerator joinCodeGenerator;
+    private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
     public ClubCreateResponse create(Long memberId, String name, Long bookId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+        Book book = bookRepository.getById(bookId);
         Club club = clubRepository.save(new Club(name, book, generateUniqueJoinCode()));
         clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
         return new ClubCreateResponse(club.getId(), club.getName(), club.getJoinCode(),
-                ClubBookResponse.of(book, authorNames(book)));
+                toBookResponse(book, authorNames(book)));
     }
 
     @Transactional
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
-        if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, club.getId())) {
-            clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
-        }
+        club.ensureBookAvailable();
+        clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
+                .ifPresentOrElse(ClubMember::rejoin,
+                        () -> clubMemberRepository.save(
+                                new ClubMember(memberRepository.getReferenceById(memberId), club)));
         Book book = club.getBook();
-        return new ClubJoinResponse(club.getId(), club.getName(), ClubBookResponse.of(book, authorNames(book)));
+        return new ClubJoinResponse(club.getId(), club.getName(), toBookResponse(book, authorNames(book)));
+    }
+
+    @Transactional
+    public void leave(Long memberId, Long clubId) {
+        clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+        ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
+                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+        clubMember.leave();
     }
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        List<ClubMember> clubMembers = clubMemberRepository.findAllWithClubAndBookByMemberId(memberId);
+        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId);
         List<Long> clubIds = clubMembers.stream().map(clubMember -> clubMember.getClub().getId()).toList();
-        Map<Long, Long> memberCounts = clubMemberRepository.countByClubIds(clubIds).stream()
+        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
         Map<Long, List<String>> authorNames = authorNamesByBookId(
                 clubMembers.stream().map(clubMember -> clubMember.getClub().getBook().getId()).distinct().toList());
@@ -76,7 +88,7 @@ public class ClubService {
                     Book book = club.getBook();
                     return new MyClubResponse(club.getId(), club.getName(),
                             memberCounts.getOrDefault(club.getId(), 0L),
-                            ClubBookResponse.of(book, authorNames.getOrDefault(book.getId(), List.of())),
+                            toBookResponse(book, authorNames.getOrDefault(book.getId(), List.of())),
                             toMyProgress(clubMember));
                 })
                 .toList());
@@ -86,14 +98,14 @@ public class ClubService {
     public ClubDetailResponse findDetail(Long memberId, Long clubId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        List<ClubMember> clubMembers = clubMemberRepository.findAllWithMemberByClubId(clubId);
+        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithMemberByClubId(clubId);
         ClubMember myMembership = clubMembers.stream()
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst()
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
-                ClubBookResponse.of(book, authorNames(book)),
+                toBookResponse(book, authorNames(book)),
                 toMyProgress(myMembership),
                 clubMembers.stream()
                         .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
@@ -129,5 +141,9 @@ public class ClubService {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
                         Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+    }
+
+    private ClubBookResponse toBookResponse(Book book, List<String> authors) {
+        return ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey()));
     }
 }

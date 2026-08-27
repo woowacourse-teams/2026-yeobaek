@@ -1,6 +1,7 @@
 package com.yeobaek.feature.reader.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,8 +18,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.PassageCommentSheetUiState
 import com.yeobaek.feature.reader.model.PassageUiModel
@@ -38,6 +47,18 @@ fun PassageCommentBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val commentListState = rememberLazyListState()
+    var previousCommentCount by remember(uiState.passageId) { mutableIntStateOf(-1) }
+
+    LaunchedEffect(uiState.passageId, uiState.isLoading, uiState.comments.size) {
+        if (uiState.isLoading) return@LaunchedEffect
+
+        val commentCount = uiState.comments.size
+        if (previousCommentCount in 0..<commentCount) {
+            commentListState.animateScrollToItem(commentCount - 1)
+        }
+        previousCommentCount = commentCount
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -70,10 +91,19 @@ fun PassageCommentBottomSheet(
             }
         },
     ) {
+        val focusManager = LocalFocusManager.current
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.72f),
+                .fillMaxHeight(0.72f)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            focusManager.clearFocus()
+                        },
+                    )
+                },
         ) {
             PassageQuote(
                 content = passage.content,
@@ -87,14 +117,21 @@ fun PassageCommentBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+                listState = commentListState,
             )
             PassageCommentInput(
                 value = uiState.input,
                 enabled = !uiState.isSubmitting,
                 isEditing = uiState.editingCommentId != null,
                 onValueChange = onInputChange,
-                onSubmit = onSubmit,
-                onCancelEdit = onCancelEdit,
+                onSubmit = {
+                    onSubmit()
+                    focusManager.clearFocus()
+                },
+                onCancelEdit = {
+                    onCancelEdit()
+                    focusManager.clearFocus()
+                },
             )
         }
     }

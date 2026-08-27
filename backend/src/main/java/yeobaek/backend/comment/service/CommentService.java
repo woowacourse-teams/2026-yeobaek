@@ -45,6 +45,7 @@ public class CommentService {
     @Transactional
     public CommentResponse update(Long memberId, Long commentId, String content) {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 수정할 수 있습니다.");
+        comment.ensureBookAvailable();
         comment.updateContent(content);
         return CommentResponse.of(comment, memberId);
     }
@@ -52,6 +53,7 @@ public class CommentService {
     @Transactional
     public void delete(Long memberId, Long commentId) {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 삭제할 수 있습니다.");
+        comment.ensureBookAvailable();
         commentRepository.delete(comment);
     }
 
@@ -61,19 +63,23 @@ public class CommentService {
         if (!comment.isWrittenBy(memberId)) {
             throw new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, forbiddenMessage);
         }
+        if (!comment.isWriterJoined()) {
+            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+        }
         return comment;
     }
 
     private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
+        club.ensureBookAvailable();
         return clubMember;
     }
 }

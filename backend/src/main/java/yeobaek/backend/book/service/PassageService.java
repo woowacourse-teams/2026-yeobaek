@@ -35,9 +35,10 @@ public class PassageService {
         validateRange(from, to);
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
-        if (!clubMemberRepository.existsByMemberIdAndClubId(memberId, clubId)) {
+        if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
             throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
         }
+        club.ensureBookAvailable();
         List<Passage> passages = passageRepository.findRangeByBookId(club.getBook().getId(), from, to);
         Map<Long, Long> commentCounts = commentRepository.countByClubIdAndSequenceRange(clubId, from, to).stream()
                 .collect(Collectors.toMap(PassageCommentCount::getPassageId, PassageCommentCount::getCommentCount));

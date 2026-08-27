@@ -1,8 +1,13 @@
 package yeobaek.backend.member.controller;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,6 +15,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.service.MemberService;
@@ -22,40 +28,51 @@ class MemberControllerTest extends ControllerTest {
     private MemberService memberService;
 
     @Test
-    @DisplayName("회원 생성에 성공하면 201과 발급된 ID를 응답한다")
+    @DisplayName("회원 생성 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
     void createMember() throws Exception {
-        given(memberService.create(anyString())).willReturn(new MemberCreateResponse(1L, "민서"));
+        var response = new MemberCreateResponse(7L, "민서");
+        given(memberService.create("민서")).willReturn(response);
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nickname\": \"민서\"}"))
+                        .content("""
+                                {"nickname":"민서"}
+                                """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.memberId").value(1))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.memberId").value(7))
                 .andExpect(jsonPath("$.nickname").value("민서"));
+
+        verify(memberService, times(1)).create("민서");
     }
 
     @Test
-    @DisplayName("닉네임이 유효하지 않으면 400과 메시지를 응답한다")
-    void createMemberWithInvalidNickname() throws Exception {
-        given(memberService.create(anyString())).willThrow(new IllegalArgumentException("닉네임은 공백이 아닌 1~20자여야 합니다."));
-
+    @DisplayName("요청 본문이 없으면 서비스를 호출하지 않는다")
+    void rejectMissingBody() throws Exception {
         mockMvc.perform(post("/api/members")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nickname\": \" \"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("닉네임은 공백이 아닌 1~20자여야 합니다."));
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class,
+                        result.getResolvedException()));
+
+        verifyNoInteractions(memberService);
     }
 
     @Test
-    @DisplayName("이미 사용 중인 닉네임이면 400과 메시지를 응답한다")
-    void createMemberWithDuplicateNickname() throws Exception {
-        given(memberService.create(anyString())).willThrow(new IllegalArgumentException("이미 사용 중인 닉네임입니다."));
+    @DisplayName("서비스 예외를 변경하지 않고 전파한다")
+    void propagateServiceException() throws Exception {
+        var serviceException = new IllegalArgumentException("회원 생성 실패");
+        given(memberService.create("중복 닉네임")).willThrow(serviceException);
 
-        mockMvc.perform(post("/api/members")
+        var result = mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nickname\": \"민서\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
+                        .content("""
+                                {"nickname":"중복 닉네임"}
+                                """))
+                .andReturn();
+
+        assertSame(serviceException, result.getResolvedException(),
+                "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
+        verify(memberService, times(1)).create("중복 닉네임");
     }
 }

@@ -46,7 +46,7 @@ fun CommentActionMenu(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(
-                            width = 0.5.dp,
+                            width = 1.dp,
                             color = MaterialTheme.colorScheme.outlineVariant,
                         ),
                     ) {
@@ -57,7 +57,7 @@ fun CommentActionMenu(
                                 onClick = onEdit,
                             )
                             HorizontalDivider(
-                                thickness = 0.5.dp,
+                                thickness = 1.dp,
                                 color = MaterialTheme.colorScheme.outlineVariant,
                             )
                             CommentActionMenuItem(
@@ -95,7 +95,7 @@ private fun CommentActionMenuItem(
             text = text,
             color = color,
             style = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 lineHeight = 15.sp,
                 fontWeight = FontWeight.Normal,
             ),

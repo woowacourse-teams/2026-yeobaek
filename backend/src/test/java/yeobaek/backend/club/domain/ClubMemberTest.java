@@ -14,6 +14,33 @@ import yeobaek.backend.member.domain.Member;
 class ClubMemberTest {
 
     @Test
+    @DisplayName("모임 참여 정보는 참여 중 상태로 생성된다")
+    void statusStartsJoined() {
+        ClubMember clubMember = new ClubMember(
+                new Member("민서"), new Club("1기", new Book("제목", null, null, 1), "CODE01"));
+
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(clubMember.isJoined()).isTrue();
+    }
+
+    @Test
+    @DisplayName("모임을 탈퇴한 후 재가입할 수 있다")
+    void leaveAndRejoin() {
+        ClubMember clubMember = new ClubMember(
+                new Member("민서"), new Club("1기", new Book("제목", null, null, 1), "CODE01"));
+
+        clubMember.leave();
+
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        assertThat(clubMember.isJoined()).isFalse();
+
+        clubMember.rejoin();
+
+        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(clubMember.isJoined()).isTrue();
+    }
+
+    @Test
     @DisplayName("본인의 회원 id를 전달하면 참을 반환한다")
     void isOwnedByWhenIdMatches() {
         Member member = new Member("민서");
