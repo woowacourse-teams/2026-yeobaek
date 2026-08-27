@@ -31,7 +31,7 @@ class AdminBookCoverControllerTest extends ControllerTest {
     void issueUploadUrl() throws Exception {
         var request = new BookCoverUploadUrlRequest("image/webp", 1024);
         var response = new BookCoverUploadUrlResponse(
-                "book-covers/123e4567-e89b-12d3-a456-426614174000.webp",
+                "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp",
                 "https://s3.example/upload",
                 Instant.parse("2026-08-26T12:10:00Z"),
                 Map.of("Content-Type", "image/webp", "Cache-Control", BookCoverUploadService.CACHE_CONTROL));

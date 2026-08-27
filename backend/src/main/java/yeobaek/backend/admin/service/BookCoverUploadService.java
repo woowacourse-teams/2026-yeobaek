@@ -36,7 +36,7 @@ public class BookCoverUploadService {
     public BookCoverUploadUrlResponse issueUploadUrl(BookCoverUploadUrlRequest request) {
         String extension = extensionOf(request.contentType());
         validateContentLength(request.contentLength());
-        String key = "book-covers/" + UUID.randomUUID() + "." + extension;
+        String key = properties.prefix() + "/book-covers/" + UUID.randomUUID() + "." + extension;
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(key)

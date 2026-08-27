@@ -39,7 +39,7 @@ import yeobaek.backend.support.NotFoundException;
 
 class AdminBookServiceTest extends IntegrationTest {
 
-    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.jpg";
+    private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg";
 
     @Autowired
     private AdminBookService adminBookService;
