@@ -8,14 +8,16 @@
 
 - Base path: `/api` (호스트는 배포 후 공유)
 - 요청/응답 본문: JSON (UTF-8), 필드는 camelCase
-- **회원 식별**: 회원 생성을 제외한 모든 API는 `X-Member-Id: {회원ID}` 헤더 필수.
+- **회원 식별**: 회원 생성과 공개 사전신청을 제외한 모든 API는 `X-Member-Id: {회원ID}` 헤더 필수.
   클라이언트는 회원 생성 시 받은 ID를 기기에 저장하고 인터셉터로 전 요청에 첨부한다.
 - 시각 필드: ISO-8601 (`2026-08-05T14:30:00`)
 - 에러 응답: 상태 코드 + `{ "code": "CLUB_NOT_FOUND", "message": "사람이 읽을 수 있는 설명" }`
-  - **상태 코드는 3개만 쓴다** (2026-08-06 개정 — 종전 `404` 케이스를 `400`으로 통합):
+  - 일반 앱 API는 기존 3개 상태를 유지하고, 공개 사전신청에 `409`와 `429`를 추가한다:
     - `401` 인증 실패 (관리자 토큰 누락·불일치)
     - `403` 권한 없음 (모임 미소속, 남의 댓글 등)
     - `400` 그 외 모든 클라이언트 오류. 상세 원인은 바디의 `code`로 구분한다
+    - `409` 이미 등록된 사전신청 이메일
+    - `429` IP별 사전신청 요청 제한 초과
   - `X-Member-Id` 누락 또는 존재하지 않는 회원: `400`
   - `message`는 표시용이며 계약이 아니다. 클라이언트 분기는 `code`로만 한다
 
@@ -35,6 +37,8 @@
 | `DUPLICATE_AUTHOR` | 400 | (관리자) 한 업로드 안에 같은 작가 중복 기재 |
 | `AUTHOR_NAME_MISMATCH` | 400 | (관리자) ISNI로 찾은 기존 작가와 요청의 이름 불일치 |
 | `DUPLICATE_BOOK` | 400 | (관리자) 제목·출판사·출판연도·작가 구성이 동일한 도서 존재 |
+| `PRE_REGISTRATION_ALREADY_EXISTS` | 409 | 정규화한 이메일로 이미 사전신청이 등록됨 |
+| `RATE_LIMIT_EXCEEDED` | 429 | 같은 IP에서 1분 동안 허용된 사전신청 요청 횟수 초과 |
 | `NOT_CLUB_MEMBER` | 403 | 모임에 참여하지 않은 회원의 접근 |
 | `NOT_COMMENT_OWNER` | 403 | 본인 댓글이 아닌 수정·삭제 시도 |
 | `UNAUTHORIZED` | 401 | 관리자 토큰 누락·불일치 (서버에 토큰 미설정 시 관리자 API 전부 이 응답) |
@@ -66,6 +70,31 @@
 | 댓글 조회·작성·수정·삭제 | 가능 | 데이터를 보존하고 `BOOK_NOT_AVAILABLE` |
 | 관리자 작가·작품 목록 | `status=ACTIVE`로 표시 | 삭제 도서도 `status=DELETED`로 표시 |
 | 동일 도서 업로드 | 활성 중복이면 차단 | 삭제된 중복만 있으면 새 ID로 허용 |
+
+## 0.1 공개 사전신청
+
+### 이메일 사전신청
+`POST /api/pre-registrations` — `X-Member-Id` 헤더 불필요
+
+요청:
+```json
+{ "email": "reader@example.com" }
+```
+
+- `email`: 필수, 앞뒤 공백 제거 후 소문자로 저장한다. 정규화 후 최대 254자이며 일반적인
+  이메일 형식이어야 한다.
+- 운영 랜딩 `https://yeobaek-landing-hypothesis.vercel.app`에서만 CORS 요청을 허용한다.
+  운영 환경변수 `LANDING_CORS_ALLOWED_ORIGIN`으로 허용 출처를 교체할 수 있다.
+
+응답 `201`, 본문 없음.
+
+- 같은 정규화 이메일이 이미 있으면 저장하지 않고 `409`
+  (`PRE_REGISTRATION_ALREADY_EXISTS`)를 반환한다.
+- IP별 고정 1분 창에서 `POST` 요청을 5회까지 허용한다. 6번째 요청부터 창이 끝날 때까지
+  `429` (`RATE_LIMIT_EXCEEDED`)를 반환하며, CORS `OPTIONS` preflight는 횟수에 포함하지 않는다.
+- 형식이 올바르지 않으면 `400` (`INVALID_REQUEST`)을 반환한다.
+- 이메일은 여백 앱 출시 및 사전신청 안내에만 사용하며, 출시 안내 발송 후 30일 또는
+  동의 철회 시까지 보관한다.
 
 ## 1. 회원
 
@@ -571,6 +600,7 @@
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
+| POST | /api/pre-registrations | 공개 이메일 사전신청 |
 | POST | /api/members | 회원 생성 |
 | GET | /api/books | 도서 목록 · 검색 (`keyword`) |
 | GET | /api/books/{bookId} | 도서 상세 + 목차 |
