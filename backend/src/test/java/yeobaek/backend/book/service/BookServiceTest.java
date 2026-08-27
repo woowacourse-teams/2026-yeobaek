@@ -26,7 +26,7 @@ import yeobaek.backend.support.ErrorCode;
 
 class BookServiceTest extends IntegrationTest {
 
-    private static final String COVER_KEY = "book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+    private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
 
     @Autowired
     private BookService bookService;
