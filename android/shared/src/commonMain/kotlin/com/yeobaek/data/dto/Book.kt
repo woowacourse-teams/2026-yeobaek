@@ -9,11 +9,12 @@ data class Book(
     val bookId: Long,
     val passageCount: Int,
     val title: String,
+    val coverImageUrl: String?,
 )
 
 fun Book.toModel(): BookModel = BookModel(
     id = bookId,
-    uri = "",
+    coverImageUrl = coverImageUrl,
     title = title,
     authors = authors.joinToString(),
     progressRate = 0f,

@@ -3,7 +3,6 @@ package com.yeobaek.feature.home.component
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,13 +14,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
@@ -43,7 +40,10 @@ fun CurrentlyReadingBookItem(
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BookCoverImage(imageUrl = bookUiModel.coverImageUrl)
+            BookCoverImage(
+                imageUrl = bookUiModel.coverImageUrl,
+                modifier = Modifier.width(52.dp),
+            )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -58,22 +58,6 @@ fun CurrentlyReadingBookItem(
             }
         }
     }
-}
-
-@Composable
-private fun BookCoverImage(
-    imageUrl: String,
-    modifier: Modifier = Modifier,
-) {
-    AsyncImage(
-        model = imageUrl,
-        contentDescription = "책 표지",
-        modifier = modifier
-            .clip(shape = MaterialTheme.shapes.extraSmall)
-            .width(52.dp)
-            .aspectRatio(9f / 16f),
-        contentScale = ContentScale.Crop,
-    )
 }
 
 @Composable

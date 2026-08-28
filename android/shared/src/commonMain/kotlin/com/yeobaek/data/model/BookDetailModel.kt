@@ -8,4 +8,5 @@ data class BookDetailModel(
     val publishedYear: Int,
     val publisher: String,
     val title: String,
+    val coverImageUrl: String?,
 )

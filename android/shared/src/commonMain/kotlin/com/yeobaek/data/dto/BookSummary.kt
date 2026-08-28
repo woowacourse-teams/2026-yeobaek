@@ -9,6 +9,7 @@ data class BookSummary(
     val bookId: Long,
     val passageCount: Int,
     val title: String,
+    val coverImageUrl: String?,
 )
 
 fun BookSummary.toModel(): BookSummaryModel =
@@ -17,4 +18,5 @@ fun BookSummary.toModel(): BookSummaryModel =
         bookId = bookId,
         passageCount = passageCount,
         title = title,
+        coverImageUrl = coverImageUrl,
     )
