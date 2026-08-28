@@ -35,7 +35,7 @@ class CreateViewModel(
                     bookList = groups.map {
                         CreateBookUiModel(
                             id = it.id,
-                            uri = it.uri,
+                            uri = it.coverImageUrl,
                             title = it.title,
                             authors = it.authors,
                             description = it.description,

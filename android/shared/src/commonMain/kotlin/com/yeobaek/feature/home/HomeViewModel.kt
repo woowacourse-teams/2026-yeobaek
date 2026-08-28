@@ -40,7 +40,7 @@ class HomeViewModel(
                             clubId = lastReading.clubId,
                             groupName = lastReading.clubName,
                             title = lastReading.book.title,
-                            coverImageUrl = "https://i.pinimg.com/736x/06/2b/21/062b21a8759dcd25158bfe2b792e4f7b.jpg",
+                            coverImageUrl = lastReading.book.coverImageUrl,
                             authors = lastReading.book.authors,
                             progressRate = lastReading.progressRate,
                         )
@@ -85,7 +85,7 @@ class HomeViewModel(
                     groups = groups.map {
                         GroupUiModel(
                             groupId = it.clubId,
-                            uri = "https://jasdc.or.kr/pub/site/psndc/images/sub/gtop_01.jpg",
+                            uri = it.book.coverImageUrl,
                             title = it.book.title,
                             groupName = it.name,
                             groupCount = it.memberCount,

@@ -2,7 +2,7 @@ package com.yeobaek.data.model
 
 data class BookModel(
     val id: Long = 0,
-    val uri: String = "",
+    val coverImageUrl: String? = null,
     val title: String = "",
     val authors: String = "",
     val description: String = "",

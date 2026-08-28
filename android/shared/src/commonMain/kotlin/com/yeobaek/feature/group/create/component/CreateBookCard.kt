@@ -23,18 +23,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
+import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CreateBookCard(
-    uri: String,
+    uri: String?,
     title: String,
     author: String,
     description: String,
@@ -66,14 +65,9 @@ fun CreateBookCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AsyncImage(
-                model = uri,
-                contentDescription = "책 표지 이미지",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(shape = MaterialTheme.shapes.extraSmall)
-                    .fillMaxSize(),
+            BookCoverImage(
+                imageUrl = uri,
+                modifier = Modifier.weight(1f),
             )
             Box(
                 modifier = Modifier

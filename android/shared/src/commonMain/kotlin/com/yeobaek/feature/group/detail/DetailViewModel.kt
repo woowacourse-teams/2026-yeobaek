@@ -40,8 +40,7 @@ class DetailViewModel(
                 )
                 uiState = uiState.copy(
                     bookUiModel = DetailBookUiModel(
-                        uri = "https://i.namu.wiki/i/92M-9hkuSJpPB-qZD-chkWsMUYe7dIAZE3rSnf0kTHdp5" +
-                            "BrwHyRS1H3Lj74gI6hRcIwcxV3AR6HRa7zWLU1oeQ.webp",
+                        uri = groupDetail.book.coverImageUrl,
                         title = groupDetail.book.title,
                         author = groupDetail.book.authors,
                         currentProgress = groupDetail.myProgress?.progressRate ?: 0,
