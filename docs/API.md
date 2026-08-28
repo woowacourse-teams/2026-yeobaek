@@ -1,8 +1,8 @@
 # 여백 API 명세 (계약)
 
-> 기반 문서: [`PRD.md`](PRD.md) · 상태: **구현 및 연동 기준**
-> 현재 구현은 Swagger(springdoc)가 런타임에 생성하는 OpenAPI 스펙(`/v3/api-docs`)과 Swagger UI(`/docs`)에서 확인한다.
-> 이 문서는 안드로이드와 합의한 API 계약의 기준이다. 계약 변경이 필요하면 반드시 이 문서를 먼저 갱신하고 합의한 뒤 구현과 Swagger 문서를 함께 맞춘다.
+> 기반 문서: [`PRD.md`](PRD.md) · 상태: **클라이언트 개발을 위한 선반영 계약**
+> 이 문서에는 문장 단위 댓글 계약이 백엔드 구현과 Swagger보다 먼저 반영되어 있다. 현재 런타임의 OpenAPI 스펙(`/v3/api-docs`)과 Swagger UI(`/docs`)는 후속 백엔드 작업 전까지 이 계약과 일시적으로 다를 수 있다.
+> 이 문서는 안드로이드와 합의한 API 계약의 기준이다. 후속 작업에서 백엔드 구현과 Swagger 문서를 이 계약에 맞춘다.
 
 ## 0. 공통 규약
 
@@ -30,6 +30,7 @@
 | `CLUB_NOT_FOUND` | 400 | 대상 모임 없음 |
 | `JOIN_CODE_NOT_FOUND` | 400 | 참여 코드에 해당하는 모임 없음 |
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
+| `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
 | `COMMENT_NOT_FOUND` | 400 | 대상 댓글 없음 |
 | `AUTHOR_NOT_FOUND` | 400 | (관리자) `authorId`가 가리키는 작가 없음 |
 | `DUPLICATE_AUTHOR` | 400 | (관리자) 한 업로드 안에 같은 작가 중복 기재 |
@@ -257,13 +258,21 @@
       "passageId": 1042,
       "sequence": 42,
       "chapterId": 2,
-      "content": "새침하게 흐린 품이 눈이 올 듯하더니...",
-      "commentCount": 3
+      "sentences": [
+        {
+          "sentenceId": 5012,
+          "sequence": 1,
+          "content": "새침하게 흐린 품이 눈이 올 듯하더니...",
+          "commentCount": 3
+        }
+      ]
     }
   ]
 }
 ```
-- `content`는 항상 존재한다 (2026-08-07 개정 — 이미지 미제공 결정으로 `imageUrl` 필드 제거). `commentCount`는 이 모임의 댓글 수.
+- `Passage`는 문단을 나타내는 컨테이너이며 문단 원문이나 문단 전체 댓글 수를 별도 필드로 제공하지 않는다.
+- `sentences`는 문단에 속한 문장을 `sequence` 오름차순으로 반환한다.
+- 문장의 `sequence`는 해당 문단 안에서 1부터 시작하는 순서다. `commentCount`는 이 모임에서 해당 문장에 작성된 댓글 수다.
 - 모임 도서가 삭제된 경우 본문을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 진도 갱신 (최근 열람 보고)
@@ -307,8 +316,11 @@
 
 ## 5. 댓글
 
-### 문단의 댓글 목록
-`GET /api/clubs/{clubId}/passages/{passageId}/comments`
+댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
+(`SENTENCE_NOT_FOUND`)을 반환한다.
+
+### 문장의 댓글 목록
+`GET /api/clubs/{clubId}/sentences/{sentenceId}/comments`
 
 응답 `200` — 작성일 오름차순:
 ```json
@@ -331,7 +343,7 @@
 - 모임 도서가 삭제된 경우 보존된 댓글을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 작성
-`POST /api/clubs/{clubId}/passages/{passageId}/comments`
+`POST /api/clubs/{clubId}/sentences/{sentenceId}/comments`
 
 요청:
 ```json
@@ -361,7 +373,7 @@
 응답 `204`. 본인 댓글이 아니거나 작성자가 해당 모임에서 탈퇴한 상태면 `403`. 하드 삭제 (PRD 3.5).
 
 - 댓글이 연결된 도서가 삭제된 경우 댓글을 제거하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
-- 삭제된 도서의 댓글 데이터와 모임·도서·본문 연결은 보존한다. 이를 다시 보여주는 API와
+- 삭제된 도서의 댓글 데이터와 모임·도서·문단·문장 연결은 보존한다. 이를 다시 보여주는 API와
   탐색 방식은 후속 기능에서 결정한다.
 
 ## 6. 관리자 (안드로이드 비대상)
@@ -401,7 +413,7 @@
 - URL 발급 API와 관리자 화면에서 형식·크기를 검사한다. 현재 S3 자체의 엄격한 최대 크기 제한은
   적용하지 않는다.
 
-### 도서 업로드 (인제스트 규격 JSON — 2026-08-06 M7에서 확정)
+### 도서 업로드 (인제스트 규격 JSON — 문장 단위 계약 선반영)
 `POST /api/admin/books`
 
 요청:
@@ -419,7 +431,12 @@
     {
       "title": "1장",
       "passages": [
-        { "content": "새침하게 흐린 품이 눈이 올 듯하더니..." }
+        {
+          "sentences": [
+            { "content": "새침하게 흐린 품이 눈이 올 듯하더니..." },
+            { "content": "비가 오고 얼다가 만 날씨에..." }
+          ]
+        }
       ]
     }
   ]
@@ -438,10 +455,11 @@
   - 같은 작가가 한 업로드에 중복 기재되면(같은 ISNI·같은 `authorId`·상호 동일 인물) `400` (`DUPLICATE_AUTHOR`)
   - 작자를 알 수 없는 저작물은 이름 `"작자 미상"`으로 등록한다 (인제스트 가이드 규칙)
 - `chapters`: **최소 1개.** `title` 필수 1~100자. 각 장의 `passages`도 **최소 1개**
-- `passages[].content`: 필수 (공백만 불가), 저장 한도 65,535바이트(TEXT) — 초과 시 `400`. 이미지는 데모 범위에서 제외 (규격에 필드 없음)
+- `passages[].sentences`: **최소 1개.** 문단 원문만 받던 기존 형식은 지원하지 않는다.
+- `passages[].sentences[].content`: 필수 (공백만 불가), 저장 한도 65,535바이트(TEXT) — 초과 시 `400`. 이미지는 데모 범위에서 제외 (규격에 필드 없음)
 
 서버 처리:
-- 본문 순서(`sequence`)는 **배열 등장 순서**로 서버가 책 전체 기준 1..N을 부여한다 (dense 보장은 구성상 성립). 목차 순서도 등장 순서로 1..M
+- 문단 순서(`passage.sequence`)는 **배열 등장 순서**로 서버가 책 전체 기준 1..N을 부여한다. 문장 순서(`sentence.sequence`)는 각 문단의 배열 등장 순서로 1..N을 부여한다. 두 순서 모두 dense 보장은 구성상 성립한다. 목차 순서도 등장 순서로 1..M
 - `passageCount`는 서버가 자동 산출한다 (PRD 3.3)
 - 제목·출판사·출판연도·작가 구성이 모두 동일한 **활성 도서**가 있으면 `400` (`DUPLICATE_BOOK`)
 - 동일한 서지 정보의 삭제된 도서만 있으면 새 도서 ID로 업로드할 수 있다. 기존 모임·댓글은
@@ -502,7 +520,7 @@
 ### 도서 삭제
 `DELETE /api/admin/books/{bookId}`
 
-- 도서 행의 삭제 상태만 변경하는 소프트 삭제다. 목차·본문·작가 연결·모임·진도·댓글과
+- 도서 행의 삭제 상태만 변경하는 소프트 삭제다. 목차·문단·문장·작가 연결·모임·진도·댓글과
   각 관계는 제거하지 않는다.
 - 성공 응답: `204 No Content`.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`).
@@ -520,6 +538,13 @@
 ## 7. Android 개발자 변경 안내
 
 이번 변경에서 Android 코드 자체는 수정하지 않는다. 다음 후속 연동이 필요하다.
+
+### 문장 단위 본문·댓글 계약
+
+- 본문 범위 조회의 각 `passage`에서 기존 문단 원문과 문단 전체 댓글 수 필드를 제거하고 `sentences` 배열을 사용한다.
+- 각 문장은 `sentenceId`, 문단 내 `sequence`, `content`, `commentCount`를 가지며 `sequence` 오름차순으로 반환된다.
+- 댓글 목록과 작성 요청의 대상 경로가 `/api/clubs/{clubId}/sentences/{sentenceId}/comments`로 변경된다. 댓글 수정·삭제 경로는 유지된다.
+- 문장이 존재하지 않으면 `400` (`SENTENCE_NOT_FOUND`)으로 처리한다. 진도 갱신은 계속 문단 ID를 사용하며 `PASSAGE_NOT_FOUND` 계약도 유지된다.
 
 ### 응답 모델 변경
 
@@ -583,8 +608,8 @@
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
 | PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
-| GET | /api/clubs/{clubId}/passages/{passageId}/comments | 댓글 목록 |
-| POST | /api/clubs/{clubId}/passages/{passageId}/comments | 댓글 작성 |
+| GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 목록 |
+| POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
