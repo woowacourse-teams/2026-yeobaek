@@ -2,6 +2,7 @@ package com.yeobaek.core.app
 
 import com.russhwolf.settings.Settings
 import com.yeobaek.core.network.ApiProvider
+import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
@@ -21,6 +22,8 @@ class AppContainer(
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)
+
+    val crashReporter = CrashReporter(isDebug = isDebug)
 
     val appName = if (isDebug) "조밀" else "여백"
 

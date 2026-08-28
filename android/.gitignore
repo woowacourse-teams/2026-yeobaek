@@ -18,3 +18,5 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
 androidApp/release/androidApp-release.aab
+/androidApp/src/debug/google-services.json
+/androidApp/google-services.json

@@ -9,6 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.network.crash.CrashContext
+import com.yeobaek.core.network.crash.CrashLogLevel
+import com.yeobaek.core.network.crash.CrashOperation
+import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
@@ -18,6 +23,7 @@ import kotlinx.coroutines.launch
 
 class DetailViewModel(
     private val groupRepository: GroupRepository,
+    private val crashReporter: CrashReporter,
 ) : ViewModel() {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
@@ -53,9 +59,22 @@ class DetailViewModel(
                     ),
                     screenState = ScreenState.Success,
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = CrashContext(
+                        screen = CrashScreen.GROUP_DETAIL,
+                        operation = CrashOperation.GROUP_DETAIL_LOADED,
+                        bookId = groupDetail.book.bookId,
+                        itemCount = groupDetail.members.size,
+                    ),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.GROUP_DETAIL_FAILED),
+                )
                 uiState = uiState.copy(
                     screenState = ScreenState.Error("모임 정보를 가져오는데 실패했습니다."),
                 )
@@ -66,12 +85,19 @@ class DetailViewModel(
     companion object {
         fun detailViewModelFactory(
             groupRepository: GroupRepository,
+            crashReporter: CrashReporter,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
                     groupRepository = groupRepository,
+                    crashReporter = crashReporter,
                 )
             }
         }
     }
+
+    private fun crashContext(operation: CrashOperation) = CrashContext(
+        screen = CrashScreen.GROUP_DETAIL,
+        operation = operation,
+    )
 }
