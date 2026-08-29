@@ -16,7 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.PassageCommentSheetUiState
-import com.yeobaek.feature.reader.ReaderPreviewData
+import com.yeobaek.feature.reader.model.PassageCommentUiModel
 
 @Composable
 fun CommentList(
@@ -99,7 +99,35 @@ private fun CommentListPreview() {
         CommentList(
             uiState = PassageCommentSheetUiState(
                 passageId = 5,
-                comments = ReaderPreviewData.commentsByPassageId.getValue(5),
+                comments = listOf(
+                    PassageCommentUiModel(
+                        commentId = 10,
+                        memberId = 5,
+                        nickname = "하윤",
+                        content = "젊은 선생님을 바라보는 시선이 재미있어요.",
+                        createdAt = "2026-08-08T08:45:00",
+                        updatedAt = null,
+                        mine = false,
+                    ),
+                    PassageCommentUiModel(
+                        commentId = 11,
+                        memberId = 6,
+                        nickname = "도윤",
+                        content = "거짓 품위를 보이지 않았다는 말에 공감했어요.",
+                        createdAt = "2026-08-08T18:20:00",
+                        updatedAt = null,
+                        mine = false,
+                    ),
+                    PassageCommentUiModel(
+                        commentId = 12,
+                        memberId = 1,
+                        nickname = "나",
+                        content = "호감의 이유가 아주 선명하게 드러나는 문단 같아요.",
+                        createdAt = "2026-08-09T13:10:00",
+                        updatedAt = null,
+                        mine = true,
+                    ),
+                ),
             ),
             onEditComment = {},
             onDeleteComment = {},
