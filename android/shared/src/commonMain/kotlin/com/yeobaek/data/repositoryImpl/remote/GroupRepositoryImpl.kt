@@ -55,4 +55,8 @@ class GroupRepositoryImpl(
             throw IllegalArgumentException("그룹 정보를 가져오는데 실패했습니다 ${response.status}")
         }
     }
+
+    override suspend fun exitGroup(groupId: Long) {
+        clubApi.exitClub(clubId = groupId)
+    }
 }

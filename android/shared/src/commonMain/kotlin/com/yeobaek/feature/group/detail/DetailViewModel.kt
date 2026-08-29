@@ -81,6 +81,37 @@ class DetailViewModel(
         }
     }
 
+    fun exitGroup(
+        groupId: Long,
+    ) {
+        uiState = uiState.copy(
+            screenState = ScreenState.Loading("모임 탈퇴하는 중입니다. . ."),
+        )
+
+        viewModelScope.launch {
+            try {
+                groupRepository.exitGroup(groupId = groupId)
+                uiState = uiState.copy(
+                    screenState = ScreenState.Success,
+                )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = crashContext(CrashOperation.GROUP_EXIT_SUCCEEDED),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.GROUP_EXIT_FAILED),
+                )
+                uiState = uiState.copy(
+                    screenState = ScreenState.Error("모임 탈퇴를 실패했습니다."),
+                )
+            }
+        }
+    }
+
     companion object {
         fun detailViewModelFactory(
             groupRepository: GroupRepository,
