@@ -171,8 +171,14 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
-                LaunchedEffect(route.groupId) {
+                LaunchedEffect(Unit) {
                     detailViewModel.initGroupData(groupId = route.groupId)
+                }
+
+                LaunchedEffect(detailViewModel.uiState.isExitGroup) {
+                    if (detailViewModel.uiState.isExitGroup) {
+                        navController.popBackStack()
+                    }
                 }
 
                 DetailScreen(
@@ -185,7 +191,6 @@ fun App(
                     },
                     onExitClick = {
                         detailViewModel.exitGroup(route.groupId)
-                        navController.popBackStack()
                     },
                 )
             }

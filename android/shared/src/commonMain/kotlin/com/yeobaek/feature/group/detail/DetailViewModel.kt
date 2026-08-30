@@ -85,14 +85,14 @@ class DetailViewModel(
         groupId: Long,
     ) {
         uiState = uiState.copy(
-            screenState = ScreenState.Loading("모임 탈퇴하는 중입니다. . ."),
+            isExitGroup = false,
         )
 
         viewModelScope.launch {
             try {
                 groupRepository.exitGroup(groupId = groupId)
                 uiState = uiState.copy(
-                    screenState = ScreenState.Success,
+                    isExitGroup = true,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
@@ -106,7 +106,7 @@ class DetailViewModel(
                     context = crashContext(CrashOperation.GROUP_EXIT_FAILED),
                 )
                 uiState = uiState.copy(
-                    screenState = ScreenState.Error("모임 탈퇴를 실패했습니다."),
+                    isExitGroup = false,
                 )
             }
         }
