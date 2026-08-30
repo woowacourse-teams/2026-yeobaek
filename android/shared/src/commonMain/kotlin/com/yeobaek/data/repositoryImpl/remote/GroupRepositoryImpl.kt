@@ -57,6 +57,10 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun exitGroup(groupId: Long) {
-        clubApi.exitClub(clubId = groupId)
+        val response = clubApi.exitClub(clubId = groupId)
+
+        if (!response.isSuccessful) {
+            throw IllegalArgumentException("그룹 탈퇴에 실패했습니다 ${response.status}")
+        }
     }
 }
