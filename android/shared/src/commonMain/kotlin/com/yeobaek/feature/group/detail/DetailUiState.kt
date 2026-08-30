@@ -8,5 +8,5 @@ data class DetailUiState(
     val bookUiModel: DetailBookUiModel = DetailBookUiModel(),
     val groupUiModel: GroupUiModel = GroupUiModel(),
     val screenState: ScreenState = ScreenState.Loading(""),
-    val isExitGroup: Boolean = false,
+    val exitState: ExitState = ExitState.Idle,
 )

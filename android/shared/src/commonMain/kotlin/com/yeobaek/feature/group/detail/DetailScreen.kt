@@ -1,6 +1,5 @@
 package com.yeobaek.feature.group.detail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +13,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,12 +42,30 @@ fun DetailScreen(
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
     onExitClick: () -> Unit,
+    navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.exitState) {
+        when (uiState.exitState) {
+            is ExitState.Success -> {
+                navigateToHome()
+            }
+
+            is ExitState.Failure -> {
+                snackbarHostState.showSnackbar(
+                    message = uiState.exitState.message,
+                    duration = SnackbarDuration.Short,
+                )
+            }
+
+            is ExitState.Idle, ExitState.Loading -> return@LaunchedEffect
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -144,6 +162,7 @@ private fun DetailScreenPreview() {
             onBackClick = {},
             onReadClick = {},
             onExitClick = {},
+            navigateToHome = {},
         )
     }
 }

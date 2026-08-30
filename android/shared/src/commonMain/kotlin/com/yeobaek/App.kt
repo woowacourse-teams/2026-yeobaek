@@ -175,12 +175,6 @@ fun App(
                     detailViewModel.initGroupData(groupId = route.groupId)
                 }
 
-                LaunchedEffect(detailViewModel.uiState.isExitGroup) {
-                    if (detailViewModel.uiState.isExitGroup) {
-                        navController.popBackStack()
-                    }
-                }
-
                 DetailScreen(
                     uiState = detailViewModel.uiState,
                     onBackClick = {
@@ -191,6 +185,9 @@ fun App(
                     },
                     onExitClick = {
                         detailViewModel.exitGroup(route.groupId)
+                    },
+                    navigateToHome = {
+                        navController.popBackStack()
                     },
                 )
             }
