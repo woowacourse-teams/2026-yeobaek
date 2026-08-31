@@ -29,22 +29,22 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    @Operation(summary = "문단의 댓글 목록 조회", description = "작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
-    @GetMapping("/api/clubs/{clubId}/passages/{passageId}/comments")
+    @Operation(summary = "문장의 댓글 목록 조회", description = "작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
+    @GetMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comments")
     public CommentsResponse findComments(@AuthMember Long memberId,
                                          @Parameter(description = "모임 ID") @PathVariable Long clubId,
-                                         @Parameter(description = "본문 ID") @PathVariable Long passageId) {
-        return commentService.findComments(memberId, clubId, passageId);
+                                         @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
+        return commentService.findComments(memberId, clubId, sentenceId);
     }
 
     @Operation(summary = "댓글 작성")
-    @PostMapping("/api/clubs/{clubId}/passages/{passageId}/comments")
+    @PostMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public CommentResponse create(@AuthMember Long memberId,
                                   @Parameter(description = "모임 ID") @PathVariable Long clubId,
-                                  @Parameter(description = "본문 ID") @PathVariable Long passageId,
+                                  @Parameter(description = "문장 ID") @PathVariable Long sentenceId,
                                   @RequestBody CommentCreateRequest request) {
-        return commentService.create(memberId, clubId, passageId, request.content());
+        return commentService.create(memberId, clubId, sentenceId, request.content());
     }
 
     @Operation(summary = "댓글 수정", description = "본인 댓글이 아니면 403.")

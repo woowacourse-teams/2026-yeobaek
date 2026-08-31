@@ -3,8 +3,8 @@ package yeobaek.backend.comment.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.repository.SentenceRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
@@ -24,21 +24,20 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
-    private final PassageRepository passageRepository;
+    private final SentenceRepository sentenceRepository;
 
     @Transactional(readOnly = true)
-    public CommentsResponse findComments(Long memberId, Long clubId, Long passageId) {
-        validatePassageContext(memberId, clubId, passageId);
-        return new CommentsResponse(commentRepository.findAllWithWriterByClubIdAndPassageId(clubId, passageId).stream()
+    public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
+        validateSentenceContext(memberId, clubId, sentenceId);
+        return new CommentsResponse(commentRepository.findAllWithWriterByClubIdAndSentenceId(clubId, sentenceId).stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
     }
 
     @Transactional
-    public CommentResponse create(Long memberId, Long clubId, Long passageId, String content) {
-        ClubMember clubMember = validatePassageContext(memberId, clubId, passageId);
-        Passage passage = passageRepository.findById(passageId).orElseThrow();
-        Comment comment = commentRepository.save(new Comment(clubMember, passage, content));
+    public CommentResponse create(Long memberId, Long clubId, Long sentenceId, String content) {
+        SentenceContext context = validateSentenceContext(memberId, clubId, sentenceId);
+        Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
         return CommentResponse.of(comment, memberId);
     }
 
@@ -69,17 +68,20 @@ public class CommentService {
         return comment;
     }
 
-    private ClubMember validatePassageContext(Long memberId, Long clubId, Long passageId) {
+    private SentenceContext validateSentenceContext(Long memberId, Long clubId, Long sentenceId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
-        Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
-        if (!club.isReading(passage)) {
-            throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
+        Sentence sentence = sentenceRepository.findById(sentenceId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.SENTENCE_NOT_FOUND));
+        if (!club.isReading(sentence)) {
+            throw new IllegalArgumentException("모임의 도서에 속하지 않는 문장입니다.");
         }
         club.ensureBookAvailable();
-        return clubMember;
+        return new SentenceContext(clubMember, sentence);
+    }
+
+    private record SentenceContext(ClubMember clubMember, Sentence sentence) {
     }
 }

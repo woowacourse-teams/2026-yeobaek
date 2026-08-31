@@ -13,6 +13,7 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -61,7 +62,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     public void seed() {
-        List<String> paragraphs = paragraphs();
+        List<List<String>> paragraphs = paragraphs();
         Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, paragraphs.size()));
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, book));
@@ -93,17 +94,18 @@ public class DevDataSeeder implements CommandLineRunner {
         jisooMembership.updateProgress(passages.get(19), JISOO_LAST_READ_AT);
         clubMemberRepository.save(jisooMembership);
 
-        Passage commentedPassage = passages.get(1);
-        commentRepository.save(new Comment(minseoMembership, commentedPassage, "이 문장에서 멈칫했어요."));
-        commentRepository.save(new Comment(jisooMembership, commentedPassage, "저도 이 대목의 분위기가 오래 남았어요."));
+        Sentence commentedSentence = passages.get(1).getSentences().getFirst();
+        commentRepository.save(new Comment(minseoMembership, commentedSentence, "이 문장에서 멈칫했어요."));
+        commentRepository.save(new Comment(jisooMembership, commentedSentence, "저도 이 대목의 분위기가 오래 남았어요."));
     }
 
-    private List<String> paragraphs() {
-        List<String> paragraphs = new ArrayList<>();
-        paragraphs.add("새침하게 흐린 품이 눈이 올 듯하더니 눈은 아니 오고 얼다가 만 비가 추적추적 내리었다.");
+    private List<List<String>> paragraphs() {
+        List<List<String>> paragraphs = new ArrayList<>();
+        paragraphs.add(List.of("새침하게 흐린 품이 눈이 올 듯하더니 눈은 아니 오고 얼다가 만 비가 추적추적 내리었다."));
         for (int i = 2; i <= CHAPTER_COUNT * PASSAGES_PER_CHAPTER; i++) {
-            paragraphs.add("(개발용 시드 문단 " + i + ") 실제 본문은 인제스트 파이프라인으로 투입된다. "
-                    + "이 문단은 읽기 화면·진도·댓글 개발을 위한 자리 채움 텍스트다.");
+            paragraphs.add(List.of(
+                    "(개발용 시드 문단 " + i + ") 실제 본문은 인제스트 파이프라인으로 투입된다. ",
+                    "이 문단은 읽기 화면·진도·댓글 개발을 위한 자리 채움 텍스트다."));
         }
         return paragraphs;
     }

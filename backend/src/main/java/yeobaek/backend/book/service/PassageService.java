@@ -9,12 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
+import yeobaek.backend.book.dto.SentenceResponse;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.comment.repository.PassageCommentCount;
+import yeobaek.backend.comment.repository.SentenceCommentCount;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
@@ -40,13 +41,27 @@ public class PassageService {
         }
         club.ensureBookAvailable();
         List<Passage> passages = passageRepository.findRangeByBookId(club.getBook().getId(), from, to);
-        Map<Long, Long> commentCounts = commentRepository.countByClubIdAndSequenceRange(clubId, from, to).stream()
-                .collect(Collectors.toMap(PassageCommentCount::getPassageId, PassageCommentCount::getCommentCount));
+        List<Long> sentenceIds = passages.stream()
+                .flatMap(passage -> passage.getSentences().stream())
+                .map(sentence -> sentence.getId())
+                .toList();
+        Map<Long, Long> commentCounts = countComments(clubId, sentenceIds);
         return new PassagesResponse(passages.stream()
                 .map(passage -> new PassageResponse(passage.getId(), passage.getSequence(),
-                        passage.getChapter().getId(), passage.getContent(),
-                        commentCounts.getOrDefault(passage.getId(), 0L)))
+                        passage.getChapter().getId(), passage.getSentences().stream()
+                        .map(sentence -> new SentenceResponse(sentence.getId(), sentence.getSequence(),
+                                sentence.getContent(), commentCounts.getOrDefault(sentence.getId(), 0L)))
+                        .toList()))
                 .toList());
+    }
+
+    private Map<Long, Long> countComments(Long clubId, List<Long> sentenceIds) {
+        if (sentenceIds.isEmpty()) {
+            return Map.of();
+        }
+        return commentRepository.countByClubIdAndSentenceIdIn(clubId, sentenceIds).stream()
+                .collect(Collectors.toMap(SentenceCommentCount::getSentenceId,
+                        SentenceCommentCount::getCommentCount));
     }
 
     private void validateRange(int from, int to) {

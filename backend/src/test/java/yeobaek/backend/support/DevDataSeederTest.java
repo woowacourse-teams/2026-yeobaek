@@ -115,13 +115,16 @@ class DevDataSeederTest extends IntegrationTest {
     @DisplayName("시드는 두 회원이 두 번째 본문에 작성한 댓글을 투입한다")
     void seedCreatesCommentsOnSecondPassage() {
         Club club = clubRepository.findByJoinCode("A3F9KQ").orElseThrow();
-        Passage passage = passageRepository.findAll().stream()
-                .filter(candidate -> candidate.getSequence() == 2)
-                .findFirst()
-                .orElseThrow();
+        Book book = bookRepository.findAll().getFirst();
+        Passage passage = passageRepository.findRangeByBookId(book.getId(), 2, 2).getFirst();
 
         assertThat(passage.getId()).isEqualTo(2L);
-        assertThat(commentRepository.findAllWithWriterByClubIdAndPassageId(club.getId(), passage.getId()))
+        assertThat(passage.getSentences()).extracting("sequence", "content")
+                .containsExactly(
+                        tuple(1, "(개발용 시드 문단 2) 실제 본문은 인제스트 파이프라인으로 투입된다. "),
+                        tuple(2, "이 문단은 읽기 화면·진도·댓글 개발을 위한 자리 채움 텍스트다."));
+        assertThat(commentRepository.findAllWithWriterByClubIdAndSentenceId(
+                club.getId(), passage.getSentences().getFirst().getId()))
                 .extracting(
                         comment -> comment.getClubMember().getMember().getNickname(),
                         comment -> comment.getContent())
