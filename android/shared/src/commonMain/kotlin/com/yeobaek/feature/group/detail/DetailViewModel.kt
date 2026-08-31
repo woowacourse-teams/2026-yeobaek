@@ -81,6 +81,44 @@ class DetailViewModel(
         }
     }
 
+    fun exitGroup(
+        groupId: Long,
+    ) {
+        if (uiState.exitState is ExitState.Loading) return
+
+        uiState = uiState.copy(
+            exitState = ExitState.Loading,
+        )
+
+        viewModelScope.launch {
+            try {
+                groupRepository.exitGroup(groupId = groupId)
+                uiState = uiState.copy(
+                    exitState = ExitState.Success,
+                )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = crashContext(CrashOperation.GROUP_EXIT_SUCCEEDED),
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.GROUP_EXIT_FAILED),
+                )
+                uiState = uiState.copy(
+                    exitState = ExitState.Failure("모임 탈퇴에 실패했습니다."),
+                )
+            }
+        }
+    }
+
+    private fun crashContext(operation: CrashOperation) = CrashContext(
+        screen = CrashScreen.GROUP_DETAIL,
+        operation = operation,
+    )
+
     companion object {
         fun detailViewModelFactory(
             groupRepository: GroupRepository,
@@ -94,9 +132,11 @@ class DetailViewModel(
             }
         }
     }
+}
 
-    private fun crashContext(operation: CrashOperation) = CrashContext(
-        screen = CrashScreen.GROUP_DETAIL,
-        operation = operation,
-    )
+sealed class ExitState {
+    data object Idle : ExitState()
+    data object Loading : ExitState()
+    data object Success : ExitState()
+    data class Failure(val message: String) : ExitState()
 }

@@ -183,6 +183,12 @@ fun App(
                     onReadClick = {
                         navController.navigate(Reader(groupId = route.groupId))
                     },
+                    onExitClick = {
+                        detailViewModel.exitGroup(route.groupId)
+                    },
+                    navigateToHome = {
+                        navController.popBackStack()
+                    },
                 )
             }
             composable<Reader> { backStackEntry ->

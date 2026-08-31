@@ -61,7 +61,7 @@ fun CreateGroupNameCard(
     }
 }
 
-@Preview(showBackground = true, name = "그룹 이름 카드")
+@Preview(showBackground = true, name = "모임 이름 카드")
 @Composable
 private fun CreateGroupNameCardPreview() {
     YeobaekTheme {

@@ -41,7 +41,7 @@ fun JoinCodeTextField(
     }
 }
 
-@Preview(showBackground = true, name = "그룹 참여 화면 참여 코드 입력")
+@Preview(showBackground = true, name = "모임 참여 화면 참여 코드 입력")
 @Composable
 private fun JoinCodeTextFieldPreview() {
     YeobaekTheme {

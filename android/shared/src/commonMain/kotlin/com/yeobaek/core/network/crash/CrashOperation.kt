@@ -24,6 +24,8 @@ enum class CrashOperation(
     GROUP_CREATE_STARTED("group_create_started"),
     GROUP_CREATE_SUCCEEDED("group_create_succeeded"),
     GROUP_CREATE_FAILED("group_create_failed"),
+    GROUP_EXIT_SUCCEEDED("group_exit_succeeded"),
+    GROUP_EXIT_FAILED("group_exit_failed"),
     READER_LOAD_STARTED("reader_load_started"),
     READER_LOADED("reader_loaded"),
     READER_LOAD_FAILED("reader_load_failed"),

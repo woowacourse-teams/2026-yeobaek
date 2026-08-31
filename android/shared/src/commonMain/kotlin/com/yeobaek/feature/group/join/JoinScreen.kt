@@ -71,7 +71,7 @@ fun JoinScreen(
     }
 }
 
-@Preview(showBackground = true, name = "그룹 참여 화면")
+@Preview(showBackground = true, name = "모임 참여 화면")
 @Composable
 private fun JoinScreenPreview() {
     YeobaekTheme {

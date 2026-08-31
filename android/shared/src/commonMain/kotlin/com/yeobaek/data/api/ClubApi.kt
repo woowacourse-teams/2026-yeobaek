@@ -6,6 +6,7 @@ import com.yeobaek.data.dto.ClubsResponse
 import com.yeobaek.data.dto.JoinRequest
 import de.jensklingenberg.ktorfit.Response
 import de.jensklingenberg.ktorfit.http.Body
+import de.jensklingenberg.ktorfit.http.DELETE
 import de.jensklingenberg.ktorfit.http.GET
 import de.jensklingenberg.ktorfit.http.Headers
 import de.jensklingenberg.ktorfit.http.POST
@@ -32,5 +33,10 @@ interface ClubApi {
     @POST("api/clubs/join")
     suspend fun joinClub(
         @Body request: JoinRequest,
+    ): Response<Unit>
+
+    @DELETE("api/clubs/{clubId}/members/me")
+    suspend fun exitClub(
+        @Path("clubId") clubId: Long,
     ): Response<Unit>
 }

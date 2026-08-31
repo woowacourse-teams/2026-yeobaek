@@ -2,7 +2,7 @@ package com.yeobaek.feature.group.detail.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
-import android.shared.generated.resources.ic_menu
+import android.shared.generated.resources.ic_exit
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,6 +21,7 @@ import org.jetbrains.compose.resources.painterResource
 fun DetailTopAppBar(
     title: String,
     onBackClick: () -> Unit,
+    onExitClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -43,11 +44,15 @@ fun DetailTopAppBar(
             }
         },
         actions = {
-            Icon(
-                painter = painterResource(resource = Res.drawable.ic_menu),
-                contentDescription = "메뉴 아이콘",
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            IconButton(
+                onClick = onExitClick,
+            ) {
+                Icon(
+                    painter = painterResource(resource = Res.drawable.ic_exit),
+                    contentDescription = "모임 나가기 아이콘",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
@@ -63,6 +68,7 @@ private fun DetailTopAppBarPreview() {
         DetailTopAppBar(
             title = "어른이들을 위한 동화 읽기",
             onBackClick = {},
+            onExitClick = {},
         )
     }
 }
