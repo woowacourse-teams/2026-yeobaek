@@ -210,7 +210,7 @@ fun App(
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
-                    onPassageClick = readerViewModel::openPassageComments,
+                    onSentenceClick = readerViewModel::openSentenceComments,
                     onBackClick = {
                         readerViewModel.saveCurrentPassage(
                             onComplete = navController::popBackStack,
