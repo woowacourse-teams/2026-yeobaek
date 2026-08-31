@@ -21,7 +21,10 @@
       [--force]       검증 실패해도 JSON을 출력
 
   python 인제스트_변환.py --list-chapters --original 원문.txt [--chapter-re 정규식]
-      원문의 장 제목·라인 범위·문단 수를 출력한다 (번역 시작 전 장 정보 파악용).
+      [--max-chunk-paragraphs 150] [--max-chunk-characters 24000]
+      [--max-chunk-estimated-tokens 8000]
+      원문의 장 제목·라인 범위·문단·문자·보수적 추정 토큰 수와 권장 청크를
+      출력한다 (번역 시작 전 작업량 파악·분할용).
 
 번역본 파일을 여러 개 주면 인자 순서대로 이어 붙여 처리한다(장 단위 분할 번역 지원).
 """
@@ -44,6 +47,9 @@ DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
 SENTENCE_TERMINATORS = ".?!。？！…"
 SENTENCE_CLOSERS = "\"'’”)]}〉》」』】〕］｝）〗〙〛｠»›"
 MAX_SENTENCE_CONTENT_BYTES = 65_535
+DEFAULT_CHUNK_MAX_PARAGRAPHS = 150
+DEFAULT_CHUNK_MAX_CHARACTERS = 24_000
+DEFAULT_CHUNK_MAX_TOKENS = 8_000
 TITLE_PREFIX_ABBREVIATIONS = {
     "mr.", "mrs.", "ms.", "dr.", "prof.", "rev.", "hon.",
 }
@@ -184,8 +190,102 @@ def split_sentences(text):
     return sentences
 
 
+def estimate_tokens(text):
+    """언어 비종속 작업량 추정치(ASCII 연속 구간 4자 + 비ASCII 1자)."""
+    ascii_runs = re.findall(r"[\x21-\x7e]+", text)
+    ascii_tokens = sum((len(run) + 3) // 4 for run in ascii_runs)
+    non_ascii_nonspace = sum(not char.isascii() and not char.isspace() for char in text)
+    return ascii_tokens + non_ascii_nonspace
+
+
+def plan_chunks(paragraph_metrics, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRAPHS,
+                max_characters=DEFAULT_CHUNK_MAX_CHARACTERS,
+                max_tokens=DEFAULT_CHUNK_MAX_TOKENS):
+    """문단을 쪼개지 않고 어느 한도든 넘기 직전에 끊는 청크 계획을 만든다."""
+    limits = (max_paragraphs, max_characters, max_tokens)
+    if any(limit <= 0 for limit in limits):
+        raise ValueError("청크 한도는 모두 1 이상이어야 합니다.")
+
+    chunks = []
+    current = None
+    for paragraph_number, metrics in enumerate(paragraph_metrics, 1):
+        characters = metrics["characters"]
+        tokens = metrics["estimatedTokens"]
+        exceeds_if_added = current is not None and (
+            current["paragraphs"] + 1 > max_paragraphs
+            or current["characters"] + characters > max_characters
+            or current["estimatedTokens"] + tokens > max_tokens
+        )
+        if exceeds_if_added:
+            chunks.append(current)
+            current = None
+        if current is None:
+            current = {
+                "paragraphStart": paragraph_number,
+                "paragraphEnd": paragraph_number,
+                "paragraphs": 0,
+                "characters": 0,
+                "estimatedTokens": 0,
+            }
+        current["paragraphEnd"] = paragraph_number
+        current["paragraphs"] += 1
+        current["characters"] += characters
+        current["estimatedTokens"] += tokens
+    if current is not None:
+        chunks.append(current)
+    return chunks
+
+
+def plan_work_assignments(chapters, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRAPHS,
+                          max_characters=DEFAULT_CHUNK_MAX_CHARACTERS,
+                          max_tokens=DEFAULT_CHUNK_MAX_TOKENS):
+    """장별 청크를 순서대로 묶어 작업자 한 명당 합산 한도를 지킨다."""
+    work_items = []
+    for chapter_index, chapter in enumerate(chapters, 1):
+        for chunk in plan_chunks(
+            chapter["metrics"]["paragraphs"],
+            max_paragraphs,
+            max_characters,
+            max_tokens,
+        ):
+            work_items.append({
+                "chapterIndex": chapter_index,
+                "chapterTitle": chapter["title"],
+                **chunk,
+            })
+
+    assignments = []
+    current = None
+    for item in work_items:
+        exceeds_if_added = current is not None and (
+            current["paragraphs"] + item["paragraphs"] > max_paragraphs
+            or current["characters"] + item["characters"] > max_characters
+            or current["estimatedTokens"] + item["estimatedTokens"] > max_tokens
+        )
+        if exceeds_if_added:
+            assignments.append(current)
+            current = None
+        if current is None:
+            current = {
+                "items": [],
+                "paragraphs": 0,
+                "characters": 0,
+                "estimatedTokens": 0,
+            }
+        current["items"].append(item)
+        current["paragraphs"] += item["paragraphs"]
+        current["characters"] += item["characters"]
+        current["estimatedTokens"] += item["estimatedTokens"]
+    if current is not None:
+        assignments.append(current)
+    return assignments
+
+
 def parse_original(path, chapter_re):
-    """원문에서 장별 문단 수를 센다. → [{"title", "count", "start", "end"}]
+    """원문 장 정보와 호환 가능한 작업량 metrics를 만든다.
+
+    기존 소비자를 위해 title/count/start/end 키를 그대로 유지하고, metrics에
+    문자 수·추정 토큰 수·문단별 작업량을 추가한다.
 
     start/end는 원문 파일 기준 1-based 라인 번호(장 제목 줄 ~ 다음 장 직전).
     Gutenberg 텍스트의 *** START/END 마커 바깥은 무시한다.
@@ -202,22 +302,45 @@ def parse_original(path, chapter_re):
 
     chapters = []
     current = None
-    in_block = False
+    block = []
+
+    def flush_paragraph():
+        nonlocal block
+        if current is None or not block:
+            block = []
+            return
+        paragraph = "\n".join(block)
+        current["count"] += 1
+        current["metrics"]["characters"] += len(paragraph)
+        tokens = estimate_tokens(paragraph)
+        current["metrics"]["estimatedTokens"] += tokens
+        current["metrics"]["paragraphs"].append({
+            "characters": len(paragraph),
+            "estimatedTokens": tokens,
+        })
+        block = []
+
     for i in range(start, end):
         ln = lines[i]
         if chapter_re.match(ln):
+            flush_paragraph()
             if current is not None:
                 current["end"] = i  # 직전 줄까지 (1-based로 i)
-            current = {"title": ln.strip(), "count": 0, "start": i + 1, "end": end}
+            current = {
+                "title": ln.strip(),
+                "count": 0,
+                "start": i + 1,
+                "end": end,
+                "metrics": {"characters": 0, "estimatedTokens": 0, "paragraphs": []},
+            }
             chapters.append(current)
-            in_block = False
             continue
         if ln.strip():
-            if current is not None and not in_block:
-                current["count"] += 1
-            in_block = True
+            if current is not None:
+                block.append(ln)
         else:
-            in_block = False
+            flush_paragraph()
+    flush_paragraph()
     return chapters
 
 
@@ -328,6 +451,67 @@ def validate(book):
     return errors
 
 
+BCP47_TAG = (
+    r"(?:[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"
+    r"|[A-Za-z](?:-[A-Za-z0-9]{1,8})+"
+    r"|x(?:-[A-Za-z0-9]{1,8})+)"
+)
+SOURCE_LANGUAGE_LINE_RE = re.compile(
+    rf"(?m)^원문 언어:\s*({BCP47_TAG})\s+[—-]\s+\S.*$",
+    re.IGNORECASE,
+)
+TRANSLATION_PATH_RE = re.compile(
+    rf"(?m)^번역 경로:\s*({BCP47_TAG})\s+원문\s*→\s*한국어 직접 번역\s*$",
+    re.IGNORECASE,
+)
+
+
+def validate_translation_contract(book_dir):
+    """최종 변환에 필요한 원문 언어·직접 번역 작업 계약을 검증한다."""
+    errors = []
+    documents = {
+        "장 정보": book_dir / "장_정보.md",
+        "번역 공통 가이드": book_dir / "번역_공통_가이드.md",
+    }
+    contents = {}
+    for label, path in documents.items():
+        if not path.is_file():
+            errors.append(f"{label} 파일이 없음: {path.name}")
+            continue
+        contents[label] = path.read_text(encoding="utf-8-sig")
+
+    language_tags = {}
+    for label, content in contents.items():
+        match = SOURCE_LANGUAGE_LINE_RE.search(content)
+        if not match:
+            errors.append(
+                f"{label}에 '원문 언어: <BCP 47 태그> — <언어명>' 표기가 없음"
+            )
+        else:
+            language_tags[label] = match.group(1).lower()
+
+    if len(set(language_tags.values())) > 1:
+        errors.append("장_정보.md와 번역_공통_가이드.md의 원문 언어 태그가 일치하지 않음")
+
+    chapter_info = contents.get("장 정보", "")
+    if chapter_info and not re.search(r"(?m)^언어 확인:\s*\S", chapter_info):
+        errors.append("장_정보.md에 출처 선언과 실제 텍스트를 대조한 '언어 확인:' 기록이 없음")
+
+    guide = contents.get("번역 공통 가이드", "")
+    if guide:
+        for heading in ("## 공통 코어", "## 원문 언어별 프로필"):
+            if heading not in guide:
+                errors.append(f"번역_공통_가이드.md에 필수 절이 없음: {heading}")
+        path_match = TRANSLATION_PATH_RE.search(guide)
+        if not path_match:
+            errors.append(
+                "번역_공통_가이드.md에 '번역 경로: <태그> 원문 → 한국어 직접 번역' 기록이 없음"
+            )
+        elif language_tags and path_match.group(1).lower() not in set(language_tags.values()):
+            errors.append("번역 경로의 원문 언어 태그가 선언된 원문 언어와 일치하지 않음")
+    return errors
+
+
 def verify_counts(original, translated, partial=False):
     """원문/번역 장별 문단 수 대조. 성공 여부를 반환.
 
@@ -361,18 +545,55 @@ def verify_counts(original, translated, partial=False):
     return ok
 
 
-def list_chapters(original, chapter_re):
-    """원문 장 목록(제목·라인 범위·문단 수)을 출력한다."""
+def list_chapters(original, chapter_re, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRAPHS,
+                  max_characters=DEFAULT_CHUNK_MAX_CHARACTERS,
+                  max_tokens=DEFAULT_CHUNK_MAX_TOKENS):
+    """원문 장 목록과 언어 비종속 작업량·권장 청크를 출력한다."""
     chapters = parse_original(original, chapter_re)
     if not chapters:
         sys.exit("[오류] 장 제목을 하나도 찾지 못했습니다. "
                  "--chapter-re로 이 책의 장 제목 패턴을 지정하세요.")
-    print(f"{'':>3} {'장 제목':<50} {'라인 범위':>13} {'문단':>5}")
-    print("-" * 78)
+    print(f"{'':>3} {'장 제목':<42} {'라인 범위':>13} {'문단':>5} {'문자':>9} {'추정 토큰':>10}")
+    print("-" * 94)
     for i, ch in enumerate(chapters, 1):
-        print(f"{i:>3} {ch['title']:<50} {ch['start']:>6}–{ch['end']:<6} {ch['count']:>5}")
-    total = sum(ch["count"] for ch in chapters)
-    print(f"\n장 {len(chapters)}개, 문단 총 {total}개")
+        metrics = ch["metrics"]
+        print(f"{i:>3} {ch['title']:<42} {ch['start']:>6}–{ch['end']:<6} "
+              f"{ch['count']:>5} {metrics['characters']:>9,} "
+              f"{metrics['estimatedTokens']:>10,}")
+        chunks = plan_chunks(metrics["paragraphs"], max_paragraphs, max_characters,
+                             max_tokens)
+        chunk_text = ", ".join(
+            f"{chunk['paragraphStart']}–{chunk['paragraphEnd']}문단"
+            f"({chunk['characters']:,}자/{chunk['estimatedTokens']:,}토큰)"
+            for chunk in chunks
+        ) or "본문 없음"
+        print(f"    권장 청크: {chunk_text}")
+    assignments = plan_work_assignments(
+        chapters,
+        max_paragraphs,
+        max_characters,
+        max_tokens,
+    )
+    print("\n권장 작업 묶음:")
+    for index, assignment in enumerate(assignments, 1):
+        item_text = ", ".join(
+            f"{item['chapterIndex']}장 p{item['paragraphStart']:03}–p{item['paragraphEnd']:03}"
+            for item in assignment["items"]
+        )
+        print(
+            f"  {index}. {item_text} — {assignment['paragraphs']}문단 / "
+            f"{assignment['characters']:,}자 / "
+            f"추정 {assignment['estimatedTokens']:,}토큰"
+        )
+    total_paragraphs = sum(ch["count"] for ch in chapters)
+    total_characters = sum(ch["metrics"]["characters"] for ch in chapters)
+    total_tokens = sum(ch["metrics"]["estimatedTokens"] for ch in chapters)
+    print(f"\n장 {len(chapters)}개, 문단 총 {total_paragraphs}개, "
+          f"문자 총 {total_characters:,}자, 추정 토큰 총 {total_tokens:,}개")
+    print("추정식: 공백으로 나뉜 ASCII 연속 구간별 4자≈1토큰(올림) + "
+          "비ASCII 비공백 1자≈1토큰")
+    print(f"청크 한도: 문단 {max_paragraphs}개 / 문자 {max_characters:,}자 / "
+          f"추정 토큰 {max_tokens:,}개")
 
 
 def create_archive(zip_output, book_dir, ingest_path, meta_path):
@@ -478,7 +699,7 @@ def main():
     ap = argparse.ArgumentParser(description="번역본 → 인제스트 JSON 변환/검증")
     ap.add_argument("translations", nargs="*", type=Path, help="번역본 .md 파일(순서대로 병합)")
     ap.add_argument("--meta", type=Path, help="메타데이터.json 경로 (--partial이면 생략 가능)")
-    ap.add_argument("--original", type=Path, help="영문 원문 .txt 경로")
+    ap.add_argument("--original", type=Path, help="원문 .txt 경로 (언어 무관)")
     ap.add_argument("--chapter-re", default=DEFAULT_CHAPTER_RE,
                     help="원문 장 제목 정규식 (기본: 로마숫자 'I. 제목' 형태)")
     ap.add_argument("-o", "--output", type=Path,
@@ -487,7 +708,16 @@ def main():
                     help="최종 변환 성공 후 보관용 ZIP을 생성할 경로 "
                          "(생략 시 메타데이터 title 기반 책이름.zip)")
     ap.add_argument("--list-chapters", action="store_true",
-                    help="원문의 장 제목·라인 범위·문단 수만 출력하고 종료")
+                    help="원문의 장별 작업량과 권장 청크를 출력하고 종료")
+    ap.add_argument("--max-chunk-paragraphs", type=int,
+                    default=DEFAULT_CHUNK_MAX_PARAGRAPHS,
+                    help="권장 청크의 최대 문단 수 (기본: 150)")
+    ap.add_argument("--max-chunk-characters", type=int,
+                    default=DEFAULT_CHUNK_MAX_CHARACTERS,
+                    help="권장 청크의 최대 문자 수 (기본: 24000)")
+    ap.add_argument("--max-chunk-estimated-tokens", type=int,
+                    default=DEFAULT_CHUNK_MAX_TOKENS,
+                    help="권장 청크의 최대 보수적 추정 토큰 수 (기본: 8000)")
     ap.add_argument("--no-verify", action="store_true", help="원문 문단 수 대조를 건너뜀")
     ap.add_argument("--partial", action="store_true",
                     help="번역 완료된 장까지만 대조하고 JSON은 출력하지 않음(진행 중 검증용)")
@@ -499,7 +729,16 @@ def main():
     if args.list_chapters:
         if not args.original or not args.original.exists():
             sys.exit(f"[오류] --list-chapters에는 --original 원문 파일이 필요합니다: {args.original}")
-        list_chapters(args.original, chapter_re)
+        try:
+            list_chapters(
+                args.original,
+                chapter_re,
+                args.max_chunk_paragraphs,
+                args.max_chunk_characters,
+                args.max_chunk_estimated_tokens,
+            )
+        except ValueError as error:
+            ap.error(str(error))
         return
 
     if not args.translations:
@@ -525,6 +764,8 @@ def main():
         errors = validate_chapters(chapters)
     else:
         errors = validate(book)
+    if not args.partial and args.meta:
+        errors.extend(validate_translation_contract(args.meta.resolve().parent))
     if errors:
         print("[규격 검증 실패]")
         for e in errors:
