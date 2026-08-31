@@ -27,4 +27,19 @@ class AdminPageControllerTest extends IntegrationTest {
                 .andExpect(content().string(containsString("method: 'DELETE'")))
                 .andExpect(content().string(containsString("도서를 삭제하시겠습니까?")));
     }
+
+    @Test
+    @DisplayName("신규 도서 표지는 파일 선택과 드래그 앤 드롭으로 첨부할 수 있다")
+    void serveBookCoverDropUi() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"new-cover-drop-zone\"")))
+                .andExpect(content().string(containsString("이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요.")))
+                .andExpect(content().string(containsString("addEventListener('dragover'")))
+                .andExpect(content().string(containsString("addEventListener('drop'")))
+                .andExpect(content().string(containsString("event.dataTransfer.files[0]")))
+                .andExpect(content().string(containsString("droppedNewCoverFile = null")))
+                .andExpect(content().string(containsString("droppedNewCoverFile ?? newCoverFileInput.files[0]")))
+                .andExpect(content().string(containsString("payload.coverImageKey = await uploadCover(coverFile)")));
+    }
 }
