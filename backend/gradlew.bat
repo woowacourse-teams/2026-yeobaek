@@ -70,13 +70,11 @@ echo location of your Java installation. 1>&2
 :execute
 @rem Setup the command line
 
-
+@rem This generated wrapper script is intentionally customized to route every Gradle execution
+@rem through gradle\WorktreeGradleLock.java. Regenerating the wrapper must preserve this hook.
 
 @rem Execute Gradle
 @rem endlocal doesn't take effect until after the line is parsed and variables are expanded
 @rem which allows us to clear the local environment before executing the java command
-endlocal & "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -jar "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" %* & call :exitWithErrorLevel
-
-:exitWithErrorLevel
-@rem Use "%COMSPEC%" /c exit to allow operators to work properly in scripts
-"%COMSPEC%" /c exit %ERRORLEVEL%
+endlocal & "%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" "-Dyeobaek.gradle.app-home=%APP_HOME%." --class-path "%APP_HOME%\gradle\wrapper\gradle-wrapper.jar" "%APP_HOME%\gradle\WorktreeGradleLock.java" %*
+@exit /b %ERRORLEVEL%
