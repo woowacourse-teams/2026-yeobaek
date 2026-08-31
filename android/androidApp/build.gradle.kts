@@ -27,6 +27,9 @@ dependencies {
     // coroutines (android dispatcher)
     implementation(libs.kotlinx.coroutines.android)
 
+    // analytics
+    implementation(libs.posthog.android)
+
     // test
     androidTestImplementation(libs.androidx.ui.test.junit4.android)
     debugImplementation(libs.ui.test.manifest)

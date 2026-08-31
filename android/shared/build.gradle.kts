@@ -32,6 +32,8 @@ val localProperties = Properties().apply {
 
 val baseUrl = localProperties.getProperty("BASE_URL")
 val testBaseUrl = localProperties.getProperty("TEST_BASE_URL")
+val postHogApiKey = localProperties.getProperty("POSTHOG_API_KEY").orEmpty()
+val postHogHost = localProperties.getProperty("POSTHOG_HOST") ?: "https://us.i.posthog.com"
 
 kotlin {
     listOf(
@@ -171,6 +173,18 @@ buildkonfig {
             type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
             name = "TEST_BASE_URL",
             value = testBaseUrl,
+        )
+
+        buildConfigField(
+            type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            name = "POSTHOG_API_KEY",
+            value = postHogApiKey,
+        )
+
+        buildConfigField(
+            type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            name = "POSTHOG_HOST",
+            value = postHogHost,
         )
     }
 }

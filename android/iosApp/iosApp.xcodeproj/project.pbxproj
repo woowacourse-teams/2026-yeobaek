@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A4B5E /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A4B5D /* PostHog */; };
 		D8D84D8E3040198D004B2F05 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = D8D84D8D3040198D004B2F05 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F60718293A4B5E /* PostHog in Frameworks */,
 				D8D84D8E3040198D004B2F05 /* FirebaseCrashlytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -99,6 +101,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				A1B2C3D4E5F60718293A4B5D /* PostHog */,
 				D8D84D8D3040198D004B2F05 /* FirebaseCrashlytics */,
 			);
 			productName = iosApp;
@@ -130,6 +133,7 @@
 			mainGroup = 135D8BFEE64306B527D2D431;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A1B2C3D4E5F60718293A4B5C /* XCRemoteSwiftPackageReference "posthog-ios" */,
 				D8D84D8B304015F1004B2F05 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -422,6 +426,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A1B2C3D4E5F60718293A4B5C /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 3.69.8;
+			};
+		};
 		D8D84D8B304015F1004B2F05 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
@@ -433,6 +445,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D4E5F60718293A4B5D /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F60718293A4B5C /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
 		D8D84D8D3040198D004B2F05 /* FirebaseCrashlytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D8D84D8B304015F1004B2F05 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
