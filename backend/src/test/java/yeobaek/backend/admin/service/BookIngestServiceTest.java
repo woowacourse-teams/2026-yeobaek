@@ -2,6 +2,7 @@ package yeobaek.backend.admin.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.PassageUploadRequest;
+import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
@@ -55,8 +57,8 @@ class BookIngestServiceTest extends IntegrationTest {
                 List.of(new AuthorEntryRequest(null, "현진건", "0000 0001 2345 964X")),
                 List.of(
                         new ChapterUploadRequest("1장", List.of(
-                                new PassageUploadRequest("첫 문단"), new PassageUploadRequest("둘째 문단"))),
-                        new ChapterUploadRequest("2장", List.of(new PassageUploadRequest("셋째 문단")))));
+                                passage("첫 문장. ", "둘째 문장."), passage("둘째 문단"))),
+                        new ChapterUploadRequest("2장", List.of(passage("셋째 문단")))));
 
         BookUploadResponse response = bookIngestService.upload(request);
 
@@ -66,6 +68,9 @@ class BookIngestServiceTest extends IntegrationTest {
         assertThat(chapterRepository.findAllByBookIdOrderBySequenceAsc(book.getId())).hasSize(2);
         List<Passage> passages = passageRepository.findAll();
         assertThat(passages).extracting(Passage::getSequence).containsExactlyInAnyOrder(1, 2, 3);
+        Passage first = passageRepository.findRangeByBookId(book.getId(), 1, 1).getFirst();
+        assertThat(first.getSentences()).extracting("sequence", "content")
+                .containsExactly(tuple(1, "첫 문장. "), tuple(2, "둘째 문장."));
     }
 
     @Test
@@ -147,7 +152,7 @@ class BookIngestServiceTest extends IntegrationTest {
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문")))));
+                List.of(new ChapterUploadRequest("1장", List.of(passage("본문")))));
 
         assertThatThrownBy(() -> bookIngestService.upload(request))
                 .isInstanceOf(BadRequestException.class)
@@ -163,7 +168,7 @@ class BookIngestServiceTest extends IntegrationTest {
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1936, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문")))));
+                List.of(new ChapterUploadRequest("1장", List.of(passage("본문")))));
 
         assertThat(bookIngestService.upload(request).bookId()).isNotNull();
     }
@@ -177,7 +182,7 @@ class BookIngestServiceTest extends IntegrationTest {
         bookRepository.delete(deleted.getId());
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문")))));
+                List.of(new ChapterUploadRequest("1장", List.of(passage("본문")))));
 
         BookUploadResponse response = bookIngestService.upload(request);
 
@@ -200,12 +205,28 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("본문 내용이 공백이면 거부한다")
+    @DisplayName("문장이 없거나 문장 내용이 공백이면 거부한다")
     void rejectBlankContent() {
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest("제목", null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest("1장",
-                        List.of(new PassageUploadRequest(" ")))))))
+                        List.of(new PassageUploadRequest(List.of())))))))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest("제목", null, null, null,
+                authorsOfUnknown(), List.of(new ChapterUploadRequest("1장",
+                        List.of(passage(" ")))))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("문장 내용이 TEXT 저장 한도를 넘으면 거부한다")
+    void rejectSentenceExceedingTextLimit() {
+        BookUploadRequest request = new BookUploadRequest("제목", null, null, null,
+                authorsOfUnknown(), List.of(new ChapterUploadRequest("1장",
+                List.of(passage("a".repeat(65_536))))));
+
+        assertThatThrownBy(() -> bookIngestService.upload(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("문장 하나는 65535바이트를 넘을 수 없습니다.");
     }
 
     @Test
@@ -223,7 +244,13 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     private List<ChapterUploadRequest> chaptersWithOnePassage() {
-        return List.of(new ChapterUploadRequest("1장", List.of(new PassageUploadRequest("본문"))));
+        return List.of(new ChapterUploadRequest("1장", List.of(passage("본문"))));
+    }
+
+    private PassageUploadRequest passage(String... contents) {
+        return new PassageUploadRequest(java.util.Arrays.stream(contents)
+                .map(SentenceUploadRequest::new)
+                .toList());
     }
 
     private List<AuthorEntryRequest> authorsOfUnknown() {

@@ -17,7 +17,9 @@ public interface PassageRepository extends JpaRepository<Passage, Long> {
     List<ChapterPassageRange> findChapterRangesByBookId(@Param("bookId") Long bookId);
 
     @Query("""
-            select p from Passage p join fetch p.chapter
+            select distinct p from Passage p
+            join fetch p.chapter
+            join fetch p.sentences
             where p.chapter.book.id = :bookId and p.sequence between :fromSequence and :toSequence
             order by p.sequence asc
             """)

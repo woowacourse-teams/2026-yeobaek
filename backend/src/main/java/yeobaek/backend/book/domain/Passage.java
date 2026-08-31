@@ -8,7 +8,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,20 +35,32 @@ public class Passage {
     @Column(nullable = false)
     private int sequence;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String content;
+    @OneToMany(mappedBy = "passage", fetch = FetchType.LAZY, cascade = jakarta.persistence.CascadeType.ALL,
+            orphanRemoval = true)
+    @OrderBy("sequence ASC")
+    private List<Sentence> sentences = new ArrayList<>();
 
-    public Passage(Chapter chapter, int sequence, String content) {
-        validate(content);
+    public Passage(Chapter chapter, int sequence, List<String> sentenceContents) {
+        validate(sentenceContents);
         this.chapter = chapter;
         this.sequence = sequence;
-        this.content = content;
+        for (int index = 0; index < sentenceContents.size(); index++) {
+            sentences.add(new Sentence(this, index + 1, sentenceContents.get(index)));
+        }
     }
 
-    private static void validate(String content) {
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("본문 내용은 공백이 아닌 텍스트여야 합니다.");
+    public Passage(Chapter chapter, int sequence, String sentenceContent) {
+        this(chapter, sequence, Collections.singletonList(sentenceContent));
+    }
+
+    private static void validate(List<String> sentenceContents) {
+        if (sentenceContents == null || sentenceContents.isEmpty()) {
+            throw new IllegalArgumentException("문단에는 최소 1개의 문장이 있어야 합니다.");
         }
+    }
+
+    public List<Sentence> getSentences() {
+        return List.copyOf(sentences);
     }
 
     public boolean belongsTo(Book book) {

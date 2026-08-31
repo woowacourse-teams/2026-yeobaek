@@ -3,6 +3,7 @@ package yeobaek.backend.book.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -15,13 +16,38 @@ class PassageTest {
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", " ", "   "})
-    @DisplayName("본문 내용이 없거나 공백뿐이면 본문 생성에 실패한다")
+    @DisplayName("문장 내용이 없거나 공백뿐이면 문단 생성에 실패한다")
     void rejectBlankContent(String content) {
         Book book = new Book("제목", null, null, 1);
         Chapter chapter = new Chapter(book, "1장", 1);
 
         assertThatThrownBy(() -> new Passage(chapter, 1, content))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("문장이 없으면 문단 생성에 실패한다")
+    void rejectEmptySentences() {
+        Book book = new Book("제목", null, null, 1);
+        Chapter chapter = new Chapter(book, "1장", 1);
+
+        assertThatThrownBy(() -> new Passage(chapter, 1, List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("문장은 배열 순서대로 dense sequence를 가지며 원문의 공백과 개행을 보존한다")
+    void createSentencesInDenseOrderWithoutTrimming() {
+        Book book = new Book("제목", null, null, 1);
+        Chapter chapter = new Chapter(book, "1장", 1);
+
+        Passage passage = new Passage(chapter, 1, List.of("첫 문장.  ", "둘째 문장.\n"));
+
+        assertThat(passage.getSentences()).extracting(Sentence::getSequence).containsExactly(1, 2);
+        assertThat(passage.getSentences()).extracting(Sentence::getContent)
+                .containsExactly("첫 문장.  ", "둘째 문장.\n");
+        assertThatThrownBy(() -> passage.getSentences().add(passage.getSentences().getFirst()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
