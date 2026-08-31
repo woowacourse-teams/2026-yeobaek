@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $ScriptDir '.env.local'
-$GradleWrapperJar = Join-Path $ScriptDir 'gradle\wrapper\gradle-wrapper.jar'
+$GradleWrapper = Join-Path $ScriptDir 'gradlew.bat'
 $ComposeEnvArgs = if (Test-Path -LiteralPath $EnvFile) { @('--env-file', $EnvFile) } else { @() }
 $PathBytes = [System.Text.Encoding]::UTF8.GetBytes([System.IO.Path]::GetFullPath($ScriptDir).ToLowerInvariant())
 $Sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -86,14 +86,27 @@ try {
             if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
                 throw 'Java를 찾을 수 없습니다. 백엔드 개발 모드는 JDK 21이 필요합니다.'
             }
+            $CleanupDev = $true
+            $GradleExitCode = 0
             try {
                 Invoke-Compose --profile api stop app
                 Invoke-Compose up -d --wait mysql
-                & java -classpath $GradleWrapperJar org.gradle.wrapper.GradleWrapperMain bootRun `
+                $PSNativeCommandUseErrorActionPreference = $false
+                & $GradleWrapper bootRun `
                     '--console=plain' '--args=--spring.profiles.active=local'
-                if ($LASTEXITCODE -ne 0) { throw "Gradle bootRun failed (exit code $LASTEXITCODE)." }
+                $GradleExitCode = $LASTEXITCODE
+                if ($GradleExitCode -eq 75) {
+                    $CleanupDev = $false
+                } elseif ($GradleExitCode -ne 0) {
+                    throw "Gradle bootRun failed (exit code $GradleExitCode)."
+                }
             } finally {
-                Invoke-Compose --profile api down --volumes --remove-orphans
+                if ($CleanupDev) {
+                    Invoke-Compose --profile api down --volumes --remove-orphans
+                }
+            }
+            if ($GradleExitCode -eq 75) {
+                exit 75
             }
         }
     }

@@ -160,6 +160,9 @@ if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
     esac
 fi
 
+# This generated wrapper script is intentionally customized to route every Gradle execution
+# through gradle/WorktreeGradleLock.java. Regenerating the wrapper must preserve this hook.
+
 # Collect all arguments for the java command, stacking in reverse order:
 #   * args from the command line
 #   * the main class name
@@ -210,7 +213,9 @@ DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 
 set -- \
         "-Dorg.gradle.appname=$APP_BASE_NAME" \
-        -jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
+        "-Dyeobaek.gradle.app-home=$APP_HOME" \
+        --class-path "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
+        "$APP_HOME/gradle/WorktreeGradleLock.java" \
         "$@"
 
 # Stop when "xargs" is not available.

@@ -100,7 +100,15 @@ case "${1:-help}" in
     trap cleanup_dev 0
     compose --profile api stop app
     compose up -d --wait mysql
-    ./gradlew bootRun --args='--spring.profiles.active=local'
+    if ./gradlew bootRun --args='--spring.profiles.active=local'; then
+      :
+    else
+      gradle_exit=$?
+      if [ "$gradle_exit" -eq 75 ]; then
+        trap - 0
+      fi
+      exit "$gradle_exit"
+    fi
     ;;
   help|-h|--help)
     show_help

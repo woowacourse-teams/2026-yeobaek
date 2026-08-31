@@ -44,6 +44,17 @@ sh ./local-env.sh dev
 
 Windows에서는 `./gradlew` 대신 `.\gradlew.bat`을 사용합니다.
 
+### Gradle wrapper 동시 실행 보호
+
+이 저장소의 `gradlew`와 `gradlew.bat`은 같은 worktree에서 Gradle을 동시에 실행하지 않도록
+생성된 wrapper 스크립트에 `gradle/WorktreeGradleLock.java` 호출을 추가한 버전입니다. Gradle
+wrapper를 재생성할 때 이 연결을 보존해야 합니다. 잠금 동작은 중첩 Gradle 빌드를 시작하지 않는
+다음 독립 검증으로 확인합니다.
+
+```shell
+java gradle/WorktreeGradleLockVerification.java
+```
+
 ## CI 이미지 흐름
 
 - `develop` push: 테스트와 정적 분석 후 `linux/amd64`, `linux/arm64` 이미지를 Docker Hub의 `:develop`, `:<commit-sha>` 태그로 push합니다. 배포 작업은 없습니다.
