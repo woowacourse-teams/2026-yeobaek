@@ -50,13 +50,21 @@
 
 <section>
     <h2>도서 업로드 (인제스트 규격 JSON)</h2>
-    <p>규격은 API 문서 6장을 따릅니다. 본문 순서는 배열 순서대로 서버가 부여합니다.</p>
+    <p>규격은 API 문서 6장을 따릅니다. 문단과 문장 순서는 각 배열 순서대로 서버가 부여합니다.</p>
     <textarea id="upload-json" spellcheck="false" placeholder='{
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "authors": [{ "name": "현진건", "isni": "0000 0001 2345 964X" }],
-  "chapters": [{ "title": "1장", "passages": [{ "content": "첫 문단" }] }]
+  "chapters": [{
+    "title": "1장",
+    "passages": [{
+      "sentences": [
+        { "content": "첫 번째 문장. " },
+        { "content": "두 번째 문장." }
+      ]
+    }]
+  }]
 }'></textarea>
     <label for="new-cover-file">표지 이미지 (선택, JPEG/PNG/WebP, 최대 5 MiB)</label>
     <input type="file" id="new-cover-file" accept="image/jpeg,image/png,image/webp">

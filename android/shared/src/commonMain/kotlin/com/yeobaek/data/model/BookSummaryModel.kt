@@ -5,4 +5,5 @@ data class BookSummaryModel(
     val bookId: Long,
     val passageCount: Int,
     val title: String,
+    val coverImageUrl: String?,
 )

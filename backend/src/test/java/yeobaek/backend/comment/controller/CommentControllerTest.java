@@ -46,7 +46,7 @@ class CommentControllerTest extends ControllerTest {
                 new CommentResponse(8L, 1L, "민서", "수정된 댓글", createdAt, updatedAt, true)));
         given(commentService.findComments(1L, 10L, 1042L)).willReturn(response);
 
-        mockMvc.perform(get("/api/clubs/{clubId}/passages/{passageId}/comments", 10L, 1042L)
+        mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
                         .header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -78,7 +78,7 @@ class CommentControllerTest extends ControllerTest {
         var response = new CommentResponse(9L, 2L, "민서", "새 댓글", createdAt, null, true);
         given(commentService.create(2L, 10L, 1042L, "새 댓글")).willReturn(response);
 
-        mockMvc.perform(post("/api/clubs/{clubId}/passages/{passageId}/comments", 10L, 1042L)
+        mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
                         .header("X-Member-Id", "2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -143,7 +143,7 @@ class CommentControllerTest extends ControllerTest {
     void rejectMissingCreateBody() throws Exception {
         givenValidMember(5L);
 
-        mockMvc.perform(post("/api/clubs/{clubId}/passages/{passageId}/comments", 10L, 1042L)
+        mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
                         .header("X-Member-Id", "5")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(result -> assertInstanceOf(
@@ -175,7 +175,7 @@ class CommentControllerTest extends ControllerTest {
         var serviceException = new NotFoundException(ErrorCode.COMMENT_NOT_FOUND);
         given(commentService.findComments(7L, 999L, 1042L)).willThrow(serviceException);
 
-        var result = mockMvc.perform(get("/api/clubs/{clubId}/passages/{passageId}/comments", 999L, 1042L)
+        var result = mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 999L, 1042L)
                         .header("X-Member-Id", "7"))
                 .andReturn();
 

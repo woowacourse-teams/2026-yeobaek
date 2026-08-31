@@ -12,6 +12,7 @@ data class BookDetailResponse(
     val publishedYear: Int,
     val publisher: String,
     val title: String,
+    val coverImageUrl: String?,
 )
 
 fun BookDetailResponse.toModel(): BookDetailModel =
@@ -23,4 +24,5 @@ fun BookDetailResponse.toModel(): BookDetailModel =
         publishedYear = publishedYear,
         publisher = publisher,
         title = title,
+        coverImageUrl = coverImageUrl,
     )

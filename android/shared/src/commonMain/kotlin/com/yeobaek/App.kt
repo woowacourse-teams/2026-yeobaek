@@ -9,6 +9,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.network.crash.CrashContext
+import com.yeobaek.core.network.crash.CrashLogLevel
+import com.yeobaek.core.network.crash.CrashOperation
+import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -44,9 +49,14 @@ fun App(
             startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
         ) {
             composable<Nickname> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.NICKNAME,
+                )
                 val nicknameViewModel: NicknameViewModel = viewModel(
                     factory = NicknameViewModel.nicknameViewModelFactory(
                         userRepository = appContainer.userRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -70,9 +80,14 @@ fun App(
                 )
             }
             composable<Onboarding> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.ONBOARDING,
+                )
                 val onboardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
                         groupRepository = appContainer.groupRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -109,10 +124,15 @@ fun App(
                 )
             }
             composable<Home> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.HOME,
+                )
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.homeViewModelFactory(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -140,10 +160,15 @@ fun App(
             }
             composable<Detail> { backStackEntry ->
                 val route = backStackEntry.toRoute<Detail>()
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.GROUP_DETAIL,
+                )
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
                         groupRepository = appContainer.groupRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
                 LaunchedEffect(route.groupId) {
@@ -158,10 +183,20 @@ fun App(
                     onReadClick = {
                         navController.navigate(Reader(groupId = route.groupId))
                     },
+                    onExitClick = {
+                        detailViewModel.exitGroup(route.groupId)
+                    },
+                    navigateToHome = {
+                        navController.popBackStack()
+                    },
                 )
             }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.READER,
+                )
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
                         groupId = route.groupId,
@@ -169,6 +204,7 @@ fun App(
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
                         commentRepository = appContainer.commentRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -197,16 +233,21 @@ fun App(
                     onLoadPrevious = readerViewModel::loadPreviousPassages,
                     onLoadNext = readerViewModel::loadNextPassages,
                     onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateSeekProgress,
-                    onProgressChangeFinished = readerViewModel::seekToProgress,
+                    onProgressChange = readerViewModel::updateProgressDrag,
+                    onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
                     onProgressSeekCompleted = readerViewModel::completeProgressSeek,
                 )
             }
             composable<Join> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.GROUP_JOIN,
+                )
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -239,10 +280,15 @@ fun App(
                 )
             }
             composable<Create> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    screen = CrashScreen.GROUP_CREATE,
+                )
                 val createViewModel: CreateViewModel = viewModel(
                     factory = CreateViewModel.createViewModelFactory(
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
+                        crashReporter = appContainer.crashReporter,
                     ),
                 )
 
@@ -284,5 +330,21 @@ fun App(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun TrackScreen(
+    crashReporter: CrashReporter,
+    screen: CrashScreen,
+) {
+    LaunchedEffect(screen) {
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = CrashContext(
+                screen = screen,
+                operation = CrashOperation.SCREEN_VIEWED,
+            ),
+        )
     }
 }

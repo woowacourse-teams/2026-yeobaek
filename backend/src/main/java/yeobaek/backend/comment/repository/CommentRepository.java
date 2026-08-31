@@ -12,19 +12,18 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             select c from Comment c
             join fetch c.clubMember cm
             join fetch cm.member
-            where cm.club.id = :clubId and c.passage.id = :passageId
+            where cm.club.id = :clubId and c.sentence.id = :sentenceId
             order by c.createdAt asc, c.id asc
             """)
-    List<Comment> findAllWithWriterByClubIdAndPassageId(@Param("clubId") Long clubId,
-                                                        @Param("passageId") Long passageId);
+    List<Comment> findAllWithWriterByClubIdAndSentenceId(@Param("clubId") Long clubId,
+                                                         @Param("sentenceId") Long sentenceId);
 
     @Query("""
-            select c.passage.id as passageId, count(c) as commentCount
+            select c.sentence.id as sentenceId, count(c) as commentCount
             from Comment c
-            where c.clubMember.club.id = :clubId and c.passage.sequence between :fromSequence and :toSequence
-            group by c.passage.id
+            where c.clubMember.club.id = :clubId and c.sentence.id in :sentenceIds
+            group by c.sentence.id
             """)
-    List<PassageCommentCount> countByClubIdAndSequenceRange(@Param("clubId") Long clubId,
-                                                            @Param("fromSequence") int fromSequence,
-                                                            @Param("toSequence") int toSequence);
+    List<SentenceCommentCount> countByClubIdAndSentenceIdIn(@Param("clubId") Long clubId,
+                                                            @Param("sentenceIds") List<Long> sentenceIds);
 }

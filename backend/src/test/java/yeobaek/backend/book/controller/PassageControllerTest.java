@@ -21,6 +21,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
+import yeobaek.backend.book.dto.SentenceResponse;
 import yeobaek.backend.book.service.PassageService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -37,8 +38,11 @@ class PassageControllerTest extends ControllerTest {
     void findPassages() throws Exception {
         givenValidMember(1L);
         var response = new PassagesResponse(List.of(
-                new PassageResponse(1042L, 42, 2L, "첫 번째 본문", 3),
-                new PassageResponse(1043L, 43, 2L, "두 번째 본문", 0)));
+                new PassageResponse(1042L, 42, 2L, List.of(
+                        new SentenceResponse(5012L, 1, "첫 번째 문장. ", 3),
+                        new SentenceResponse(5013L, 2, "두 번째 문장.", 0))),
+                new PassageResponse(1043L, 43, 2L, List.of(
+                        new SentenceResponse(5014L, 1, "세 번째 문장.", 0)))));
         given(passageService.findPassages(1L, 7L, 42, 43)).willReturn(response);
 
         mockMvc.perform(get("/api/clubs/{clubId}/passages", 7L)
@@ -52,13 +56,25 @@ class PassageControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.passages[0].passageId").value(1042))
                 .andExpect(jsonPath("$.passages[0].sequence").value(42))
                 .andExpect(jsonPath("$.passages[0].chapterId").value(2))
-                .andExpect(jsonPath("$.passages[0].content").value("첫 번째 본문"))
-                .andExpect(jsonPath("$.passages[0].commentCount").value(3))
+                .andExpect(jsonPath("$.passages[0].sentences").isArray())
+                .andExpect(jsonPath("$.passages[0].sentences.length()").value(2))
+                .andExpect(jsonPath("$.passages[0].sentences[0].sentenceId").value(5012))
+                .andExpect(jsonPath("$.passages[0].sentences[0].sequence").value(1))
+                .andExpect(jsonPath("$.passages[0].sentences[0].content").value("첫 번째 문장. "))
+                .andExpect(jsonPath("$.passages[0].sentences[0].commentCount").value(3))
+                .andExpect(jsonPath("$.passages[0].sentences[1].sentenceId").value(5013))
+                .andExpect(jsonPath("$.passages[0].sentences[1].sequence").value(2))
+                .andExpect(jsonPath("$.passages[0].sentences[1].content").value("두 번째 문장."))
+                .andExpect(jsonPath("$.passages[0].sentences[1].commentCount").value(0))
                 .andExpect(jsonPath("$.passages[1].passageId").value(1043))
                 .andExpect(jsonPath("$.passages[1].sequence").value(43))
                 .andExpect(jsonPath("$.passages[1].chapterId").value(2))
-                .andExpect(jsonPath("$.passages[1].content").value("두 번째 본문"))
-                .andExpect(jsonPath("$.passages[1].commentCount").value(0));
+                .andExpect(jsonPath("$.passages[1].sentences").isArray())
+                .andExpect(jsonPath("$.passages[1].sentences.length()").value(1))
+                .andExpect(jsonPath("$.passages[1].sentences[0].sentenceId").value(5014))
+                .andExpect(jsonPath("$.passages[1].sentences[0].sequence").value(1))
+                .andExpect(jsonPath("$.passages[1].sentences[0].content").value("세 번째 문장."))
+                .andExpect(jsonPath("$.passages[1].sentences[0].commentCount").value(0));
 
         verify(passageService, times(1)).findPassages(1L, 7L, 42, 43);
     }

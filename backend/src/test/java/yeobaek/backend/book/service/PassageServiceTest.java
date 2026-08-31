@@ -78,16 +78,17 @@ class PassageServiceTest extends IntegrationTest {
         ClubMember clubMember = clubMemberRepository.save(new ClubMember(reader, club));
         ClubMember otherClubMember = clubMemberRepository.save(new ClubMember(reader, otherClub));
         Passage second = passageRepository.findRangeByBookId(club.getBook().getId(), 2, 2).getFirst();
-        commentRepository.save(new Comment(clubMember, second, "우리 모임 댓글 1"));
-        commentRepository.save(new Comment(clubMember, second, "우리 모임 댓글 2"));
-        commentRepository.save(new Comment(otherClubMember, second, "다른 모임 댓글"));
+        var sentence = second.getSentences().getFirst();
+        commentRepository.save(new Comment(clubMember, sentence, "우리 모임 댓글 1"));
+        commentRepository.save(new Comment(clubMember, sentence, "우리 모임 댓글 2"));
+        commentRepository.save(new Comment(otherClubMember, sentence, "다른 모임 댓글"));
 
         PassagesResponse response = passageService.findPassages(reader.getId(), club.getId(), 1, 3);
 
         assertThat(response.passages()).hasSize(3);
-        assertThat(response.passages().get(0).commentCount()).isZero();
+        assertThat(response.passages().get(0).sentences().getFirst().commentCount()).isZero();
         assertThat(response.passages().get(1).sequence()).isEqualTo(2);
-        assertThat(response.passages().get(1).commentCount()).isEqualTo(2);
+        assertThat(response.passages().get(1).sentences().getFirst().commentCount()).isEqualTo(2);
     }
 
     @Test

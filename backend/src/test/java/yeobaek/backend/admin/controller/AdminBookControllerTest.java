@@ -27,6 +27,7 @@ import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.PassageUploadRequest;
+import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
 import yeobaek.backend.support.BadRequestException;
@@ -111,10 +112,10 @@ class AdminBookControllerTest extends ControllerTest {
                         new AuthorEntryRequest(12L, null, null)),
                 List.of(
                         new ChapterUploadRequest("1장", List.of(
-                                new PassageUploadRequest("첫 본문"),
-                                new PassageUploadRequest("둘째 본문"))),
+                                passage("첫 본문"),
+                                passage("둘째 본문"))),
                         new ChapterUploadRequest("2장", List.of(
-                                new PassageUploadRequest("셋째 본문")))));
+                                passage("셋째 본문")))));
         var response = new BookUploadResponse(3L, "운수 좋은 날",
                 "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
         given(bookIngestService.upload(request)).willReturn(response);
@@ -136,13 +137,13 @@ class AdminBookControllerTest extends ControllerTest {
                                     {
                                       "title": "1장",
                                       "passages": [
-                                        {"content": "첫 본문"},
-                                        {"content": "둘째 본문"}
+                                        {"sentences": [{"content": "첫 본문"}]},
+                                        {"sentences": [{"content": "둘째 본문"}]}
                                       ]
                                     },
                                     {
                                       "title": "2장",
-                                      "passages": [{"content": "셋째 본문"}]
+                                      "passages": [{"sentences": [{"content": "셋째 본문"}]}]
                                     }
                                   ]
                                 }
@@ -200,7 +201,7 @@ class AdminBookControllerTest extends ControllerTest {
                 List.of(new AuthorEntryRequest(999L, null, null)),
                 List.of(new ChapterUploadRequest(
                         "1장",
-                        List.of(new PassageUploadRequest("본문")))));
+                        List.of(passage("본문")))));
         var serviceException = new NotFoundException(ErrorCode.AUTHOR_NOT_FOUND);
         given(bookIngestService.upload(request)).willThrow(serviceException);
 
@@ -213,7 +214,7 @@ class AdminBookControllerTest extends ControllerTest {
                                   "publisher":"출판사",
                                   "publishedYear":2026,
                                   "authors":[{"authorId":999}],
-                                  "chapters":[{"title":"1장","passages":[{"content":"본문"}]}]
+                                  "chapters":[{"title":"1장","passages":[{"sentences":[{"content":"본문"}]}]}]
                                 }
                                 """))
                 .andReturn();
@@ -221,5 +222,9 @@ class AdminBookControllerTest extends ControllerTest {
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
         verify(bookIngestService, times(1)).upload(request);
+    }
+
+    private PassageUploadRequest passage(String content) {
+        return new PassageUploadRequest(List.of(new SentenceUploadRequest(content)));
     }
 }

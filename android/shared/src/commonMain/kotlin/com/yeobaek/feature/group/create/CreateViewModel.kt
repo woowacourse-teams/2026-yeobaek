@@ -8,6 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.network.crash.CrashContext
+import com.yeobaek.core.network.crash.CrashLogLevel
+import com.yeobaek.core.network.crash.CrashOperation
+import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
@@ -17,6 +22,7 @@ import kotlinx.coroutines.launch
 class CreateViewModel(
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
+    private val crashReporter: CrashReporter,
 ) : ViewModel() {
     var uiState by mutableStateOf(CreateUiState())
         private set
@@ -29,7 +35,7 @@ class CreateViewModel(
                     bookList = groups.map {
                         CreateBookUiModel(
                             id = it.id,
-                            uri = it.uri,
+                            uri = it.coverImageUrl,
                             title = it.title,
                             authors = it.authors,
                             description = it.description,
@@ -37,9 +43,21 @@ class CreateViewModel(
                     },
                     successBookLoading = true,
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = CrashContext(
+                        screen = CrashScreen.GROUP_CREATE,
+                        operation = CrashOperation.GROUP_BOOKS_LOADED,
+                        itemCount = groups.size,
+                    ),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.GROUP_BOOKS_FAILED),
+                )
                 uiState = uiState.copy(
                     successBookLoading = false,
                     bookList = emptyList(),
@@ -80,9 +98,18 @@ class CreateViewModel(
     }
 
     fun createGroup() {
+        val selectedBookId = uiState.bookList.find { it.selected }?.id
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = CrashContext(
+                screen = CrashScreen.GROUP_CREATE,
+                operation = CrashOperation.GROUP_CREATE_STARTED,
+                bookId = selectedBookId,
+            ),
+        )
         viewModelScope.launch {
             try {
-                val bookId = uiState.bookList.find { it.selected }?.id ?: throw IllegalArgumentException("선택된 책이 없습니다.")
+                val bookId = selectedBookId ?: throw IllegalArgumentException("선택된 책이 없습니다.")
 
                 groupRepository.createGroup(
                     groupName = uiState.groupNameValue,
@@ -92,9 +119,25 @@ class CreateViewModel(
                 uiState = uiState.copy(
                     successCreate = true,
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = CrashContext(
+                        screen = CrashScreen.GROUP_CREATE,
+                        operation = CrashOperation.GROUP_CREATE_SUCCEEDED,
+                        bookId = bookId,
+                    ),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = CrashContext(
+                        screen = CrashScreen.GROUP_CREATE,
+                        operation = CrashOperation.GROUP_CREATE_FAILED,
+                        bookId = selectedBookId,
+                    ),
+                )
                 uiState = uiState.copy(
                     successCreate = false,
                 )
@@ -130,13 +173,20 @@ class CreateViewModel(
         fun createViewModelFactory(
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
+            crashReporter: CrashReporter,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
+                    crashReporter = crashReporter,
                 )
             }
         }
     }
+
+    private fun crashContext(operation: CrashOperation) = CrashContext(
+        screen = CrashScreen.GROUP_CREATE,
+        operation = operation,
+    )
 }

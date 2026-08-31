@@ -7,6 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.network.crash.CrashContext
+import com.yeobaek.core.network.crash.CrashLogLevel
+import com.yeobaek.core.network.crash.CrashOperation
+import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.repository.BookRepository
@@ -28,21 +33,30 @@ class ReaderViewModel(
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
+    private val crashReporter: CrashReporter,
 ) : ViewModel() {
     var uiState by mutableStateOf(ReaderUiState(isLoading = true))
         private set
 
-    private var previousPassagesJob: Job? = null
-    private var nextPassagesJob: Job? = null
-    private var progressSeekJob: Job? = null
-    private var saveCurrentPassageJob: Job? = null
-    private var commentLoadJob: Job? = null
+    // Job은 코루틴의 상태(실행, 취소, 완료)를 추적하고 생명주기를 직접 제어할 수 있게 해주는 도구
+    // 진행 여부를 확인하거나 더 이상 필요 없는 요청을 취소해, 중복 요청과 늦게 도착한 응답을 막는다.
+    private var previousPassagesJob: Job? = null // 이전 문단 로딩
+    private var nextPassagesJob: Job? = null // 다음 문단 로딩
+    private var moveToPassageJob: Job? = null // 특정 문단으로 이동
+    private var saveCurrentPassageJob: Job? = null // 사용자가 보고 있는 문단 저장
+    private var commentLoadJob: Job? = null // 댓글 로딩
+
+    private var currentBookId: Long? = null
 
     init {
         loadReader()
     }
 
     private fun loadReader() {
+        crashReporter.track(
+            level = CrashLogLevel.DEBUG,
+            context = readerContext(CrashOperation.READER_LOAD_STARTED),
+        )
         viewModelScope.launch {
             uiState = uiState.copy(
                 isLoading = true,
@@ -51,20 +65,26 @@ class ReaderViewModel(
 
             try {
                 val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
+                currentBookId = groupDetail.book.bookId
+
                 val bookDetail = bookRepository.getBookDetail(
                     bookId = groupDetail.book.bookId,
                 )
                 val passageCount = groupDetail.book.passageCount
+
+                // 사용자가 읽고 있는 문단 번호
                 val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
-                    .coerceIn(
+                    .coerceIn( // 값이 지정한 범위를 벗어나면 경계값으로 맞춰주고, 범위 안이면 원래 값을 그대로 반환
                         minimumValue = 0,
                         maximumValue = passageCount,
                     )
-                val resumeSequence = currentSequence.coerceAtLeast(FIRST_PASSAGE_SEQUENCE)
+
+                // 처음으로 불러올 문단 번호
                 val firstSequence = maxOf(
                     FIRST_PASSAGE_SEQUENCE,
-                    resumeSequence - PREVIOUS_PASSAGE_COUNT,
+                    currentSequence - PREVIOUS_PASSAGE_COUNT,
                 )
+
                 val passageModels = if (passageCount == 0) {
                     emptyList()
                 } else {
@@ -88,9 +108,21 @@ class ReaderViewModel(
                     isLoading = false,
                     loadErrorMessage = null,
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = readerContext(
+                        operation = CrashOperation.READER_LOADED,
+                        passageSequence = currentSequence.takeIf { it > 0 },
+                        itemCount = passageModels.size,
+                    ),
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(CrashOperation.READER_LOAD_FAILED),
+                )
                 uiState = uiState.copy(
                     isLoading = false,
                     loadErrorMessage = "본문을 불러오지 못했습니다.",
@@ -99,25 +131,45 @@ class ReaderViewModel(
         }
     }
 
+    // 현재 문단보다 앞에 있는 문단들을 추가한다.
+    // 실제 요청을 시작하면 true를 반환한다.
     fun loadPreviousPassages(): Boolean {
+        // 현재 화면에 불러와진 문단 리스트에서 첫 번째 문단의 번호
         val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return false
+
         if (
+            // 이전 passage를 가져오는 코루틴이 실행 중
             previousPassagesJob?.isActive == true ||
+            // 이전 목록 로딩 중
             uiState.isLoadingPrevious ||
+            // 진행률 바를 드래그하는 동안
             uiState.isProgressDragging ||
-            uiState.isSeeking ||
+            // 특정 본문으로 이동 중
+            uiState.isMovingToPassage ||
+            // 현재 본문이 첫 번째
             firstSequence <= FIRST_PASSAGE_SEQUENCE
         ) {
             return false
         }
 
+        // 새로 가져올 범위의 마지막은 현재 첫 문단 바로 앞 번호
         val to = firstSequence - 1
+
         val from = maxOf(
             FIRST_PASSAGE_SEQUENCE,
             to - MAX_PASSAGES_PER_REQUEST + 1,
         )
 
         uiState = uiState.copy(isLoadingPrevious = true)
+
+        crashReporter.track(
+            level = CrashLogLevel.DEBUG,
+            context = readerContext(
+                operation = CrashOperation.READER_PREVIOUS_PAGE_LOAD,
+                passageSequence = from,
+            ),
+        )
+
         previousPassagesJob = viewModelScope.launch {
             try {
                 val previousPassages = readerRepository.getPassages(
@@ -135,18 +187,27 @@ class ReaderViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.READER_PREVIOUS_PAGE_FAILED,
+                        passageSequence = from,
+                    ),
+                )
                 uiState = uiState.copy(isLoadingPrevious = false)
             }
         }
+
         return true
     }
 
     fun loadNextPassages() {
         val lastSequence = uiState.passages.lastOrNull()?.sequence ?: return
+
         if (
             uiState.isLoadingNext ||
             uiState.isProgressDragging ||
-            uiState.isSeeking ||
+            uiState.isMovingToPassage ||
             lastSequence >= uiState.totalPassageCount
         ) {
             return
@@ -159,6 +220,13 @@ class ReaderViewModel(
         )
 
         uiState = uiState.copy(isLoadingNext = true)
+        crashReporter.track(
+            level = CrashLogLevel.DEBUG,
+            context = readerContext(
+                operation = CrashOperation.READER_NEXT_PAGE_LOAD,
+                passageSequence = from,
+            ),
+        )
         nextPassagesJob = viewModelScope.launch {
             try {
                 val nextPassages = readerRepository.getPassages(
@@ -176,15 +244,24 @@ class ReaderViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.READER_NEXT_PAGE_FAILED,
+                        passageSequence = from,
+                    ),
+                )
                 uiState = uiState.copy(isLoadingNext = false)
             }
         }
     }
 
+    // 스크롤 결과 실제로 화면에 보이는 문단을 현재 문단으로 반영한다.
     fun updateCurrentPassage(passage: PassageUiModel) {
+        // 드래그나 특정 위치 이동 중에는 스크롤 위치가 일시적으로 크게 바뀌므로 무시한다.
         if (
             uiState.isProgressDragging ||
-            uiState.isSeeking ||
+            uiState.isMovingToPassage ||
             passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
             passage.sequence == uiState.currentSequence
         ) {
@@ -192,15 +269,28 @@ class ReaderViewModel(
         }
 
         uiState = uiState.copy(currentSequence = passage.sequence)
+        crashReporter.updateContext(
+            readerContext(
+                operation = CrashOperation.READER_POSITION_UPDATED,
+                passageSequence = passage.sequence,
+            ),
+        )
     }
 
+    // 현재 읽고 있는 문단을 저장한다.
     fun saveCurrentPassage(onComplete: () -> Unit) {
+        // 같은 요청을 여러 번 보내지 않는다.
         if (saveCurrentPassageJob?.isActive == true) return
 
+        // 현재 문단을 찾는다.
         val currentPassage = uiState.passages.firstOrNull { passage ->
             passage.sequence == uiState.currentSequence
         }
         if (currentPassage == null) {
+            crashReporter.track(
+                level = CrashLogLevel.WARN,
+                context = readerContext(CrashOperation.READER_PROGRESS_SAVE_SKIPPED),
+            )
             onComplete()
             return
         }
@@ -211,9 +301,23 @@ class ReaderViewModel(
                     clubId = groupId,
                     passageId = currentPassage.passageId,
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = readerContext(
+                        operation = CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED,
+                        passageSequence = currentPassage.sequence,
+                    ),
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.READER_PROGRESS_SAVE_FAILED,
+                        passageSequence = currentPassage.sequence,
+                    ),
+                )
             }
 
             saveCurrentPassageJob = null
@@ -221,29 +325,33 @@ class ReaderViewModel(
         }
     }
 
-    fun updateSeekProgress(progress: Float) {
+    // 진행률 바를 드래그하는 동안 값을 업데이트한다.
+    fun updateProgressDrag(progress: Float) {
+        // 드래그가 막 시작됐다면 이전 위치 이동과 페이지 로딩을 취소한다.
         if (!uiState.isProgressDragging) {
-            progressSeekJob?.cancel()
+            moveToPassageJob?.cancel()
             cancelPaginationLoads()
         }
 
+        // 드래그 중에는 아직 최종 목적지가 정해지지 않았으므로 scrollTargetSequence를 비운다.
         uiState = uiState.copy(
-            seekProgress = progress.coerceIn(0f, 100f),
-            seekTargetSequence = null,
+            targetProgress = progress.coerceIn(0f, 100f),
+            scrollTargetSequence = null,
             isProgressDragging = true,
-            isSeeking = false,
+            isMovingToPassage = false,
             isLoadingPrevious = false,
             isLoadingNext = false,
         )
     }
 
-    fun seekToProgress() {
-        val progress = uiState.seekProgress ?: return
+    // 진행률 바에서 선택한 지점으로 문단을 이동하는 함수
+    fun moveToSelectedProgress() {
+        val progress = uiState.targetProgress ?: return
         val targetSequence = progressToSequence(
             progress = progress,
             totalPassageCount = uiState.totalPassageCount,
         )
-        seekToSequence(targetSequence)
+        moveToPassage(targetSequence)
     }
 
     fun openTableOfContents() {
@@ -259,36 +367,46 @@ class ReaderViewModel(
 
     fun selectChapter(chapter: ChapterUiModel) {
         val targetSequence = chapter.startPassageSequence
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = readerContext(
+                operation = CrashOperation.READER_CHAPTER_SELECTED,
+                chapterSequence = chapter.sequence,
+                passageSequence = targetSequence,
+            ),
+        )
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
-            seekProgress = sequenceToProgress(
+            targetProgress = sequenceToProgress(
                 sequence = targetSequence,
                 totalPassageCount = uiState.totalPassageCount,
             ),
         )
-        seekToSequence(targetSequence)
+        moveToPassage(targetSequence)
     }
 
-    private fun seekToSequence(targetSequence: Int) {
+    private fun moveToPassage(targetSequence: Int) {
         if (targetSequence < FIRST_PASSAGE_SEQUENCE) {
             uiState = uiState.copy(
-                seekProgress = null,
+                targetProgress = null,
                 isProgressDragging = false,
-                isSeeking = false,
+                isMovingToPassage = false,
             )
             return
         }
 
-        progressSeekJob?.cancel()
+        // 새 목적지가 생겼으므로 이전 목적지로 향하던 요청과 페이지네이션을 무효 처리
+        moveToPassageJob?.cancel()
         cancelPaginationLoads()
 
+        // 이미 불러온 passage라면 네트워크 요청 없이 UI가 target 문단으로 스크롤
         val isTargetLoaded = uiState.passages.any { passage ->
             passage.sequence == targetSequence
         }
         uiState = uiState.copy(
-            seekTargetSequence = targetSequence.takeIf { isTargetLoaded },
+            scrollTargetSequence = targetSequence.takeIf { isTargetLoaded },
             isProgressDragging = false,
-            isSeeking = true,
+            isMovingToPassage = true,
         )
         if (isTargetLoaded) return
 
@@ -296,7 +414,7 @@ class ReaderViewModel(
             targetSequence = targetSequence,
             totalPassageCount = uiState.totalPassageCount,
         )
-        progressSeekJob = viewModelScope.launch {
+        moveToPassageJob = viewModelScope.launch {
             try {
                 val passages = readerRepository.getPassages(
                     groupId = groupId,
@@ -308,37 +426,53 @@ class ReaderViewModel(
                 }
 
                 uiState = if (loadedTargetSequence == null) {
+                    crashReporter.track(
+                        level = CrashLogLevel.WARN,
+                        context = readerContext(
+                            operation = CrashOperation.READER_SEEK_TARGET_MISSING,
+                            passageSequence = targetSequence,
+                        ),
+                    )
                     uiState.copy(
-                        seekProgress = null,
-                        isSeeking = false,
+                        targetProgress = null,
+                        isMovingToPassage = false,
                     )
                 } else {
                     uiState.copy(
                         passages = passages,
-                        seekTargetSequence = loadedTargetSequence,
+                        scrollTargetSequence = loadedTargetSequence,
                     )
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.READER_SEEK_FAILED,
+                        passageSequence = targetSequence,
+                    ),
+                )
                 uiState = uiState.copy(
-                    seekProgress = null,
-                    seekTargetSequence = null,
-                    isSeeking = false,
+                    targetProgress = null,
+                    scrollTargetSequence = null,
+                    isMovingToPassage = false,
                 )
             }
         }
     }
 
+    // UI가 target 문단까지 스크롤했음을 ViewModel에 알리기 위한 함수
     fun completeProgressSeek(passage: PassageUiModel) {
-        if (passage.sequence != uiState.seekTargetSequence) return
+        // 과거 이동 요청의 콜백이 늦게 도착한 경우 현재 이동 상태를 건드리지 않는다.
+        if (passage.sequence != uiState.scrollTargetSequence) return
 
-        progressSeekJob = null
+        moveToPassageJob = null
         uiState = uiState.copy(
             currentSequence = passage.sequence,
-            seekProgress = null,
-            seekTargetSequence = null,
-            isSeeking = false,
+            targetProgress = null,
+            scrollTargetSequence = null,
+            isMovingToPassage = false,
         )
     }
 
@@ -363,7 +497,16 @@ class ReaderViewModel(
     }
 
     fun openPassageComments(passage: PassageUiModel) {
+        // 다른 passage의 댓글 요청이 진행 중일 수 있으므로 먼저 취소한다.
         cancelCommentLoad()
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = readerContext(
+                operation = CrashOperation.COMMENT_SHEET_OPENED,
+                passageSequence = passage.sequence,
+                itemCount = passage.commentCount,
+            ),
+        )
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
             commentSheet = PassageCommentSheetUiState(
@@ -386,9 +529,24 @@ class ReaderViewModel(
                         loadErrorMessage = null,
                     )
                 }
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENTS_LOADED,
+                        passageSequence = passage.sequence,
+                        itemCount = comments.size,
+                    ),
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENTS_LOAD_FAILED,
+                        passageSequence = passage.sequence,
+                    ),
+                )
                 updateCommentSheet(passage.passageId) { commentSheet ->
                     commentSheet.copy(
                         isLoading = false,
@@ -421,6 +579,14 @@ class ReaderViewModel(
         val comment = commentSheet.comments.firstOrNull { comment ->
             comment.commentId == commentId && comment.mine
         } ?: return
+
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = readerContext(
+                operation = CrashOperation.COMMENT_EDIT_STARTED,
+                passageSequence = passageSequenceFor(commentSheet.passageId),
+            ),
+        )
 
         uiState = uiState.copy(
             commentSheet = commentSheet.copy(
@@ -489,11 +655,20 @@ class ReaderViewModel(
                 deleteErrorMessage = null,
             ),
         )
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = readerContext(
+                operation = CrashOperation.COMMENT_DELETE_STARTED,
+                passageSequence = passageSequenceFor(commentSheet.passageId),
+                itemCount = commentSheet.comments.size,
+            ),
+        )
 
         viewModelScope.launch {
             try {
                 commentRepository.deleteComment(commentId = commentId)
 
+                // 삭제 요청을 시작할 때의 commentSheet와 서버 응답이 도착했을 때 현재 열려 있는 sheet를 비교
                 val currentSheet = uiState.commentSheet
                     ?.takeIf { sheet -> sheet.passageId == commentSheet.passageId }
                     ?: return@launch
@@ -501,18 +676,20 @@ class ReaderViewModel(
                     comment.commentId == commentId
                 }
                 uiState = uiState.copy(
+                    // 댓글 작성, 수정, 삭제 후 PassageUiModel의 댓글 개수도 변경
                     passages = uiState.passages.withCommentCount(
                         passageId = currentSheet.passageId,
                         commentCount = updatedComments.size,
                     ),
                     commentSheet = currentSheet.copy(
                         comments = updatedComments,
-                        input = if (currentSheet.editingCommentId == commentId) {
+                        input = if (currentSheet.editingCommentId == commentId) { // 삭제한 댓글이 현재 수정 중인 댓글이라면
                             ""
                         } else {
                             currentSheet.input
                         },
                         editingCommentId = currentSheet.editingCommentId
+                            // true이면 null, false이면 기존 값 반환
                             .takeUnless { editingCommentId -> editingCommentId == commentId },
                         deletingCommentId = null,
                         isDeleting = false,
@@ -520,9 +697,24 @@ class ReaderViewModel(
                         deleteErrorMessage = null,
                     ),
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
+                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        itemCount = updatedComments.size,
+                    ),
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENT_DELETE_FAILED,
+                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                    ),
+                )
                 updateCommentSheet(commentSheet.passageId) { currentSheet ->
                     currentSheet.copy(
                         isDeleting = false,
@@ -549,6 +741,14 @@ class ReaderViewModel(
             commentSheet = commentSheet.copy(
                 isSubmitting = true,
                 submitErrorMessage = null,
+            ),
+        )
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = readerContext(
+                operation = CrashOperation.COMMENT_SAVE_STARTED,
+                passageSequence = passageSequenceFor(commentSheet.passageId),
+                itemCount = commentSheet.comments.size,
             ),
         )
 
@@ -594,9 +794,24 @@ class ReaderViewModel(
                         submitErrorMessage = null,
                     ),
                 )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
+                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        itemCount = updatedComments.size,
+                    ),
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                crashReporter.recordException(
+                    throwable = exception,
+                    context = readerContext(
+                        operation = CrashOperation.COMMENT_SAVE_FAILED,
+                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                    ),
+                )
                 updateCommentSheet(commentSheet.passageId) { currentSheet ->
                     currentSheet.copy(
                         isSubmitting = false,
@@ -607,6 +822,7 @@ class ReaderViewModel(
         }
     }
 
+    // 현재 열려 있는 시트가 passageId의 시트일 때만 상태를 바꾼다.
     private fun updateCommentSheet(
         passageId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
@@ -617,19 +833,50 @@ class ReaderViewModel(
         uiState = uiState.copy(commentSheet = transform(commentSheet))
     }
 
+    // 댓글 시트가 바뀌거나 닫힐 때 진행 중인 댓글 조회를 취소한다.
     private fun cancelCommentLoad() {
         commentLoadJob?.cancel()
         commentLoadJob = null
     }
 
+    // 특정 위치로 이동할 때 이전 문단이나 다음 문단 요청 결과가 목록을 덮어쓰지 않도록 취소한다.
     private fun cancelPaginationLoads() {
         previousPassagesJob?.cancel()
         nextPassagesJob?.cancel()
         previousPassagesJob = null
         nextPassagesJob = null
+        uiState = uiState.copy(
+            isLoadingPrevious = false,
+            isLoadingNext = false,
+        )
     }
+
+    private fun passageSequenceFor(passageId: Long): Int? = uiState.passages
+        .firstOrNull { passage -> passage.passageId == passageId }
+        ?.sequence
+
+    private fun chapterSequenceFor(passageSequence: Int?): Int? = passageSequence?.let { sequence ->
+        uiState.chapters.firstOrNull { chapter ->
+            sequence in chapter.startPassageSequence..chapter.endPassageSequence
+        }?.sequence
+    }
+
+    private fun readerContext(
+        operation: CrashOperation,
+        chapterSequence: Int? = null,
+        passageSequence: Int? = uiState.currentSequence.takeIf { it > 0 },
+        itemCount: Int? = null,
+    ) = CrashContext(
+        screen = CrashScreen.READER,
+        operation = operation,
+        bookId = currentBookId,
+        chapterSequence = chapterSequence ?: chapterSequenceFor(passageSequence),
+        passageSequence = passageSequence,
+        itemCount = itemCount,
+    )
 }
 
+// 댓글 작성, 수정, 삭제 후 PassageUiModel의 댓글 개수도 변경
 private fun List<PassageUiModel>.withCommentCount(
     passageId: Long,
     commentCount: Int,
@@ -641,6 +888,7 @@ private fun List<PassageUiModel>.withCommentCount(
     }
 }
 
+// 한 번에 불러올 문단 범위를 계산
 internal fun passageWindowFor(
     targetSequence: Int,
     totalPassageCount: Int,
@@ -666,6 +914,7 @@ class ReaderViewModelFactory(
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
     private val commentRepository: CommentRepository,
+    private val crashReporter: CrashReporter,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(
         modelClass: KClass<T>,
@@ -679,6 +928,7 @@ class ReaderViewModelFactory(
                 groupRepository = groupRepository,
                 readerRepository = readerRepository,
                 commentRepository = commentRepository,
+                crashReporter = crashReporter,
             ) as T
         }
 

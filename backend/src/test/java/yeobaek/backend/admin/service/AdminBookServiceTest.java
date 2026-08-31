@@ -82,7 +82,7 @@ class AdminBookServiceTest extends IntegrationTest {
         Member member = memberRepository.save(new Member("민서"));
         Club club = clubRepository.save(new Club("1기", book, "CODE01"));
         ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
-        Comment comment = commentRepository.save(new Comment(membership, passage, "댓글"));
+        Comment comment = commentRepository.save(new Comment(membership, passage.getSentences().getFirst(), "댓글"));
 
         adminBookService.delete(book.getId());
 

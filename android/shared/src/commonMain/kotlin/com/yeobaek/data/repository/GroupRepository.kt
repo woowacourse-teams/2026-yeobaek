@@ -8,4 +8,5 @@ interface GroupRepository {
     suspend fun createGroup(groupName: String, bookId: Long)
     suspend fun joinGroup(joinCode: String)
     suspend fun getGroupDetail(groupId: Long): GroupDetailModel
+    suspend fun exitGroup(groupId: Long)
 }

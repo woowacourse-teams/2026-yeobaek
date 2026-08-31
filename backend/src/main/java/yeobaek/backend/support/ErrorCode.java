@@ -17,6 +17,7 @@ public enum ErrorCode {
     CLUB_NOT_FOUND("존재하지 않는 모임입니다."),
     JOIN_CODE_NOT_FOUND("존재하지 않는 참여 코드입니다."),
     PASSAGE_NOT_FOUND("존재하지 않는 본문입니다."),
+    SENTENCE_NOT_FOUND("존재하지 않는 문장입니다."),
     COMMENT_NOT_FOUND("존재하지 않는 댓글입니다."),
     AUTHOR_NOT_FOUND("존재하지 않는 작가입니다."),
     DUPLICATE_AUTHOR("같은 작가가 중복 기재되었습니다."),

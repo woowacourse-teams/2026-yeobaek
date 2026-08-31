@@ -14,6 +14,7 @@ import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.PassageUploadRequest;
+import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
@@ -78,17 +79,24 @@ public class BookIngestService {
             if (chapter.passages().isEmpty()) {
                 throw new IllegalArgumentException("각 목차의 본문은 최소 1개여야 합니다.");
             }
-            chapter.passages().forEach(this::validateContent);
+            chapter.passages().forEach(this::validatePassage);
         }
     }
 
-    private void validateContent(PassageUploadRequest passage) {
-        String content = passage.content();
+    private void validatePassage(PassageUploadRequest passage) {
+        if (passage.sentences().isEmpty()) {
+            throw new IllegalArgumentException("각 문단의 문장은 최소 1개여야 합니다.");
+        }
+        passage.sentences().forEach(this::validateSentence);
+    }
+
+    private void validateSentence(SentenceUploadRequest sentence) {
+        String content = sentence.content();
         if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("본문 내용은 공백이 아니어야 합니다.");
+            throw new IllegalArgumentException("문장 내용은 공백이 아니어야 합니다.");
         }
         if (content.getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
-            throw new IllegalArgumentException("본문 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.");
+            throw new IllegalArgumentException("문장 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.");
         }
     }
 
@@ -167,7 +175,9 @@ public class BookIngestService {
             Chapter chapter = chapterRepository.save(new Chapter(book, chapterRequest.title(), chapterSequence));
             chapterSequence++;
             for (PassageUploadRequest passageRequest : chapterRequest.passages()) {
-                passageRepository.save(new Passage(chapter, passageSequence, passageRequest.content()));
+                passageRepository.save(new Passage(chapter, passageSequence, passageRequest.sentences().stream()
+                        .map(SentenceUploadRequest::content)
+                        .toList()));
                 passageSequence++;
             }
         }

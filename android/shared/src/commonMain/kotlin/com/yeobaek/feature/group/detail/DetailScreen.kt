@@ -1,30 +1,25 @@
 package com.yeobaek.feature.group.detail
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,8 +28,10 @@ import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.group.detail.component.DeleteGroupDialog
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
 import com.yeobaek.feature.group.detail.component.GroupBookCard
+import com.yeobaek.feature.group.detail.component.GroupBookInfoCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
 import kotlinx.coroutines.launch
@@ -44,11 +41,31 @@ fun DetailScreen(
     uiState: DetailUiState,
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
+    onExitClick: () -> Unit,
+    navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.exitState) {
+        when (uiState.exitState) {
+            is ExitState.Success -> {
+                navigateToHome()
+            }
+
+            is ExitState.Failure -> {
+                snackbarHostState.showSnackbar(
+                    message = uiState.exitState.message,
+                    duration = SnackbarDuration.Short,
+                )
+            }
+
+            is ExitState.Idle, ExitState.Loading -> return@LaunchedEffect
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -61,6 +78,9 @@ fun DetailScreen(
                     is ScreenState.Error -> uiState.screenState.message
                 },
                 onBackClick = onBackClick,
+                onExitClick = {
+                    showDeleteDialog = true
+                },
             )
         },
         bottomBar = {
@@ -121,48 +141,14 @@ fun DetailScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun GroupBookInfoCard(
-    title: String,
-    authors: List<String>,
-    currentProgress: Int,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(authors.joinToString(), style = MaterialTheme.typography.bodySmall)
-        }
-        Column {
-            Text(
-                "독서 진행률 $currentProgress%",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    color = MaterialTheme.colorScheme.secondary,
-                ),
+        if (showDeleteDialog) {
+            DeleteGroupDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                onConfirm = {
+                    showDeleteDialog = false
+                    onExitClick()
+                },
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                LinearProgressIndicator(
-                    progress = {
-                        currentProgress.toFloat() / 100
-                    },
-                    color = MaterialTheme.colorScheme.secondary,
-                    strokeCap = StrokeCap.Butt,
-                    drawStopIndicator = {},
-                    modifier = Modifier.clip(shape = RoundedCornerShape(45.dp)).weight(1f),
-                    gapSize = 0.dp,
-                )
-            }
         }
     }
 }
@@ -175,6 +161,8 @@ private fun DetailScreenPreview() {
             uiState = DetailUiState(),
             onBackClick = {},
             onReadClick = {},
+            onExitClick = {},
+            navigateToHome = {},
         )
     }
 }

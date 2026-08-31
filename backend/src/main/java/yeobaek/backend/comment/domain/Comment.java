@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.club.domain.ClubMember;
 
 @Entity
@@ -31,8 +31,8 @@ public class Comment {
     private ClubMember clubMember;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "passage_id")
-    private Passage passage;
+    @JoinColumn(name = "sentence_id")
+    private Sentence sentence;
 
     @Column(nullable = false, length = 1000)
     private String content;
@@ -44,10 +44,10 @@ public class Comment {
 
     private static final int MAX_CONTENT_LENGTH = 1000;
 
-    public Comment(ClubMember clubMember, Passage passage, String content) {
+    public Comment(ClubMember clubMember, Sentence sentence, String content) {
         validateContent(content);
         this.clubMember = clubMember;
-        this.passage = passage;
+        this.sentence = sentence;
         this.content = content;
         this.createdAt = LocalDateTime.now();
     }

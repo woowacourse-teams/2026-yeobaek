@@ -84,7 +84,7 @@ private fun GroupActionButton(
     }
 }
 
-@Preview(showBackground = true, name = "그룹 버튼 영역")
+@Preview(showBackground = true, name = "모임 버튼 영역")
 @Composable
 private fun GroupButtonSectionPreview() {
     YeobaekTheme {
