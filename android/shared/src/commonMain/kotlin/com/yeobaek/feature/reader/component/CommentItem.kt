@@ -163,7 +163,11 @@ private fun CommentAvatar(
 
 private fun String.toDisplayDate(): String {
     if (length < 10) return this
-    return "${substring(0, 4)}.${substring(5, 7)}.${substring(8, 10)}"
+    val date = "${substring(0, 4)}.${substring(5, 7)}.${substring(8, 10)}"
+    if (length < 19) return date
+
+    val time = "${substring(11, 13)}:${substring(14, 16)}"
+    return "$date  $time"
 }
 
 @Preview(showBackground = true, name = "타인 댓글")
