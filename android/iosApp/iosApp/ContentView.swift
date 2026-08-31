@@ -3,6 +3,8 @@ import SwiftUI
 import Shared
 
 struct ComposeView: UIViewControllerRepresentable {
+    let analyticsClient: AnalyticsClient
+
     func makeUIViewController(context: Self.Context) -> UIViewController {
         #if DEBUG
         let isDebug = true
@@ -10,15 +12,20 @@ struct ComposeView: UIViewControllerRepresentable {
         let isDebug = false
         #endif
 
-        return MainViewControllerKt.MainViewController(isDebug: isDebug)
+        return MainViewControllerKt.MainViewController(
+            isDebug: isDebug,
+            analyticsClient: analyticsClient
+        )
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Self.Context) {}
 }
 
 struct ContentView: View {
+    let analyticsClient: AnalyticsClient
+
     var body: some View {
-        ComposeView()
+        ComposeView(analyticsClient: analyticsClient)
             .ignoresSafeArea()
     }
 }
