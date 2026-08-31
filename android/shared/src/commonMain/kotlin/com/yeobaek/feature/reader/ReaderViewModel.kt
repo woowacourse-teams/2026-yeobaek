@@ -845,6 +845,10 @@ class ReaderViewModel(
         nextPassagesJob?.cancel()
         previousPassagesJob = null
         nextPassagesJob = null
+        uiState = uiState.copy(
+            isLoadingPrevious = false,
+            isLoadingNext = false,
+        )
     }
 
     private fun passageSequenceFor(passageId: Long): Int? = uiState.passages
