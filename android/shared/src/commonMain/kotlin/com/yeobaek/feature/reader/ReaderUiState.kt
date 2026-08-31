@@ -16,10 +16,10 @@ data class ReaderUiState(
     val isLoading: Boolean = false,
     val isLoadingPrevious: Boolean = false,
     val isLoadingNext: Boolean = false,
-    val seekProgress: Float? = null,
-    val seekTargetSequence: Int? = null,
+    val targetProgress: Float? = null,
+    val scrollTargetSequence: Int? = null,
     val isProgressDragging: Boolean = false,
-    val isSeeking: Boolean = false,
+    val isMovingToPassage: Boolean = false,
     val loadErrorMessage: String? = null,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
@@ -32,7 +32,7 @@ data class ReaderUiState(
         )
 
     val displayProgress: Float
-        get() = seekProgress ?: progress
+        get() = targetProgress ?: progress
 }
 
 internal fun sequenceToProgress(
@@ -44,8 +44,8 @@ internal fun sequenceToProgress(
         return if (sequence >= 1) 100f else 0f
     }
 
-    val normalizedSequence = sequence.coerceIn(1, totalPassageCount)
-    return ((normalizedSequence - 1) * 100f) / (totalPassageCount - 1)
+    val validSequence = sequence.coerceIn(1, totalPassageCount)
+    return ((validSequence - 1) * 100f) / (totalPassageCount - 1)
 }
 
 internal fun progressToSequence(
@@ -55,6 +55,6 @@ internal fun progressToSequence(
     if (totalPassageCount <= 0) return 0
     if (totalPassageCount == 1) return 1
 
-    val normalizedProgress = progress.coerceIn(0f, 100f) / 100f
-    return (normalizedProgress * (totalPassageCount - 1)).roundToInt() + 1
+    val validProgress = progress.coerceIn(0f, 100f) / 100f
+    return (validProgress * (totalPassageCount - 1)).roundToInt() + 1
 }

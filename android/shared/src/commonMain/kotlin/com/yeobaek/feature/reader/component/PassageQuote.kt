@@ -18,7 +18,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yeobaek.feature.reader.ReaderPreviewData
 
 @Composable
 fun PassageQuote(
@@ -55,6 +54,7 @@ fun PassageQuote(
 @Composable
 private fun PassageQuotePreview() {
     PassageQuote(
-        content = ReaderPreviewData.passages[0].content,
+        content = "\"새는 알에서 나오려고 투쟁한다. 알은 세계이다. 태어나려는 자는 하나의 " +
+            "세계를 깨뜨려야 한다. 새는 신에게로 날아간다. 신의 이름은 아브락사스.\"",
     )
 }

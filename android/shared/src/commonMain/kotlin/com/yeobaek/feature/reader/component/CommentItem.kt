@@ -34,7 +34,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.reader.ReaderPreviewData
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 import org.jetbrains.compose.resources.painterResource
 
@@ -171,7 +170,15 @@ private fun String.toDisplayDate(): String {
 private fun OtherCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
-            comment = ReaderPreviewData.commentsByPassageId.getValue(2).first(),
+            comment = PassageCommentUiModel(
+                commentId = 7,
+                memberId = 2,
+                nickname = "지수",
+                content = "이 문장에서 멈칫했어요.",
+                createdAt = "2026-08-05T14:30:00",
+                updatedAt = null,
+                mine = false,
+            ),
             onEdit = {},
             onDelete = {},
         )
@@ -183,7 +190,15 @@ private fun OtherCommentItemPreview() {
 private fun MyCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
-            comment = ReaderPreviewData.commentsByPassageId.getValue(5).last(),
+            comment = PassageCommentUiModel(
+                commentId = 12,
+                memberId = 1,
+                nickname = "나",
+                content = "호감의 이유가 아주 선명하게 드러나는 문단 같아요.",
+                createdAt = "2026-08-09T13:10:00",
+                updatedAt = null,
+                mine = true,
+            ),
             onEdit = {},
             onDelete = {},
         )

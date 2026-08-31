@@ -233,8 +233,8 @@ fun App(
                     onLoadPrevious = readerViewModel::loadPreviousPassages,
                     onLoadNext = readerViewModel::loadNextPassages,
                     onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateSeekProgress,
-                    onProgressChangeFinished = readerViewModel::seekToProgress,
+                    onProgressChange = readerViewModel::updateProgressDrag,
+                    onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
                     onProgressSeekCompleted = readerViewModel::completeProgressSeek,
                 )
             }

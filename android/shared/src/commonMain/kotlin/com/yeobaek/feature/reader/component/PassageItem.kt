@@ -20,7 +20,6 @@ import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekBatang
 import com.yeobaek.core.designsystem.theme.YeobaekLine
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.reader.ReaderPreviewData
 import com.yeobaek.feature.reader.model.PassageUiModel
 
 @Composable
@@ -124,7 +123,15 @@ private fun String.allowCharacterBreaks(): String =
 private fun PassageItemPreview() {
     YeobaekTheme {
         PassageItem(
-            passage = ReaderPreviewData.passages[0],
+            passage = PassageUiModel(
+                passageId = 2,
+                sequence = 2,
+                chapterId = 1,
+                content =
+                    "\"새는 알에서 나오려고 투쟁한다. 알은 세계이다. 태어나려는 자는 하나의 " +
+                        "세계를 깨뜨려야 한다. 새는 신에게로 날아간다. 신의 이름은 아브락사스.\"",
+                commentCount = 2,
+            ),
             fontSize = 18,
             onClick = {},
             showUnderline = true,

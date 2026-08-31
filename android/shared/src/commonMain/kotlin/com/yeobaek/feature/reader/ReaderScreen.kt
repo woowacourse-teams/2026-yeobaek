@@ -70,9 +70,18 @@ fun ReaderScreen(
     PlatformBackHandler(onBack = onBackClick)
 
     val listState = rememberLazyListState()
+
+    // 초기 위치는 데이터 로딩이 끝난 뒤 한 번만 맞춘다.
+    // passages가 바뀔 때마다 다시 이동하면 사용자가 스크롤한 위치를 잃기 때문에 별도 플래그가 필요하다.
     var hasPositionedInitialPassage by remember { mutableStateOf(false) }
-    var previousLoadAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
-    var fontSizeAnchor by remember { mutableStateOf<PassageAnchor?>(null) }
+
+    // 목록 앞에 passage가 추가되거나 글자 크기로 항목 높이가 달라져도 사용자가 보던
+    // passage와 그 안의 스크롤 오프셋을 복원하기 위한 기준점이다.
+    var previousLoadPassagePosition by remember { mutableStateOf<PassagePosition?>(null) }
+    var fontSizePassagePosition by remember { mutableStateOf<PassagePosition?>(null) }
+
+    // 아래의 snapshotFlow는 한 번 시작되면 오래 실행된다. rememberUpdatedState를 사용하면
+    // 효과를 재시작하지 않고도 가장 최근 uiState와 콜백을 참조할 수 있다.
     val currentUiState by rememberUpdatedState(uiState)
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
@@ -81,6 +90,7 @@ fun ReaderScreen(
     val currentOnProgressSeekCompleted by rememberUpdatedState(onProgressSeekCompleted)
     val commentSheet = uiState.commentSheet
 
+    // 첫 로딩이 끝나면 서버에 저장된 마지막 독서 위치로 목록을 이동한다.
     LaunchedEffect(
         uiState.passages,
         uiState.currentSequence,
@@ -98,11 +108,13 @@ fun ReaderScreen(
         }
     }
 
+    // 진행률 바나 목차에서 정한 목표가 목록에 준비되면 실제 LazyColumn을 이동한다.
+    // 이동 완료 콜백은 ViewModel이 isMovingToPassage 상태를 끝낼 수 있게 한다.
     LaunchedEffect(
-        uiState.seekTargetSequence,
+        uiState.scrollTargetSequence,
         uiState.passages,
     ) {
-        val targetSequence = uiState.seekTargetSequence ?: return@LaunchedEffect
+        val targetSequence = uiState.scrollTargetSequence ?: return@LaunchedEffect
         val targetIndex = uiState.passages.indexOfFirst { passage ->
             passage.sequence == targetSequence
         }
@@ -112,29 +124,34 @@ fun ReaderScreen(
         }
     }
 
+    // 글자 크기가 바뀌면 각 항목의 높이도 바뀐다. 변경 전에 저장한 passage와 오프셋을
+    // 다시 적용해 사용자가 읽던 문장이 화면 밖으로 크게 밀려나지 않게 한다.
     LaunchedEffect(uiState.fontSize) {
-        val anchor = fontSizeAnchor
-        if (anchor != null) {
-            val anchorIndex = uiState.passages.indexOfFirst { passage ->
-                passage.passageId == anchor.passageId
+        val passagePosition = fontSizePassagePosition
+        if (passagePosition != null) {
+            val passageIndex = uiState.passages.indexOfFirst { passage ->
+                passage.passageId == passagePosition.passageId
             }
-            if (anchorIndex >= 0) {
-                listState.scrollToItem(anchorIndex)
+            if (passageIndex >= 0) {
+                // 먼저 항목을 화면에 배치해야 변경된 글자 크기의 실제 높이를 알 수 있다.
+                listState.scrollToItem(passageIndex)
                 val itemSize = listState.layoutInfo.visibleItemsInfo
-                    .firstOrNull { item -> item.index == anchorIndex }
+                    .firstOrNull { item -> item.index == passageIndex }
                     ?.size
                     ?: 0
                 listState.scrollToItem(
-                    index = anchorIndex,
-                    scrollOffset = anchor.scrollOffset.coerceAtMost(
+                    index = passageIndex,
+                    // 새 항목 높이보다 큰 예전 오프셋은 유효한 범위 안으로 제한한다.
+                    scrollOffset = passagePosition.scrollOffset.coerceAtMost(
                         maximumValue = (itemSize - 1).coerceAtLeast(0),
                     ),
                 )
             }
-            fontSizeAnchor = null
+            fontSizePassagePosition = null
         }
     }
 
+    // 현재 보이는 passage를 계속 관찰해 ViewModel의 currentSequence와 진행률을 갱신한다.
     LaunchedEffect(hasPositionedInitialPassage, listState) {
         if (!hasPositionedInitialPassage) return@LaunchedEffect
 
@@ -152,17 +169,23 @@ fun ReaderScreen(
             val isLastPassageFullyVisible = lastVisibleItem != null &&
                 lastVisiblePassage?.sequence == state.totalPassageCount &&
                 lastVisibleItem.offset + lastVisibleItem.size <= layoutInfo.viewportEndOffset
+
+            // 보통 첫 번째 보이는 passage를 현재 위치로 사용한다. 단, 책의 마지막 passage가
+            // 완전히 보이면 그것을 선택해 진행률이 정확히 100%가 되도록 한다.
             val passage = if (isLastPassageFullyVisible) {
                 lastVisiblePassage
             } else {
                 firstVisiblePassage
             }
+
+            // 코드가 위치를 복원하거나 다른 위치로 이동시키는 동안 발생한 스크롤 이벤트는
+            // 사용자의 실제 독서 위치가 아니므로 ViewModel에 전달하지 않는다.
             passage to (
                 state.isLoadingPrevious ||
-                    previousLoadAnchor != null ||
-                    fontSizeAnchor != null ||
+                    previousLoadPassagePosition != null ||
+                    fontSizePassagePosition != null ||
                     state.isProgressDragging ||
-                    state.isSeeking
+                    state.isMovingToPassage
                 )
         }.distinctUntilChanged().collect { (passage, isRestoringPosition) ->
             if (!isRestoringPosition && passage != null) {
@@ -171,25 +194,29 @@ fun ReaderScreen(
         }
     }
 
+    // 이전 passage를 목록 앞에 추가하면 기존 항목의 인덱스가 뒤로 밀린다. 요청 전에 저장한
+    // passageId를 새 목록에서 다시 찾아 같은 내용과 오프셋이 보이도록 복원한다.
     LaunchedEffect(
         uiState.isLoadingPrevious,
         uiState.passages.firstOrNull()?.passageId,
     ) {
-        val anchor = previousLoadAnchor
-        if (anchor != null && !uiState.isLoadingPrevious) {
-            val anchorIndex = uiState.passages.indexOfFirst { passage ->
-                passage.passageId == anchor.passageId
+        val passagePosition = previousLoadPassagePosition
+        if (passagePosition != null && !uiState.isLoadingPrevious) {
+            val passageIndex = uiState.passages.indexOfFirst { passage ->
+                passage.passageId == passagePosition.passageId
             }
-            if (anchorIndex >= 0) {
+            if (passageIndex >= 0) {
                 listState.scrollToItem(
-                    index = anchorIndex,
-                    scrollOffset = anchor.scrollOffset,
+                    index = passageIndex,
+                    scrollOffset = passagePosition.scrollOffset,
                 )
             }
-            previousLoadAnchor = null
+
+            previousLoadPassagePosition = null
         }
     }
 
+    // 목록의 처음 또는 끝에서 PAGINATION_THRESHOLD개 이내에 들어오면 다음 묶음을 요청한다.
     LaunchedEffect(listState) {
         snapshotFlow {
             val visibleItems = listState.layoutInfo.visibleItemsInfo
@@ -203,11 +230,13 @@ fun ReaderScreen(
             }
         }.distinctUntilChanged().collect { (isNearStart, isNearEnd) ->
             val state = currentUiState
+
+            // 초기 위치 복원 전이나 다른 이동 중에는 페이지 요청이 목록을 동시에 바꾸지 않게 한다.
             if (
                 !hasPositionedInitialPassage ||
                 state.isLoading ||
                 state.isProgressDragging ||
-                state.isSeeking ||
+                state.isMovingToPassage ||
                 state.loadErrorMessage != null
             ) {
                 return@collect
@@ -217,15 +246,17 @@ fun ReaderScreen(
                 isNearStart &&
                 !state.isLoadingPrevious &&
                 state.passages.firstOrNull()?.sequence != FIRST_PASSAGE_SEQUENCE &&
-                previousLoadAnchor == null
+                previousLoadPassagePosition == null
             ) {
                 val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                 val firstVisiblePassage = firstVisibleItem?.let { item ->
                     state.passages.getOrNull(item.index)
                 }
                 if (firstVisibleItem != null && firstVisiblePassage != null) {
-                    previousLoadAnchor = previousLoadAnchorAfterRequest(
-                        anchor = PassageAnchor(
+                    // 요청이 실제로 시작된 경우에만 기준점을 보관한다. 요청이 거절됐다면
+                    // passage position이 남아 이후 페이지네이션을 막지 않도록 null을 유지한다.
+                    previousLoadPassagePosition = positionToRestore(
+                        passagePosition = PassagePosition(
                             passageId = firstVisiblePassage.passageId,
                             scrollOffset = listState.firstVisibleItemScrollOffset,
                         ),
@@ -249,6 +280,7 @@ fun ReaderScreen(
             passage.passageId == sheet.passageId
         }
     }
+
     val preservePositionAndChangeFontSize: (Int) -> Unit = { fontSize ->
         if (fontSize != uiState.fontSize) {
             val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
@@ -256,7 +288,7 @@ fun ReaderScreen(
                 uiState.passages.getOrNull(item.index)
             }
             if (firstVisiblePassage != null) {
-                fontSizeAnchor = PassageAnchor(
+                fontSizePassagePosition = PassagePosition(
                     passageId = firstVisiblePassage.passageId,
                     scrollOffset = listState.firstVisibleItemScrollOffset,
                 )
@@ -411,9 +443,62 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = ReaderPreviewData.passages,
+                passages = listOf(
+                    PassageUiModel(
+                        passageId = 1,
+                        sequence = 1,
+                        chapterId = 1,
+                        content =
+                            "종이를 만지작거리다 아무 생각 없이 폈는데 그 안에 몇 마디 말이 적혀 " +
+                                "있는 것을 보았다. 그 위로 시선을 한 번 던지고는 말 한마디에 " +
+                                "사로잡혀 버렸다. 나는 놀라 읽었다. 그사이 나의 가슴은 운명 앞에서 " +
+                                "큰 추위가 닥친 듯 오그라들었다.",
+                        commentCount = 0,
+                    ),
+                    PassageUiModel(
+                        passageId = 2,
+                        sequence = 2,
+                        chapterId = 1,
+                        content =
+                            "\"새는 알에서 나오려고 투쟁한다. 알은 세계이다. 태어나려는 자는 하나의 " +
+                                "세계를 깨뜨려야 한다. 새는 신에게로 날아간다. 신의 이름은 아브락사스.\"",
+                        commentCount = 2,
+                    ),
+                    PassageUiModel(
+                        passageId = 3,
+                        sequence = 3,
+                        chapterId = 1,
+                        content =
+                            "이 글줄을 몇 차례 읽은 뒤 나는 깊은 생각에 빠졌다. 어떤 의심도 불가능했다. " +
+                                "이것은 데미안이 보낸 답장이었다. 나와 그 말고 그 새에 대해 아는 " +
+                                "사람은 있을 수 없었다.",
+                        commentCount = 1,
+                    ),
+                    PassageUiModel(
+                        passageId = 4,
+                        sequence = 4,
+                        chapterId = 1,
+                        content =
+                            "내 그림을 그가 받은 것이다. 그는 이해하였고 내가 해석하는 것을 도운 것이다. " +
+                                "하지만 이 모든 것이 서로 무슨 관련이 있단 말인가? 그리고 무엇보다 " +
+                                "나를 괴롭힌 것은 아브락사스란 무엇인가 하는 의문이었다. 들어 본 적도 " +
+                                "읽어 본 적도 없는 말이었다. \"신의 이름은 아브락사스!\"",
+                        commentCount = 0,
+                    ),
+                    PassageUiModel(
+                        passageId = 5,
+                        sequence = 5,
+                        chapterId = 1,
+                        content =
+                            "수업을 조금도 듣지 못한 채 그 시간이 갔다. 다음 시간이 시작되었다. " +
+                                "오전의 마지막 수업이었다. 그 시간은 젊은 보조 선생님 담당이었다. " +
+                                "대학을 갓 졸업했는데, 그렇게 젊다는 것 그리고 우리에게 거짓 품위를 " +
+                                "보이려 들지 않았다는 것만으로도 벌써 우리의 호감을 산 분이었다.",
+                        commentCount = 3,
+                    ),
+                ),
                 currentSequence = 4,
-                totalPassageCount = ReaderPreviewData.passages.size,
+                totalPassageCount = 5,
             ),
             onPassageClick = {},
             onBackClick = {},
@@ -441,15 +526,17 @@ private fun ReaderScreenPreview() {
     }
 }
 
-internal data class PassageAnchor(
+// 화면의 첫 passage와 그 passage 안에서의 스크롤 위치
+internal data class PassagePosition(
     val passageId: Long,
     val scrollOffset: Int,
 )
 
-internal fun previousLoadAnchorAfterRequest(
-    anchor: PassageAnchor,
+// 이전 페이지 요청이 시작됐을 때 복원에 사용할 문단과 스크롤 위치를 남긴다.
+internal fun positionToRestore(
+    passagePosition: PassagePosition,
     requestStarted: Boolean,
-): PassageAnchor? = anchor.takeIf { requestStarted }
+): PassagePosition? = passagePosition.takeIf { requestStarted } // true이면 원래 객체 반환, false이면 null 반환
 
 private const val FIRST_PASSAGE_SEQUENCE = 1
 private const val PAGINATION_THRESHOLD = 5
