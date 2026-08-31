@@ -32,7 +32,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 
-private const val SENTENCE_LONG_PRESS_DURATION_MILLIS = 300L
+private const val MIN_SENTENCE_PRESS_DURATION_MILLIS = 300L
 
 @Composable
 fun PassageItem(
@@ -155,29 +155,36 @@ fun PassageItem(
                         touchSlop * touchSlop
                     }
 
-                    var longPressCancelled = false
-                    withTimeoutOrNull(SENTENCE_LONG_PRESS_DURATION_MILLIS) {
-                        while (!longPressCancelled) {
-                            val pointerChange = awaitPointerEvent(
-                                pass = PointerEventPass.Initial,
-                            ).changes.firstOrNull { change -> change.id == down.id }
+                    var gestureCancelled = false
+                    var releasedAtMillis: Long? = null
 
-                            if (pointerChange == null) {
-                                longPressCancelled = true
-                                break
-                            }
-                            val movement = pointerChange.position - down.position
-                            val movedBeyondTouchSlop =
-                                movement.x * movement.x + movement.y * movement.y >
-                                    touchSlopSquared
+                    while (!gestureCancelled && releasedAtMillis == null) {
+                        val pointerChange = awaitPointerEvent(
+                            pass = PointerEventPass.Initial,
+                        ).changes.firstOrNull { change -> change.id == down.id }
 
-                            if (!pointerChange.pressed || movedBeyondTouchSlop) {
-                                longPressCancelled = true
-                            }
+                        if (pointerChange == null) {
+                            gestureCancelled = true
+                            continue
+                        }
+
+                        val movement = pointerChange.position - down.position
+                        val movedBeyondTouchSlop =
+                            movement.x * movement.x + movement.y * movement.y >
+                                touchSlopSquared
+
+                        when {
+                            movedBeyondTouchSlop -> gestureCancelled = true
+                            !pointerChange.pressed -> releasedAtMillis = pointerChange.uptimeMillis
                         }
                     }
 
-                    if (!longPressCancelled) {
+                    val pressDurationMillis = releasedAtMillis?.minus(down.uptimeMillis)
+                    if (
+                        !gestureCancelled &&
+                        pressDurationMillis != null &&
+                        pressDurationMillis >= MIN_SENTENCE_PRESS_DURATION_MILLIS
+                    ) {
                         currentOnSentenceClick(pressedSentence)
                     }
                 }
