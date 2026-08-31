@@ -15,9 +15,9 @@ class GroupRepositoryImpl(
         val response = clubApi.getUserClubs()
 
         return if (response.isSuccessful) {
-            response.body()?.toModel() ?: throw IllegalArgumentException("그룹 정보가 없네요")
+            response.body()?.toModel() ?: throw IllegalArgumentException("모임 정보가 없네요")
         } else {
-            throw IllegalArgumentException("그룹 정보를 가져오는데 실패했습니다 ${response.status}")
+            throw IllegalArgumentException("모임 정보를 가져오는데 실패했습니다 ${response.status}")
         }
     }
 
@@ -30,7 +30,7 @@ class GroupRepositoryImpl(
         )
 
         if (!response.isSuccessful) {
-            throw IllegalArgumentException("그룹을 생성하는데 실패했습니다.")
+            throw IllegalArgumentException("모임을 생성하는데 실패했습니다.")
         }
     }
 
@@ -40,7 +40,7 @@ class GroupRepositoryImpl(
         )
 
         if (!response.isSuccessful) {
-            throw IllegalArgumentException("그룹 가입에 실패했습니다 ${response.status}")
+            throw IllegalArgumentException("모임 가입에 실패했습니다 ${response.status}")
         }
     }
 
@@ -50,9 +50,9 @@ class GroupRepositoryImpl(
         )
 
         return if (response.isSuccessful) {
-            response.body()?.toModel() ?: throw IllegalArgumentException("그룹 정보가 없네요")
+            response.body()?.toModel() ?: throw IllegalArgumentException("모임 정보가 없네요")
         } else {
-            throw IllegalArgumentException("그룹 정보를 가져오는데 실패했습니다 ${response.status}")
+            throw IllegalArgumentException("모임 정보를 가져오는데 실패했습니다 ${response.status}")
         }
     }
 
@@ -60,7 +60,7 @@ class GroupRepositoryImpl(
         val response = clubApi.exitClub(clubId = groupId)
 
         if (!response.isSuccessful) {
-            throw IllegalArgumentException("그룹 탈퇴에 실패했습니다 ${response.status}")
+            throw IllegalArgumentException("모임 탈퇴에 실패했습니다 ${response.status}")
         }
     }
 }

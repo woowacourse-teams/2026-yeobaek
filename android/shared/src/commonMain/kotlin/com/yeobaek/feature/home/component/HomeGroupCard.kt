@@ -112,7 +112,7 @@ private fun GroupInfoCard(
     }
 }
 
-@Preview(showBackground = true, name = "그룹 카드")
+@Preview(showBackground = true, name = "모임 카드")
 @Composable
 private fun HomeGroupCardPreview() {
     YeobaekTheme {

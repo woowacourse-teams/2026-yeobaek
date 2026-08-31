@@ -55,7 +55,7 @@ fun DeleteGroupDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "그룹에서 나갈까요?",
+                    text = "모임에서 나갈까요?",
                     color = YeobaekTextStrong,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
