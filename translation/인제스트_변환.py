@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""번역본(마크다운) → 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
+"""번역본(마크다운) → 문장 단위 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
 
 최종 보관용 ZIP에는 표지 브리프와 검수를 통과한 표지 산출물도 함께 보관한다.
 표지 생성·검증 자체는 `표지_하네스.md`와 `표지_시안_준비.py`가 담당한다.
@@ -7,6 +7,7 @@
 번역본 형식(번역_지침.md의 [4. 구조 보존 규칙]):
   - 각 장은 `## 제목` 단독 줄로 시작
   - 문단은 빈 줄로 구분, 원문 문단과 1:1
+  - 각 문단은 공백·개행을 보존한 sentences 배열로 분리하고 재결합을 검증
 
 사용법:
   python 인제스트_변환.py 번역본.md [번역본2.md ...]
@@ -39,6 +40,148 @@ if hasattr(sys.stdout, "reconfigure"):
 # 기본값: 열 0에서 시작하는 로마숫자 장 제목 ("I. Silver Blaze" 형태)
 # 다른 형식의 책은 --chapter-re로 교체한다. 예: "^CHAPTER [IVXLCDM]+" , "^Chapter \d+"
 DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
+
+SENTENCE_TERMINATORS = ".?!。？！…"
+SENTENCE_CLOSERS = "\"'’”)]}〉》」』】〕］｝）〗〙〛｠»›"
+MAX_SENTENCE_CONTENT_BYTES = 65_535
+TITLE_PREFIX_ABBREVIATIONS = {
+    "mr.", "mrs.", "ms.", "dr.", "prof.", "rev.", "hon.",
+}
+CERTAIN_INLINE_ABBREVIATIONS = {"e.g.", "i.e."}
+AMBIGUOUS_ABBREVIATIONS = {
+    "a.m.", "p.m.", "u.s.", "u.k.", "jr.", "sr.", "st.",
+}
+
+
+def _looks_like_lowercase_hostname(value):
+    """고정 TLD 목록 없이 소문자 ASCII 호스트명 형태만 인정한다."""
+    labels = value.split(".")
+    if len(labels) < 2 or len(labels[-1]) < 2:
+        return False
+    return all(
+        label
+        and label[0].isalnum()
+        and label[-1].isalnum()
+        and all(char.isascii() and (char.islower() or char.isdigit() or char == "-")
+                for char in label)
+        for label in labels
+    )
+
+
+def _period_is_internal(text, index):
+    """마침표가 소수점·약어·이니셜 내부인지 보수적으로 판정한다."""
+    previous = text[index - 1] if index else ""
+    following = text[index + 1] if index + 1 < len(text) else ""
+    if previous.isdigit() and following.isdigit():
+        return True
+    if previous.isdigit():
+        next_nonspace = text[index + 1:].lstrip()
+        if next_nonspace and next_nonspace[0].isdigit():
+            return True
+        if following and following.isalpha():
+            return True
+    if (previous.isascii() and previous.isalpha()
+            and following.isascii() and following.isalpha()):
+        if index + 2 < len(text) and text[index + 2] == ".":
+            return True
+        domain_start = index
+        while domain_start > 0 and (
+            (text[domain_start - 1].isascii() and text[domain_start - 1].isalnum())
+            or text[domain_start - 1] in ".-"
+        ):
+            domain_start -= 1
+        domain_end = index + 1
+        while domain_end < len(text) and (
+            (text[domain_end].isascii() and text[domain_end].isalnum())
+            or text[domain_end] in ".-"
+        ):
+            domain_end += 1
+        domain = text[domain_start:domain_end].strip(".").lower()
+        raw_domain = text[domain_start:domain_end].strip(".")
+        if raw_domain == domain and _looks_like_lowercase_hostname(domain):
+            return True
+
+    token_start = index
+    while token_start > 0 and (text[token_start - 1].isalpha() or text[token_start - 1] == "."):
+        token_start -= 1
+    token = text[token_start:index + 1]
+    lowered = token.lower()
+    next_nonspace = text[index + 1:].lstrip(SENTENCE_CLOSERS).lstrip()
+    if lowered in TITLE_PREFIX_ABBREVIATIONS:
+        return bool(next_nonspace)
+    if lowered == "no.":
+        return bool(next_nonspace and next_nonspace[0].isdigit())
+    if lowered in CERTAIN_INLINE_ABBREVIATIONS:
+        return True
+    if lowered in AMBIGUOUS_ABBREVIATIONS:
+        return bool(next_nonspace and next_nonspace[0].isascii()
+                    and next_nonspace[0].isupper())
+    if lowered in {"etc.", "vs."}:
+        return bool(next_nonspace and next_nonspace[0].isascii()
+                    and next_nonspace[0].islower())
+    if re.fullmatch(r"(?:[A-Za-z]\.){2,}", token):
+        return bool(next_nonspace)
+    if re.fullmatch(r"[A-Z]\.", token):
+        return bool(next_nonspace and next_nonspace[0].isalpha())
+    return False
+
+
+def find_ambiguous_abbreviation(text):
+    """영문 대문자 앞에서 내부/문장끝을 확정할 수 없는 약어를 찾는다."""
+    alternatives = "|".join(
+        re.escape(abbreviation)
+        for abbreviation in sorted(AMBIGUOUS_ABBREVIATIONS, key=len, reverse=True)
+    )
+    pattern = re.compile(rf"(?i)(?<![A-Za-z])(?P<abbr>{alternatives})")
+    for match in pattern.finditer(text):
+        boundary = match.end()
+        while boundary < len(text) and text[boundary] in SENTENCE_CLOSERS:
+            boundary += 1
+        whitespace_start = boundary
+        while boundary < len(text) and text[boundary].isspace():
+            boundary += 1
+        if (boundary > whitespace_start and boundary < len(text)
+                and text[boundary].isascii() and text[boundary].isupper()):
+            return match.group("abbr")
+    return None
+
+
+def split_sentences(text):
+    """문단을 문장으로 나누되 모든 문자를 정확히 한 문장에 보존한다.
+
+    종결부호 뒤의 닫는 따옴표/괄호와 다음 문장 전 공백·개행은 앞 문장에
+    포함한다. 확실한 경계가 아니면 나머지 전체를 마지막 문장으로 둔다.
+    """
+    if not text:
+        return [text]
+
+    sentences = []
+    start = 0
+    index = 0
+    while index < len(text):
+        if text[index] not in SENTENCE_TERMINATORS:
+            index += 1
+            continue
+        if text[index] == "." and _period_is_internal(text, index):
+            index += 1
+            continue
+
+        boundary = index + 1
+        while boundary < len(text) and text[boundary] in SENTENCE_TERMINATORS:
+            boundary += 1
+        while boundary < len(text) and text[boundary] in SENTENCE_CLOSERS:
+            boundary += 1
+        while boundary < len(text) and text[boundary].isspace():
+            boundary += 1
+
+        if boundary < len(text):
+            sentences.append(text[start:boundary])
+            start = boundary
+        index = boundary
+
+    if start < len(text) or not sentences:
+        sentences.append(text[start:])
+    return sentences
 
 
 def parse_original(path, chapter_re):
@@ -79,7 +222,7 @@ def parse_original(path, chapter_re):
 
 
 def parse_translation(paths):
-    """번역본에서 chapters 배열을 만든다. → [{"title", "passages": [{"content"}]}]"""
+    """번역본에서 chapters 배열을 만든다. → passages[].sentences[].content"""
     chapters = []
     current = None
     for path in paths:
@@ -92,33 +235,76 @@ def parse_translation(paths):
                 current = {"title": ln[3:].strip(), "passages": []}
                 chapters.append(current)
             elif ln.strip():
-                block.append(ln.rstrip())
+                block.append(ln)
             elif block:
                 if current is None:
                     sys.exit(f"[오류] {path.name}:{lineno} — 장 제목(## ...) 없이 본문이 시작됩니다: "
                              f"{block[0][:40]}...")
-                current["passages"].append({"content": "\n".join(block)})
+                paragraph = "\n".join(block)
+                ambiguous = find_ambiguous_abbreviation(paragraph)
+                if ambiguous:
+                    sys.exit(
+                        f"[오류] {path.name}:{lineno} — 약어 '{ambiguous}' 뒤의 문장 경계가 "
+                        "모호합니다. 약어를 풀어 쓰거나 문장을 다시 표현해 경계를 "
+                        "명확히 하세요."
+                    )
+                sentence_contents = split_sentences(paragraph)
+                if "".join(sentence_contents) != paragraph:
+                    raise AssertionError("문장 분리 후 재결합한 내용이 원래 문단과 다릅니다.")
+                current["passages"].append({
+                    "sentences": [{"content": sentence} for sentence in sentence_contents]
+                })
                 block = []
     return chapters
 
 
+def _check_len(errors, label, value):
+    if not (1 <= len(value) <= 100):
+        errors.append(f"{label}이(가) 1~100자 범위를 벗어남 ({len(value)}자): {value[:50]}")
+
+
+def validate_chapters(chapters):
+    """full/partial에서 공통으로 쓰는 장·문단·문장 구조 검증."""
+    errors = []
+    if not chapters:
+        errors.append("chapters가 비어 있음")
+    for i, ch in enumerate(chapters, 1):
+        _check_len(errors, f"{i}번째 목차 제목", ch.get("title", ""))
+        passages = ch.get("passages", [])
+        if not passages:
+            errors.append(f"{i}번째 목차 '{ch.get('title', '')}'에 본문이 없음")
+        for j, passage in enumerate(passages, 1):
+            sentences = passage.get("sentences", [])
+            if not sentences:
+                errors.append(f"{i}번째 목차 {j}번째 문단의 sentences가 비어 있음")
+            for k, sentence in enumerate(sentences, 1):
+                content = sentence.get("content", "") if isinstance(sentence, dict) else ""
+                if not content.strip():
+                    errors.append(f"{i}번째 목차 {j}번째 문단 {k}번째 문장이 공백임")
+                    continue
+                content_bytes = len(content.encode("utf-8"))
+                if content_bytes > MAX_SENTENCE_CONTENT_BYTES:
+                    errors.append(
+                        f"{i}번째 목차 {j}번째 문단 {k}번째 문장이 "
+                        f"UTF-8 {MAX_SENTENCE_CONTENT_BYTES:,}바이트를 초과함 "
+                        f"({content_bytes}바이트)"
+                    )
+    return errors
+
+
 def validate(book):
-    """인제스트 규격(인제스트_지침.md 2장) 검증. → 오류 메시지 목록"""
+    """인제스트 규격(docs/인제스트_가이드.md) 검증. → 오류 메시지 목록"""
     errors = []
 
-    def check_len(label, value):
-        if not (1 <= len(value) <= 100):
-            errors.append(f"{label}이(가) 1~100자 범위를 벗어남 ({len(value)}자): {value[:50]}")
-
-    check_len("도서 제목", book.get("title", ""))
-    check_len("출판사", book.get("publisher", ""))
+    _check_len(errors, "도서 제목", book.get("title", ""))
+    _check_len(errors, "출판사", book.get("publisher", ""))
     if not book.get("authors"):
         errors.append("authors가 비어 있음")
     for i, a in enumerate(book.get("authors", []), 1):
         if not isinstance(a, dict):
             errors.append(f"{i}번째 작가 정보가 객체가 아님")
             continue
-        check_len(f"{i}번째 작가명", a.get("name", ""))
+        _check_len(errors, f"{i}번째 작가명", a.get("name", ""))
         isni = str(a.get("isni", "")).strip()
         if not isni:
             errors.append(f"{i}번째 작가 ISNI가 비어 있음: {a.get('name', '')}")
@@ -138,15 +324,7 @@ def validate(book):
                 actual = 10 if normalized_isni[-1] == "X" else int(normalized_isni[-1])
                 if actual != expected:
                     errors.append(f"{i}번째 작가 ISNI 체크디짓 불일치: {isni}")
-    if not book.get("chapters"):
-        errors.append("chapters가 비어 있음")
-    for i, ch in enumerate(book.get("chapters", []), 1):
-        check_len(f"{i}번째 목차 제목", ch["title"])
-        if not ch["passages"]:
-            errors.append(f"{i}번째 목차 '{ch['title']}'에 본문이 없음")
-        for j, p in enumerate(ch["passages"], 1):
-            if not p["content"].strip():
-                errors.append(f"{i}번째 목차 {j}번째 문단이 공백임")
+    errors.extend(validate_chapters(book.get("chapters", [])))
     return errors
 
 
@@ -343,11 +521,8 @@ def main():
     book = {**meta, "chapters": chapters}
 
     if args.partial and not args.meta:
-        # 메타데이터 없이 진행 중 검증: 구조(장·문단)만 확인한다
-        errors = []
-        for i, ch in enumerate(chapters, 1):
-            if not ch["passages"]:
-                errors.append(f"{i}번째 목차 '{ch['title']}'에 본문이 없음")
+        # 메타데이터 없이 진행 중 검증: 메타데이터만 생략하고 본문 구조는 모두 검사한다.
+        errors = validate_chapters(chapters)
     else:
         errors = validate(book)
     if errors:
@@ -368,7 +543,13 @@ def main():
         counts_ok = verify_counts(original, chapters, partial=args.partial)
 
     total = sum(len(c["passages"]) for c in chapters)
-    print(f"\n장 {len(chapters)}개, 문단 총 {total}개")
+    sentence_total = sum(
+        len(p["sentences"])
+        for chapter in chapters
+        for p in chapter["passages"]
+    )
+    print(f"\n장 {len(chapters)}개, 문단 총 {total}개, 문장 총 {sentence_total}개")
+    print(f"문장 재결합 검증 통과: 문단 {total}개")
 
     if args.partial:
         if errors or not counts_ok:

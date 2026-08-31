@@ -10,7 +10,216 @@ import zlib
 from pathlib import Path
 
 import 표지_시안_준비 as cover
-from 인제스트_변환 import create_archive
+from 인제스트_변환 import (
+    MAX_SENTENCE_CONTENT_BYTES,
+    create_archive,
+    parse_translation,
+    split_sentences,
+    validate,
+    validate_chapters,
+)
+
+
+class SentenceIngestTests(unittest.TestCase):
+    @staticmethod
+    def _valid_book(passages):
+        return {
+            "title": "테스트 책",
+            "publisher": "테스트 출판사",
+            "authors": [{"name": "테스트 작가", "isni": "0000000121441305"}],
+            "chapters": [{"title": "첫째", "passages": passages}],
+        }
+
+    def test_parse_translation_splits_sentences_into_new_json_structure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            translation = Path(tmp) / "번역.md"
+            translation.write_text("## 첫째\n\n첫 문장이다. 둘째인가? 맞다!\n", encoding="utf-8")
+
+            chapters = parse_translation([translation])
+
+            passage = chapters[0]["passages"][0]
+            self.assertNotIn("content", passage)
+            self.assertEqual(
+                passage["sentences"],
+                [
+                    {"content": "첫 문장이다. "},
+                    {"content": "둘째인가? "},
+                    {"content": "맞다!"},
+                ],
+            )
+
+    def test_closing_quote_and_trailing_whitespace_stay_with_previous_sentence(self):
+        paragraph = '그가 말했다.\"  다음이다!\u201d\n\t끝이다.'
+        sentences = split_sentences(paragraph)
+        self.assertEqual(sentences, ['그가 말했다.\"  ', '다음이다!\u201d\n\t', '끝이다.'])
+        self.assertEqual("".join(sentences), paragraph)
+
+    def test_decimal_abbreviation_and_initial_are_not_split(self):
+        paragraph = "Dr. Kim은 3.14를 썼다. A. Smith도 i.e. 예시를 들었다. 끝."
+        sentences = split_sentences(paragraph)
+        self.assertEqual(
+            sentences,
+            ["Dr. Kim은 3.14를 썼다. ", "A. Smith도 i.e. 예시를 들었다. ", "끝."],
+        )
+        self.assertEqual("".join(sentences), paragraph)
+
+    def test_contextual_abbreviations_initials_dates_and_korean_boundaries(self):
+        paragraph = (
+            "No. 5는 J. R. R. Tolkien의 책이다. "
+            "날짜는 2026. 8. 31. 다음 문장이다. "
+            "etc. 다음 문장.둘째 문장."
+        )
+        sentences = split_sentences(paragraph)
+        self.assertEqual(
+            sentences,
+            [
+                "No. 5는 J. R. R. Tolkien의 책이다. ",
+                "날짜는 2026. 8. 31. ",
+                "다음 문장이다. ",
+                "etc. ",
+                "다음 문장.",
+                "둘째 문장.",
+            ],
+        )
+        self.assertEqual(split_sentences("A. 김을 만났다."), ["A. 김을 만났다."])
+        self.assertEqual(split_sentences("First.Second."), ["First.", "Second."])
+        self.assertEqual(
+            split_sentences("example.com을 봤다. 끝."),
+            ["example.com을 봤다. ", "끝."],
+        )
+        self.assertEqual(
+            split_sentences("example.info를 봤다. 끝."),
+            ["example.info를 봤다. ", "끝."],
+        )
+        self.assertEqual("".join(sentences), paragraph)
+
+    def test_ambiguous_abbreviations_split_before_korean_new_sentence(self):
+        cases = {
+            "5 p.m. 그는 떠났다.": ["5 p.m. ", "그는 떠났다."],
+            "약칭은 U.S. 다음 문장이다.": ["약칭은 U.S. ", "다음 문장이다."],
+            "그는 John Jr. 다음 문장이다.": ["그는 John Jr. ", "다음 문장이다."],
+        }
+        for paragraph, expected in cases.items():
+            with self.subTest(paragraph=paragraph):
+                sentences = split_sentences(paragraph)
+                self.assertEqual(sentences, expected)
+                self.assertEqual("".join(sentences), paragraph)
+
+    def test_guillemets_and_east_asian_closers_stay_with_previous_sentence(self):
+        paragraph = "«첫 문장.» 다음 문장.› 셋째 문장.】 넷째.） 끝."
+        sentences = split_sentences(paragraph)
+        self.assertEqual(
+            sentences,
+            [
+                "«첫 문장.» ",
+                "다음 문장.› ",
+                "셋째 문장.】 ",
+                "넷째.） ",
+                "끝.",
+            ],
+        )
+        self.assertEqual("".join(sentences), paragraph)
+
+    def test_newlines_are_preserved_when_sentences_are_rejoined(self):
+        paragraph = "첫 문장이다.\n둘째 문장이다.\n종결부호 없는 나머지"
+        sentences = split_sentences(paragraph)
+        self.assertEqual(sentences[0], "첫 문장이다.\n")
+        self.assertEqual("".join(sentences), paragraph)
+
+    def test_parse_translation_preserves_internal_line_end_spaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            translation = Path(tmp) / "번역.md"
+            translation.write_text(
+                "## 첫째\n\n첫 문장.  \n둘째 문장.\t\n",
+                encoding="utf-8",
+            )
+
+            chapters = parse_translation([translation])
+
+            contents = [
+                sentence["content"]
+                for sentence in chapters[0]["passages"][0]["sentences"]
+            ]
+            self.assertEqual("".join(contents), "첫 문장.  \n둘째 문장.\t")
+
+    def test_validate_rejects_empty_and_oversized_sentences(self):
+        passages = [
+            {"sentences": []},
+            {"sentences": [{"content": "   "}]},
+            {"sentences": [{"content": "a" * (MAX_SENTENCE_CONTENT_BYTES + 1)}]},
+        ]
+        errors = validate(self._valid_book(passages))
+        self.assertTrue(any("sentences가 비어 있음" in error for error in errors))
+        self.assertTrue(any("문장이 공백임" in error for error in errors))
+        self.assertTrue(any("65,535바이트를 초과" in error for error in errors))
+
+    def test_shared_chapter_validation_checks_partial_structure_contract(self):
+        self.assertIn("chapters가 비어 있음", validate_chapters([]))
+        errors = validate_chapters([
+            {"title": "", "passages": []},
+            {"title": "가" * 101, "passages": [{"sentences": []}]},
+        ])
+        self.assertTrue(any("1번째 목차 제목" in error for error in errors))
+        self.assertTrue(any("본문이 없음" in error for error in errors))
+        self.assertTrue(any("2번째 목차 제목" in error for error in errors))
+        self.assertTrue(any("sentences가 비어 있음" in error for error in errors))
+
+    def test_partial_cli_rejects_empty_translation_and_invalid_titles(self):
+        cases = {
+            "빈 번역": "",
+            "빈 제목": "## \n\n본문.\n",
+            "101자 제목": f"## {'가' * 101}\n\n본문.\n",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, source in cases.items():
+                with self.subTest(name=name):
+                    translation = Path(tmp) / f"{name}.md"
+                    translation.write_text(source, encoding="utf-8")
+                    completed = subprocess.run(
+                        [
+                            sys.executable,
+                            str(Path(__file__).with_name("인제스트_변환.py")),
+                            str(translation),
+                            "--partial",
+                            "--no-verify",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        check=False,
+                    )
+                    combined_output = completed.stdout + completed.stderr
+                    self.assertNotEqual(completed.returncode, 0, combined_output)
+                    self.assertIn("부분 검증 실패", combined_output)
+
+    def test_parse_translation_blocks_ambiguous_sentence_end_abbreviations(self):
+        ambiguous_sources = [
+            "## 첫째\n\nU.S. Army를 다뤘다.\n",
+            "## 첫째\n\n회의는 p.m. Monday에 열린다.\n",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            for index, source in enumerate(ambiguous_sources):
+                with self.subTest(source=source):
+                    translation = Path(tmp) / f"모호-{index}.md"
+                    translation.write_text(source, encoding="utf-8")
+                    with self.assertRaises(SystemExit) as raised:
+                        parse_translation([translation])
+                    message = str(raised.exception)
+                    self.assertIn("문장 경계가 모호", message)
+                    self.assertIn("약어를 풀어 쓰거나 문장을 다시 표현", message)
+
+    def test_parse_translation_allows_certain_internal_abbreviations(self):
+        paragraph = "Dr. Kim은 No. 5와 e.g. 예시, i.e. 설명, J. R. R. 책을 봤다."
+        with tempfile.TemporaryDirectory() as tmp:
+            translation = Path(tmp) / "확실.md"
+            translation.write_text(f"## 첫째\n\n{paragraph}\n", encoding="utf-8")
+            chapters = parse_translation([translation])
+            contents = [
+                sentence["content"]
+                for sentence in chapters[0]["passages"][0]["sentences"]
+            ]
+            self.assertEqual("".join(contents), paragraph)
 
 
 class CreateArchiveCoverTests(unittest.TestCase):
@@ -187,7 +396,13 @@ class CreateArchiveCoverTests(unittest.TestCase):
 
             combined_output = completed.stdout + completed.stderr
             self.assertEqual(completed.returncode, 0, combined_output)
-            self.assertTrue((book_dir / "ingest.json").is_file())
+            ingest_path = book_dir / "ingest.json"
+            self.assertTrue(ingest_path.is_file())
+            ingest = json.loads(ingest_path.read_text(encoding="utf-8"))
+            passage = ingest["chapters"][0]["passages"][0]
+            self.assertEqual(passage, {"sentences": [{"content": "첫 문단."}]})
+            self.assertIn("문장 총 1개", completed.stdout)
+            self.assertIn("문장 재결합 검증 통과", completed.stdout)
             zip_path = book_dir / "표지_있는_책.zip"
             self.assertTrue(zip_path.is_file())
             with zipfile.ZipFile(zip_path) as archive:
