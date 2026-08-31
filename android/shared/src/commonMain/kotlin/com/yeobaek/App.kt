@@ -171,7 +171,7 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
-                LaunchedEffect(Unit) {
+                LaunchedEffect(route.groupId) {
                     detailViewModel.initGroupData(groupId = route.groupId)
                 }
 
