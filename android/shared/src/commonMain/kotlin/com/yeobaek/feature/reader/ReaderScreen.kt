@@ -129,18 +129,18 @@ fun ReaderScreen(
     LaunchedEffect(uiState.fontSize) {
         val passagePosition = fontSizePassagePosition
         if (passagePosition != null) {
-            val anchorIndex = uiState.passages.indexOfFirst { passage ->
+            val passageIndex = uiState.passages.indexOfFirst { passage ->
                 passage.passageId == passagePosition.passageId
             }
-            if (anchorIndex >= 0) {
+            if (passageIndex >= 0) {
                 // 먼저 항목을 화면에 배치해야 변경된 글자 크기의 실제 높이를 알 수 있다.
-                listState.scrollToItem(anchorIndex)
+                listState.scrollToItem(passageIndex)
                 val itemSize = listState.layoutInfo.visibleItemsInfo
-                    .firstOrNull { item -> item.index == anchorIndex }
+                    .firstOrNull { item -> item.index == passageIndex }
                     ?.size
                     ?: 0
                 listState.scrollToItem(
-                    index = anchorIndex,
+                    index = passageIndex,
                     // 새 항목 높이보다 큰 예전 오프셋은 유효한 범위 안으로 제한한다.
                     scrollOffset = passagePosition.scrollOffset.coerceAtMost(
                         maximumValue = (itemSize - 1).coerceAtLeast(0),
