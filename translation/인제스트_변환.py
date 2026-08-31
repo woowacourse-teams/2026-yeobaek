@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """번역본(마크다운) → 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
 
+최종 보관용 ZIP에는 표지 브리프와 검수를 통과한 표지 산출물도 함께 보관한다.
+표지 생성·검증 자체는 `표지_하네스.md`와 `표지_시안_준비.py`가 담당한다.
+
 번역본 형식(번역_지침.md의 [4. 구조 보존 규칙]):
   - 각 장은 `## 제목` 단독 줄로 시작
   - 문단은 빈 줄로 구분, 원문 문단과 1:1
@@ -24,6 +27,7 @@
 import argparse
 import json
 import re
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -194,14 +198,28 @@ def list_chapters(original, chapter_re):
 
 
 def create_archive(zip_output, book_dir, ingest_path, meta_path):
-    """최종 보관용 ZIP을 만든다. 원문 입력 파일은 포함하지 않는다."""
+    """최종 보관용 ZIP을 만든다. 원문과 표지 작업 파일은 포함하지 않는다."""
     book_dir = book_dir.resolve()
     zip_output = zip_output.resolve()
+    cover_dir = book_dir / "표지"
+    required_cover_files = [
+        book_dir / "표지_브리프.json",
+        cover_dir / "시안_목록.json",
+        cover_dir / "표지_검수.json",
+        *(cover_dir / f"{variant_id}.png" for variant_id in "ABCDEFG"),
+        *(cover_dir / "프롬프트" / f"{variant_id}.txt" for variant_id in "ABCDEFG"),
+    ]
+    missing_cover_files = [path for path in required_cover_files if not path.is_file()]
+    if missing_cover_files:
+        missing = "\n".join(f"  - {path}" for path in missing_cover_files)
+        raise FileNotFoundError(f"필수 표지 산출물이 없어 ZIP을 만들 수 없습니다:\n{missing}")
+
     fixed_files = [
         ingest_path,
         meta_path,
         book_dir / "장_정보.md",
         book_dir / "번역_공통_가이드.md",
+        *required_cover_files,
     ]
     output_dirs = [
         book_dir / "번역본",
@@ -242,6 +260,40 @@ def default_archive_name(title, fallback):
     if not stem:
         stem = "book"
     return f"{stem}.zip"
+
+
+def validate_cover_artifacts(meta_path):
+    """현재 메타데이터에 대응하는 표지 A~G와 시각 검수 기록을 검증한다."""
+    validator = Path(__file__).resolve().with_name("표지_시안_준비.py")
+    book_dir = meta_path.resolve().parent
+    if not validator.is_file():
+        print(f"[표지 시안 검증 실패]\n  - 표지 검증 스크립트가 없습니다: {validator}")
+        return False
+
+    command = [
+        sys.executable,
+        str(validator),
+        "validate",
+        "--meta",
+        str(meta_path.resolve()),
+        "--brief",
+        str(book_dir / "표지_브리프.json"),
+        "--output-dir",
+        str(book_dir / "표지"),
+    ]
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if completed.stdout:
+        print(completed.stdout, end="" if completed.stdout.endswith("\n") else "\n")
+    if completed.stderr:
+        print(completed.stderr, file=sys.stderr, end="" if completed.stderr.endswith("\n") else "\n")
+    return completed.returncode == 0
 
 
 def main():
@@ -326,6 +378,9 @@ def main():
 
     if (errors or not counts_ok) and not args.force:
         sys.exit("\n검증 실패 — JSON을 출력하지 않았습니다. 무시하고 출력하려면 --force")
+
+    if not validate_cover_artifacts(args.meta):
+        sys.exit("\n표지 검증 실패 — ingest.json과 ZIP을 출력하지 않았습니다.")
 
     output = args.output or args.meta.parent / "ingest.json"
     output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
