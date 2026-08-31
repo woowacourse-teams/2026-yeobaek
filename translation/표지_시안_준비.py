@@ -84,6 +84,13 @@ EXPECTED_IDS = tuple(item[0] for item in VARIANTS)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_DECOMPRESSED_PNG_BYTES = 512 * 1024 * 1024
 
+TEXT_BEARING_MOTIF_SAFETY = (
+    "문자 유발 소재 안전 조건: 어떤 언어권의 소재든 편지, 문서, 책, 신문, 간판처럼 문자 표면을 "
+    "포함할 수 있는 소재를 사용하는 경우에는 형태와 질감만 표현하고 모든 표면을 완전히 무문자로 "
+    "유지한다. 아래에 지정한 정확한 제목과 작가명만 "
+    "예외이며, 그 밖의 필기, 서명, 활자, 숫자, 기호, 유사 문자, 가짜 텍스트를 어디에도 넣지 않는다."
+)
+
 
 def _write_utf8(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -191,6 +198,7 @@ def build_prompt(meta: dict[str, Any], brief: dict[str, Any], variant: tuple[str
         f"스타일 지시: {style}\n"
         "내용과 정서를 분석해 핵심 장면, 상징, 인물 또는 시그니처 오브제를 이 스타일에 맞게 새롭게 "
         "해석한다. 기존 출간 표지나 특정 작가의 작품을 모방하지 말고 독창적인 디자인으로 제작한다.\n\n"
+        f"{TEXT_BEARING_MOTIF_SAFETY}\n\n"
         "표지에 인쇄할 텍스트는 다음 두 항목뿐이며, 따옴표 안 문자열을 한 글자도 바꾸지 말고 정확히 쓴다:\n"
         f"- 제목: {_quoted(title)}\n"
         f"- 작가명: {_quoted(author_text)}\n"

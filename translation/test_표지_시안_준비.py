@@ -163,6 +163,27 @@ class CoverPreparationTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("허용되지 않은 프롬프트", output)
 
+    def test_all_prompts_include_language_independent_conditional_no_text_safety(self) -> None:
+        for motifs in (
+            ["낡은 시계", "안개 낀 역"],
+            ["낡은 편지지"],
+            ["una carta sellada"],
+            ["письмо на столе"],
+            ["手紙"],
+        ):
+            with self.subTest(motifs=motifs):
+                self.brief["visualMotifs"] = motifs
+                prompts, _manifest = cover.expected_outputs(self.meta, self.brief)
+                self.assertEqual(set(prompts), set(cover.EXPECTED_IDS))
+                for prompt in prompts.values():
+                    self.assertIn(cover.TEXT_BEARING_MOTIF_SAFETY, prompt)
+                    self.assertIn("문자 표면을 포함할 수 있는 소재를 사용하는 경우", prompt)
+                    self.assertIn("정확한 제목과 작가명만 예외", prompt)
+                    self.assertIn(
+                        "필기, 서명, 활자, 숫자, 기호, 유사 문자, 가짜 텍스트",
+                        prompt,
+                    )
+
     def test_validate_success_with_manual_review(self) -> None:
         self._prepare()
         self._write_all_images()

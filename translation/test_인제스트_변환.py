@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import re
 import struct
 import subprocess
 import sys
@@ -13,11 +14,152 @@ import 표지_시안_준비 as cover
 from 인제스트_변환 import (
     MAX_SENTENCE_CONTENT_BYTES,
     create_archive,
+    estimate_tokens,
+    parse_original,
     parse_translation,
+    plan_chunks,
+    plan_work_assignments,
     split_sentences,
     validate,
     validate_chapters,
+    validate_translation_contract,
 )
+
+
+class ChapterWorkloadTests(unittest.TestCase):
+    def test_token_estimate_uses_language_independent_conservative_heuristic(self):
+        self.assertEqual(estimate_tokens("abcd efgh"), 2)
+        self.assertEqual(estimate_tokens("abcde"), 2)
+        self.assertEqual(estimate_tokens("a a a a"), 4)
+        self.assertEqual(estimate_tokens("가 나"), 2)
+        self.assertEqual(estimate_tokens("abcd 가나다"), 4)
+
+    def test_chunk_plan_keeps_exact_boundaries_together(self):
+        metrics = [
+            {"characters": 10, "estimatedTokens": 3},
+            {"characters": 10, "estimatedTokens": 3},
+            {"characters": 10, "estimatedTokens": 3},
+        ]
+        chunks = plan_chunks(metrics, max_paragraphs=2, max_characters=20, max_tokens=6)
+        self.assertEqual([(c["paragraphStart"], c["paragraphEnd"]) for c in chunks],
+                         [(1, 2), (3, 3)])
+
+    def test_character_and_token_limits_each_trigger_a_split(self):
+        metrics = [
+            {"characters": 6, "estimatedTokens": 2},
+            {"characters": 5, "estimatedTokens": 2},
+        ]
+        self.assertEqual(
+            len(plan_chunks(metrics, max_paragraphs=99, max_characters=10, max_tokens=99)),
+            2,
+        )
+        token_metrics = [
+            {"characters": 1, "estimatedTokens": 3},
+            {"characters": 1, "estimatedTokens": 3},
+        ]
+        self.assertEqual(
+            len(plan_chunks(token_metrics, max_paragraphs=99, max_characters=99,
+                            max_tokens=5)),
+            2,
+        )
+
+    def test_single_oversized_paragraph_is_a_standalone_chunk(self):
+        metrics = [
+            {"characters": 100, "estimatedTokens": 100},
+            {"characters": 1, "estimatedTokens": 1},
+        ]
+        chunks = plan_chunks(metrics, max_paragraphs=2, max_characters=10, max_tokens=10)
+        self.assertEqual([(c["paragraphStart"], c["paragraphEnd"]) for c in chunks],
+                         [(1, 1), (2, 2)])
+        self.assertEqual(chunks[0]["characters"], 100)
+
+    def test_chunk_totals_equal_source_metrics(self):
+        metrics = [
+            {"characters": 7, "estimatedTokens": 2},
+            {"characters": 11, "estimatedTokens": 4},
+            {"characters": 13, "estimatedTokens": 5},
+        ]
+        chunks = plan_chunks(metrics, max_paragraphs=2, max_characters=20, max_tokens=7)
+        self.assertEqual(sum(c["paragraphs"] for c in chunks), len(metrics))
+        self.assertEqual(sum(c["characters"] for c in chunks),
+                         sum(m["characters"] for m in metrics))
+        self.assertEqual(sum(c["estimatedTokens"] for c in chunks),
+                         sum(m["estimatedTokens"] for m in metrics))
+
+    def test_work_assignments_pack_short_chapters_without_exceeding_limits(self):
+        chapters = [
+            {
+                "title": f"CHAPTER {index}",
+                "metrics": {
+                    "paragraphs": [
+                        {"characters": 6, "estimatedTokens": 2},
+                        {"characters": 4, "estimatedTokens": 2},
+                    ]
+                },
+            }
+            for index in range(1, 4)
+        ]
+
+        assignments = plan_work_assignments(
+            chapters,
+            max_paragraphs=4,
+            max_characters=20,
+            max_tokens=8,
+        )
+
+        self.assertEqual(len(assignments), 2)
+        self.assertEqual(
+            [[item["chapterIndex"] for item in assignment["items"]]
+             for assignment in assignments],
+            [[1, 2], [3]],
+        )
+        self.assertTrue(all(assignment["paragraphs"] <= 4 for assignment in assignments))
+        self.assertTrue(all(assignment["characters"] <= 20 for assignment in assignments))
+        self.assertTrue(all(assignment["estimatedTokens"] <= 8
+                            for assignment in assignments))
+
+    def test_parse_original_keeps_legacy_fields_and_custom_chapter_regex(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "원문.txt"
+            original.write_text(
+                "*** START OF TEST ***\n"
+                "CHAPITRE UN\n\nBonjour monde.\n\nDeuxième paragraphe.\n"
+                "CHAPITRE DEUX\n\nFin.\n"
+                "*** END OF TEST ***\n",
+                encoding="utf-8",
+            )
+            chapters = parse_original(original, re.compile(r"^CHAPITRE "))
+        self.assertEqual([chapter["count"] for chapter in chapters], [2, 1])
+        self.assertTrue({"title", "count", "start", "end"}.issubset(chapters[0]))
+        self.assertEqual(chapters[0]["metrics"]["characters"],
+                         sum(p["characters"] for p in chapters[0]["metrics"]["paragraphs"]))
+        self.assertEqual(chapters[0]["metrics"]["estimatedTokens"],
+                         sum(p["estimatedTokens"]
+                             for p in chapters[0]["metrics"]["paragraphs"]))
+
+    def test_list_chapters_cli_accepts_custom_limits_and_regex(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            original = Path(tmp) / "original.txt"
+            original.write_text("SECTION A\n\nOne.\n\nTwo.\n", encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("인제스트_변환.py")),
+                    "--list-chapters",
+                    "--original", str(original),
+                    "--chapter-re", r"^SECTION ",
+                    "--max-chunk-paragraphs", "1",
+                    "--max-chunk-characters", "100",
+                    "--max-chunk-estimated-tokens", "100",
+                ],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                check=False,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("권장 청크: 1–1문단", completed.stdout)
+        self.assertIn("2–2문단", completed.stdout)
+        self.assertIn("권장 작업 묶음", completed.stdout)
+        self.assertIn("ASCII 연속 구간별 4자≈1토큰", completed.stdout)
 
 
 class SentenceIngestTests(unittest.TestCase):
@@ -264,6 +406,20 @@ class CreateArchiveCoverTests(unittest.TestCase):
         )
         translation.write_text("## I. 첫째\n\n첫 문단.\n", encoding="utf-8")
         meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+        (book_dir / "장_정보.md").write_text(
+            "# 장 정보\n\n"
+            "원문 언어: en — 영어\n"
+            "언어 확인: 출처 선언 en / 실제 텍스트 식별 en / 일치\n",
+            encoding="utf-8",
+        )
+        (book_dir / "번역_공통_가이드.md").write_text(
+            "# 번역 공통 가이드\n\n"
+            "원문 언어: en — 영어\n"
+            "번역 경로: en 원문 → 한국어 직접 번역\n\n"
+            "## 공통 코어\n\n공통 원칙.\n\n"
+            "## 원문 언어별 프로필\n\n영어 프로필.\n",
+            encoding="utf-8",
+        )
         return original, translation, meta_path, meta
 
     @staticmethod
@@ -342,6 +498,67 @@ class CreateArchiveCoverTests(unittest.TestCase):
             self.assertIn("표지 시안 검증 실패", combined_output)
             self.assertFalse((book_dir / "ingest.json").exists())
             self.assertFalse((book_dir / "표지_없는_책.zip").exists())
+
+    def test_final_contract_rejects_missing_language_profile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp) / "언어계약없음"
+            book_dir.mkdir()
+            _original, _translation, _meta_path, _meta = self._write_book_inputs(
+                book_dir, "언어 계약 없는 책"
+            )
+            (book_dir / "번역_공통_가이드.md").write_text(
+                "원문 언어: fr — 프랑스어\n",
+                encoding="utf-8",
+            )
+
+            errors = validate_translation_contract(book_dir)
+
+            self.assertTrue(any("원문 언어 태그가 일치하지 않음" in error for error in errors))
+            self.assertTrue(any("## 공통 코어" in error for error in errors))
+            self.assertTrue(any("## 원문 언어별 프로필" in error for error in errors))
+            self.assertTrue(any("번역 경로" in error for error in errors))
+
+    def test_final_contract_rejects_pivot_language_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp) / "경로불일치"
+            book_dir.mkdir()
+            self._write_book_inputs(book_dir, "경로 불일치 책")
+            guide_path = book_dir / "번역_공통_가이드.md"
+            guide_path.write_text(
+                guide_path.read_text(encoding="utf-8").replace(
+                    "번역 경로: en 원문",
+                    "번역 경로: fr 원문",
+                ),
+                encoding="utf-8",
+            )
+
+            errors = validate_translation_contract(book_dir)
+
+            self.assertTrue(any("번역 경로의 원문 언어 태그" in error for error in errors))
+
+    def test_final_contract_accepts_extended_and_private_use_bcp47_tags(self):
+        for language_tag in ("en-US-u-va-posix", "x-klingon", "qaa-Latn-x-classic"):
+            with self.subTest(language_tag=language_tag), tempfile.TemporaryDirectory() as tmp:
+                book_dir = Path(tmp) / "확장태그"
+                book_dir.mkdir()
+                self._write_book_inputs(book_dir, "확장 태그 책")
+                chapter_path = book_dir / "장_정보.md"
+                chapter_path.write_text(
+                    chapter_path.read_text(encoding="utf-8").replace(
+                        "원문 언어: en — 영어",
+                        f"원문 언어: {language_tag} — 시험 언어",
+                    ),
+                    encoding="utf-8",
+                )
+                guide_path = book_dir / "번역_공통_가이드.md"
+                guide_path.write_text(
+                    guide_path.read_text(encoding="utf-8")
+                    .replace("원문 언어: en — 영어", f"원문 언어: {language_tag} — 시험 언어")
+                    .replace("번역 경로: en 원문", f"번역 경로: {language_tag} 원문"),
+                    encoding="utf-8",
+                )
+
+                self.assertEqual(validate_translation_contract(book_dir), [])
 
     def test_final_conversion_validates_covers_and_archives_only_canonical_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
