@@ -202,15 +202,22 @@ fun ReaderScreen(
     ) {
         val passagePosition = previousLoadPassagePosition
         if (passagePosition != null && !uiState.isLoadingPrevious) {
-            val anchorIndex = uiState.passages.indexOfFirst { passage ->
-                passage.passageId == passagePosition.passageId
+            val shouldRestorePosition =
+                !uiState.isMovingToPassage &&
+                    !uiState.isProgressDragging
+
+            if (shouldRestorePosition) {
+                val passageIndex = uiState.passages.indexOfFirst { passage ->
+                    passage.passageId == passagePosition.passageId
+                }
+                if (passageIndex >= 0) {
+                    listState.scrollToItem(
+                        index = passageIndex,
+                        scrollOffset = passagePosition.scrollOffset,
+                    )
+                }
             }
-            if (anchorIndex >= 0) {
-                listState.scrollToItem(
-                    index = anchorIndex,
-                    scrollOffset = passagePosition.scrollOffset,
-                )
-            }
+
             previousLoadPassagePosition = null
         }
     }
