@@ -7,11 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.repository.BookRepository
@@ -820,7 +820,7 @@ class ReaderViewModel(
         passageSequence: Int? = uiState.currentSequence.takeIf { it > 0 },
         itemCount: Int? = null,
     ) = CrashContext(
-        screen = CrashScreen.READER,
+        screen = TrackedScreen.READER,
         operation = operation,
         bookId = currentBookId,
         chapterSequence = chapterSequence ?: chapterSequenceFor(passageSequence),

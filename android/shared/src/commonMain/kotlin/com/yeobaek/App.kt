@@ -10,12 +10,12 @@ import androidx.navigation.toRoute
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -54,7 +54,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.NICKNAME,
+                    screen = TrackedScreen.NICKNAME,
                 )
                 val nicknameViewModel: NicknameViewModel = viewModel(
                     factory = NicknameViewModel.nicknameViewModelFactory(
@@ -90,7 +90,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.ONBOARDING,
+                    screen = TrackedScreen.ONBOARDING,
                 )
                 val onboardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
@@ -135,7 +135,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.HOME,
+                    screen = TrackedScreen.HOME,
                 )
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.homeViewModelFactory(
@@ -172,7 +172,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.GROUP_DETAIL,
+                    screen = TrackedScreen.GROUP_DETAIL,
                 )
 
                 val detailViewModel: DetailViewModel = viewModel(
@@ -206,7 +206,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.READER,
+                    screen = TrackedScreen.READER,
                 )
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
@@ -253,7 +253,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.GROUP_JOIN,
+                    screen = TrackedScreen.GROUP_JOIN,
                 )
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
@@ -295,7 +295,7 @@ fun App(
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = CrashScreen.GROUP_CREATE,
+                    screen = TrackedScreen.GROUP_CREATE,
                 )
                 val createViewModel: CreateViewModel = viewModel(
                     factory = CreateViewModel.createViewModelFactory(
@@ -350,7 +350,7 @@ fun App(
 private fun TrackScreen(
     crashReporter: CrashReporter,
     analyticsTracker: AnalyticsTracker,
-    screen: CrashScreen,
+    screen: TrackedScreen,
 ) {
     LaunchedEffect(screen) {
         analyticsTracker.trackScreen(screen.value)
