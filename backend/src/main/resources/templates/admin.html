@@ -25,6 +25,33 @@
         .delete-book { padding: .25rem .6rem; }
         .delete-book:disabled { cursor: not-allowed; }
         .cover-preview { width: 42px; height: 58px; object-fit: cover; background: #eee; }
+        .cover-drop-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .8rem;
+            padding: 1.25rem;
+            border: 2px dashed #aaa;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 400;
+            text-align: center;
+        }
+        .cover-drop-zone:hover, .cover-drop-zone.drag-over { border-color: #0a7a2f; background: #f1faf4; }
+        .cover-drop-zone:focus-within { outline: 2px solid #0a7a2f; outline-offset: 2px; }
+        .cover-drop-zone input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .cover-file-name { color: #555; font-size: .85rem; }
     </style>
 </head>
 <body>
@@ -66,8 +93,12 @@
     }]
   }]
 }'></textarea>
-    <label for="new-cover-file">표지 이미지 (선택, JPEG/PNG/WebP, 최대 5 MiB)</label>
-    <input type="file" id="new-cover-file" accept="image/jpeg,image/png,image/webp">
+    <label for="new-cover-file" id="new-cover-drop-zone" class="cover-drop-zone">
+        <span>표지 이미지 (선택, JPEG/PNG/WebP, 최대 5 MiB)</span>
+        <span>이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요.</span>
+        <input type="file" id="new-cover-file" accept="image/jpeg,image/png,image/webp">
+        <span id="new-cover-file-name" class="cover-file-name" aria-live="polite">선택된 파일 없음</span>
+    </label>
     <button type="button" id="upload-book">업로드</button>
     <div id="upload-result" class="result"></div>
 </section>
@@ -161,6 +192,49 @@
         }
     }
 
+    const newCoverFileInput = document.getElementById('new-cover-file');
+    const newCoverDropZone = document.getElementById('new-cover-drop-zone');
+    const newCoverFileName = document.getElementById('new-cover-file-name');
+    let droppedNewCoverFile = null;
+
+    newCoverFileInput.addEventListener('change', () => {
+        droppedNewCoverFile = null;
+        showNewCoverFileName(newCoverFileInput.files[0]);
+    });
+
+    newCoverDropZone.addEventListener('dragenter', event => {
+        event.preventDefault();
+        newCoverDropZone.classList.add('drag-over');
+    });
+
+    newCoverDropZone.addEventListener('dragover', event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        newCoverDropZone.classList.add('drag-over');
+    });
+
+    newCoverDropZone.addEventListener('dragleave', event => {
+        if (!newCoverDropZone.contains(event.relatedTarget)) {
+            newCoverDropZone.classList.remove('drag-over');
+        }
+    });
+
+    newCoverDropZone.addEventListener('drop', event => {
+        event.preventDefault();
+        newCoverDropZone.classList.remove('drag-over');
+        const file = event.dataTransfer.files[0];
+        if (!file) {
+            return;
+        }
+        droppedNewCoverFile = file;
+        newCoverFileInput.value = '';
+        showNewCoverFileName(file);
+    });
+
+    function showNewCoverFileName(file) {
+        newCoverFileName.textContent = file ? file.name : '선택된 파일 없음';
+    }
+
     document.getElementById('upload-book').addEventListener('click', async () => {
         const result = document.getElementById('upload-result');
         let payload;
@@ -171,7 +245,7 @@
             return;
         }
         try {
-            const coverFile = document.getElementById('new-cover-file').files[0];
+            const coverFile = droppedNewCoverFile ?? newCoverFileInput.files[0];
             if (coverFile) {
                 show(result, '표지 이미지를 업로드하는 중입니다.', false);
                 payload.coverImageKey = await uploadCover(coverFile);
