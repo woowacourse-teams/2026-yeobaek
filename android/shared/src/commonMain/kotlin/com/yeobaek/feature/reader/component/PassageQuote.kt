@@ -14,11 +14,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 
 @Composable
 fun PassageQuote(
@@ -42,10 +41,10 @@ fun PassageQuote(
             text = content.allowCharacterBreaks(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = FontFamily.Serif,
-                fontStyle = FontStyle.Italic,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                fontFamily = YeobaekMaruBuri,
+                fontSize = 15.sp,
+                letterSpacing = 0.5.sp,
+                lineHeight = 24.sp,
             ),
         )
     }
