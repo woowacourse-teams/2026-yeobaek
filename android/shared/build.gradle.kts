@@ -35,6 +35,10 @@ val testBaseUrl = localProperties.getProperty("TEST_BASE_URL")
 val postHogApiKey = localProperties.getProperty("POSTHOG_API_KEY").orEmpty()
 val postHogHost = localProperties.getProperty("POSTHOG_HOST") ?: "https://us.i.posthog.com"
 
+if (!postHogHost.startsWith("https://")) {
+    throw GradleException("보안 오류: POSTHOG_HOST는 반드시 https:// 로 시작해야 합니다. 현재 값: $postHogHost")
+}
+
 kotlin {
     listOf(
         iosArm64(),
