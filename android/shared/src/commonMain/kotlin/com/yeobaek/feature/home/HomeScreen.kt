@@ -28,6 +28,7 @@ import com.yeobaek.feature.home.component.GroupButtonSection
 @Composable
 fun HomeScreen(
     appName: String,
+    appVersion: String,
     uiState: HomeUiState,
     navigateToJoin: () -> Unit,
     navigateToDetail: (Long) -> Unit,
@@ -38,7 +39,10 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            AppTitle(title = "$appName | ${uiState.username}")
+            AppTitle(
+                title = "$appName | ${uiState.username}",
+                appVersion = appVersion,
+            )
         },
         bottomBar = {
             GroupButtonSection(
@@ -84,6 +88,7 @@ fun HomeScreen(
 @Composable
 private fun AppTitle(
     title: String,
+    appVersion: String,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -94,6 +99,14 @@ private fun AppTitle(
                     fontFamily = YeobaekSerif,
                     letterSpacing = 1.sp,
                 ),
+            )
+        },
+        actions = {
+            Text(
+                text = "v$appVersion",
+                modifier = Modifier.padding(end = 16.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
             )
         },
         modifier = modifier.fillMaxWidth(),
@@ -110,6 +123,7 @@ private fun HomeScreenPreview() {
     YeobaekTheme {
         HomeScreen(
             appName = "여백",
+            appVersion = "1.0.0",
             uiState = HomeUiState(),
             navigateToJoin = {},
             navigateToDetail = {},

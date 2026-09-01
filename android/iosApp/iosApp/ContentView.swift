@@ -14,6 +14,9 @@ struct ComposeView: UIViewControllerRepresentable {
 
         return MainViewControllerKt.MainViewController(
             isDebug: isDebug,
+            appVersion: Bundle.main.object(
+                forInfoDictionaryKey: "CFBundleShortVersionString"
+            ) as? String ?? "",
             analyticsClient: analyticsClient
         )
     }

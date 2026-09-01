@@ -9,11 +9,13 @@ import com.yeobaek.core.app.AppContainer
 @Suppress("FunctionName")
 fun MainViewController(
     isDebug: Boolean,
+    appVersion: String,
     analyticsClient: AnalyticsClient,
 ) = ComposeUIViewController {
     val appContainer = remember {
         AppContainer(
             isDebug = isDebug,
+            appVersion = appVersion,
             analyticsClient = analyticsClient,
         )
     }
