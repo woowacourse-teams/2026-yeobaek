@@ -13,12 +13,13 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.noRippleClickable
-import com.yeobaek.core.designsystem.theme.YeobaekBatang
 import com.yeobaek.core.designsystem.theme.YeobaekLine
+import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.PassageUiModel
 
@@ -31,10 +32,11 @@ fun PassageItem(
     modifier: Modifier = Modifier,
 ) {
     val passageTextStyle = MaterialTheme.typography.bodyLarge.copy(
-        fontFamily = YeobaekBatang,
+        fontFamily = YeobaekMaruBuri,
         fontSize = fontSize.sp,
         lineHeight = (fontSize * 2f).sp,
         letterSpacing = 1.sp,
+        lineBreak = LineBreak.Paragraph,
     )
 
     if (showUnderline) {
