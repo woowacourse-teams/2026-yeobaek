@@ -71,6 +71,59 @@ DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android �
 
 기본적으로 팀의 `alstj2384/yeobaek-backend:develop` 이미지를 사용합니다. 다른 이미지나 API 바인딩 주소가 필요할 때만 `.env.local.example`을 `.env.local`로 복사해 값을 재정의합니다. `.env.local`은 Git에서 제외됩니다. 앞으로 운영 DB 비밀번호나 외부 API 키가 생기면 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
 
+### PostHog 로컬 확인
+
+PostHog는 기본적으로 비활성화되어 있으며 사용자 행동 이벤트는 아직 정의하지 않았습니다. US Cloud 프로젝트를 연결해 SDK 초기화만 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
+
+```bash
+export POSTHOG_ENABLED=true
+export POSTHOG_API_KEY='<US Cloud project API key>'
+export POSTHOG_HOST='https://us.i.posthog.com'
+sh ./local-env.sh dev
+```
+
+Windows PowerShell에서는 같은 터미널에 환경변수를 설정한 뒤 실행합니다.
+
+```powershell
+$env:POSTHOG_ENABLED='true'
+$env:POSTHOG_API_KEY='<US Cloud project API key>'
+$env:POSTHOG_HOST='https://us.i.posthog.com'
+.\local-env.ps1 dev
+```
+
+서버가 정상 기동하면 Spring의 조건부 설정과 PostHog SDK 초기화가 완료된 것입니다. 실제 US Cloud 수신은 애플리케이션에 테스트 전용 이벤트 코드를 남기지 않고 아래 일회성 요청으로 별도 확인합니다. `distinct_id`는 실제 회원 식별자가 아니며, `$process_person_profile=false`로 인물 프로필을 생성하지 않습니다.
+
+```bash
+curl --request POST 'https://us.i.posthog.com/batch' \
+  --header 'Content-Type: application/json' \
+  --data "{\"api_key\":\"${POSTHOG_API_KEY}\",\"batch\":[{\"event\":\"backend_local_smoke_test\",\"properties\":{\"distinct_id\":\"backend-local-smoke\",\"environment\":\"local\",\"\$process_person_profile\":false}}]}"
+```
+
+PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 시험 이벤트와 구분합니다.
+
+확인이 끝나면 현재 셸에서 값을 제거합니다.
+
+```bash
+unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
+```
+
+### PostHog 백엔드 시험 이벤트
+
+다음 이벤트는 최종 퍼널을 확정하기 전 백엔드 API 성공 수집을 검증하기 위한 시험 이벤트입니다.
+
+| 이벤트 | 기록 시점 | 개별 속성 |
+|---|---|---|
+| `backend_member_created` | 회원 생성 성공 | 없음 |
+| `backend_club_created` | 모임 생성 성공 | `club_id`, `book_id` |
+| `backend_club_joined` | 모임 참여 성공 | `club_id`, `book_id` |
+| `backend_passages_viewed` | 본문 범위 조회 성공 | `club_id`, `from`, `to`, `passage_count` |
+| `backend_comments_viewed` | 댓글이 1개 이상인 목록 조회 성공 | `club_id`, `sentence_id`, `comment_count` |
+| `backend_comment_created` | 댓글 작성 성공 | `club_id`, `sentence_id`, `comment_id` |
+
+모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=1`, `$process_person_profile=false`가 붙습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용하며 닉네임, 모임 이름, 참여 코드, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
+
+현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다.
+
 ## 더 알아보기
 
 - [팀의 개발 방법](docs/온보딩_프로젝트_개발_방법.md)

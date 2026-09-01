@@ -23,6 +23,7 @@ repositories {
 dependencies {
     implementation platform('software.amazon.awssdk:bom:2.54.4')
     implementation 'software.amazon.awssdk:s3'
+    implementation 'com.posthog:posthog-server:2.16.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     // 관리자 페이지 (2026-08-06 M7 결정: Thymeleaf 서버 렌더링)

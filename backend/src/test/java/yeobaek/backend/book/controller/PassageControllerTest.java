@@ -26,12 +26,17 @@ import yeobaek.backend.book.service.PassageService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(PassageController.class)
 class PassageControllerTest extends ControllerTest {
 
     @MockitoBean
     private PassageService passageService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("본문 범위 요청을 서비스에 전달하고 목록 전체 계약을 반환한다")
@@ -77,6 +82,8 @@ class PassageControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.passages[1].sentences[0].commentCount").value(0));
 
         verify(passageService, times(1)).findPassages(1L, 7L, 42, 43);
+        verify(analyticsTracker, times(1))
+                .track(1L, AnalyticsEvent.passagesViewed(7L, 42, 43, 2));
     }
 
     @Test
@@ -96,6 +103,7 @@ class PassageControllerTest extends ControllerTest {
                 });
 
         verifyNoInteractions(passageService);
+        verifyNoInteractions(analyticsTracker);
     }
 
     @Test
@@ -114,5 +122,6 @@ class PassageControllerTest extends ControllerTest {
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
         verify(passageService, times(1)).findPassages(3L, 7L, 1, 20);
+        verifyNoInteractions(analyticsTracker);
     }
 }
