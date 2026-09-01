@@ -52,9 +52,7 @@ fun PassageItem(
     val (passageText, sentenceTextRanges) = remember(passage.sentences) {
         val sentenceRanges = mutableListOf<SentenceTextRange>()
         val text = buildAnnotatedString {
-            passage.sentences.forEachIndexed { index, sentence ->
-                if (index > 0) append(" ")
-
+            passage.sentences.forEach { sentence ->
                 val sentenceStart = length
                 withLink(
                     LinkAnnotation.Clickable(
