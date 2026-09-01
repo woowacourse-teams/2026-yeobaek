@@ -6,17 +6,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Passage(
     val chapterId: Long,
-    val commentCount: Int,
-    val content: String,
     val passageId: Long,
     val sequence: Int,
+    val sentences: List<Sentence>,
 )
 
 fun Passage.toModel(): PassageModel =
     PassageModel(
         chapterId = chapterId,
-        commentCount = commentCount,
-        content = content,
         passageId = passageId,
         sequence = sequence,
+        sentences = sentences.map(Sentence::toModel),
     )

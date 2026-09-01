@@ -6,12 +6,12 @@ import com.yeobaek.data.model.CommentsModel
 interface CommentRepository {
     suspend fun getComments(
         clubId: Long,
-        passageId: Long,
+        sentenceId: Long,
     ): CommentsModel
 
     suspend fun createComment(
         clubId: Long,
-        passageId: Long,
+        sentenceId: Long,
         content: String,
     ): CommentModel
 
