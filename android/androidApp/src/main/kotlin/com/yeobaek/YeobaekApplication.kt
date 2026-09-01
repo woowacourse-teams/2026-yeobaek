@@ -14,6 +14,7 @@ class YeobaekApplication : Application() {
         val isDebug = BuildConfig.DEBUG
         appContainer = AppContainer(
             isDebug = isDebug,
+            appVersion = BuildConfig.VERSION_NAME,
             analyticsClient = AndroidPostHogAnalyticsClient(
                 application = this,
             ),

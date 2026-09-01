@@ -22,6 +22,7 @@ import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 
 class AppContainer(
     private val isDebug: Boolean,
+    val appVersion: String,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
 ) {
     private val settings = Settings()

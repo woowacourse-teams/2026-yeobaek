@@ -32,7 +32,8 @@ class MainActivity : ComponentActivity() {
 fun AppAndroidPreview() {
     App(
         appContainer = AppContainer(
-            isDebug = false
-        )
+            isDebug = false,
+            appVersion = "1.0.0",
+        ),
     )
 }
