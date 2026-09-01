@@ -39,7 +39,7 @@ fun PassageQuote(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = content,
+            text = content.allowCharacterBreaks(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall.copy(
                 fontFamily = FontFamily.Serif,
@@ -50,6 +50,17 @@ fun PassageQuote(
         )
     }
 }
+
+private fun String.allowCharacterBreaks(): String =
+    buildString {
+        this@allowCharacterBreaks.forEach { character ->
+            append(character)
+
+            if (!character.isWhitespace()) {
+                append('\u200B')
+            }
+        }
+    }
 
 @Preview(showBackground = true, name = "인용문")
 @Composable
