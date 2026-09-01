@@ -1,6 +1,6 @@
-package com.yeobaek.core.network.crash
+package com.yeobaek.core.common
 
-enum class CrashScreen(
+enum class TrackedScreen(
     val value: String,
 ) {
     NICKNAME("nickname"),

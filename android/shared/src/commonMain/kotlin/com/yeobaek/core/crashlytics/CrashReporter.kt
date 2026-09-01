@@ -1,8 +1,8 @@
 package com.yeobaek.core.network
 
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.FirebaseCrashSink
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.FirebaseCrashSink
 
 class CrashReporter(
     private val isDebug: Boolean,

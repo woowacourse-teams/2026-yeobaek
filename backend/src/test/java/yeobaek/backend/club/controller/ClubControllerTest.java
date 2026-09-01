@@ -34,12 +34,17 @@ import yeobaek.backend.club.service.ClubService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(ClubController.class)
 class ClubControllerTest extends ControllerTest {
 
     @MockitoBean
     private ClubService clubService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("모임 생성 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
@@ -75,6 +80,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).create(1L, "교환독서 1기", 5L);
+        verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreated(10L, 5L));
     }
 
     @Test
@@ -110,6 +116,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).join(2L, "A3F9KQ");
+        verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoined(10L, 5L));
     }
 
     @Test
@@ -238,6 +245,7 @@ class ClubControllerTest extends ControllerTest {
                         result.getResolvedException()));
 
         verifyNoInteractions(clubService);
+        verifyNoInteractions(analyticsTracker);
     }
 
     @Test
@@ -253,6 +261,7 @@ class ClubControllerTest extends ControllerTest {
                         result.getResolvedException()));
 
         verifyNoInteractions(clubService);
+        verifyNoInteractions(analyticsTracker);
     }
 
     @Test

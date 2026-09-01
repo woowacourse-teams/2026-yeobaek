@@ -12,22 +12,22 @@ class CommentRepositoryImpl(
 ) : CommentRepository {
     override suspend fun getComments(
         clubId: Long,
-        passageId: Long,
+        sentenceId: Long,
     ): CommentsModel = commentApi
         .getComments(
             clubId = clubId,
-            passageId = passageId,
+            sentenceId = sentenceId,
         )
         .toModel()
 
     override suspend fun createComment(
         clubId: Long,
-        passageId: Long,
+        sentenceId: Long,
         content: String,
     ): CommentModel = commentApi
         .createComment(
             clubId = clubId,
-            passageId = passageId,
+            sentenceId = sentenceId,
             request = CommentRequest(content = content),
         )
         .toModel()

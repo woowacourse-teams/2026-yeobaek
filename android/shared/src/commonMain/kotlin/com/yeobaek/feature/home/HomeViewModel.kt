@@ -9,11 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
@@ -51,7 +51,7 @@ class HomeViewModel(
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
-                        screen = CrashScreen.HOME,
+                        screen = TrackedScreen.HOME,
                         operation = CrashOperation.HOME_LAST_READING_LOADED,
                         bookId = lastReading?.book?.id,
                         itemCount = if (lastReading == null) 0 else 1,
@@ -96,7 +96,7 @@ class HomeViewModel(
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
-                        screen = CrashScreen.HOME,
+                        screen = TrackedScreen.HOME,
                         operation = CrashOperation.HOME_GROUPS_LOADED,
                         itemCount = groups.size,
                     ),
@@ -132,7 +132,7 @@ class HomeViewModel(
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(
-        screen = CrashScreen.HOME,
+        screen = TrackedScreen.HOME,
         operation = operation,
     )
 }
