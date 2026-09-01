@@ -26,6 +26,7 @@ class AndroidPostHogAnalyticsClient(
                 debug = isDebug
                 captureApplicationLifecycleEvents = false
                 captureScreenViews = false
+                captureDeepLinks = false
             }
 
             PostHogAndroid.setup(this.application, config)
