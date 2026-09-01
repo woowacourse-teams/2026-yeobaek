@@ -98,7 +98,7 @@ private fun CommentListPreview() {
     YeobaekTheme {
         CommentList(
             uiState = PassageCommentSheetUiState(
-                passageId = 5,
+                sentenceId = 501,
                 comments = listOf(
                     PassageCommentUiModel(
                         commentId = 10,

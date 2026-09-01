@@ -29,12 +29,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.PassageCommentSheetUiState
-import com.yeobaek.feature.reader.model.PassageUiModel
+import com.yeobaek.feature.reader.model.SentenceUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PassageCommentBottomSheet(
-    passage: PassageUiModel,
+    sentence: SentenceUiModel,
     uiState: PassageCommentSheetUiState,
     onDismissRequest: () -> Unit,
     onInputChange: (String) -> Unit,
@@ -48,9 +48,9 @@ fun PassageCommentBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val commentListState = rememberLazyListState()
-    var previousCommentCount by remember(uiState.passageId) { mutableIntStateOf(-1) }
+    var previousCommentCount by remember(uiState.sentenceId) { mutableIntStateOf(-1) }
 
-    LaunchedEffect(uiState.passageId, uiState.isLoading, uiState.comments.size) {
+    LaunchedEffect(uiState.sentenceId, uiState.isLoading, uiState.comments.size) {
         if (uiState.isLoading) return@LaunchedEffect
 
         val commentCount = uiState.comments.size
@@ -106,7 +106,7 @@ fun PassageCommentBottomSheet(
                 },
         ) {
             PassageQuote(
-                content = passage.content,
+                content = sentence.content,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
             Spacer(modifier = Modifier.height(22.dp))
