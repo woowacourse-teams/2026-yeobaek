@@ -44,4 +44,39 @@ class GlobalExceptionHandlerTest {
                 () -> assertEquals(
                         "더 이상 이용할 수 없는 도서입니다.", body.message(), "이용 불가 안내 메시지를 반환해야 한다"));
     }
+
+    @Test
+    @DisplayName("중복 사전신청 예외를 409와 개별 코드로 변환한다")
+    void handlePreRegistrationConflict() {
+        var response = handler.handleConflict(
+                new ConflictException(ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS));
+        var body = response.getBody();
+
+        assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(
+                        HttpStatus.CONFLICT, response.getStatusCode(), "중복 사전신청은 409로 변환해야 한다"),
+                () -> assertEquals(
+                        "PRE_REGISTRATION_ALREADY_EXISTS", body.code(), "중복 사전신청 코드를 반환해야 한다"),
+                () -> assertEquals(
+                        "이미 사전신청한 이메일입니다.", body.message(), "사용자 안내 가능한 메시지를 반환해야 한다"));
+    }
+
+    @Test
+    @DisplayName("사전신청 요청 제한 예외를 429와 개별 코드로 변환한다")
+    void handleRateLimitExceeded() {
+        var response = handler.handleTooManyRequests(
+                new TooManyRequestsException(ErrorCode.RATE_LIMIT_EXCEEDED));
+        var body = response.getBody();
+
+        assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(
+                        HttpStatus.TOO_MANY_REQUESTS, response.getStatusCode(), "요청 제한 초과는 429로 변환해야 한다"),
+                () -> assertEquals(
+                        "RATE_LIMIT_EXCEEDED", body.code(), "요청 제한 초과 코드를 반환해야 한다"),
+                () -> assertEquals(
+                        "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.", body.message(),
+                        "재시도를 안내하는 메시지를 반환해야 한다"));
+    }
 }

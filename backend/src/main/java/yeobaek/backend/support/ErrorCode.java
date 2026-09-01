@@ -23,6 +23,8 @@ public enum ErrorCode {
     DUPLICATE_AUTHOR("같은 작가가 중복 기재되었습니다."),
     AUTHOR_NAME_MISMATCH("ISNI로 찾은 기존 작가와 이름이 일치하지 않습니다."),
     DUPLICATE_BOOK("동일한 도서가 이미 존재합니다."),
+    PRE_REGISTRATION_ALREADY_EXISTS("이미 사전신청한 이메일입니다."),
+    RATE_LIMIT_EXCEEDED("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     NOT_CLUB_MEMBER("모임에 참여하지 않은 회원입니다."),
     NOT_COMMENT_OWNER("본인의 댓글이 아닙니다."),
     UNAUTHORIZED("관리자 인증에 실패했습니다."),
