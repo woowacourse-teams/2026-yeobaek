@@ -1,6 +1,10 @@
 package com.yeobaek.core.app
 
 import com.russhwolf.settings.Settings
+import com.yeobaek.BuildKonfig
+import com.yeobaek.core.analytics.AnalyticsClient
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
@@ -18,10 +22,13 @@ import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 
 class AppContainer(
     private val isDebug: Boolean,
+    analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
 ) {
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)
+
+    val analyticsTracker = AnalyticsTracker(analyticsClient)
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
@@ -52,6 +59,15 @@ class AppContainer(
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
         readerApi = apiProvider.readerApi,
     )
+
+    init {
+        analyticsClient.setup(
+            apiKey = BuildKonfig.POSTHOG_API_KEY,
+            host = BuildKonfig.POSTHOG_HOST,
+            isDebug = isDebug,
+        )
+        userPreferences.getUserId()?.let(analyticsTracker::identify)
+    }
 
     fun close() {
         networkProvider.close()

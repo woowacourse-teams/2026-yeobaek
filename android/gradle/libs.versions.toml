@@ -67,6 +67,9 @@ googleServices = "4.5.0"
 firebaseCrashlyticsPlugin = "3.0.8"
 firebaseBom = "34.17.0"
 
+# PostHog
+posthogAndroid = "3.61.0"
+
 [libraries]
 # compose multiplatform
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
@@ -114,6 +117,9 @@ multiplatform-settings = { module = "com.russhwolf:multiplatform-settings-no-arg
 # firebase-kotlin-sdk
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "firebaseKotlinSdk" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+
+# PostHog
+posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthogAndroid" }
 
 # test
 junit = { module = "junit:junit", version.ref = "junit" }

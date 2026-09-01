@@ -1,4 +1,4 @@
-package com.yeobaek.core.network.crash
+package com.yeobaek.core.crashlytics
 
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.crashlytics.crashlytics
