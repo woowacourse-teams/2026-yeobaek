@@ -1,4 +1,4 @@
-package com.yeobaek.core.network.crash
+package com.yeobaek.core.crashlytics
 
 enum class CrashOperation(
     val value: String,

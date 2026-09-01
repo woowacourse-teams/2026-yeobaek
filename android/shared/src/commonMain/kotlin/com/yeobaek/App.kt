@@ -7,13 +7,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -51,7 +53,8 @@ fun App(
             composable<Nickname> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.NICKNAME,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.NICKNAME,
                 )
                 val nicknameViewModel: NicknameViewModel = viewModel(
                     factory = NicknameViewModel.nicknameViewModelFactory(
@@ -62,6 +65,10 @@ fun App(
 
                 LaunchedEffect(nicknameViewModel.uiState.successNicknameSet) {
                     if (nicknameViewModel.uiState.successNicknameSet) {
+                        appContainer.userPreferences.getUserId()?.let { userId ->
+                            appContainer.analyticsTracker.identify(userId)
+                        }
+                        appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
                         navController.navigate(Onboarding) {
                             popUpTo<Nickname> {
                                 inclusive = true
@@ -82,7 +89,8 @@ fun App(
             composable<Onboarding> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.ONBOARDING,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.ONBOARDING,
                 )
                 val onboardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
@@ -126,7 +134,8 @@ fun App(
             composable<Home> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.HOME,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.HOME,
                 )
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.homeViewModelFactory(
@@ -162,7 +171,8 @@ fun App(
                 val route = backStackEntry.toRoute<Detail>()
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.GROUP_DETAIL,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.GROUP_DETAIL,
                 )
 
                 val detailViewModel: DetailViewModel = viewModel(
@@ -195,7 +205,8 @@ fun App(
                 val route = backStackEntry.toRoute<Reader>()
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.READER,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.READER,
                 )
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModelFactory(
@@ -210,7 +221,7 @@ fun App(
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
-                    onPassageClick = readerViewModel::openPassageComments,
+                    onSentenceClick = readerViewModel::openSentenceComments,
                     onBackClick = {
                         readerViewModel.saveCurrentPassage(
                             onComplete = navController::popBackStack,
@@ -241,7 +252,8 @@ fun App(
             composable<Join> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.GROUP_JOIN,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.GROUP_JOIN,
                 )
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
@@ -282,7 +294,8 @@ fun App(
             composable<Create> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
-                    screen = CrashScreen.GROUP_CREATE,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.GROUP_CREATE,
                 )
                 val createViewModel: CreateViewModel = viewModel(
                     factory = CreateViewModel.createViewModelFactory(
@@ -336,9 +349,11 @@ fun App(
 @Composable
 private fun TrackScreen(
     crashReporter: CrashReporter,
-    screen: CrashScreen,
+    analyticsTracker: AnalyticsTracker,
+    screen: TrackedScreen,
 ) {
     LaunchedEffect(screen) {
+        analyticsTracker.trackScreen(screen.value)
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = CrashContext(

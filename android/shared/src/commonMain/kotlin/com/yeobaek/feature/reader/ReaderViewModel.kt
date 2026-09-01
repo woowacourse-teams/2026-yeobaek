@@ -7,11 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.repository.BookRepository
@@ -21,6 +21,7 @@ import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
+import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
 import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
@@ -496,21 +497,20 @@ class ReaderViewModel(
         )
     }
 
-    fun openPassageComments(passage: PassageUiModel) {
-        // 다른 passage의 댓글 요청이 진행 중일 수 있으므로 먼저 취소한다.
+    fun openSentenceComments(sentence: SentenceUiModel) {
         cancelCommentLoad()
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_SHEET_OPENED,
-                passageSequence = passage.sequence,
-                itemCount = passage.commentCount,
+                passageSequence = passageSequenceForSentence(sentence.sentenceId),
+                itemCount = sentence.commentCount,
             ),
         )
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
             commentSheet = PassageCommentSheetUiState(
-                passageId = passage.passageId,
+                sentenceId = sentence.sentenceId,
                 isLoading = true,
             ),
         )
@@ -519,10 +519,10 @@ class ReaderViewModel(
             try {
                 val comments = commentRepository.getComments(
                     clubId = groupId,
-                    passageId = passage.passageId,
+                    sentenceId = sentence.sentenceId,
                 ).comments.map(CommentModel::toUiModel)
 
-                updateCommentSheet(passage.passageId) { commentSheet ->
+                updateCommentSheet(sentence.sentenceId) { commentSheet ->
                     commentSheet.copy(
                         comments = comments,
                         isLoading = false,
@@ -533,7 +533,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENTS_LOADED,
-                        passageSequence = passage.sequence,
+                        passageSequence = passageSequenceForSentence(sentence.sentenceId),
                         itemCount = comments.size,
                     ),
                 )
@@ -544,10 +544,10 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENTS_LOAD_FAILED,
-                        passageSequence = passage.sequence,
+                        passageSequence = passageSequenceForSentence(sentence.sentenceId),
                     ),
                 )
-                updateCommentSheet(passage.passageId) { commentSheet ->
+                updateCommentSheet(sentence.sentenceId) { commentSheet ->
                     commentSheet.copy(
                         isLoading = false,
                         loadErrorMessage = "댓글을 불러오지 못했습니다.",
@@ -584,7 +584,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_EDIT_STARTED,
-                passageSequence = passageSequenceFor(commentSheet.passageId),
+                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
             ),
         )
 
@@ -659,7 +659,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_DELETE_STARTED,
-                passageSequence = passageSequenceFor(commentSheet.passageId),
+                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                 itemCount = commentSheet.comments.size,
             ),
         )
@@ -670,15 +670,14 @@ class ReaderViewModel(
 
                 // 삭제 요청을 시작할 때의 commentSheet와 서버 응답이 도착했을 때 현재 열려 있는 sheet를 비교
                 val currentSheet = uiState.commentSheet
-                    ?.takeIf { sheet -> sheet.passageId == commentSheet.passageId }
+                    ?.takeIf { sheet -> sheet.sentenceId == commentSheet.sentenceId }
                     ?: return@launch
                 val updatedComments = currentSheet.comments.filterNot { comment ->
                     comment.commentId == commentId
                 }
                 uiState = uiState.copy(
-                    // 댓글 작성, 수정, 삭제 후 PassageUiModel의 댓글 개수도 변경
-                    passages = uiState.passages.withCommentCount(
-                        passageId = currentSheet.passageId,
+                    passages = uiState.passages.withSentenceCommentCount(
+                        sentenceId = currentSheet.sentenceId,
                         commentCount = updatedComments.size,
                     ),
                     commentSheet = currentSheet.copy(
@@ -701,7 +700,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
-                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                         itemCount = updatedComments.size,
                     ),
                 )
@@ -712,10 +711,10 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_DELETE_FAILED,
-                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                     ),
                 )
-                updateCommentSheet(commentSheet.passageId) { currentSheet ->
+                updateCommentSheet(commentSheet.sentenceId) { currentSheet ->
                     currentSheet.copy(
                         isDeleting = false,
                         deleteErrorMessage = "댓글을 삭제하지 못했습니다.",
@@ -747,7 +746,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_SAVE_STARTED,
-                passageSequence = passageSequenceFor(commentSheet.passageId),
+                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                 itemCount = commentSheet.comments.size,
             ),
         )
@@ -757,7 +756,7 @@ class ReaderViewModel(
                 val savedComment = if (commentSheet.editingCommentId == null) {
                     commentRepository.createComment(
                         clubId = groupId,
-                        passageId = commentSheet.passageId,
+                        sentenceId = commentSheet.sentenceId,
                         content = content,
                     )
                 } else {
@@ -768,7 +767,7 @@ class ReaderViewModel(
                 }.toUiModel()
 
                 val currentSheet = uiState.commentSheet
-                    ?.takeIf { sheet -> sheet.passageId == commentSheet.passageId }
+                    ?.takeIf { sheet -> sheet.sentenceId == commentSheet.sentenceId }
                     ?: return@launch
                 val updatedComments = if (commentSheet.editingCommentId == null) {
                     currentSheet.comments + savedComment
@@ -782,8 +781,8 @@ class ReaderViewModel(
                     }
                 }
                 uiState = uiState.copy(
-                    passages = uiState.passages.withCommentCount(
-                        passageId = currentSheet.passageId,
+                    passages = uiState.passages.withSentenceCommentCount(
+                        sentenceId = currentSheet.sentenceId,
                         commentCount = updatedComments.size,
                     ),
                     commentSheet = currentSheet.copy(
@@ -798,7 +797,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
-                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                         itemCount = updatedComments.size,
                     ),
                 )
@@ -809,10 +808,10 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_SAVE_FAILED,
-                        passageSequence = passageSequenceFor(commentSheet.passageId),
+                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
                     ),
                 )
-                updateCommentSheet(commentSheet.passageId) { currentSheet ->
+                updateCommentSheet(commentSheet.sentenceId) { currentSheet ->
                     currentSheet.copy(
                         isSubmitting = false,
                         submitErrorMessage = "댓글을 저장하지 못했습니다.",
@@ -822,13 +821,12 @@ class ReaderViewModel(
         }
     }
 
-    // 현재 열려 있는 시트가 passageId의 시트일 때만 상태를 바꾼다.
     private fun updateCommentSheet(
-        passageId: Long,
+        sentenceId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
     ) {
         val commentSheet = uiState.commentSheet
-            ?.takeIf { sheet -> sheet.passageId == passageId }
+            ?.takeIf { sheet -> sheet.sentenceId == sentenceId }
             ?: return
         uiState = uiState.copy(commentSheet = transform(commentSheet))
     }
@@ -851,8 +849,10 @@ class ReaderViewModel(
         )
     }
 
-    private fun passageSequenceFor(passageId: Long): Int? = uiState.passages
-        .firstOrNull { passage -> passage.passageId == passageId }
+    private fun passageSequenceForSentence(sentenceId: Long): Int? = uiState.passages
+        .firstOrNull { passage ->
+            passage.sentences.any { sentence -> sentence.sentenceId == sentenceId }
+        }
         ?.sequence
 
     private fun chapterSequenceFor(passageSequence: Int?): Int? = passageSequence?.let { sequence ->
@@ -867,7 +867,7 @@ class ReaderViewModel(
         passageSequence: Int? = uiState.currentSequence.takeIf { it > 0 },
         itemCount: Int? = null,
     ) = CrashContext(
-        screen = CrashScreen.READER,
+        screen = TrackedScreen.READER,
         operation = operation,
         bookId = currentBookId,
         chapterSequence = chapterSequence ?: chapterSequenceFor(passageSequence),
@@ -876,15 +876,22 @@ class ReaderViewModel(
     )
 }
 
-// 댓글 작성, 수정, 삭제 후 PassageUiModel의 댓글 개수도 변경
-private fun List<PassageUiModel>.withCommentCount(
-    passageId: Long,
+private fun List<PassageUiModel>.withSentenceCommentCount(
+    sentenceId: Long,
     commentCount: Int,
 ): List<PassageUiModel> = map { passage ->
-    if (passage.passageId == passageId) {
-        passage.copy(commentCount = commentCount)
-    } else {
+    if (passage.sentences.none { sentence -> sentence.sentenceId == sentenceId }) {
         passage
+    } else {
+        passage.copy(
+            sentences = passage.sentences.map { sentence ->
+                if (sentence.sentenceId == sentenceId) {
+                    sentence.copy(commentCount = commentCount)
+                } else {
+                    sentence
+                }
+            },
+        )
     }
 }
 

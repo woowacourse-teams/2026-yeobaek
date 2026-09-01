@@ -3,6 +3,8 @@ import UIKit
 import FirebaseCore
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    lazy var analyticsClient = IOSPostHogAnalyticsClient()
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions:
@@ -20,7 +22,7 @@ struct iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(analyticsClient: appDelegate.analyticsClient)
         }
     }
 }

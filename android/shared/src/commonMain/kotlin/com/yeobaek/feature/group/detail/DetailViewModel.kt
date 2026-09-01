@@ -9,11 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
@@ -61,7 +61,7 @@ class DetailViewModel(
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
-                        screen = CrashScreen.GROUP_DETAIL,
+                        screen = TrackedScreen.GROUP_DETAIL,
                         operation = CrashOperation.GROUP_DETAIL_LOADED,
                         bookId = groupDetail.book.bookId,
                         itemCount = groupDetail.members.size,
@@ -115,7 +115,7 @@ class DetailViewModel(
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(
-        screen = CrashScreen.GROUP_DETAIL,
+        screen = TrackedScreen.GROUP_DETAIL,
         operation = operation,
     )
 

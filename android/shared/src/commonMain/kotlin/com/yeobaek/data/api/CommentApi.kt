@@ -12,17 +12,17 @@ import de.jensklingenberg.ktorfit.http.PUT
 import de.jensklingenberg.ktorfit.http.Path
 
 interface CommentApi {
-    @GET("api/clubs/{clubId}/passages/{passageId}/comments")
+    @GET("api/clubs/{clubId}/sentences/{sentenceId}/comments")
     suspend fun getComments(
         @Path("clubId") clubId: Long,
-        @Path("passageId") passageId: Long,
+        @Path("sentenceId") sentenceId: Long,
     ): CommentsResponse
 
     @Headers("Content-Type: application/json")
-    @POST("api/clubs/{clubId}/passages/{passageId}/comments")
+    @POST("api/clubs/{clubId}/sentences/{sentenceId}/comments")
     suspend fun createComment(
         @Path("clubId") clubId: Long,
-        @Path("passageId") passageId: Long,
+        @Path("sentenceId") sentenceId: Long,
         @Body request: CommentRequest,
     ): CommentResponse
 

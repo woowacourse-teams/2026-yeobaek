@@ -8,11 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.core.network.crash.CrashContext
-import com.yeobaek.core.network.crash.CrashLogLevel
-import com.yeobaek.core.network.crash.CrashOperation
-import com.yeobaek.core.network.crash.CrashScreen
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
@@ -46,7 +46,7 @@ class CreateViewModel(
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
-                        screen = CrashScreen.GROUP_CREATE,
+                        screen = TrackedScreen.GROUP_CREATE,
                         operation = CrashOperation.GROUP_BOOKS_LOADED,
                         itemCount = groups.size,
                     ),
@@ -102,7 +102,7 @@ class CreateViewModel(
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = CrashContext(
-                screen = CrashScreen.GROUP_CREATE,
+                screen = TrackedScreen.GROUP_CREATE,
                 operation = CrashOperation.GROUP_CREATE_STARTED,
                 bookId = selectedBookId,
             ),
@@ -122,7 +122,7 @@ class CreateViewModel(
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
-                        screen = CrashScreen.GROUP_CREATE,
+                        screen = TrackedScreen.GROUP_CREATE,
                         operation = CrashOperation.GROUP_CREATE_SUCCEEDED,
                         bookId = bookId,
                     ),
@@ -133,7 +133,7 @@ class CreateViewModel(
                 crashReporter.recordException(
                     throwable = e,
                     context = CrashContext(
-                        screen = CrashScreen.GROUP_CREATE,
+                        screen = TrackedScreen.GROUP_CREATE,
                         operation = CrashOperation.GROUP_CREATE_FAILED,
                         bookId = selectedBookId,
                     ),
@@ -186,7 +186,7 @@ class CreateViewModel(
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(
-        screen = CrashScreen.GROUP_CREATE,
+        screen = TrackedScreen.GROUP_CREATE,
         operation = operation,
     )
 }

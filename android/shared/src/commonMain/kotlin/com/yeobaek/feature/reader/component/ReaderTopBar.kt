@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.yeobaek.core.designsystem.theme.YeobaekBatang
+import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import org.jetbrains.compose.resources.painterResource
@@ -53,7 +53,7 @@ fun ReaderTopBar(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = YeobaekBatang,
+                        fontFamily = YeobaekMaruBuri,
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 1.sp,
                     ),
@@ -63,7 +63,7 @@ fun ReaderTopBar(
 
                 Text(
                     text = author,
-                    fontFamily = YeobaekBatang,
+                    fontFamily = YeobaekMaruBuri,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
