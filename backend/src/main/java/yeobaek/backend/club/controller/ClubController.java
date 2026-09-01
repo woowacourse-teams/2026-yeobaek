@@ -21,6 +21,8 @@ import yeobaek.backend.club.dto.ClubJoinRequest;
 import yeobaek.backend.club.dto.ClubJoinResponse;
 import yeobaek.backend.club.dto.MyClubsResponse;
 import yeobaek.backend.club.service.ClubService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @Tag(name = "모임")
 @SecurityRequirement(name = "memberId")
@@ -29,20 +31,25 @@ import yeobaek.backend.club.service.ClubService;
 public class ClubController {
 
     private final ClubService clubService;
+    private final AnalyticsTracker analyticsTracker;
 
     @Operation(summary = "모임 생성",
             description = "책 한 권을 골라 모임을 만든다. 생성자는 자동으로 모임에 참여되고 참여 코드가 발급된다.")
     @PostMapping("/api/clubs")
     @ResponseStatus(HttpStatus.CREATED)
     public ClubCreateResponse create(@AuthMember Long memberId, @RequestBody ClubCreateRequest request) {
-        return clubService.create(memberId, request.name(), request.bookId());
+        ClubCreateResponse response = clubService.create(memberId, request.name(), request.bookId());
+        analyticsTracker.track(memberId, AnalyticsEvent.clubCreated(response.clubId(), response.book().bookId()));
+        return response;
     }
 
     @Operation(summary = "참여 코드로 모임 참여",
             description = "존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
     @PostMapping("/api/clubs/join")
     public ClubJoinResponse join(@AuthMember Long memberId, @RequestBody ClubJoinRequest request) {
-        return clubService.join(memberId, request.joinCode());
+        ClubJoinResponse response = clubService.join(memberId, request.joinCode());
+        analyticsTracker.track(memberId, AnalyticsEvent.clubJoined(response.clubId(), response.book().bookId()));
+        return response;
     }
 
     @Operation(summary = "모임 탈퇴",

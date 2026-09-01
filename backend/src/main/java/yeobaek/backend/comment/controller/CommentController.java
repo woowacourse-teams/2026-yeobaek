@@ -20,6 +20,8 @@ import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentUpdateRequest;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.service.CommentService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @Tag(name = "댓글")
 @SecurityRequirement(name = "memberId")
@@ -28,13 +30,19 @@ import yeobaek.backend.comment.service.CommentService;
 public class CommentController {
 
     private final CommentService commentService;
+    private final AnalyticsTracker analyticsTracker;
 
     @Operation(summary = "문장의 댓글 목록 조회", description = "작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
     @GetMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comments")
     public CommentsResponse findComments(@AuthMember Long memberId,
                                          @Parameter(description = "모임 ID") @PathVariable Long clubId,
                                          @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
-        return commentService.findComments(memberId, clubId, sentenceId);
+        CommentsResponse response = commentService.findComments(memberId, clubId, sentenceId);
+        if (!response.comments().isEmpty()) {
+            analyticsTracker.track(memberId,
+                    AnalyticsEvent.commentsViewed(clubId, sentenceId, response.comments().size()));
+        }
+        return response;
     }
 
     @Operation(summary = "댓글 작성")
@@ -44,7 +52,10 @@ public class CommentController {
                                   @Parameter(description = "모임 ID") @PathVariable Long clubId,
                                   @Parameter(description = "문장 ID") @PathVariable Long sentenceId,
                                   @RequestBody CommentCreateRequest request) {
-        return commentService.create(memberId, clubId, sentenceId, request.content());
+        CommentResponse response = commentService.create(memberId, clubId, sentenceId, request.content());
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.commentCreated(clubId, sentenceId, response.commentId()));
+        return response;
     }
 
     @Operation(summary = "댓글 수정", description = "본인 댓글이 아니면 403.")

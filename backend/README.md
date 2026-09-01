@@ -99,13 +99,30 @@ curl --request POST 'https://us.i.posthog.com/batch' \
   --data "{\"api_key\":\"${POSTHOG_API_KEY}\",\"batch\":[{\"event\":\"backend_local_smoke_test\",\"properties\":{\"distinct_id\":\"backend-local-smoke\",\"environment\":\"local\",\"\$process_person_profile\":false}}]}"
 ```
 
-PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 운영 프로젝트 연결과 동의 기반 이벤트가 구현되기 전까지 `POSTHOG_ENABLED=false`를 유지합니다.
+PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 시험 이벤트와 구분합니다.
 
 확인이 끝나면 현재 셸에서 값을 제거합니다.
 
 ```bash
 unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 ```
+
+### PostHog 백엔드 시험 이벤트
+
+다음 이벤트는 최종 퍼널을 확정하기 전 백엔드 API 성공 수집을 검증하기 위한 시험 이벤트입니다.
+
+| 이벤트 | 기록 시점 | 개별 속성 |
+|---|---|---|
+| `backend_member_created` | 회원 생성 성공 | 없음 |
+| `backend_club_created` | 모임 생성 성공 | `club_id`, `book_id` |
+| `backend_club_joined` | 모임 참여 성공 | `club_id`, `book_id` |
+| `backend_passages_viewed` | 본문 범위 조회 성공 | `club_id`, `from`, `to`, `passage_count` |
+| `backend_comments_viewed` | 댓글이 1개 이상인 목록 조회 성공 | `club_id`, `sentence_id`, `comment_count` |
+| `backend_comment_created` | 댓글 작성 성공 | `club_id`, `sentence_id`, `comment_id` |
+
+모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=1`, `$process_person_profile=false`가 붙습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용하며 닉네임, 모임 이름, 참여 코드, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
+
+현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다.
 
 ## 더 알아보기
 

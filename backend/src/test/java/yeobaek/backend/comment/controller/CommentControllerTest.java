@@ -28,12 +28,17 @@ import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(CommentController.class)
 class CommentControllerTest extends ControllerTest {
 
     @MockitoBean
     private CommentService commentService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("댓글 목록 요청을 서비스에 전달하고 nullable 필드를 포함한 전체 계약을 반환한다")
@@ -68,6 +73,8 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.comments[1].mine").value(true));
 
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
+        verify(analyticsTracker, times(1))
+                .track(1L, AnalyticsEvent.commentsViewed(10L, 1042L, 2));
     }
 
     @Test
@@ -95,6 +102,26 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.mine").value(true));
 
         verify(commentService, times(1)).create(2L, 10L, 1042L, "새 댓글");
+        verify(analyticsTracker, times(1))
+                .track(2L, AnalyticsEvent.commentCreated(10L, 1042L, 9L));
+    }
+
+    @Test
+    @DisplayName("댓글이 없는 목록 조회는 분석 이벤트를 기록하지 않는다")
+    void doNotTrackEmptyComments() throws Exception {
+        givenValidMember(8L);
+        given(commentService.findComments(8L, 10L, 1042L))
+                .willReturn(new CommentsResponse(List.of()));
+
+        mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
+                        .header("X-Member-Id", "8"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.comments").isArray())
+                .andExpect(jsonPath("$.comments").isEmpty());
+
+        verify(commentService, times(1)).findComments(8L, 10L, 1042L);
+        verifyNoInteractions(analyticsTracker);
     }
 
     @Test
@@ -151,6 +178,7 @@ class CommentControllerTest extends ControllerTest {
                         result.getResolvedException()));
 
         verifyNoInteractions(commentService);
+        verifyNoInteractions(analyticsTracker);
     }
 
     @Test
@@ -182,5 +210,6 @@ class CommentControllerTest extends ControllerTest {
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
         verify(commentService, times(1)).findComments(7L, 999L, 1042L);
+        verifyNoInteractions(analyticsTracker);
     }
 }
