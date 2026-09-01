@@ -1,7 +1,11 @@
 package com.yeobaek.core.designsystem.theme
 
 import android.shared.generated.resources.Res
-import android.shared.generated.resources.ridibatang
+import android.shared.generated.resources.maruburi_bold
+import android.shared.generated.resources.maruburi_extralight
+import android.shared.generated.resources.maruburi_light
+import android.shared.generated.resources.maruburi_regular
+import android.shared.generated.resources.maruburi_semibold
 import android.shared.generated.resources.wantedsans_black
 import android.shared.generated.resources.wantedsans_bold
 import android.shared.generated.resources.wantedsans_extrabold
@@ -26,9 +30,13 @@ val YeobaekSerif: FontFamily
         Font(Res.font.yuhan_kimberly_bold, FontWeight.Bold),
     )
 
-val YeobaekBatang: FontFamily
+val YeobaekMaruBuri: FontFamily
     @Composable get() = FontFamily(
-        Font(Res.font.ridibatang, FontWeight.Normal),
+        Font(Res.font.maruburi_extralight, FontWeight.ExtraLight),
+        Font(Res.font.maruburi_light, FontWeight.Light),
+        Font(Res.font.maruburi_regular, FontWeight.Normal),
+        Font(Res.font.maruburi_semibold, FontWeight.SemiBold),
+        Font(Res.font.maruburi_bold, FontWeight.Bold),
     )
 
 private val YeobaekSans: FontFamily
