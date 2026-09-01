@@ -415,9 +415,9 @@ private fun ReaderContent(
         state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            horizontal = 32.dp,
+            horizontal = 40.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(28.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         items(
             items = passages,
