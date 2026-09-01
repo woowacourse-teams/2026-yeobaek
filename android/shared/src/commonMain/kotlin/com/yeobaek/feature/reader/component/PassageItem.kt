@@ -1,7 +1,5 @@
 package com.yeobaek.feature.reader.component
 
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,8 +12,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -31,8 +27,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
-
-private const val MIN_SENTENCE_PRESS_DURATION_MILLIS = 300L
 
 @Composable
 fun PassageItem(
@@ -62,7 +56,9 @@ fun PassageItem(
                                 background = YeobaekHighlight,
                             ),
                         ),
-                        linkInteractionListener = {},
+                        linkInteractionListener = {
+                            currentOnSentenceClick(sentence)
+                        },
                     ),
                 ) {
                     append(sentence.content.allowCharacterBreaks())
@@ -138,54 +134,6 @@ fun PassageItem(
                             )
                         }
                     }
-            }
-            .pointerInput(passageText) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(
-                        requireUnconsumed = false,
-                        pass = PointerEventPass.Initial,
-                    )
-                    val pressedSentence = textLayoutResult?.sentenceAt(
-                        position = down.position,
-                        sentenceTextRanges = sentenceTextRanges,
-                    ) ?: return@awaitEachGesture
-                    val touchSlopSquared = viewConfiguration.touchSlop.let { touchSlop ->
-                        touchSlop * touchSlop
-                    }
-
-                    var gestureCancelled = false
-                    var releasedAtMillis: Long? = null
-
-                    while (!gestureCancelled && releasedAtMillis == null) {
-                        val pointerChange = awaitPointerEvent(
-                            pass = PointerEventPass.Initial,
-                        ).changes.firstOrNull { change -> change.id == down.id }
-
-                        if (pointerChange == null) {
-                            gestureCancelled = true
-                            continue
-                        }
-
-                        val movement = pointerChange.position - down.position
-                        val movedBeyondTouchSlop =
-                            movement.x * movement.x + movement.y * movement.y >
-                                touchSlopSquared
-
-                        when {
-                            movedBeyondTouchSlop -> gestureCancelled = true
-                            !pointerChange.pressed -> releasedAtMillis = pointerChange.uptimeMillis
-                        }
-                    }
-
-                    val pressDurationMillis = releasedAtMillis?.minus(down.uptimeMillis)
-                    if (
-                        !gestureCancelled &&
-                        pressDurationMillis != null &&
-                        pressDurationMillis >= MIN_SENTENCE_PRESS_DURATION_MILLIS
-                    ) {
-                        currentOnSentenceClick(pressedSentence)
-                    }
-                }
             },
         style = passageTextStyle,
     )
@@ -196,46 +144,6 @@ private data class SentenceTextRange(
     val start: Int,
     val end: Int,
 )
-
-private fun TextLayoutResult.sentenceAt(
-    position: Offset,
-    sentenceTextRanges: List<SentenceTextRange>,
-): SentenceUiModel? {
-    val lineIndex = getLineForVerticalPosition(position.y)
-    val lineStart = getLineStart(lineIndex)
-    val lineEnd = getLineEnd(
-        lineIndex = lineIndex,
-        visibleEnd = true,
-    )
-
-    return sentenceTextRanges.firstOrNull { sentenceRange ->
-        val sentenceStartOnLine = maxOf(sentenceRange.start, lineStart)
-        val sentenceEndOnLine = minOf(sentenceRange.end, lineEnd)
-
-        if (sentenceStartOnLine >= sentenceEndOnLine) {
-            return@firstOrNull false
-        }
-
-        val startX = if (sentenceStartOnLine == lineStart) {
-            getLineLeft(lineIndex)
-        } else {
-            getHorizontalPosition(
-                offset = sentenceStartOnLine,
-                usePrimaryDirection = true,
-            )
-        }
-        val endX = if (sentenceEndOnLine == lineEnd) {
-            getLineRight(lineIndex)
-        } else {
-            getHorizontalPosition(
-                offset = sentenceEndOnLine,
-                usePrimaryDirection = true,
-            )
-        }
-
-        position.x in minOf(startX, endX)..maxOf(startX, endX)
-    }?.sentence
-}
 
 private fun String.allowCharacterBreaks(): String =
     buildString {
