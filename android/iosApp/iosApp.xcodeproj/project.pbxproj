@@ -90,6 +90,7 @@
 				9B5BD5CFF8B69ED71E0DDD41 /* Sources */,
 				E7F225FEC2A63FF26AEB7DA8 /* Frameworks */,
 				D056D7411F24497396388BE1 /* Resources */,
+				A73EF6C5309E4A43B8A79E11 /* Select Firebase Configuration */,
 				D8D84D8F30401A5F004B2F05 /* ShellScript */,
 			);
 			buildRules = (
@@ -157,6 +158,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A73EF6C5309E4A43B8A79E11 /* Select Firebase Configuration */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Configuration/firebase/debug/GoogleService-Info.plist",
+				"$(SRCROOT)/Configuration/firebase/release/GoogleService-Info.plist",
+			);
+			name = "Select Firebase Configuration";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "case \"${CONFIGURATION}\" in\n    Debug)\n        FIREBASE_CONFIG=\"${SRCROOT}/Configuration/firebase/debug/GoogleService-Info.plist\"\n        ;;\n    Release)\n        FIREBASE_CONFIG=\"${SRCROOT}/Configuration/firebase/release/GoogleService-Info.plist\"\n        ;;\n    *)\n        echo \"error: Unsupported build configuration: ${CONFIGURATION}\"\n        exit 1\n        ;;\nesac\n\nif [ ! -f \"${FIREBASE_CONFIG}\" ]; then\n    echo \"error: Firebase configuration not found: ${FIREBASE_CONFIG}\"\n    exit 1\nfi\n\ncp \"${FIREBASE_CONFIG}\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n";
+		};
 		D8D84D8F30401A5F004B2F05 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -343,7 +365,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = 233M379ZVN;
+				DEVELOPMENT_TEAM = 345L5V7M68;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -377,7 +399,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				DEVELOPMENT_TEAM = 345L5V7M68;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
