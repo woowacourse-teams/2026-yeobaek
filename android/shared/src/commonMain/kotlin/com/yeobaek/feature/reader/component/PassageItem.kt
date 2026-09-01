@@ -22,7 +22,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,7 +48,6 @@ fun PassageItem(
         fontSize = fontSize.sp,
         lineHeight = (fontSize * 2f).sp,
         letterSpacing = 1.sp,
-        lineBreak = LineBreak.Paragraph,
     )
     val (passageText, sentenceTextRanges) = remember(passage.sentences) {
         val sentenceRanges = mutableListOf<SentenceTextRange>()
