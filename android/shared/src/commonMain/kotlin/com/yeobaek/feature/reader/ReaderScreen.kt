@@ -417,7 +417,7 @@ private fun ReaderContent(
         state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            horizontal = 40.dp,
+            horizontal = 36.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
