@@ -21,6 +21,7 @@ services:
       BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
       BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
       BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
+      LANDING_CORS_ALLOWED_ORIGIN: ${LANDING_CORS_ALLOWED_ORIGIN:-https://yeobaek-landing-hypothesis.vercel.app}
     depends_on:
       mysql:
         condition: service_healthy
