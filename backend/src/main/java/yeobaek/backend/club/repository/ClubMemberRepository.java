@@ -3,12 +3,17 @@ package yeobaek.backend.club.repository;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
 
 public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
+
+    @Modifying
+    @Query("delete from ClubMember cm where cm.member.id = :memberId")
+    void deleteAllByMemberId(@Param("memberId") Long memberId);
 
     boolean existsByMemberIdAndClubIdAndStatus(Long memberId, Long clubId, ClubMemberStatus status);
 
