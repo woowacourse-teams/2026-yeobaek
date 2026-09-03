@@ -29,7 +29,8 @@ public class CommentService {
     @Transactional(readOnly = true)
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
         validateSentenceContext(memberId, clubId, sentenceId);
-        return new CommentsResponse(commentRepository.findAllWithWriterByClubIdAndSentenceId(clubId, sentenceId).stream()
+        return new CommentsResponse(commentRepository
+                .findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId).stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
     }
