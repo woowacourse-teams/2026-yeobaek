@@ -24,6 +24,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -41,6 +46,9 @@ fun MyPageScreen(
     deleteAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -77,7 +85,7 @@ fun MyPageScreen(
             }
             Row(
                 modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().clickable {
-                    deleteAccount()
+                    showDeleteDialog = true
                 },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -94,6 +102,15 @@ fun MyPageScreen(
         }
     }
 
+    if (showDeleteDialog) {
+        MyPageDeleteDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            onConfirm = {
+                showDeleteDialog = false
+                deleteAccount()
+            },
+        )
+    }
 }
 
 @Preview(showBackground = true, name = "마이페이지")
