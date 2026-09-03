@@ -1,5 +1,7 @@
 package com.yeobaek.feature.home
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_person_circle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -24,16 +29,17 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupButtonSection
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun HomeScreen(
     appName: String,
-    appVersion: String,
     uiState: HomeUiState,
     navigateToJoin: () -> Unit,
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
     navigateToReader: (Long) -> Unit,
+    navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -41,7 +47,7 @@ fun HomeScreen(
         topBar = {
             AppTitle(
                 title = "$appName | ${uiState.username}",
-                appVersion = appVersion,
+                navigateToMyPage = navigateToMyPage,
             )
         },
         bottomBar = {
@@ -88,7 +94,7 @@ fun HomeScreen(
 @Composable
 private fun AppTitle(
     title: String,
-    appVersion: String,
+    navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -102,12 +108,18 @@ private fun AppTitle(
             )
         },
         actions = {
-            Text(
-                text = "v$appVersion",
-                modifier = Modifier.padding(end = 16.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            IconButton(
+                onClick = {
+                    navigateToMyPage()
+                },
+                modifier = Modifier.size(50.dp),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_person_circle),
+                    contentDescription = "사용자 프로필 아이콘",
+                    modifier = Modifier.size(25.dp),
+                )
+            }
         },
         modifier = modifier.fillMaxWidth(),
         colors = TopAppBarDefaults.topAppBarColors(
@@ -123,12 +135,14 @@ private fun HomeScreenPreview() {
     YeobaekTheme {
         HomeScreen(
             appName = "여백",
-            appVersion = "1.0.0",
-            uiState = HomeUiState(),
+            uiState = HomeUiState(
+                username = "하로하로하로",
+            ),
             navigateToJoin = {},
             navigateToDetail = {},
             navigateToCreate = {},
             navigateToReader = {},
+            navigateToMyPage = {},
         )
     }
 }

@@ -117,14 +117,17 @@ class DevDataSeederTest extends IntegrationTest {
         Club club = clubRepository.findByJoinCode("A3F9KQ").orElseThrow();
         Book book = bookRepository.findAll().getFirst();
         Passage passage = passageRepository.findRangeByBookId(book.getId(), 2, 2).getFirst();
+        Long memberId = memberRepository.findAll().stream()
+                .filter(member -> "민서".equals(member.getNickname()))
+                .findFirst().orElseThrow().getId();
 
         assertThat(passage.getId()).isEqualTo(2L);
         assertThat(passage.getSentences()).extracting("sequence", "content")
                 .containsExactly(
                         tuple(1, "(개발용 시드 문단 2) 실제 본문은 인제스트 파이프라인으로 투입된다. "),
                         tuple(2, "이 문단은 읽기 화면·진도·댓글 개발을 위한 자리 채움 텍스트다."));
-        assertThat(commentRepository.findAllWithWriterByClubIdAndSentenceId(
-                club.getId(), passage.getSentences().getFirst().getId()))
+        assertThat(commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(
+                memberId, club.getId(), passage.getSentences().getFirst().getId()))
                 .extracting(
                         comment -> comment.getClubMember().getMember().getNickname(),
                         comment -> comment.getContent())

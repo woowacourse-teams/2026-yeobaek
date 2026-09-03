@@ -20,7 +20,10 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
@@ -53,6 +56,12 @@ class PassageServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentService commentService;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     private Member reader;
     private Member outsider;
@@ -89,6 +98,41 @@ class PassageServiceTest extends IntegrationTest {
         assertThat(response.passages().get(0).sentences().getFirst().commentCount()).isZero();
         assertThat(response.passages().get(1).sequence()).isEqualTo(2);
         assertThat(response.passages().get(1).sentences().getFirst().commentCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("댓글 신고 전후 본문 응답의 댓글 수는 동일하다")
+    void preserveCommentCountAfterReport() {
+        Member writer = memberRepository.save(new Member("작성자"));
+        clubMemberRepository.save(new ClubMember(reader, club));
+        ClubMember writerMembership = clubMemberRepository.save(new ClubMember(writer, club));
+        Passage first = passageRepository.findRangeByBookId(club.getBook().getId(), 1, 1).getFirst();
+        Comment comment = commentRepository.save(
+                new Comment(writerMembership, first.getSentences().getFirst(), "신고 대상"));
+
+        PassagesResponse beforeReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+        commentService.report(reader.getId(), comment.getId());
+        PassagesResponse afterReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+
+        assertThat(beforeReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
+        assertThat(afterReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("문장 댓글 수에서 요청자가 차단한 회원의 댓글을 제외한다")
+    void excludeBlockedWritersFromCommentCounts() {
+        Member blockedWriter = memberRepository.save(new Member("차단 대상"));
+        ClubMember readerMembership = clubMemberRepository.save(new ClubMember(reader, club));
+        ClubMember blockedMembership = clubMemberRepository.save(new ClubMember(blockedWriter, club));
+        Passage first = passageRepository.findRangeByBookId(club.getBook().getId(), 1, 1).getFirst();
+        var sentence = first.getSentences().getFirst();
+        commentRepository.save(new Comment(readerMembership, sentence, "보이는 댓글"));
+        commentRepository.save(new Comment(blockedMembership, sentence, "숨길 댓글"));
+        memberBlockRepository.save(new MemberBlock(reader, blockedWriter));
+
+        PassagesResponse response = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+
+        assertThat(response.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
     }
 
     @Test

@@ -2,6 +2,7 @@ package yeobaek.backend.club.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import yeobaek.backend.club.dto.MyProgressResponse;
 import yeobaek.backend.club.repository.ClubMemberCount;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
@@ -40,6 +42,7 @@ public class ClubService {
     private final ActiveBookRepository bookRepository;
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
+    private final MemberBlockRepository memberBlockRepository;
     private final JoinCodeGenerator joinCodeGenerator;
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
@@ -103,14 +106,27 @@ public class ClubService {
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst()
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+        Set<Long> blockedMemberIds = blockedMemberIds(memberId, clubMembers);
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
                 toBookResponse(book, authorNames(book)),
                 toMyProgress(myMembership),
                 clubMembers.stream()
                         .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
-                                clubMember.getMember().getNickname(), clubMember.isOwnedBy(memberId)))
+                                clubMember.getMember().getNickname(), clubMember.isOwnedBy(memberId),
+                                !clubMember.isOwnedBy(memberId)
+                                        && blockedMemberIds.contains(clubMember.getMember().getId())))
                         .toList());
+    }
+
+    private Set<Long> blockedMemberIds(Long memberId, List<ClubMember> clubMembers) {
+        List<Long> memberIds = clubMembers.stream()
+                .map(clubMember -> clubMember.getMember().getId())
+                .toList();
+        if (memberIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(memberBlockRepository.findBlockedMemberIds(memberId, memberIds));
     }
 
     private MyProgressResponse toMyProgress(ClubMember clubMember) {

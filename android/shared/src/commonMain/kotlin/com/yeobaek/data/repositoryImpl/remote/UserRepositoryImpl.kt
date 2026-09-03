@@ -48,9 +48,20 @@ class UserRepositoryImpl(
         }
     }
 
-    override fun getUserId(): Int = userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
+    override suspend fun getUserId(): Int =
+        userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
 
-    override fun getUsername(): String = userPreferences.getUsername() ?: throw IllegalArgumentException(
+    override suspend fun getUsername(): String = userPreferences.getUsername() ?: throw IllegalArgumentException(
         "유저 이름 정보가 없네요",
     )
+
+    override suspend fun deleteAccount() {
+        val response = userApi.deleteAccount()
+
+        if (response.isSuccessful) {
+            userPreferences.clearUser()
+        } else {
+            throw IllegalArgumentException("회원 탈퇴 실패 ${response.status}")
+        }
+    }
 }

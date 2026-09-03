@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -12,9 +13,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -24,6 +28,12 @@ class MemberServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
+
+    @Mock
+    private CommentRepository commentRepository;
+
+    @Mock
+    private ClubMemberRepository clubMemberRepository;
 
     @InjectMocks
     private MemberService memberService;
@@ -62,5 +72,16 @@ class MemberServiceTest {
 
         verify(memberRepository, never()).existsByNickname(anyString());
         verify(memberRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("계정을 삭제할 때 댓글, 모임 참여 기록, 회원 순으로 삭제한다")
+    void delete() {
+        memberService.delete(1L);
+
+        InOrder ordered = inOrder(commentRepository, clubMemberRepository, memberRepository);
+        ordered.verify(commentRepository).deleteAllByMemberId(1L);
+        ordered.verify(clubMemberRepository).deleteAllByMemberId(1L);
+        ordered.verify(memberRepository).deleteById(1L);
     }
 }
