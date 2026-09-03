@@ -196,8 +196,8 @@ class ClubControllerTest extends ControllerTest {
                 new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.ACTIVE),
                 new MyProgressResponse(42, 13, lastReadAt),
                 List.of(
-                        new ClubMemberResponse(4L, "민서", true),
-                        new ClubMemberResponse(8L, "지수", false)));
+                        new ClubMemberResponse(4L, "민서", true, false),
+                        new ClubMemberResponse(8L, "지수", false, true)));
         given(clubService.findDetail(4L, 10L)).willReturn(response);
 
         mockMvc.perform(get("/api/clubs/{clubId}", 10L)
@@ -225,9 +225,11 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.members[0].memberId").value(4))
                 .andExpect(jsonPath("$.members[0].nickname").value("민서"))
                 .andExpect(jsonPath("$.members[0].mine").value(true))
+                .andExpect(jsonPath("$.members[0].blocked").value(false))
                 .andExpect(jsonPath("$.members[1].memberId").value(8))
                 .andExpect(jsonPath("$.members[1].nickname").value("지수"))
-                .andExpect(jsonPath("$.members[1].mine").value(false));
+                .andExpect(jsonPath("$.members[1].mine").value(false))
+                .andExpect(jsonPath("$.members[1].blocked").value(true));
 
         verify(clubService, times(1)).findDetail(4L, 10L);
     }

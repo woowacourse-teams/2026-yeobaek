@@ -24,6 +24,8 @@ import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
@@ -50,6 +52,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     @Autowired
     private ClubRepository clubRepository;
@@ -106,6 +111,22 @@ class CommentServiceTest extends IntegrationTest {
         assertThat(response.comments().get(0).mine()).isTrue();
         assertThat(response.comments().get(1).nickname()).isEqualTo("지수");
         assertThat(response.comments().get(1).mine()).isFalse();
+    }
+
+    @Test
+    @DisplayName("요청자가 차단한 회원의 댓글만 단방향으로 숨긴다")
+    void excludeBlockedWritersCommentsDirectionally() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), "작성자 댓글");
+        commentService.create(other.getId(), club.getId(), sentence.getId(), "차단자 댓글");
+        memberBlockRepository.save(new MemberBlock(writer, other));
+
+        CommentsResponse blockerResponse = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+        CommentsResponse blockedResponse = commentService.findComments(other.getId(), club.getId(), sentence.getId());
+
+        assertThat(blockerResponse.comments()).extracting(CommentResponse::content)
+                .containsExactly("작성자 댓글");
+        assertThat(blockedResponse.comments()).extracting(CommentResponse::content)
+                .containsExactly("작성자 댓글", "차단자 댓글");
     }
 
     @Test

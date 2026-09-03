@@ -20,6 +20,12 @@ class ApiDocsServingTest extends IntegrationTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$['paths']['/api/admin/books/{bookId}']['delete']").exists())
+                .andExpect(jsonPath("$['paths']['/api/members/me/blocks']['get']").exists())
+                .andExpect(jsonPath("$['paths']['/api/members/me/blocks/{memberId}']['put']").exists())
+                .andExpect(jsonPath("$['paths']['/api/members/me/blocks/{memberId}']['delete']").exists())
+                .andExpect(jsonPath(
+                        "$['components']['schemas']['ClubMemberResponse']['properties']['blocked']['type']")
+                        .value("boolean"))
                 .andExpect(jsonPath(
                         "$['components']['schemas']['ClubBookResponse']['properties']['status']['enum'][0]")
                         .value("ACTIVE"))

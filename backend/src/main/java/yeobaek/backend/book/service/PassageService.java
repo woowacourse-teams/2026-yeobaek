@@ -45,7 +45,7 @@ public class PassageService {
                 .flatMap(passage -> passage.getSentences().stream())
                 .map(sentence -> sentence.getId())
                 .toList();
-        Map<Long, Long> commentCounts = countComments(clubId, sentenceIds);
+        Map<Long, Long> commentCounts = countComments(memberId, clubId, sentenceIds);
         return new PassagesResponse(passages.stream()
                 .map(passage -> new PassageResponse(passage.getId(), passage.getSequence(),
                         passage.getChapter().getId(), passage.getSentences().stream()
@@ -55,11 +55,11 @@ public class PassageService {
                 .toList());
     }
 
-    private Map<Long, Long> countComments(Long clubId, List<Long> sentenceIds) {
+    private Map<Long, Long> countComments(Long memberId, Long clubId, List<Long> sentenceIds) {
         if (sentenceIds.isEmpty()) {
             return Map.of();
         }
-        return commentRepository.countByClubIdAndSentenceIdIn(clubId, sentenceIds).stream()
+        return commentRepository.countVisibleByMemberIdAndClubIdAndSentenceIdIn(memberId, clubId, sentenceIds).stream()
                 .collect(Collectors.toMap(SentenceCommentCount::getSentenceId,
                         SentenceCommentCount::getCommentCount));
     }

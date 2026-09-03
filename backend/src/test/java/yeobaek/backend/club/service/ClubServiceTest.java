@@ -2,6 +2,7 @@ package yeobaek.backend.club.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +33,8 @@ import yeobaek.backend.club.dto.MyClubsResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
@@ -61,6 +64,9 @@ class ClubServiceTest extends IntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     @Autowired
     private ChapterRepository chapterRepository;
@@ -280,6 +286,7 @@ class ClubServiceTest extends IntegrationTest {
         ClubCreateResponse created = clubService.create(creator.getId(), "1기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));
         clubService.join(joiner.getId(), created.joinCode());
+        memberBlockRepository.save(new MemberBlock(creator, joiner));
         ClubMember myMembership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
         myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
@@ -289,7 +296,8 @@ class ClubServiceTest extends IntegrationTest {
 
         assertThat(response.joinCode()).isEqualTo(created.joinCode());
         assertThat(response.members()).extracting(ClubMemberResponse::nickname).containsExactly("민서", "지수");
-        assertThat(response.members()).extracting(ClubMemberResponse::mine).containsExactly(true, false);
+        assertThat(response.members()).extracting(ClubMemberResponse::mine, ClubMemberResponse::blocked)
+                .containsExactly(tuple(true, false), tuple(false, true));
         assertThat(response.myProgress().lastReadPassageSequence()).isEqualTo(2);
         assertThat(response.myProgress().progressRate()).isEqualTo(67);
     }

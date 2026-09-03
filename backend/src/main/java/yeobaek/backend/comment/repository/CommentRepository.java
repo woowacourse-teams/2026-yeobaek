@@ -13,17 +13,27 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             join fetch c.clubMember cm
             join fetch cm.member
             where cm.club.id = :clubId and c.sentence.id = :sentenceId
+              and not exists (
+                  select mb.id from MemberBlock mb
+                  where mb.blocker.id = :memberId and mb.blocked.id = cm.member.id
+              )
             order by c.createdAt asc, c.id asc
             """)
-    List<Comment> findAllWithWriterByClubIdAndSentenceId(@Param("clubId") Long clubId,
-                                                         @Param("sentenceId") Long sentenceId);
+    List<Comment> findAllVisibleWithWriterByClubIdAndSentenceId(@Param("memberId") Long memberId,
+                                                                @Param("clubId") Long clubId,
+                                                                @Param("sentenceId") Long sentenceId);
 
     @Query("""
             select c.sentence.id as sentenceId, count(c) as commentCount
             from Comment c
             where c.clubMember.club.id = :clubId and c.sentence.id in :sentenceIds
+              and not exists (
+                  select mb.id from MemberBlock mb
+                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+              )
             group by c.sentence.id
             """)
-    List<SentenceCommentCount> countByClubIdAndSentenceIdIn(@Param("clubId") Long clubId,
-                                                            @Param("sentenceIds") List<Long> sentenceIds);
+    List<SentenceCommentCount> countVisibleByMemberIdAndClubIdAndSentenceIdIn(@Param("memberId") Long memberId,
+                                                                              @Param("clubId") Long clubId,
+                                                                              @Param("sentenceIds") List<Long> sentenceIds);
 }
