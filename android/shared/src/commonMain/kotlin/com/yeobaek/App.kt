@@ -188,7 +188,11 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
-                LaunchedEffect(route.groupId, detailViewModel.uiState.blockState) {
+                LaunchedEffect(
+                    route.groupId,
+                    detailViewModel.uiState.blockState,
+                    detailViewModel.uiState.unBlockState,
+                ) {
                     detailViewModel.initGroupData(groupId = route.groupId)
                 }
 
@@ -196,6 +200,9 @@ fun App(
                     uiState = detailViewModel.uiState,
                     onBlockUser = { otherUserId ->
                         detailViewModel.blockUser(otherUserId)
+                    },
+                    onUnBlockUser = { otherUserId ->
+                        detailViewModel.unBlockUser(otherUserId)
                     },
                     onBackClick = {
                         navController.popBackStack()

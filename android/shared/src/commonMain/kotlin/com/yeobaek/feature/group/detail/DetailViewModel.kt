@@ -141,6 +141,29 @@ class DetailViewModel(
         }
     }
 
+    fun unBlockUser(otherUserId: Int) {
+        if (uiState.blockState is BlockState.Loading) return
+
+        uiState = uiState.copy(
+            blockState = BlockState.Loading,
+        )
+
+        try {
+            viewModelScope.launch {
+                userRepository.unBlockUser(otherUserId)
+                uiState = uiState.copy(
+                    blockState = BlockState.Success,
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            uiState = uiState.copy(
+                blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+            )
+        }
+    }
+
     private fun crashContext(operation: CrashOperation) = CrashContext(
         screen = TrackedScreen.GROUP_DETAIL,
         operation = operation,
@@ -175,4 +198,11 @@ sealed class BlockState {
     data object Loading : BlockState()
     data object Success : BlockState()
     data class Failure(val message: String) : BlockState()
+}
+
+sealed class UnBlockState {
+    data object Idle : UnBlockState()
+    data object Loading : UnBlockState()
+    data object Success : UnBlockState()
+    data class Failure(val message: String) : UnBlockState()
 }

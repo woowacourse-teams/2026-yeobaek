@@ -43,6 +43,7 @@ fun DetailScreen(
     onReadClick: () -> Unit,
     onExitClick: () -> Unit,
     onBlockUser: (otherUserId: Int) -> Unit,
+    onUnBlockUser: (otherUserId: Int) -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -73,6 +74,26 @@ fun DetailScreen(
             is BlockState.Success -> {
                 snackbarHostState.showSnackbar(
                     message = "사용자를 차단했습니다.",
+                    duration = SnackbarDuration.Short,
+                )
+            }
+
+            is BlockState.Failure -> {
+                snackbarHostState.showSnackbar(
+                    message = uiState.blockState.message,
+                    duration = SnackbarDuration.Short,
+                )
+            }
+
+            is BlockState.Idle, BlockState.Loading -> return@LaunchedEffect
+        }
+    }
+
+    LaunchedEffect(uiState.blockState) {
+        when (uiState.blockState) {
+            is BlockState.Success -> {
+                snackbarHostState.showSnackbar(
+                    message = "사용자를 차단을 해제했습니다.",
                     duration = SnackbarDuration.Short,
                 )
             }
@@ -160,6 +181,7 @@ fun DetailScreen(
             GroupUserCard(
                 users = uiState.groupUiModel.users,
                 onBlockUser = onBlockUser,
+                onUnBlockUser = onUnBlockUser,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -185,6 +207,7 @@ private fun DetailScreenPreview() {
             onReadClick = {},
             onExitClick = {},
             onBlockUser = {},
+            onUnBlockUser = {},
             navigateToHome = {},
         )
     }

@@ -44,6 +44,7 @@ fun UserCard(
     itsMe: Boolean,
     blocked: Boolean,
     onBlockUser: (Int) -> Unit,
+    onUnBlockUser: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isActionMenuExpanded by remember(Unit) {
@@ -119,9 +120,10 @@ fun UserCard(
         MemberActionMenu(
             expanded = isActionMenuExpanded,
             onDismissRequest = { isActionMenuExpanded = false },
-            onDelete = {
+            text = if (blocked) "차단 해제" else "차단",
+            onClick = {
                 isActionMenuExpanded = false
-                onBlockUser(id)
+                if (blocked) onUnBlockUser(id) else onBlockUser(id)
             },
             modifier = Modifier.padding(top = 32.dp),
         )
@@ -138,6 +140,7 @@ private fun UserCardPreview() {
             itsMe = true,
             blocked = false,
             onBlockUser = {},
+            onUnBlockUser = {},
         )
     }
 }
@@ -152,6 +155,7 @@ private fun OtherUserCardPreview() {
             itsMe = false,
             blocked = false,
             onBlockUser = {},
+            onUnBlockUser = {},
         )
     }
 }

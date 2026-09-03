@@ -28,7 +28,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun MemberActionMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    onDelete: () -> Unit,
+    text: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -50,9 +51,9 @@ fun MemberActionMenu(
                     ) {
                         Column {
                             MemberActionMenuItem(
-                                text = "차단",
+                                text = text,
                                 color = YeobaekError,
-                                onClick = onDelete,
+                                onClick = onClick,
                             )
                         }
                     }
@@ -99,7 +100,8 @@ private fun MemberActionMenuPreview() {
         MemberActionMenu(
             expanded = true,
             onDismissRequest = {},
-            onDelete = {},
+            text = "차단",
+            onClick = {},
         )
     }
 }

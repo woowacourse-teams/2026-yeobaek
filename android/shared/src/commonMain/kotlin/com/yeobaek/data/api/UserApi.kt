@@ -29,4 +29,9 @@ interface UserApi {
     suspend fun blockUser(
         @Path("memberId") memberId: Int,
     ): Response<Unit>
+
+    @DELETE("api/members/me/blocks/{memberId}")
+    suspend fun unBlockUser(
+        @Path("memberId") memberId: Int,
+    ): Response<Unit>
 }
