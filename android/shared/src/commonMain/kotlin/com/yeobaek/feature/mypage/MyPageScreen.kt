@@ -20,10 +20,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,17 +40,37 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
+import com.yeobaek.feature.navigation.MyPage
+import com.yeobaek.feature.navigation.Nickname
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun MyPageScreen(
-    uiState: MyPageUiState = MyPageUiState(),
+    uiState: MyPageUiState,
     appVersion: String,
     deleteAccount: () -> Unit,
+    navigateToNickname: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.deleteState) {
+        when (uiState.deleteState) {
+            is DeleteState.Success -> {
+                navigateToNickname()
+            }
+
+            is DeleteState.Failure -> {
+                snackbarHostState.showSnackbar(
+                    message = "회원 탈퇴에 실패했습니다.",
+                    duration = SnackbarDuration.Short,
+                )
+            }
+            is DeleteState.Idle, DeleteState.Loading -> {}
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -124,6 +147,7 @@ private fun MyPageScreenPreview() {
             ),
             appVersion = "1.0.0",
             deleteAccount = {},
+            navigateToNickname = {},
         )
     }
 }

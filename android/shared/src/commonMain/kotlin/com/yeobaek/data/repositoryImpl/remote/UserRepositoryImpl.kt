@@ -53,4 +53,14 @@ class UserRepositoryImpl(
     override suspend fun getUsername(): String = userPreferences.getUsername() ?: throw IllegalArgumentException(
         "유저 이름 정보가 없네요",
     )
+
+    override suspend fun deleteAccount() {
+        val response = userApi.deleteAccount()
+
+        if (response.isSuccessful) {
+            userPreferences.clearUser()
+        } else {
+            throw IllegalArgumentException("회원 탈퇴 실패 ${response.status}")
+        }
+    }
 }

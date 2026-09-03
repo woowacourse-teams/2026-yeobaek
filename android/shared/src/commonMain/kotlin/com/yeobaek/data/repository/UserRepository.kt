@@ -8,4 +8,5 @@ interface UserRepository {
     suspend fun getLastReading(): LastReadingModel?
     suspend fun getUserId(): Int
     suspend fun getUsername(): String
+    suspend fun deleteAccount()
 }

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.UserRepository
+import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
 class MyPageViewModel(
@@ -31,7 +32,26 @@ class MyPageViewModel(
     }
 
     fun deleteAccount() {
-        TODO()
+        if (uiState.deleteState is DeleteState.Loading) return
+
+        uiState = uiState.copy(
+            deleteState = DeleteState.Loading
+        )
+
+        viewModelScope.launch {
+            try {
+                userRepository.deleteAccount()
+                uiState = uiState.copy(
+                    deleteState = DeleteState.Success
+                )
+            } catch (e: CancellationException) {
+                e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    deleteState = DeleteState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다.")
+                )
+            }
+        }
     }
 
     companion object {
@@ -45,4 +65,11 @@ class MyPageViewModel(
             }
         }
     }
+}
+
+sealed class DeleteState {
+    data object Idle : DeleteState()
+    data object Loading : DeleteState()
+    data object Success : DeleteState()
+    data class Failure(val message: String) : DeleteState()
 }

@@ -358,7 +358,14 @@ fun App(
                 MyPageScreen(
                     uiState = myPageViewModel.uiState,
                     appVersion = appContainer.appVersion,
-                    deleteAccount = myPageViewModel::deleteAccount
+                    deleteAccount = myPageViewModel::deleteAccount,
+                    navigateToNickname = {
+                        navController.navigate(Nickname) {
+                            popUpTo<MyPage> {
+                                inclusive = true
+                            }
+                        }
+                    },
                 )
             }
         }
