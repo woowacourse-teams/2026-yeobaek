@@ -48,7 +48,7 @@ class UserRepositoryImpl(
         }
     }
 
-    override fun getUserId(): Int = userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
+    override fun getUserId(): Long = userPreferences.getUserId() ?: throw IllegalArgumentException("유저 아이디 정보가 없네요")
 
     override fun getUsername(): String = userPreferences.getUsername() ?: throw IllegalArgumentException(
         "유저 이름 정보가 없네요",

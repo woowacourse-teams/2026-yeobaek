@@ -6,6 +6,6 @@ import com.yeobaek.data.model.UserModel
 interface UserRepository {
     suspend fun setUserData(nickname: String): UserModel
     suspend fun getLastReading(): LastReadingModel?
-    fun getUserId(): Int
+    fun getUserId(): Long
     fun getUsername(): String
 }
