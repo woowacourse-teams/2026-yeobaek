@@ -40,8 +40,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
-import com.yeobaek.feature.navigation.MyPage
-import com.yeobaek.feature.navigation.Nickname
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -52,7 +50,6 @@ fun MyPageScreen(
     navigateToNickname: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -68,6 +65,7 @@ fun MyPageScreen(
                     duration = SnackbarDuration.Short,
                 )
             }
+
             is DeleteState.Idle, DeleteState.Loading -> {}
         }
     }
@@ -81,7 +79,7 @@ fun MyPageScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                )
+                ),
             )
         },
     ) { innerPadding ->
@@ -121,7 +119,11 @@ fun MyPageScreen(
                 Text("회원 탈퇴")
             }
             Spacer(modifier = Modifier.height(30.dp))
-            Text("v${appVersion}", modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(), textAlign = TextAlign.End)
+            Text(
+                "v$appVersion",
+                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
+                textAlign = TextAlign.End,
+            )
         }
     }
 

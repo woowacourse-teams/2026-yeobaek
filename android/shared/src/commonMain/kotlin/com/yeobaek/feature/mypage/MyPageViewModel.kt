@@ -26,7 +26,7 @@ class MyPageViewModel(
         viewModelScope.launch {
             uiState = uiState.copy(
                 id = userRepository.getUserId(),
-                name = userRepository.getUsername()
+                name = userRepository.getUsername(),
             )
         }
     }
@@ -35,20 +35,20 @@ class MyPageViewModel(
         if (uiState.deleteState is DeleteState.Loading) return
 
         uiState = uiState.copy(
-            deleteState = DeleteState.Loading
+            deleteState = DeleteState.Loading,
         )
 
         viewModelScope.launch {
             try {
                 userRepository.deleteAccount()
                 uiState = uiState.copy(
-                    deleteState = DeleteState.Success
+                    deleteState = DeleteState.Success,
                 )
             } catch (e: CancellationException) {
                 e
             } catch (e: Exception) {
                 uiState = uiState.copy(
-                    deleteState = DeleteState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다.")
+                    deleteState = DeleteState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
                 )
             }
         }
@@ -57,7 +57,7 @@ class MyPageViewModel(
     companion object {
         fun myPageViewModelFactory(
             userRepository: UserRepository,
-        ) : ViewModelProvider.Factory = viewModelFactory {
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MyPageViewModel(
                     userRepository = userRepository,

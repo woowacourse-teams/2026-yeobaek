@@ -112,12 +112,12 @@ private fun AppTitle(
                 onClick = {
                     navigateToMyPage()
                 },
-                modifier = Modifier.size(50.dp)
+                modifier = Modifier.size(50.dp),
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_person_circle),
                     contentDescription = "사용자 프로필 아이콘",
-                    modifier = Modifier.size(25.dp)
+                    modifier = Modifier.size(25.dp),
                 )
             }
         },
@@ -126,7 +126,7 @@ private fun AppTitle(
             containerColor = MaterialTheme.colorScheme.background,
         ),
 
-        )
+    )
 }
 
 @Preview(showBackground = true, name = "리더홈화면")
