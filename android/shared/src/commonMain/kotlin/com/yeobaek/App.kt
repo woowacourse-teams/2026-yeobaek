@@ -24,10 +24,13 @@ import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
+import com.yeobaek.feature.mypage.MyPageScreen
+import com.yeobaek.feature.mypage.MyPageViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
+import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
@@ -152,7 +155,6 @@ fun App(
 
                 HomeScreen(
                     appName = appContainer.appName,
-                    appVersion = appContainer.appVersion,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)
@@ -165,6 +167,9 @@ fun App(
                     },
                     navigateToReader = {
                         navController.navigate(Reader(groupId = it))
+                    },
+                    navigateToMyPage = {
+                        navController.navigate(MyPage)
                     },
                 )
             }
@@ -339,6 +344,26 @@ fun App(
                     navigateToHome = {
                         if (!createViewModel.createConditionCheck()) {
                             createViewModel.createGroup()
+                        }
+                    },
+                )
+            }
+            composable<MyPage> {
+                val myPageViewModel: MyPageViewModel = viewModel(
+                    factory = MyPageViewModel.myPageViewModelFactory(
+                        userRepository = appContainer.userRepository,
+                    ),
+                )
+
+                MyPageScreen(
+                    uiState = myPageViewModel.uiState,
+                    appVersion = appContainer.appVersion,
+                    deleteAccount = myPageViewModel::deleteAccount,
+                    navigateToNickname = {
+                        navController.navigate(Nickname) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
                         }
                     },
                 )

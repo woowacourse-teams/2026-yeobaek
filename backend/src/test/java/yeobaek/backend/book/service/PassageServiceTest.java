@@ -20,6 +20,7 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.repository.MemberBlockRepository;
@@ -55,6 +56,9 @@ class PassageServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentService commentService;
 
     @Autowired
     private MemberBlockRepository memberBlockRepository;
@@ -94,6 +98,24 @@ class PassageServiceTest extends IntegrationTest {
         assertThat(response.passages().get(0).sentences().getFirst().commentCount()).isZero();
         assertThat(response.passages().get(1).sequence()).isEqualTo(2);
         assertThat(response.passages().get(1).sentences().getFirst().commentCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("댓글 신고 전후 본문 응답의 댓글 수는 동일하다")
+    void preserveCommentCountAfterReport() {
+        Member writer = memberRepository.save(new Member("작성자"));
+        clubMemberRepository.save(new ClubMember(reader, club));
+        ClubMember writerMembership = clubMemberRepository.save(new ClubMember(writer, club));
+        Passage first = passageRepository.findRangeByBookId(club.getBook().getId(), 1, 1).getFirst();
+        Comment comment = commentRepository.save(
+                new Comment(writerMembership, first.getSentences().getFirst(), "신고 대상"));
+
+        PassagesResponse beforeReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+        commentService.report(reader.getId(), comment.getId());
+        PassagesResponse afterReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+
+        assertThat(beforeReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
+        assertThat(afterReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
     }
 
     @Test

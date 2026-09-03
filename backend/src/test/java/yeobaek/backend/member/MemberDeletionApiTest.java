@@ -23,6 +23,8 @@ import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentReport;
+import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
@@ -59,6 +61,9 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Autowired
     private CommentRepository commentRepository;
 
+    @Autowired
+    private CommentReportRepository commentReportRepository;
+
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
@@ -87,6 +92,9 @@ class MemberDeletionApiTest extends IntegrationTest {
                 new Comment(leftMembership, passage.getSentences().getFirst(), "탈퇴 모임의 삭제될 댓글"));
         Comment remainingComment = commentRepository.save(
                 new Comment(remainingMembership, passage.getSentences().getFirst(), "남을 댓글"));
+        commentReportRepository.saveAllAndFlush(List.of(
+                new CommentReport(remainingMember, targetComment),
+                new CommentReport(targetMember, remainingComment)));
 
         mockMvc.perform(delete("/api/members/me")
                         .header("X-Member-Id", targetMember.getId()))
@@ -109,7 +117,7 @@ class MemberDeletionApiTest extends IntegrationTest {
                 .extracting(ClubMember::getId)
                 .containsExactly(remainingMembership.getId())
                 .doesNotContain(progressedMembership.getId(), leftMembership.getId());
-        assertThat(memberBlockRepository.findAll()).isEmpty();
+        assertThat(List.of(memberBlockRepository.count(), commentReportRepository.count())).containsOnly(0L);
         assertThat(clubRepository.findAll())
                 .extracting(Club::getId)
                 .containsExactlyInAnyOrder(sharedClub.getId(), leftClub.getId());

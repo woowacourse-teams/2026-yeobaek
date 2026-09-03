@@ -72,4 +72,11 @@ public class CommentController {
     public void delete(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
         commentService.delete(memberId, commentId);
     }
+
+    @Operation(summary = "댓글 신고", description = "같은 회원의 동일 댓글 재신고는 새 신고를 만들지 않는다.")
+    @PostMapping("/api/comments/{commentId}/reports")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void report(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
+        commentService.report(memberId, commentId);
+    }
 }

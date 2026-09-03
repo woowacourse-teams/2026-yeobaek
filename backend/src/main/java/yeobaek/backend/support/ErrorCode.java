@@ -19,6 +19,7 @@ public enum ErrorCode {
     PASSAGE_NOT_FOUND("존재하지 않는 본문입니다."),
     SENTENCE_NOT_FOUND("존재하지 않는 문장입니다."),
     COMMENT_NOT_FOUND("존재하지 않는 댓글입니다."),
+    CANNOT_REPORT_OWN_COMMENT("본인의 댓글은 신고할 수 없습니다."),
     CANNOT_BLOCK_SELF("자기 자신을 차단할 수 없습니다."),
     AUTHOR_NOT_FOUND("존재하지 않는 작가입니다."),
     DUPLICATE_AUTHOR("같은 작가가 중복 기재되었습니다."),
