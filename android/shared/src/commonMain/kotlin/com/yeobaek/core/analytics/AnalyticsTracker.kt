@@ -14,7 +14,7 @@ class AnalyticsTracker(
         client.screen(screenName)
     }
 
-    fun identify(userId: Long) {
+    fun identify(userId: Int) {
         client.identify(userId.toString())
     }
 }

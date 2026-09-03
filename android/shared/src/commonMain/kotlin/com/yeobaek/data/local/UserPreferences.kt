@@ -13,7 +13,7 @@ class UserPreferences(
         settings.putString(USERNAME, username)
     }
 
-    fun getUserId(): Long? = settings.getLongOrNull(USER_ID)
+    fun getUserId(): Int? = settings.getIntOrNull(USER_ID)
 
     fun getUsername(): String? = settings.getStringOrNull(USERNAME)
 
