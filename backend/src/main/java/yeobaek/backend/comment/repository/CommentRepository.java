@@ -2,11 +2,21 @@ package yeobaek.backend.comment.repository;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.comment.domain.Comment;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
+
+    @Modifying
+    @Query("""
+            delete from Comment c
+            where c.clubMember.id in (
+                select cm.id from ClubMember cm where cm.member.id = :memberId
+            )
+            """)
+    void deleteAllByMemberId(@Param("memberId") Long memberId);
 
     @Query("""
             select c from Comment c

@@ -111,6 +111,19 @@ class MemberControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("계정 삭제 요청을 서비스에 전달하고 빈 204 응답을 반환한다")
+    void deleteMember() throws Exception {
+        givenValidMember(7L);
+
+        mockMvc.perform(delete("/api/members/me")
+                        .header("X-Member-Id", "7"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(memberService, times(1)).delete(7L);
+    }
+
+    @Test
     @DisplayName("요청 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingBody() throws Exception {
         mockMvc.perform(post("/api/members")

@@ -28,6 +28,8 @@ import yeobaek.backend.support.analytics.AnalyticsTracker;
 @RequiredArgsConstructor
 public class MemberController {
 
+    private static final String MEMBER_ID_SECURITY_SCHEME = "memberId";
+
     private final MemberService memberService;
     private final MemberBlockService memberBlockService;
     private final AnalyticsTracker analyticsTracker;
@@ -42,14 +44,14 @@ public class MemberController {
     }
 
     @Operation(summary = "차단 목록 조회", description = "요청 회원이 차단한 회원을 닉네임과 회원 ID 오름차순으로 반환한다.")
-    @SecurityRequirement(name = "memberId")
+    @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
     @GetMapping("/api/members/me/blocks")
     public BlockedMembersResponse findBlockedMembers(@AuthMember Long memberId) {
         return memberBlockService.findBlockedMembers(memberId);
     }
 
     @Operation(summary = "사용자 차단", description = "서비스 전체에 단방향 차단을 적용한다. 이미 차단한 회원이면 멱등하게 성공한다.")
-    @SecurityRequirement(name = "memberId")
+    @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
     @PutMapping("/api/members/me/blocks/{memberId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void block(@AuthMember Long blockerId,
@@ -58,11 +60,20 @@ public class MemberController {
     }
 
     @Operation(summary = "사용자 차단 해제", description = "차단 관계가 없어도 멱등하게 성공한다.")
-    @SecurityRequirement(name = "memberId")
+    @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
     @DeleteMapping("/api/members/me/blocks/{memberId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unblock(@AuthMember Long blockerId,
                         @Parameter(description = "차단 해제할 회원 ID") @PathVariable Long memberId) {
         memberBlockService.unblock(blockerId, memberId);
+    }
+
+    @Operation(summary = "계정 삭제",
+            description = "회원의 댓글, 모든 모임 참여 기록·진도, 양방향 차단 관계를 함께 하드 삭제한다.")
+    @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
+    @DeleteMapping("/api/members/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMember(@AuthMember Long memberId) {
+        memberService.delete(memberId);
     }
 }
