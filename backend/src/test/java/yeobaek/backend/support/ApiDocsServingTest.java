@@ -24,6 +24,22 @@ class ApiDocsServingTest extends IntegrationTest {
                 .andExpect(jsonPath("$['paths']['/api/members/me/blocks']['get']").exists())
                 .andExpect(jsonPath("$['paths']['/api/members/me/blocks/{memberId}']['put']").exists())
                 .andExpect(jsonPath("$['paths']['/api/members/me/blocks/{memberId}']['delete']").exists())
+                .andExpect(jsonPath("$['paths']['/api/comments/{commentId}/reports']['post']").exists())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/comments/{commentId}/reports']['post']['responses']['204']")
+                        .exists())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/comments/{commentId}/reports']['post']['parameters'][0]['name']")
+                        .value("commentId"))
+                .andExpect(jsonPath(
+                        "$['paths']['/api/comments/{commentId}/reports']['post']['parameters'][0]['in']")
+                        .value("path"))
+                .andExpect(jsonPath(
+                        "$['paths']['/api/comments/{commentId}/reports']['post']['parameters'][0]['required']")
+                        .value(true))
+                .andExpect(jsonPath(
+                        "$['paths']['/api/comments/{commentId}/reports']['post']['requestBody']")
+                        .doesNotExist())
                 .andExpect(jsonPath(
                         "$['components']['schemas']['ClubMemberResponse']['properties']['blocked']['type']")
                         .value("boolean"))

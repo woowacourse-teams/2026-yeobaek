@@ -22,6 +22,7 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
@@ -40,6 +41,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentReportRepository commentReportRepository;
 
     @Autowired
     private BookManagementRepository bookRepository;
@@ -228,6 +232,81 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("같은 댓글을 다시 신고해도 신고 한 건만 저장된다")
+    void reportCommentIdempotently() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "신고 대상");
+
+        commentService.report(other.getId(), created.commentId());
+        commentService.report(other.getId(), created.commentId());
+
+        assertThat(commentReportRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("댓글 신고 후에도 해당 댓글은 목록에 노출된다")
+    void preserveCommentExposureAfterReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "신고 대상");
+
+        commentService.report(other.getId(), created.commentId());
+
+        assertThat(commentService.findComments(other.getId(), club.getId(), sentence.getId()).comments())
+                .singleElement()
+                .extracting(CommentResponse::commentId)
+                .isEqualTo(created.commentId());
+    }
+
+    @Test
+    @DisplayName("본인 댓글은 신고할 수 없다")
+    void rejectOwnCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "본인 댓글");
+
+        assertThatThrownBy(() -> commentService.report(writer.getId(), created.commentId()))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.CANNOT_REPORT_OWN_COMMENT);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 댓글은 신고할 수 없다")
+    void rejectUnknownCommentReport() {
+        assertThatThrownBy(() -> commentService.report(other.getId(), 999L))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("신고자가 차단한 작성자의 댓글은 보이지 않는 댓글로 처리한다")
+    void rejectBlockedWriterCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "차단된 댓글");
+        memberBlockRepository.save(new MemberBlock(other, writer));
+
+        assertThatThrownBy(() -> commentService.report(other.getId(), created.commentId()))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("모임에 참여하지 않은 회원은 댓글을 신고할 수 없다")
+    void rejectOutsiderCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "신고 대상");
+        Member outsider = memberRepository.save(new Member("외부인"));
+
+        assertThatThrownBy(() -> commentService.report(outsider.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("모임을 탈퇴한 회원은 댓글을 신고할 수 없다")
+    void rejectLeftMemberCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), "신고 대상");
+        leaveClub(other, club);
+
+        assertThatThrownBy(() -> commentService.report(other.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 문장의 댓글 조회는 SENTENCE_NOT_FOUND로 실패한다")
     void rejectUnknownSentence() {
         assertThatThrownBy(() -> commentService.findComments(writer.getId(), club.getId(), 999L))
@@ -288,6 +367,13 @@ class CommentServiceTest extends IntegrationTest {
         void cannotDeleteCommentAndPreservesData() {
             assertBookNotAvailable(() -> commentService.delete(writer.getId(), existingComment.commentId()));
             assertThat(commentRepository.findById(existingComment.commentId())).isPresent();
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 신고할 수 없고 신고 데이터는 생성되지 않는다")
+        void cannotReportComment() {
+            assertBookNotAvailable(() -> commentService.report(other.getId(), existingComment.commentId()));
+            assertThat(commentReportRepository.count()).isZero();
         }
     }
 
