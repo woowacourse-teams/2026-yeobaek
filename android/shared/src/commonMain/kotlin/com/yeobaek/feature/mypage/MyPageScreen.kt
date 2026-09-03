@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,9 @@ fun MyPageScreen(
                 title = {
                     Text("마이페이지")
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                )
             )
         },
     ) { innerPadding ->
@@ -98,7 +102,7 @@ private fun MyPageScreenPreview() {
     YeobaekTheme {
         MyPageScreen(
             uiState = MyPageUiState(
-                id = 0L,
+                id = 0,
                 name = "하로",
             ),
             appVersion = "1.0.0",

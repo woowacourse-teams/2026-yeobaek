@@ -5,9 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.UserRepository
+import kotlinx.coroutines.launch
 
 class MyPageViewModel(
     private val userRepository: UserRepository,
@@ -15,11 +17,17 @@ class MyPageViewModel(
     var uiState by mutableStateOf(MyPageUiState())
         private set
 
+    init {
+        initMyPage()
+    }
+
     fun initMyPage() {
-        uiState = uiState.copy(
-            id = userRepository.getUserId(),
-            name = userRepository.getUsername()
-        )
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                id = userRepository.getUserId(),
+                name = userRepository.getUsername()
+            )
+        }
     }
 
     fun deleteAccount() {
