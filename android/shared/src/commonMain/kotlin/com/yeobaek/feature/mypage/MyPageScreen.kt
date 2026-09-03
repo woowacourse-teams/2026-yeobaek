@@ -87,7 +87,7 @@ fun MyPageScreen(
             SnackbarHost(
                 hostState = snackbarHostState,
             )
-        }
+        },
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             Card(

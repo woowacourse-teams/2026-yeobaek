@@ -20,3 +20,5 @@ node_modules/
 androidApp/release/androidApp-release.aab
 /androidApp/src/debug/google-services.json
 /androidApp/google-services.json
+/iosApp/Configuration/firebase/debug/GoogleService-Info.plist
+/iosApp/Configuration/firebase/release/GoogleService-Info.plist

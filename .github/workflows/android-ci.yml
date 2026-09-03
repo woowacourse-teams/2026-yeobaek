@@ -1,0 +1,255 @@
+name: android-ci
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: android-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pull-request-verification:
+    name: Android PR verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect android changes
+        id: android-changes
+        working-directory: .
+        run: |
+          if git diff --quiet \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- \
+            'android/**' \
+            '.github/workflows/android-ci.yml'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle cache
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: false
+
+      - name: Create non-sensitive CI configuration
+        if: steps.android-changes.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          mkdir -p androidApp/src/debug
+          printf '%s\n' \
+            'BASE_URL=https://ci.example.invalid/' \
+            'TEST_BASE_URL=https://ci.example.invalid/' \
+            > local.properties
+
+          create_google_services() {
+            local package_name="$1"
+            local output_path="$2"
+
+            jq -n --arg package_name "$package_name" '
+              {
+                project_info: {
+                  project_number: "000000000000",
+                  project_id: "yeobaek-ci",
+                  storage_bucket: "yeobaek-ci.invalid"
+                },
+                client: [
+                  {
+                    client_info: {
+                      mobilesdk_app_id: "1:000000000000:android:0000000000000000",
+                      android_client_info: {package_name: $package_name}
+                    },
+                    api_key: [{current_key: "ci-placeholder-not-a-real-api-key"}]
+                  }
+                ],
+                configuration_version: "1"
+              }
+            ' > "$output_path"
+          }
+
+          create_google_services \
+            com.yeobaek.debug \
+            androidApp/src/debug/google-services.json
+
+      - name: Build Debug APK
+        if: steps.android-changes.outputs.changed == 'true'
+        run: ./gradlew :androidApp:assembleDebug --stacktrace --console=plain
+
+      - name: Run Android host tests
+        if: steps.android-changes.outputs.changed == 'true'
+        run: ./gradlew :shared:testAndroidHostTest --stacktrace --console=plain
+
+      - name: Run Android Lint
+        if: steps.android-changes.outputs.changed == 'true'
+        run: ./gradlew :androidApp:lintDebug --stacktrace --console=plain
+
+      - name: Run ktlint
+        if: steps.android-changes.outputs.changed == 'true'
+        run: ./gradlew :shared:ktlintCheck --stacktrace --console=plain
+
+      - name: Upload verification reports
+        if: always() && steps.android-changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ci-reports
+          path: |
+            android/**/build/reports/**
+            android/**/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  ios-verification:
+    name: iOS PR verification
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect android changes
+        id: android-changes
+        working-directory: .
+        run: |
+          if git diff --quiet \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- \
+            'android/**' \
+            '.github/workflows/android-ci.yml'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle cache
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: false
+
+      - name: Cache Kotlin Native
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('android/gradle/libs.versions.toml', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Cache Swift packages
+        if: steps.android-changes.outputs.changed == 'true'
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('android/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Create non-sensitive iOS configuration
+        if: steps.android-changes.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          printf '%s\n' \
+            'BASE_URL=https://ci.example.invalid/' \
+            'TEST_BASE_URL=https://ci.example.invalid/' \
+            > local.properties
+
+          create_google_service_info() {
+            local bundle_id="$1"
+            local app_id="$2"
+            local output_path="$3"
+
+            mkdir -p "$(dirname "$output_path")"
+            plutil -create xml1 "$output_path"
+            plutil -insert API_KEY -string ci-placeholder-not-a-real-api-key "$output_path"
+            plutil -insert GCM_SENDER_ID -string 000000000000 "$output_path"
+            plutil -insert PLIST_VERSION -string 1 "$output_path"
+            plutil -insert BUNDLE_ID -string "$bundle_id" "$output_path"
+            plutil -insert PROJECT_ID -string yeobaek-ci "$output_path"
+            plutil -insert STORAGE_BUCKET -string yeobaek-ci.invalid "$output_path"
+            plutil -insert IS_ADS_ENABLED -bool false "$output_path"
+            plutil -insert IS_ANALYTICS_ENABLED -bool false "$output_path"
+            plutil -insert IS_APPINVITE_ENABLED -bool false "$output_path"
+            plutil -insert IS_GCM_ENABLED -bool true "$output_path"
+            plutil -insert IS_SIGNIN_ENABLED -bool true "$output_path"
+            plutil -insert GOOGLE_APP_ID -string "$app_id" "$output_path"
+          }
+
+          create_google_service_info \
+            com.yeobaek.haro.debug \
+            1:000000000000:ios:0000000000000000 \
+            iosApp/Configuration/firebase/debug/GoogleService-Info.plist
+          create_google_service_info \
+            com.yeobaek.haro \
+            1:000000000000:ios:0000000000000001 \
+            iosApp/Configuration/firebase/release/GoogleService-Info.plist
+
+      - name: Compile iOS test sources
+        if: steps.android-changes.outputs.changed == 'true'
+        run: ./gradlew :shared:compileTestKotlinIosSimulatorArm64 --stacktrace --console=plain
+
+      - name: Build iOS Simulator app
+        if: steps.android-changes.outputs.changed == 'true'
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -resultBundlePath "$RUNNER_TEMP/ios-build.xcresult" \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            SKIP_CRASHLYTICS_UPLOAD=1 \
+            build
+
+      - name: Upload iOS verification reports
+        if: always() && steps.android-changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ci-reports
+          path: |
+            android/shared/build/reports/**
+            android/shared/build/test-results/**
+            ${{ runner.temp }}/ios-build.xcresult
+          if-no-files-found: ignore
+          retention-days: 14

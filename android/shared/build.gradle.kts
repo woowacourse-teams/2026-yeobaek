@@ -144,6 +144,10 @@ tasks.named("runKtlintFormatOverCommonMainSourceSet") {
     dependsOn("kspCommonMainKotlinMetadata")
 }
 
+tasks.named("runKtlintCheckOverCommonMainSourceSet") {
+    dependsOn("kspCommonMainKotlinMetadata")
+}
+
 private val ktlintEngineVersion = libs.versions.ktlintEngine
 
 ktlint {
@@ -159,7 +163,10 @@ ktlint {
     enableExperimentalRules.set(true)
 
     filter {
-        exclude { it.file.path.contains("/build/generated/") }
+        exclude {
+            it.file.path.contains("/build/generated/") ||
+                it.file.path.contains("/build/buildkonfig/")
+        }
     }
 }
 
