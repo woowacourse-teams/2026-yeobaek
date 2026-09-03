@@ -15,6 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 @Entity
 @Table(name = "comments")
@@ -64,6 +66,12 @@ public class Comment {
 
     public boolean isWriterJoined() {
         return clubMember.isJoined();
+    }
+
+    public void ensureReportableBy(Long memberId) {
+        if (isWrittenBy(memberId)) {
+            throw new BadRequestException(ErrorCode.CANNOT_REPORT_OWN_COMMENT);
+        }
     }
 
     public void ensureBookAvailable() {

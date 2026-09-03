@@ -25,14 +25,16 @@
 | code | 상태 | 의미 |
 |---|---|---|
 | `INVALID_REQUEST` | 400 | 본문·파라미터·헤더 형식 오류, 필드 검증 실패 전반 |
-| `MEMBER_NOT_FOUND` | 400 | `X-Member-Id`가 가리키는 회원 없음 |
+| `MEMBER_NOT_FOUND` | 400 | `X-Member-Id` 또는 경로의 `memberId`가 가리키는 회원 없음 |
 | `BOOK_NOT_FOUND` | 400 | 대상 도서 없음 |
 | `BOOK_NOT_AVAILABLE` | 400 | 대상 도서가 삭제되어 더 이상 이용할 수 없음 |
 | `CLUB_NOT_FOUND` | 400 | 대상 모임 없음 |
 | `JOIN_CODE_NOT_FOUND` | 400 | 참여 코드에 해당하는 모임 없음 |
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
 | `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
-| `COMMENT_NOT_FOUND` | 400 | 대상 댓글 없음 |
+| `COMMENT_NOT_FOUND` | 400 | 대상 댓글이 없거나 신고자에게 보이지 않음 |
+| `CANNOT_REPORT_OWN_COMMENT` | 400 | 본인이 작성한 댓글 신고 시도 |
+| `CANNOT_BLOCK_SELF` | 400 | 자기 자신을 차단하려는 시도 |
 | `AUTHOR_NOT_FOUND` | 400 | (관리자) `authorId`가 가리키는 작가 없음 |
 | `DUPLICATE_AUTHOR` | 400 | (관리자) 한 업로드 안에 같은 작가 중복 기재 |
 | `AUTHOR_NAME_MISMATCH` | 400 | (관리자) ISNI로 찾은 기존 작가와 요청의 이름 불일치 |
@@ -67,7 +69,7 @@
 | 내 모임·모임 상세 | `book.status=ACTIVE` | 모임을 유지하고 `book.status=DELETED` |
 | 본문·진도 | 조회·갱신 가능 | `BOOK_NOT_AVAILABLE` |
 | 마지막 읽기 | 가장 최근 기록 반환 | 같은 기록과 `book.status=DELETED` 반환 |
-| 댓글 조회·작성·수정·삭제 | 가능 | 데이터를 보존하고 `BOOK_NOT_AVAILABLE` |
+| 댓글 조회·작성·수정·삭제·신고 | 가능 | 데이터를 보존하고 `BOOK_NOT_AVAILABLE` |
 | 관리자 작가·작품 목록 | `status=ACTIVE`로 표시 | 삭제 도서도 `status=DELETED`로 표시 |
 | 동일 도서 업로드 | 활성 중복이면 차단 | 삭제된 중복만 있으면 새 ID로 허용 |
 
@@ -111,6 +113,59 @@
 ```json
 { "memberId": 1, "nickname": "민서" }
 ```
+
+### 계정 삭제
+`DELETE /api/members/me`
+
+요청 본문은 없다.
+
+응답 `204 No Content`. 응답이 반환된 시점에 다음 삭제가 모두 완료된다.
+
+- 요청 회원의 계정
+- 요청 회원이 작성한 모든 댓글
+- 요청 회원의 모든 모임 참여 기록과 저장된 진도
+- 요청 회원이 차단했거나 요청 회원을 차단한 모든 차단 관계
+
+삭제된 댓글은 모든 회원의 댓글 목록에서 사라지고 문장별 `commentCount`에서도 제외된다.
+삭제된 모임 참여 기록은 모임 상세의 `members`와 내 모임 목록의 `memberCount`에서 제외된다.
+
+삭제 성공 후 클라이언트는 기기에 저장한 회원 ID를 제거하고 최초 회원 생성 화면으로 이동한다.
+삭제된 ID를 `X-Member-Id`로 사용하는 이후 요청은 `400` (`MEMBER_NOT_FOUND`)을 반환한다.
+
+### 차단 목록
+`GET /api/members/me/blocks`
+
+응답 `200`:
+```json
+{
+  "blockedMembers": [
+    { "memberId": 2, "nickname": "지수" }
+  ]
+}
+```
+
+- `blockedMembers`는 요청 회원이 차단한 회원만 반환한다.
+- 닉네임 오름차순으로 정렬하고, 닉네임이 같으면 `memberId` 오름차순으로 정렬한다.
+
+### 사용자 차단
+`PUT /api/members/me/blocks/{memberId}`
+
+요청 본문은 없다. 응답 `204 No Content`.
+
+- 차단은 서비스 전체에 적용되는 단방향 관계다. A가 B를 차단하면 A에게만 B의 댓글이 보이지
+  않으며, B는 A의 댓글을 계속 볼 수 있다.
+- 이미 차단한 회원을 다시 차단해도 `204`를 반환한다 (멱등).
+- 자기 자신을 차단하려 하면 `400` (`CANNOT_BLOCK_SELF`)을 반환한다.
+- 존재하지 않는 회원을 차단하려 하면 `400` (`MEMBER_NOT_FOUND`)을 반환한다.
+- 차단은 양쪽 회원의 모임 참여 상태와 댓글 작성·수정·삭제 권한을 변경하지 않는다.
+
+### 사용자 차단 해제
+`DELETE /api/members/me/blocks/{memberId}`
+
+응답 `204 No Content`.
+
+- 차단 관계가 없어도 `204`를 반환한다 (멱등).
+- 존재하지 않는 회원이면 `400` (`MEMBER_NOT_FOUND`)을 반환한다.
 
 ## 2. 도서
 
@@ -257,13 +312,15 @@
     "lastReadAt": "2026-08-05T14:30:00"
   },
   "members": [
-    { "memberId": 1, "nickname": "민서", "mine": true },
-    { "memberId": 2, "nickname": "지수", "mine": false }
+    { "memberId": 1, "nickname": "민서", "mine": true, "blocked": false },
+    { "memberId": 2, "nickname": "지수", "mine": false, "blocked": true }
   ]
 }
 ```
 - `myProgress`: 내 모임 목록과 동일 형태. 아직 읽기 시작 전이면 `null`.
 - `members`: 참여 중인 회원만 참여 시각 오름차순으로 반환한다. `mine`은 요청자(`X-Member-Id`) 본인 여부 (댓글의 `mine`과 동일 규약).
+- `blocked`: 요청자가 해당 회원을 차단했는지 여부. 단방향 차단 관계만 반영하며 요청자 본인은
+  항상 `false`다. 차단된 회원도 `members`와 `memberCount`에서 제외하지 않는다.
 - 모임 미소속 회원: `403` (`NOT_CLUB_MEMBER`). 존재하지 않는 모임: `400` (`CLUB_NOT_FOUND`).
 - 삭제된 도서의 기존 모임도 상세 정보를 반환한다. 모임·참여자·초대 코드·저장된 진도는
   유지하고 `book.status`를 `DELETED`로 반환하지만, 해당 코드로 신규 참여하는 요청은 차단한다.
@@ -300,7 +357,8 @@
 ```
 - `Passage`는 문단을 나타내는 컨테이너이며 문단 원문이나 문단 전체 댓글 수를 별도 필드로 제공하지 않는다.
 - `sentences`는 문단에 속한 문장을 `sequence` 오름차순으로 반환한다.
-- 문장의 `sequence`는 해당 문단 안에서 1부터 시작하는 순서다. `commentCount`는 이 모임에서 해당 문장에 작성된 댓글 수다.
+- 문장의 `sequence`는 해당 문단 안에서 1부터 시작하는 순서다. `commentCount`는 이 모임에서 해당
+  문장에 작성된 댓글 중 요청자에게 보이는 댓글 수다. 요청자가 차단한 회원의 댓글은 집계에서 제외한다.
 - 문장 `content`에는 원문의 공백과 개행이 그대로 포함된다. 서버는 앞뒤 공백을 제거하지 않으며,
   한 문단의 문장 `content`를 `sequence` 순서로 연결하면 원래 문단 원문이 복원된다.
 - 모임 도서가 삭제된 경우 본문을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
@@ -369,7 +427,10 @@
 }
 ```
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
-- 탈퇴한 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반 댓글과 동일하게 반환한다.
+- 요청자가 차단한 회원이 작성한 댓글은 결과에서 제외한다. 차단은 단방향이므로 차단된 회원의
+  조회 결과에서는 차단자의 댓글이 계속 보인다.
+- 모임에서 탈퇴했지만 계정은 유지 중인 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반
+  댓글과 동일하게 반환한다.
 - 모임 도서가 삭제된 경우 보존된 댓글을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 작성
@@ -405,6 +466,27 @@
 - 댓글이 연결된 도서가 삭제된 경우 댓글을 제거하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 - 삭제된 도서의 댓글 데이터와 모임·도서·문단·문장 연결은 보존한다. 이를 다시 보여주는 API와
   탐색 방식은 후속 기능에서 결정한다.
+
+### 댓글 신고
+`POST /api/comments/{commentId}/reports`
+
+요청 본문은 없다. 응답 `204 No Content`.
+
+- 신고는 `(신고자, commentId)` 기준으로 한 건만 접수한다. 같은 회원이 같은 댓글을 다시
+  신고해도 새 신고를 만들지 않고 `204`를 반환한다 (멱등).
+- 본인이 작성한 댓글을 신고하면 `400` (`CANNOT_REPORT_OWN_COMMENT`)을 반환한다.
+- 존재하지 않는 댓글이면 `400` (`COMMENT_NOT_FOUND`)을 반환한다.
+- 신고자는 댓글이 속한 모임의 현재 참여자여야 한다. 모임 비참여자는 `403`
+  (`NOT_CLUB_MEMBER`)을 반환한다.
+- 댓글이 연결된 도서가 삭제된 경우 신고를 접수하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+- 요청자가 차단한 회원의 댓글은 보이지 않는 댓글로 취급해 신고를 접수하지 않고 `400`
+  (`COMMENT_NOT_FOUND`)을 반환한다.
+- 신고 접수 자체는 댓글 노출을 변경하지 않는다. 신고 상태 조회, 처리 결과 알림, 신고 취소 API는
+  제공하지 않는다.
+- 신고는 별도 `comment_reports` 테이블에 저장하며 `(reporter_id, comment_id)`를 unique로 둔다.
+  신고자 계정이나 대상 댓글이 삭제되면 관련 신고도 DB cascade로 함께 하드 삭제한다.
+- 클라이언트는 신고 성공 후 “이 사용자를 차단할까요?”를 제안할 수 있다. 사용자가 차단을
+  선택하면 별도의 사용자 차단 API를 호출한다.
 
 ## 6. 관리자 (안드로이드 비대상)
 
@@ -613,6 +695,16 @@
 - enum은 향후 확장될 수 있다. 클라이언트가 아는 상태 중 `ACTIVE`만 읽기 가능 상태로
   취급하고, 지원하지 않는 값 때문에 앱이 종료되지 않도록 역직렬화·기본 분기를 설계한다.
 
+### App Store 안전 기능 계약
+
+- 계정 삭제가 `204`로 완료되면 저장된 회원 ID를 제거하고 최초 회원 생성 화면으로 이동한다.
+- 댓글 신고는 본문 없이 `commentId`로 접수한다. 성공 후 선택적으로 “이 사용자를 차단할까요?”를
+  제안하며, 사용자가 동의할 때만 별도의 차단 API를 호출한다.
+- 댓글 목록과 `commentCount`에는 서버가 차단한 작성자의 댓글을 제외해 반환하므로 클라이언트가
+  별도로 다시 필터링하지 않는다.
+- 모임 상세의 각 `members` 원소에 필수 boolean 필드 `blocked`가 추가된다. 차단된 참여자도
+  목록에 표시하고, 차단 목록 화면에서는 `memberId`, `nickname`을 사용해 조회와 차단 해제를 제공한다.
+
 ### 오류 처리 변경
 
 `BOOK_NOT_AVAILABLE`은 “ID가 잘못됨”이 아니라 “도서는 존재하지만 삭제되어 이용할 수 없음”을
@@ -625,7 +717,7 @@
 | 모임 참여 | 참여 중단 후 이용 불가 안내 |
 | 본문 조회 | 본문을 표시하지 않고 이용 불가 안내 |
 | 진도 갱신 | 저장된 화면 상태를 성공으로 오인하지 않음 |
-| 댓글 조회·작성·수정·삭제 | 댓글을 표시하거나 변경한 것으로 처리하지 않음 |
+| 댓글 조회·작성·수정·삭제·신고 | 댓글을 표시·변경하거나 신고를 접수한 것으로 처리하지 않음 |
 
 도서 목록·검색에서는 삭제된 도서가 사라지지만, 이미 가입한 모임 목록·상세와 마지막 읽기에는
 삭제된 도서가 `status=DELETED`로 남는다는 차이를 유의한다.
@@ -636,6 +728,10 @@
 |---|---|---|
 | POST | /api/pre-registrations | 공개 이메일 사전신청 |
 | POST | /api/members | 회원 생성 |
+| DELETE | /api/members/me | 계정 삭제 |
+| GET | /api/members/me/blocks | 차단 목록 |
+| PUT | /api/members/me/blocks/{memberId} | 사용자 차단 |
+| DELETE | /api/members/me/blocks/{memberId} | 사용자 차단 해제 |
 | GET | /api/books | 도서 목록 · 검색 (`keyword`) |
 | GET | /api/books/{bookId} | 도서 상세 + 목차 |
 | POST | /api/clubs | 모임 생성 |
@@ -650,6 +746,7 @@
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
+| POST | /api/comments/{commentId}/reports | 댓글 신고 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
@@ -657,3 +754,20 @@
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
 | GET | /api/admin/authors | (관리자) 작가 목록 조회 |
 | GET | /admin | (관리자) 관리자 페이지 (HTML) |
+
+## 9. App Store 배포 전 후속 과제
+
+이번 계약은 계정 삭제, 댓글 신고, 사용자 차단의 클라이언트 API만 정의한다. 다음 항목은 이번
+API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과 구현으로 준비한다.
+
+- 부적절한 댓글이 게시되는 것을 막는 콘텐츠 필터링
+- 사용자가 운영자에게 연락할 수 있는 공개 연락처
+- 접수된 신고의 심사 기준, 적시 대응, 위반 댓글 제거와 사용자 제재 절차
+
+계정 삭제 시 데이터를 즉시 제거하는 현재 계약의 법적 적합성과 삭제 대신 보존·익명화할 수 있는
+범위는 일정 여유가 생기면 재검토한다. 후속 검토 전까지는 이 문서의 즉시 삭제 계약을 따른다.
+
+참고:
+
+- [Apple App Review Guidelines 1.2 — User-Generated Content](https://developer.apple.com/app-store/review/guidelines/)
+- [Apple — Offering account deletion in your app](https://developer.apple.com/support/offering-account-deletion-in-your-app/)

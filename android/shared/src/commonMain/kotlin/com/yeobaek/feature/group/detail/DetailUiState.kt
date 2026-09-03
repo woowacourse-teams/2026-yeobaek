@@ -9,4 +9,6 @@ data class DetailUiState(
     val groupUiModel: GroupUiModel = GroupUiModel(),
     val screenState: ScreenState = ScreenState.Loading(""),
     val exitState: ExitState = ExitState.Idle,
+    val blockState: BlockState = BlockState.Idle,
+    val unBlockState: UnBlockState = UnBlockState.Idle,
 )

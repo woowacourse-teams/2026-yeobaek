@@ -78,8 +78,8 @@ class CommentRepositoryTest extends IntegrationTest {
         commentRepository.save(new Comment(membership, firstSentence, "우리 모임 댓글 2"));
         commentRepository.save(new Comment(otherMembership, firstSentence, "다른 모임 댓글"));
 
-        var counts = commentRepository.countByClubIdAndSentenceIdIn(
-                club.getId(), java.util.List.of(firstSentence.getId(), secondSentence.getId()));
+        var counts = commentRepository.countVisibleByMemberIdAndClubIdAndSentenceIdIn(
+                member.getId(), club.getId(), java.util.List.of(firstSentence.getId(), secondSentence.getId()));
 
         assertThat(counts).singleElement()
                 .satisfies(count -> {

@@ -9,9 +9,11 @@ import unittest
 import zipfile
 import zlib
 from pathlib import Path
+from unittest import mock
 
 import 표지_시안_준비 as cover
 from 인제스트_변환 import (
+    LegacyNormalizationError,
     MAX_SENTENCE_CONTENT_BYTES,
     create_archive,
     estimate_tokens,
@@ -23,7 +25,220 @@ from 인제스트_변환 import (
     validate,
     validate_chapters,
     validate_translation_contract,
+    normalize_legacy_book,
+    normalize_legacy_ingest_file,
 )
+
+
+class LegacyIngestNormalizationTests(unittest.TestCase):
+    @staticmethod
+    def _legacy_book(content="첫 문장이다.  둘째 문장이다.\n끝"):
+        return {
+            "title": "테스트 책",
+            "publisher": "테스트 출판사",
+            "publishedYear": 2026,
+            "authors": [{"name": "테스트 작가", "isni": "0000000121441305"}],
+            "chapters": [{
+                "title": "첫째",
+                "passages": [{"content": content}],
+            }],
+        }
+
+    def test_normalize_legacy_book_preserves_paragraph_characters_and_bytes(self):
+        content = "“첫 문장.”  둘째 문장이다.\n\t종결부호 없는 끝"
+        book = self._legacy_book(content)
+
+        paragraph_count, sentence_count = normalize_legacy_book(book)
+
+        passage = book["chapters"][0]["passages"][0]
+        rejoined = "".join(sentence["content"] for sentence in passage["sentences"])
+        self.assertNotIn("content", passage)
+        self.assertEqual(rejoined, content)
+        self.assertEqual(rejoined.encode("utf-8"), content.encode("utf-8"))
+        self.assertEqual(paragraph_count, 1)
+        self.assertEqual(sentence_count, len(passage["sentences"]))
+
+    def test_normalize_rejects_current_and_mixed_passage_structures(self):
+        current = self._legacy_book()
+        current["chapters"][0]["passages"][0] = {
+            "sentences": [{"content": "이미 현재 구조다."}]
+        }
+        with self.assertRaisesRegex(LegacyNormalizationError, "이미 현재 sentences 구조"):
+            normalize_legacy_book(current)
+
+        mixed = self._legacy_book()
+        mixed["chapters"][0]["passages"][0]["sentences"] = [
+            {"content": "혼합 구조다."}
+        ]
+        with self.assertRaisesRegex(LegacyNormalizationError, "혼합 구조"):
+            normalize_legacy_book(mixed)
+
+    def test_normalize_rejects_empty_oversized_and_invalid_metadata(self):
+        cases = [
+            (self._legacy_book("   "), "content가 비어"),
+            (
+                self._legacy_book("가" * (MAX_SENTENCE_CONTENT_BYTES // 3 + 1)),
+                "65,535바이트를 초과",
+            ),
+            (self._legacy_book("본문."), "ISNI가 비어"),
+        ]
+        cases[-1][0]["authors"][0].pop("isni")
+        for book, expected in cases:
+            with self.subTest(expected=expected):
+                with self.assertRaisesRegex(LegacyNormalizationError, expected):
+                    normalize_legacy_book(book)
+
+    def test_in_place_normalization_creates_byte_exact_backup_and_atomic_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "ingest.json"
+            book = self._legacy_book("첫 문장.  둘째 문장.")
+            original_bytes = ("\ufeff" + json.dumps(book, ensure_ascii=False)).encode("utf-8")
+            source.write_bytes(original_bytes)
+
+            output, backup, paragraph_count, _sentence_count = normalize_legacy_ingest_file(source)
+
+            self.assertEqual(output, source.resolve())
+            self.assertEqual(backup.read_bytes(), original_bytes)
+            normalized = json.loads(source.read_text(encoding="utf-8"))
+            rejoined = "".join(
+                sentence["content"]
+                for sentence in normalized["chapters"][0]["passages"][0]["sentences"]
+            )
+            self.assertEqual(rejoined, "첫 문장.  둘째 문장.")
+            self.assertEqual(paragraph_count, 1)
+            self.assertEqual(list(Path(tmp).glob("*.tmp")), [])
+
+    def test_existing_backup_prevents_any_source_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "ingest.json"
+            source.write_text(json.dumps(self._legacy_book(), ensure_ascii=False), encoding="utf-8")
+            original_bytes = source.read_bytes()
+            backup = Path(f"{source}.bak")
+            backup.write_bytes(b"keep")
+
+            with self.assertRaisesRegex(LegacyNormalizationError, "기존 백업"):
+                normalize_legacy_ingest_file(source)
+
+            self.assertEqual(source.read_bytes(), original_bytes)
+            self.assertEqual(backup.read_bytes(), b"keep")
+
+    def test_backup_publish_failure_cleans_temp_and_preserves_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "ingest.json"
+            source.write_text(json.dumps(self._legacy_book(), ensure_ascii=False), encoding="utf-8")
+            original_bytes = source.read_bytes()
+            backup = Path(f"{source}.bak")
+
+            with mock.patch("인제스트_변환.os.link", side_effect=OSError("fault injection")):
+                with self.assertRaisesRegex(LegacyNormalizationError, "백업을 안전하게"):
+                    normalize_legacy_ingest_file(source)
+
+            self.assertEqual(source.read_bytes(), original_bytes)
+            self.assertFalse(backup.exists())
+            self.assertEqual(list(Path(tmp).glob("*.tmp")), [])
+
+    def test_normalize_rejects_missing_and_wrong_type_top_level_metadata(self):
+        cases = []
+        missing_title = self._legacy_book()
+        missing_title.pop("title")
+        cases.append((missing_title, "필수 필드.*title"))
+        wrong_publisher = self._legacy_book()
+        wrong_publisher["publisher"] = ["출판사"]
+        cases.append((wrong_publisher, "publisher이 문자열"))
+        wrong_year = self._legacy_book()
+        wrong_year["publishedYear"] = "2026"
+        cases.append((wrong_year, "publishedYear가 정수"))
+        wrong_authors = self._legacy_book()
+        wrong_authors["authors"] = {"name": "작가"}
+        cases.append((wrong_authors, "authors가 배열"))
+        wrong_author_name = self._legacy_book()
+        wrong_author_name["authors"][0]["name"] = 123
+        cases.append((wrong_author_name, "작가 name가 문자열"))
+
+        for book, expected in cases:
+            with self.subTest(expected=expected):
+                with self.assertRaisesRegex(LegacyNormalizationError, expected):
+                    normalize_legacy_book(book)
+
+    def test_metadata_file_replaces_only_bibliographic_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "ingest.json"
+            output = Path(tmp) / "normalized.json"
+            metadata_path = Path(tmp) / "메타데이터.json"
+            legacy = self._legacy_book("보존할 번역.  그대로 둔다.")
+            legacy["authors"] = [{"name": "구형 작가"}]
+            source.write_text(json.dumps(legacy, ensure_ascii=False), encoding="utf-8")
+            metadata = {
+                "title": "현재 제목",
+                "publisher": "현재 출판사",
+                "publishedYear": 2027,
+                "authors": [{"name": "현재 작가", "isni": "0000000121441305"}],
+                "chapters": [{"title": "메타데이터 본문은 적용하면 안 됨", "passages": []}],
+                "unrelated": "적용하지 않음",
+            }
+            metadata_path.write_text(
+                json.dumps(metadata, ensure_ascii=False), encoding="utf-8"
+            )
+
+            normalize_legacy_ingest_file(
+                source, output=output, metadata_path=metadata_path
+            )
+
+            normalized = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(normalized["title"], "현재 제목")
+            self.assertEqual(normalized["publisher"], "현재 출판사")
+            self.assertEqual(normalized["publishedYear"], 2027)
+            self.assertEqual(normalized["authors"], metadata["authors"])
+            self.assertEqual(normalized["chapters"][0]["title"], "첫째")
+            self.assertNotIn("unrelated", normalized)
+            rejoined = "".join(
+                sentence["content"]
+                for sentence in normalized["chapters"][0]["passages"][0]["sentences"]
+            )
+            self.assertEqual(rejoined, "보존할 번역.  그대로 둔다.")
+            self.assertFalse(Path(f"{source}.bak").exists())
+
+    def test_cli_rejects_verification_bypass_flags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "ingest.json"
+            source.write_text(json.dumps(self._legacy_book(), ensure_ascii=False), encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("인제스트_변환.py")),
+                    "--normalize-legacy-ingest",
+                    str(source),
+                    "--force",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("함께 사용할 수 없습니다", completed.stderr)
+            self.assertFalse(Path(f"{source}.bak").exists())
+
+    def test_cli_rejects_backup_output_without_legacy_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            backup = Path(tmp) / "backup.json"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("인제스트_변환.py")),
+                    "--backup-output",
+                    str(backup),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("--normalize-legacy-ingest와 함께 사용", completed.stderr)
+            self.assertFalse(backup.exists())
 
 
 class ChapterWorkloadTests(unittest.TestCase):

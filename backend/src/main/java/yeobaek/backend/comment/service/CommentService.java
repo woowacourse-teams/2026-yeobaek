@@ -10,9 +10,12 @@ import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
@@ -22,14 +25,17 @@ import yeobaek.backend.support.NotFoundException;
 public class CommentService {
 
     private final CommentRepository commentRepository;
+    private final CommentReportRepository commentReportRepository;
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
     private final SentenceRepository sentenceRepository;
+    private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true)
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
         validateSentenceContext(memberId, clubId, sentenceId);
-        return new CommentsResponse(commentRepository.findAllWithWriterByClubIdAndSentenceId(clubId, sentenceId).stream()
+        return new CommentsResponse(commentRepository
+                .findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId).stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
     }
@@ -54,6 +60,20 @@ public class CommentService {
         Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 삭제할 수 있습니다.");
         comment.ensureBookAvailable();
         commentRepository.delete(comment);
+    }
+
+    @Transactional
+    public void report(Long memberId, Long commentId) {
+        Comment comment = commentRepository.findVisibleWithContextById(memberId, commentId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.COMMENT_NOT_FOUND));
+        comment.ensureReportableBy(memberId);
+        if (!clubMemberRepository.existsJoinedByMemberIdAndCommentId(memberId, commentId)) {
+            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+        }
+        comment.ensureBookAvailable();
+        if (!commentReportRepository.existsByReporterIdAndCommentId(memberId, commentId)) {
+            commentReportRepository.save(new CommentReport(memberRepository.getReferenceById(memberId), comment));
+        }
     }
 
     private Comment findOwnComment(Long memberId, Long commentId, String forbiddenMessage) {

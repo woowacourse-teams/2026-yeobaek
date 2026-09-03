@@ -18,16 +18,21 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
+import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
+import com.yeobaek.feature.mypage.MyPageScreen
+import com.yeobaek.feature.mypage.MyPageViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
+import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
@@ -152,7 +157,6 @@ fun App(
 
                 HomeScreen(
                     appName = appContainer.appName,
-                    appVersion = appContainer.appVersion,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)
@@ -166,6 +170,9 @@ fun App(
                     navigateToReader = {
                         navController.navigate(Reader(groupId = it))
                     },
+                    navigateToMyPage = {
+                        navController.navigate(MyPage)
+                    },
                 )
             }
             composable<Detail> { backStackEntry ->
@@ -178,16 +185,37 @@ fun App(
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
+                        userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
-                LaunchedEffect(route.groupId) {
+                LaunchedEffect(
+                    route.groupId,
+                ) {
                     detailViewModel.initGroupData(groupId = route.groupId)
+                }
+
+                LaunchedEffect(
+                    detailViewModel.uiState.blockState,
+                    detailViewModel.uiState.unBlockState,
+                ) {
+                    if (detailViewModel.uiState.blockState is BlockState.Success) {
+                        detailViewModel.initGroupData(groupId = route.groupId)
+                    }
+                    if (detailViewModel.uiState.unBlockState is UnBlockState.Success) {
+                        detailViewModel.initGroupData(groupId = route.groupId)
+                    }
                 }
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
+                    onBlockUser = { otherUserId ->
+                        detailViewModel.blockUser(otherUserId)
+                    },
+                    onUnBlockUser = { otherUserId ->
+                        detailViewModel.unBlockUser(otherUserId)
+                    },
                     onBackClick = {
                         navController.popBackStack()
                     },
@@ -339,6 +367,26 @@ fun App(
                     navigateToHome = {
                         if (!createViewModel.createConditionCheck()) {
                             createViewModel.createGroup()
+                        }
+                    },
+                )
+            }
+            composable<MyPage> {
+                val myPageViewModel: MyPageViewModel = viewModel(
+                    factory = MyPageViewModel.myPageViewModelFactory(
+                        userRepository = appContainer.userRepository,
+                    ),
+                )
+
+                MyPageScreen(
+                    uiState = myPageViewModel.uiState,
+                    appVersion = appContainer.appVersion,
+                    deleteAccount = myPageViewModel::deleteAccount,
+                    navigateToNickname = {
+                        navController.navigate(Nickname) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
                         }
                     },
                 )

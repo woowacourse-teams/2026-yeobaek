@@ -166,6 +166,19 @@ class CommentControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("댓글 신고 요청을 서비스에 전달하고 빈 204 응답을 반환한다")
+    void reportComment() throws Exception {
+        givenValidMember(4L);
+
+        mockMvc.perform(post("/api/comments/{commentId}/reports", 9L)
+                        .header("X-Member-Id", "4"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(commentService, times(1)).report(4L, 9L);
+    }
+
+    @Test
     @DisplayName("댓글 작성 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingCreateBody() throws Exception {
         givenValidMember(5L);
