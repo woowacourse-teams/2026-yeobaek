@@ -10,6 +10,11 @@
   - 각 문단은 공백·개행을 보존한 sentences 배열로 분리하고 재결합을 검증
 
 사용법:
+  python 인제스트_변환.py --normalize-legacy-ingest 구형_ingest.json
+      [--meta 메타데이터.json] [-o 현재_ingest.json] [--backup-output 원본_백업.json]
+      구형 passages[].content를 현재 passages[].sentences[].content로 변환한다.
+      -o를 생략하면 원본 옆에 .bak 백업을 만든 뒤 제자리에서 원자적으로 교체한다.
+
   python 인제스트_변환.py 번역본.md [번역본2.md ...]
       --original 원문.txt
       [--meta 메타데이터.json]
@@ -29,8 +34,11 @@
 번역본 파일을 여러 개 주면 인자 순서대로 이어 붙여 처리한다(장 단위 분할 번역 지원).
 """
 import argparse
+import copy
 import json
+import os
 import re
+import tempfile
 import subprocess
 import sys
 import zipfile
@@ -57,6 +65,10 @@ CERTAIN_INLINE_ABBREVIATIONS = {"e.g.", "i.e."}
 AMBIGUOUS_ABBREVIATIONS = {
     "a.m.", "p.m.", "u.s.", "u.k.", "jr.", "sr.", "st.",
 }
+
+
+class LegacyNormalizationError(ValueError):
+    """구형 ingest JSON을 안전하게 정규화할 수 없을 때 발생한다."""
 
 
 def _looks_like_lowercase_hostname(value):
@@ -188,6 +200,234 @@ def split_sentences(text):
     if start < len(text) or not sentences:
         sentences.append(text[start:])
     return sentences
+
+
+def normalize_legacy_book(book):
+    """구형 passages[].content를 현재 sentences 배열로 정규화한다.
+
+    문단 문자열은 변경하지 않고 분할된 문장을 이었을 때 UTF-8 바이트까지
+    원래 값과 같은지 확인한다. 이미 현재 구조이거나 구/신 구조가 섞인 입력은
+    실수로 재처리하지 않도록 거부한다.
+    """
+    if not isinstance(book, dict):
+        raise LegacyNormalizationError("최상위 JSON 값이 객체가 아닙니다.")
+    _validate_legacy_metadata(book, "구형 ingest JSON")
+    chapters = book.get("chapters")
+    if not isinstance(chapters, list) or not chapters:
+        raise LegacyNormalizationError("chapters가 비어 있거나 배열이 아닙니다.")
+
+    paragraph_count = 0
+    sentence_count = 0
+    for chapter_index, chapter in enumerate(chapters, 1):
+        if not isinstance(chapter, dict):
+            raise LegacyNormalizationError(
+                f"{chapter_index}번째 목차가 객체가 아닙니다."
+            )
+        passages = chapter.get("passages")
+        if not isinstance(passages, list) or not passages:
+            raise LegacyNormalizationError(
+                f"{chapter_index}번째 목차의 passages가 비어 있거나 배열이 아닙니다."
+            )
+        for passage_index, passage in enumerate(passages, 1):
+            label = f"{chapter_index}번째 목차 {passage_index}번째 문단"
+            if not isinstance(passage, dict):
+                raise LegacyNormalizationError(f"{label}이 객체가 아닙니다.")
+            has_content = "content" in passage
+            has_sentences = "sentences" in passage
+            if has_content and has_sentences:
+                raise LegacyNormalizationError(
+                    f"{label}에 content와 sentences가 함께 있습니다(혼합 구조)."
+                )
+            if has_sentences:
+                raise LegacyNormalizationError(
+                    f"{label}이 이미 현재 sentences 구조입니다. 구형 입력만 허용합니다."
+                )
+            if not has_content:
+                raise LegacyNormalizationError(f"{label}에 content가 없습니다.")
+            content = passage["content"]
+            if not isinstance(content, str):
+                raise LegacyNormalizationError(f"{label}의 content가 문자열이 아닙니다.")
+            if not content.strip():
+                raise LegacyNormalizationError(f"{label}의 content가 비어 있습니다.")
+
+            sentence_contents = split_sentences(content)
+            rejoined = "".join(sentence_contents)
+            if rejoined != content or rejoined.encode("utf-8") != content.encode("utf-8"):
+                raise AssertionError(f"{label}의 문장 재결합 결과가 원래 문단과 다릅니다.")
+            passage.pop("content")
+            passage["sentences"] = [
+                {"content": sentence} for sentence in sentence_contents
+            ]
+            paragraph_count += 1
+            sentence_count += len(sentence_contents)
+
+    errors = validate(book)
+    if errors:
+        formatted = "\n".join(f"  - {error}" for error in errors)
+        raise LegacyNormalizationError(f"현재 인제스트 규격 검증 실패:\n{formatted}")
+    return paragraph_count, sentence_count
+
+
+def _fsync_parent_directory(path):
+    """지원하는 플랫폼에서는 디렉터리 엔트리 변경도 디스크에 반영한다."""
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    try:
+        directory_fd = os.open(path.parent, flags)
+    except OSError:
+        return
+    try:
+        os.fsync(directory_fd)
+    except OSError:
+        pass
+    finally:
+        os.close(directory_fd)
+
+
+def _atomic_publish_backup(path, data):
+    """동일 디렉터리 임시 파일을 완전히 기록한 뒤 백업을 배타적으로 공개한다."""
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            temporary_file.write(data)
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+
+        # 같은 파일시스템의 hard link 생성은 원자적이며 기존 path를 덮어쓰지
+        # 않는다. os.link는 Windows에서도 동일한 배타적 생성 의미를 제공한다.
+        os.link(temporary_path, path)
+        _fsync_parent_directory(path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _atomic_write_text(path, text):
+    """대상과 같은 디렉터리에 임시 파일을 쓴 뒤 원자적으로 교체한다."""
+    path = path.resolve()
+    if not path.parent.is_dir():
+        raise LegacyNormalizationError(f"출력 디렉터리가 없습니다: {path.parent}")
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            temporary_file.write(text)
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None and temporary_path.exists():
+            temporary_path.unlink()
+
+
+def apply_legacy_metadata(book, metadata):
+    """검증된 메타데이터의 서지 필드만 적용하고 본문은 건드리지 않는다."""
+    if not isinstance(book, dict):
+        raise LegacyNormalizationError("구형 ingest JSON의 최상위 값이 객체가 아닙니다.")
+    if not isinstance(metadata, dict):
+        raise LegacyNormalizationError("메타데이터 JSON의 최상위 값이 객체가 아닙니다.")
+    _validate_legacy_metadata(metadata, "메타데이터")
+    required_fields = ("title", "publisher", "publishedYear", "authors")
+    for field in required_fields:
+        book[field] = copy.deepcopy(metadata[field])
+
+
+def _validate_legacy_metadata(book, label):
+    """정규화 전에 최상위 서지 필드의 존재와 타입을 안전하게 확인한다."""
+    required_fields = ("title", "publisher", "publishedYear", "authors")
+    missing = [field for field in required_fields if field not in book]
+    if missing:
+        raise LegacyNormalizationError(
+            f"{label}에 필수 필드가 없습니다: " + ", ".join(missing)
+        )
+
+    for field in ("title", "publisher"):
+        value = book[field]
+        if not isinstance(value, str):
+            raise LegacyNormalizationError(f"{label}의 {field}이 문자열이 아닙니다.")
+    if not isinstance(book["publishedYear"], int) or isinstance(book["publishedYear"], bool):
+        raise LegacyNormalizationError(f"{label}의 publishedYear가 정수가 아닙니다.")
+
+    authors = book["authors"]
+    if not isinstance(authors, list):
+        raise LegacyNormalizationError(f"{label}의 authors가 배열이 아닙니다.")
+    for author_index, author in enumerate(authors, 1):
+        if not isinstance(author, dict):
+            raise LegacyNormalizationError(
+                f"{label}의 {author_index}번째 작가 정보가 객체가 아닙니다."
+            )
+        for field in ("name", "isni"):
+            if field in author and not isinstance(author[field], str):
+                raise LegacyNormalizationError(
+                    f"{label}의 {author_index}번째 작가 {field}가 문자열이 아닙니다."
+                )
+
+
+def _load_json_file(path, label):
+    try:
+        return json.loads(path.read_bytes().decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise LegacyNormalizationError(f"{label} UTF-8 JSON을 읽을 수 없습니다: {error}") from error
+
+
+def normalize_legacy_ingest_file(source, output=None, backup=None, metadata_path=None):
+    """구형 ingest 파일을 검증 후 저장하며 제자리 변환 시 원본을 백업한다."""
+    source = source.resolve()
+    output = (output or source).resolve()
+    if not source.is_file():
+        raise LegacyNormalizationError(f"구형 ingest JSON 파일이 없습니다: {source}")
+    in_place = output == source
+    if backup is not None and not in_place:
+        raise LegacyNormalizationError("--backup-output은 제자리 변환에서만 사용할 수 있습니다.")
+    backup = (backup or source.with_name(f"{source.name}.bak")).resolve() if in_place else None
+    if backup == source:
+        raise LegacyNormalizationError("백업 경로는 입력 파일과 달라야 합니다.")
+    if backup is not None and not backup.parent.is_dir():
+        raise LegacyNormalizationError(f"백업 디렉터리가 없습니다: {backup.parent}")
+    if backup is not None and backup.exists():
+        raise LegacyNormalizationError(f"기존 백업을 덮어쓰지 않습니다: {backup}")
+
+    source_bytes = source.read_bytes()
+    try:
+        book = json.loads(source_bytes.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise LegacyNormalizationError(f"구형 ingest UTF-8 JSON을 읽을 수 없습니다: {error}") from error
+    if metadata_path is not None:
+        metadata_path = metadata_path.resolve()
+        if not metadata_path.is_file():
+            raise LegacyNormalizationError(f"메타데이터 파일이 없습니다: {metadata_path}")
+        apply_legacy_metadata(book, _load_json_file(metadata_path, "메타데이터"))
+
+    paragraph_count, sentence_count = normalize_legacy_book(book)
+    serialized = json.dumps(book, ensure_ascii=False, indent=2) + "\n"
+    if backup is not None:
+        try:
+            _atomic_publish_backup(backup, source_bytes)
+        except FileExistsError as error:
+            raise LegacyNormalizationError(f"기존 백업을 덮어쓰지 않습니다: {backup}") from error
+        except OSError as error:
+            raise LegacyNormalizationError(f"원본 백업을 안전하게 만들 수 없습니다: {error}") from error
+    try:
+        _atomic_write_text(output, serialized)
+    except Exception:
+        if backup is not None and backup.exists() and not output.exists():
+            os.replace(backup, output)
+        raise
+    return output, backup, paragraph_count, sentence_count
 
 
 def estimate_tokens(text):
@@ -698,7 +938,13 @@ def validate_cover_artifacts(meta_path):
 def main():
     ap = argparse.ArgumentParser(description="번역본 → 인제스트 JSON 변환/검증")
     ap.add_argument("translations", nargs="*", type=Path, help="번역본 .md 파일(순서대로 병합)")
-    ap.add_argument("--meta", type=Path, help="메타데이터.json 경로 (--partial이면 생략 가능)")
+    ap.add_argument("--normalize-legacy-ingest", type=Path, metavar="INGEST_JSON",
+                    help="구형 passages[].content JSON을 현재 문장 배열 구조로 정규화")
+    ap.add_argument("--backup-output", type=Path,
+                    help="제자리 구형 정규화 시 원본 백업 경로 (기본: 입력파일.bak)")
+    ap.add_argument("--meta", type=Path,
+                    help="메타데이터.json 경로 (--partial이면 생략 가능; 구형 정규화에서는 "
+                         "서지 필드만 적용)")
     ap.add_argument("--original", type=Path, help="원문 .txt 경로 (언어 무관)")
     ap.add_argument("--chapter-re", default=DEFAULT_CHAPTER_RE,
                     help="원문 장 제목 정규식 (기본: 로마숫자 'I. 제목' 형태)")
@@ -723,6 +969,44 @@ def main():
                     help="번역 완료된 장까지만 대조하고 JSON은 출력하지 않음(진행 중 검증용)")
     ap.add_argument("--force", action="store_true", help="검증 실패해도 JSON을 출력")
     args = ap.parse_args()
+
+    if args.backup_output is not None and args.normalize_legacy_ingest is None:
+        ap.error("--backup-output은 --normalize-legacy-ingest와 함께 사용해야 합니다.")
+
+    if args.normalize_legacy_ingest:
+        incompatible = []
+        if args.translations:
+            incompatible.append("번역본 위치 인자")
+        for option, value in (
+            ("--original", args.original),
+            ("--zip-output", args.zip_output),
+            ("--list-chapters", args.list_chapters),
+            ("--no-verify", args.no_verify),
+            ("--partial", args.partial),
+            ("--force", args.force),
+        ):
+            if value:
+                incompatible.append(option)
+        if incompatible:
+            ap.error(
+                "--normalize-legacy-ingest와 함께 사용할 수 없습니다: "
+                + ", ".join(incompatible)
+            )
+        try:
+            output, backup, paragraph_count, sentence_count = normalize_legacy_ingest_file(
+                args.normalize_legacy_ingest,
+                output=args.output,
+                backup=args.backup_output,
+                metadata_path=args.meta,
+            )
+        except LegacyNormalizationError as error:
+            sys.exit(f"[구형 인제스트 정규화 실패] {error}")
+        print(f"구형 인제스트 정규화 완료: {output}")
+        if backup is not None:
+            print(f"원본 백업: {backup}")
+        print(f"문단 {paragraph_count}개, 문장 {sentence_count}개")
+        print(f"문장 재결합 및 UTF-8 바이트 보존 검증 통과: 문단 {paragraph_count}개")
+        return
 
     chapter_re = re.compile(args.chapter_re)
 
