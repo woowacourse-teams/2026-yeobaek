@@ -31,8 +31,7 @@ jobs:
         working-directory: .
         run: |
           if git diff --quiet \
-            "${{ github.event.pull_request.base.sha }}" \
-            "${{ github.event.pull_request.head.sha }}" \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
             -- \
             'android/**' \
             '.github/workflows/android-ci.yml'; then
@@ -140,8 +139,7 @@ jobs:
         working-directory: .
         run: |
           if git diff --quiet \
-            "${{ github.event.pull_request.base.sha }}" \
-            "${{ github.event.pull_request.head.sha }}" \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
             -- \
             'android/**' \
             '.github/workflows/android-ci.yml'; then
