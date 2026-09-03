@@ -2,10 +2,11 @@
 
 이 지침은 백엔드 변경을 포함하는 쓰기 작업의 종료 관문이다. 작업을 수행한 AI 에이전트가
 검증, 커밋, 브랜치 푸시를 마친 뒤 별도 승인 요청 없이 PR을 생성하거나 현재 브랜치의 열린
-PR을 갱신한다.
+PR을 갱신하고, 리뷰어가 코드와 구현 근거를 함께 읽을 수 있도록 diff 인라인 코멘트를 게시한다.
 
-이 하네스는 `backend/` 안의 에이전트 지침과 본문 템플릿만 사용한다. 저장소 공용
-`.github` 설정과 `android/` 파일은 수정하지 않는다. 선택 배경은
+이 하네스는 `backend/` 안의 에이전트 지침과 본문 템플릿을 저장소 원본으로 사용하고, PR별
+본문과 인라인 코멘트 payload는 임시 파일로 만든다. 저장소 공용 `.github` 설정과 `android/`
+파일은 수정하지 않는다. 선택 배경은
 [AI 에이전트 PR 작성 자동화 ADR](../../ADR/협업_AI_에이전트_PR_작성_자동화.md)에 기록되어 있다.
 
 ## 0. 작업 시작 전 브랜치 관문
@@ -55,9 +56,11 @@ blocker를 보고한다.
 - 현재 브랜치의 접두사 또는 기준 브랜치가 2장의 Yeobaek Flow 규칙과 일치하지 않는다.
 - 브랜치 푸시가 실패했거나 원격에 현재 커밋이 반영되지 않았다.
 - 3장의 근거나 예외 확인이 준비되지 않았다.
-- GitHub CLI 인증 사용자가 4장의 백엔드 개발자 목록에 없다.
-- 기존 PR의 실제 author가 4장의 백엔드 개발자 목록에 없다.
+- 4장의 인라인 코멘트 계획에 필요한 현재 diff 위치를 확정할 수 없다.
+- GitHub CLI 인증 사용자가 5장의 백엔드 개발자 목록에 없다.
+- 기존 PR의 실제 author가 5장의 백엔드 개발자 목록에 없다.
 - 현재 head에 대응하는 열린 PR이 둘 이상이어서 갱신 대상을 하나로 확정할 수 없다.
+- 다른 백엔드 개발자가 작성한 현재 자동 코멘트가 4장의 계획과 충돌한다.
 - GitHub 인증·권한 문제로 생성, 갱신 또는 사후 검증을 수행할 수 없다.
 
 ## 2. 브랜치와 PR 제목
@@ -160,7 +163,67 @@ PR 생성 전에 해당 구현 항목을 특정해 개발자에게 근거 보충
 그대로 유지된다. 다만 이 장은 PR 공개 기록을 만드는 별도 관문이므로, 구현이 완료되었어도
 근거나 명시적 예외 확인이 없으면 PR 제출 단계에서 멈춘다.
 
-## 4. 제출자와 reviewer
+## 4. 코드 옆 구현 근거 관문
+
+PR 본문은 전체 변경과 결정 원본을 설명하고, GitHub diff 인라인 코멘트는 리뷰어가 코드를
+읽는 바로 그 지점에서 구현 목적과 선택 근거를 확인하도록 돕는다. 인라인 코멘트는 소스 코드에
+영구 주석을 추가하는 것이 아니라 PR review comment로 게시한다.
+
+### 4.1 게시 대상
+
+PR 본문의 각 구현 항목을 다음 기준으로 대조해 **인라인 코멘트 계획**을 만든다.
+
+- 의미 있는 구현 선택이 코드나 문서 diff에 드러나는 항목은 그 선택을 가장 잘 대표하는 변경
+  줄 한 곳에 코멘트 한 개를 게시한다.
+- 같은 선택이 서로 멀리 떨어진 진입점이나 계층에 각각 반영되어 연결을 알아보기 어려울 때만
+  대표 지점을 추가할 수 있다. 같은 내용을 모든 변경 줄에 반복하지 않는다.
+- 오타 수정, 기계적 설정 변경, 개발자가 구현 방법까지 정확히 지정한 단일 정답 작업처럼
+  `선택 이유: 해당 없음`인 항목에는 게시하지 않는다.
+- 개발자의 명시적 예외 확인으로 `선택 이유: 생략`한 항목에도 AI가 근거를 보충해 게시하지
+  않는다.
+- 추가·수정된 구현은 현재 head diff의 `RIGHT` 줄을 사용한다. 삭제 자체가 선택의 핵심이고
+  이를 대표할 추가 줄이 없을 때만 현재 base diff의 `LEFT` 줄을 사용한다. 변경되지 않은 문맥
+  줄, 현재 diff에 없는 줄, 바이너리 파일에는 게시하지 않는다.
+- 의미 있는 구현 선택이 있지만 GitHub가 인라인 코멘트를 허용하는 변경 줄이 없다면 PR 본문의
+  해당 구현 항목에 `인라인 코멘트: 해당 없음 — <구체적인 이유>`를 추가한다. 근거가 있는
+  항목의 코멘트를 임의로 생략하는 용도로 이 예외를 사용하지 않는다.
+
+각 계획 항목에는 다음 값을 둔다.
+
+- 구현 항목을 PR 갱신 후에도 식별할 kebab-case `itemKey`
+- 같은 구현 항목의 각 대표 위치를 구별하고 PR 안에서 유일한 kebab-case `commentKey`
+- 저장소 루트 기준 `path`
+- 파일의 `line`과 `side` (`RIGHT` 또는 `LEFT`)
+- PR 본문의 구현 상세 항목명
+- 게시할 `body`
+
+### 4.2 코멘트 내용
+
+코멘트는 다음 형식을 사용한다.
+
+```markdown
+**구현 맥락**
+
+{목적}을 위해 {구현 방법}을 선택했다. 이 방법을 선택한 근거는 {개발자가 확정한 근거}이다.
+
+자세한 결정 원본은 PR 본문의 `{구현 상세 항목명}`에서 확인할 수 있다.
+
+<!-- yeobaek-rationale:{commentKey} -->
+```
+
+대표 위치가 하나면 `commentKey`는 `itemKey`와 같아도 된다. 한 구현 항목에 대표 위치가 여러
+곳이면 `itemKey`에 위치의 역할을 붙여 서로 다른 `commentKey`를 만든다.
+
+목적과 구현 방법은 현재 diff에서 확인한 사실로 작성한다. 선택 근거는 3장과
+[피드백 루프 하네스 R2](피드백_루프_하네스.md#1-철칙)를 그대로 적용해 개발자가 확정한 결정
+원본에서만 가져온다. 본문과 인라인 코멘트의 설명 강도와 조건을 일치시키며, 인라인 코멘트를
+작성한다는 이유로 새로운 장점·위험·평가·인과관계를 추가하지 않는다. `A안`, `앞서 말한 방식`
+같은 대화 의존 표현도 사용하지 않는다.
+
+숨김 marker는 자동 게시한 코멘트만 식별하기 위한 값이다. 사람이 작성한 코멘트에는 marker를
+추가하지 않으며, marker가 없는 코멘트는 생성·갱신·삭제 대상에서 제외한다.
+
+## 5. 제출자와 reviewer
 
 백엔드 개발자 GitHub 계정은 다음 세 명으로 고정한다.
 
@@ -188,7 +251,7 @@ gh api user --jq '.login'
   author가 위 목록 중 하나가 아니면 중단한다. 인증 사용자가 아니라 실제 author를 제외한
   나머지 두 계정을 reviewer로 계산한다.
 
-## 5. 생성 또는 갱신
+## 6. 생성 또는 갱신
 
 아래 명령의 `$base`, `$head`, `$title`, `$bodyFile`, `$authenticatedLogin`, `$author`,
 `$reviewer1`, `$reviewer2`, `$number`, `$label`은 에이전트가 앞 단계에서 확정하거나 명령
@@ -211,7 +274,11 @@ gh api user --jq '.login'
    gh pr list --head "$head" --state open --json number,url
    ```
 
-3. 열린 PR이 없으면 `$author`를 `$authenticatedLogin`으로 정하고 author를 제외한 reviewer
+3. 열린 PR이 하나면 PR 본문, reviewer, label을 변경하기 전에 7장의 기존 review comment 조회와
+   충돌 판정을 먼저 수행한다. 다른 백엔드 개발자의 현재 자동 코멘트가 4장의 계획과 충돌하면
+   이 단계에서 중단한다. 사전 판정에서는 코멘트를 게시·갱신·삭제하지 않는다.
+
+4. 열린 PR이 없으면 `$author`를 `$authenticatedLogin`으로 정하고 author를 제외한 reviewer
    두 명을 계산한다. base, head, 제목, 본문 파일, reviewer 두 명을 모두 명시해 생성하며
    label 인수는 사용하지 않는다.
 
@@ -221,7 +288,7 @@ gh api user --jq '.login'
 
    생성 후 2단계 명령을 다시 실행해 생성된 PR의 번호를 확정한다.
 
-4. 열린 PR이 하나면 4장의 명령으로 실제 author를 조회하고 allowlist에 있는지 검증한 뒤,
+5. 열린 PR이 하나면 5장의 명령으로 실제 author를 조회하고 allowlist에 있는지 검증한 뒤,
    author를 제외한 reviewer 두 명을 계산한다. 그 번호를 지정해 base, 제목, 본문, reviewer를
    갱신한다. `gh pr edit`은 head 변경 옵션을 제공하지 않으므로, 2단계에서 현재 head로 찾은
    PR만 갱신한다.
@@ -230,7 +297,7 @@ gh api user --jq '.login'
    gh pr edit "$number" --base "$base" --title "$title" --body-file "$bodyFile" --add-reviewer "$reviewer1" --add-reviewer "$reviewer2"
    ```
 
-5. 다음 명령으로 label 이름을 추출한다.
+6. 다음 명령으로 label 이름을 추출한다.
 
    ```shell
    gh pr view "$number" --json labels --jq '.labels[].name'
@@ -242,17 +309,107 @@ gh api user --jq '.login'
    gh pr edit "$number" --remove-label "$label"
    ```
 
-## 6. 사후 검증
+## 7. diff 인라인 코멘트 게시 또는 갱신
+
+[GitHub의 Pull Request Review Comment 생성 API](https://docs.github.com/en/rest/pulls/comments#create-a-review-comment-for-a-pull-request)를
+사용한다. PR 생성 또는 본문 갱신을 마친 뒤 현재 head와 diff를 다시 조회하고, `headRefOid`를
+`$headSha`로 보관한다.
+
+```shell
+gh pr view "$number" --json headRefOid --jq '.headRefOid'
+gh pr diff "$number" --patch
+```
+
+`$headSha`가 4장의 계획을 세울 때 사용한 HEAD와 다르거나 계획의 `path`, `line`, `side`가 현재
+diff와 일치하지 않으면 게시하지 않고 계획을 다시 만든다. 먼저 기존 review comment를 모두
+조회한다.
+
+```shell
+gh api --paginate "repos/{owner}/{repo}/pulls/$number/comments?per_page=100"
+```
+
+API 응답의 `line`이 `null`이면 GitHub가 현재 diff에서 outdated로 분류한 코멘트로 간주한다.
+`line`이 있는 코멘트 중 `<!-- yeobaek-rationale:{commentKey} -->` marker가 있고 작성자가 5장의
+백엔드 개발자 목록에 있는 것만 현재 계획의 기존 자동 코멘트로 대조한다. marker가 없는 사람의
+코멘트와 목록 밖 사용자의 코멘트는 어떤 경우에도 변경하지 않는다.
+
+- marker, `path`, `line`, `side`, 본문이 모두 같으면 작성자가 현재 인증 사용자와 달라도 기존
+  코멘트를 재사용한다.
+- 현재 인증 사용자가 작성했고 같은 marker와 위치의 본문만 달라졌으면
+  [review comment 갱신 API](https://docs.github.com/en/rest/pulls/comments#update-a-review-comment-for-a-pull-request)로
+  본문을 갱신한다.
+- 현재 인증 사용자가 작성한 같은 marker의 현재 코멘트가 다른 위치에 있으면 대체 코멘트 게시
+  대상으로 두고, 기존 코멘트는 아직 삭제하지 않는다.
+- 다른 백엔드 개발자가 작성한 같은 marker의 현재 코멘트가 계획과 정확히 일치하지 않거나,
+  계획에서 사라진 다른 백엔드 개발자의 현재 자동 코멘트가 있으면 갱신을 중단한다. 다른 계정의
+  코멘트를 삭제하거나 중복 코멘트를 추가하지 않는다.
+- `line`이 `null`인 outdated 코멘트는 작성자와 관계없이 리뷰 이력으로 보존하고 현재 계획과
+  충돌하는 코멘트로 취급하지 않는다.
+
+본문 갱신 payload는 `{"body":"<새 본문>"}`인 임시 JSON 파일로 만들고 다음처럼 전송한다.
+`--include`로 응답 상태와 rate limit 판정에 필요한 헤더를 함께 확인한다.
+
+```shell
+gh api --include --method PATCH "repos/{owner}/{repo}/pulls/comments/$commentId" --input "$commentBodyFile"
+```
+
+새로 게시할 계획 항목마다 다음 구조의 임시 JSON 파일을 만든다. `commit_id`에는 `$headSha`를
+사용한다.
+
+```json
+{
+  "commit_id": "$headSha",
+  "path": "backend/src/main/java/example/Example.java",
+  "line": 42,
+  "side": "RIGHT",
+  "body": "**구현 맥락**\n\n...\n\n<!-- yeobaek-rationale:example-item -->"
+}
+```
+
+각 새 코멘트는 다음 명령으로 게시한다. 이미 정확히 일치하는 현재 코멘트는 다시 게시하지 않는다.
+
+```shell
+gh api --include --method POST "repos/{owner}/{repo}/pulls/$number/comments" --input "$inlineCommentFile"
+```
+
+게시 도중 응답을 확인하지 못했으면 같은 payload를 바로 재전송하지 않는다. review comment를 다시
+조회해 정확히 일치하는 코멘트가 없는 항목만 게시한다. 오류는 다음처럼 구분한다.
+
+- diff 위치 또는 payload validation 오류는 현재 head와 diff를 다시 확인해 계획을 고친 뒤 한 번
+  재시도한다. 같은 오류가 반복되면 blocker로 보고한다.
+- 인증·권한 오류는 payload 오류로 해석하거나 반복 재시도하지 않고 blocker로 보고한다.
+- rate limit 또는 abuse limit 응답은 `Retry-After`와 `X-RateLimit-Reset` 헤더를 따른다. 제한이
+  해제된 뒤 안전하게 재개할 수 없으면 reset 시각과 함께 blocker로 보고한다.
+
+새 코멘트 게시와 본문 갱신 후 `headRefOid`와 review comment를 다시 조회한다. 이때 head가
+`$headSha`와 다르면 기존 현재 코멘트를 삭제하지 않고, 새 head 기준으로 4장의 계획부터 다시
+수행한다. 새로 게시한 코멘트가 outdated가 되면 리뷰 이력으로 보존한다.
+
+head가 같고 현재 계획의 각 항목이 정확한 `path`, `line`, `side`, 본문으로 존재하는지 확인한
+뒤에만, 현재 인증 사용자가 작성했고 marker가 있으며 현재 계획과 위치가 다르거나 계획에서 사라진
+현재 코멘트를 다음 명령으로 삭제한다. 대체가 필요한 항목은 새 코멘트의 존재를 확인하기 전까지
+기존 코멘트를 삭제하지 않는다.
+
+```shell
+gh api --include --method DELETE "repos/{owner}/{repo}/pulls/comments/$commentId"
+```
+
+같은 marker로 현재 인증 사용자가 작성한 현재 코멘트가 중복되면 계획과 일치하는 하나만 남긴다.
+정리를 마친 뒤 head와 review comment를 다시 조회해 8장을 검증한다.
+
+## 8. 사후 검증
 
 생성 또는 갱신 직후 다음 명령을 실행한다.
 
 ```shell
-gh pr view "$number" --json number,title,body,labels,reviewRequests,author,baseRefName,headRefName,url
+gh pr view "$number" --json number,title,body,labels,reviewRequests,author,baseRefName,headRefName,headRefOid,url
+gh api --paginate "repos/{owner}/{repo}/pulls/$number/comments?per_page=100"
 ```
 
 출력에서 다음 조건을 모두 직접 대조한다.
 
 - `baseRefName`과 `headRefName`이 2장에서 확정한 base와 head다.
+- `headRefOid`가 7장에서 사용한 `$headSha`와 같다.
 - `headRefName`이 허용된 Yeobaek Flow 접두사와 kebab-case 이름을 사용하고, `baseRefName`과의
   조합이 2장의 규칙과 일치한다.
 - `hotfix/*`이면 0장의 두 `merge-base` 명령 결과가 같다.
@@ -271,6 +428,12 @@ gh pr view "$number" --json number,title,body,labels,reviewRequests,author,baseR
   `~해야 해`, `~해야해`, `~해요`, `~할게` 같은 구어체나 다른 높임 수준의 종결어미가 없다.
 - 선택 이유를 생략한 항목마다 개발자의 명시적 예외 확인을 자기완결적으로 재작성한 문장이 있다.
 - `body`에 HTML 안내 주석, `구현 항목 이름`, 템플릿 안내 문구 또는 빈 필수 필드가 없다.
+- 4장의 각 `commentKey`가 PR 안에서 유일하고, 각 계획 항목마다 5장의 백엔드 개발자 중 한 명이
+  작성한 현재 코멘트가 정확히 하나 있으며 marker, `path`, `line`, `side`, 본문이 계획과 일치한다.
+- 의미 있는 구현 선택마다 대표 코멘트가 있고, 같은 선택을 설명하는 불필요한 반복 코멘트가 없다.
+- 현재 자동 코멘트 중 계획과 충돌하는 코멘트가 없으며, 다른 사용자의 코멘트와 marker가 없는
+  사람의 코멘트는 변경되지 않았다.
+- 인라인 코멘트의 구현 방법과 선택 근거가 PR 본문의 대응 구현 항목 및 결정 원본과 일치한다.
 - `labels`가 비어 있다.
 - `author.login`이 백엔드 개발자 목록에 있다.
 - `reviewRequests`에 `author.login`을 제외한 백엔드 개발자 두 명이 모두 있다.
