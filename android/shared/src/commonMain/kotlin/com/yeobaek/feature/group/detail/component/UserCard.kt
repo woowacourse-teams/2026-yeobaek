@@ -59,7 +59,7 @@ fun UserCard(
                 )
             }
             .semantics {
-                onLongClick(label = "댓글 수정 및 삭제 메뉴 열기") {
+                onLongClick(label = "사용자 메뉴 열기") {
                     isActionMenuExpanded = true
                     true
                 }
