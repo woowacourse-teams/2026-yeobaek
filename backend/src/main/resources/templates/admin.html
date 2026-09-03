@@ -25,7 +25,7 @@
         .delete-book { padding: .25rem .6rem; }
         .delete-book:disabled { cursor: not-allowed; }
         .cover-preview { width: 42px; height: 58px; object-fit: cover; background: #eee; }
-        .cover-drop-zone {
+        .cover-drop-zone, .json-drop-zone {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -38,9 +38,13 @@
             font-weight: 400;
             text-align: center;
         }
-        .cover-drop-zone:hover, .cover-drop-zone.drag-over { border-color: #0a7a2f; background: #f1faf4; }
-        .cover-drop-zone:focus-within { outline: 2px solid #0a7a2f; outline-offset: 2px; }
-        .cover-drop-zone input[type="file"] {
+        .cover-drop-zone:hover, .cover-drop-zone.drag-over,
+        .json-drop-zone:hover, .json-drop-zone.drag-over { border-color: #0a7a2f; background: #f1faf4; }
+        .cover-drop-zone:focus-within, .json-drop-zone:focus-within {
+            outline: 2px solid #0a7a2f;
+            outline-offset: 2px;
+        }
+        .cover-drop-zone input[type="file"], .json-drop-zone input[type="file"] {
             position: absolute;
             width: 1px;
             height: 1px;
@@ -51,7 +55,7 @@
             white-space: nowrap;
             border: 0;
         }
-        .cover-file-name { color: #555; font-size: .85rem; }
+        .cover-file-name, .json-file-name { color: #555; font-size: .85rem; }
     </style>
 </head>
 <body>
@@ -78,6 +82,12 @@
 <section>
     <h2>도서 업로드 (인제스트 규격 JSON)</h2>
     <p>규격은 API 문서 6장을 따릅니다. 문단과 문장 순서는 각 배열 순서대로 서버가 부여합니다.</p>
+    <label for="upload-json-file" id="upload-json-drop-zone" class="json-drop-zone">
+        <span>도서 JSON 파일 (선택)</span>
+        <span>.json 파일을 여기로 끌어다 놓거나 클릭해서 선택하세요.</span>
+        <input type="file" id="upload-json-file" accept=".json,application/json">
+        <span id="upload-json-file-name" class="json-file-name" aria-live="polite">선택된 파일 없음</span>
+    </label>
     <textarea id="upload-json" spellcheck="false" placeholder='{
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
@@ -100,7 +110,7 @@
         <span id="new-cover-file-name" class="cover-file-name" aria-live="polite">선택된 파일 없음</span>
     </label>
     <button type="button" id="upload-book">업로드</button>
-    <div id="upload-result" class="result"></div>
+    <div id="upload-result" class="result" aria-live="polite"></div>
 </section>
 
 <script>
@@ -111,6 +121,72 @@
     function show(element, message, isError) {
         element.textContent = message;
         element.className = 'result ' + (isError ? 'error' : 'ok');
+    }
+
+    const uploadJsonTextarea = document.getElementById('upload-json');
+    const uploadJsonFileInput = document.getElementById('upload-json-file');
+    const uploadJsonDropZone = document.getElementById('upload-json-drop-zone');
+    const uploadJsonFileName = document.getElementById('upload-json-file-name');
+    let jsonFileLoadSequence = 0;
+
+    uploadJsonTextarea.addEventListener('input', () => {
+        jsonFileLoadSequence++;
+    });
+
+    uploadJsonFileInput.addEventListener('change', () => {
+        const file = uploadJsonFileInput.files[0];
+        if (file) {
+            loadJsonFile(file);
+        }
+    });
+
+    uploadJsonDropZone.addEventListener('dragenter', event => {
+        event.preventDefault();
+        uploadJsonDropZone.classList.add('drag-over');
+    });
+
+    uploadJsonDropZone.addEventListener('dragover', event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        uploadJsonDropZone.classList.add('drag-over');
+    });
+
+    uploadJsonDropZone.addEventListener('dragleave', event => {
+        if (!uploadJsonDropZone.contains(event.relatedTarget)) {
+            uploadJsonDropZone.classList.remove('drag-over');
+        }
+    });
+
+    uploadJsonDropZone.addEventListener('drop', event => {
+        event.preventDefault();
+        uploadJsonDropZone.classList.remove('drag-over');
+        const file = event.dataTransfer.files[0];
+        if (file) {
+            loadJsonFile(file);
+        }
+    });
+
+    async function loadJsonFile(file) {
+        const result = document.getElementById('upload-result');
+        const loadSequence = ++jsonFileLoadSequence;
+        if (!file.name.toLowerCase().endsWith('.json')) {
+            show(result, 'JSON 파일만 첨부할 수 있습니다.', true);
+            return;
+        }
+        try {
+            const fileContent = await file.text();
+            if (loadSequence !== jsonFileLoadSequence) {
+                return;
+            }
+            uploadJsonTextarea.value = fileContent;
+            uploadJsonFileName.textContent = file.name;
+            show(result, 'JSON 파일을 불러왔습니다.', false);
+        } catch (error) {
+            if (loadSequence !== jsonFileLoadSequence) {
+                return;
+            }
+            show(result, 'JSON 파일 읽기 실패: ' + error.message, true);
+        }
     }
 
     async function loadAuthors() {

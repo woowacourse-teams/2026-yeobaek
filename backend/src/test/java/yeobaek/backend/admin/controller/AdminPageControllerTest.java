@@ -42,4 +42,28 @@ class AdminPageControllerTest extends IntegrationTest {
                 .andExpect(content().string(containsString("droppedNewCoverFile ?? newCoverFileInput.files[0]")))
                 .andExpect(content().string(containsString("payload.coverImageKey = await uploadCover(coverFile)")));
     }
+
+    @Test
+    @DisplayName("도서 JSON은 파일 선택과 드래그 앤 드롭으로 입력할 수 있다")
+    void serveBookJsonDropUi() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"upload-json-drop-zone\"")))
+                .andExpect(content().string(containsString("id=\"upload-json-file\"")))
+                .andExpect(content().string(containsString("accept=\".json,application/json\"")))
+                .andExpect(content().string(containsString("id=\"upload-json-file-name\"")))
+                .andExpect(content().string(containsString("id=\"upload-result\" class=\"result\" aria-live=\"polite\"")))
+                .andExpect(content().string(containsString("uploadJsonTextarea.addEventListener('input'")))
+                .andExpect(content().string(containsString("uploadJsonFileInput.addEventListener('change'")))
+                .andExpect(content().string(containsString("loadJsonFile(file)")))
+                .andExpect(content().string(containsString("uploadJsonDropZone.addEventListener('dragover'")))
+                .andExpect(content().string(containsString("uploadJsonDropZone.addEventListener('drop'")))
+                .andExpect(content().string(containsString("await file.text()")))
+                .andExpect(content().string(containsString("loadSequence !== jsonFileLoadSequence")))
+                .andExpect(content().string(containsString("uploadJsonTextarea.value = fileContent")))
+                .andExpect(content().string(containsString("uploadJsonFileName.textContent = file.name")))
+                .andExpect(content().string(containsString("file.name.toLowerCase().endsWith('.json')")))
+                .andExpect(content().string(containsString("JSON 파일만 첨부할 수 있습니다.")))
+                .andExpect(content().string(containsString("JSON 파일을 불러왔습니다.")));
+    }
 }
