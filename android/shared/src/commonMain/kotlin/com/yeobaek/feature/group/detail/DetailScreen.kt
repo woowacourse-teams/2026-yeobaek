@@ -28,12 +28,14 @@ import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.group.detail.component.BlockDialog
 import com.yeobaek.feature.group.detail.component.DeleteGroupDialog
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
 import com.yeobaek.feature.group.detail.component.GroupBookCard
 import com.yeobaek.feature.group.detail.component.GroupBookInfoCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
+import com.yeobaek.feature.group.detail.model.UserUiModel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -51,6 +53,8 @@ fun DetailScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showBlockDialog by remember { mutableStateOf(false) }
+    var chooseOtherInfo by remember { mutableStateOf(UserUiModel()) }
 
     LaunchedEffect(uiState.exitState) {
         when (uiState.exitState) {
@@ -89,23 +93,23 @@ fun DetailScreen(
         }
     }
 
-    LaunchedEffect(uiState.blockState) {
-        when (uiState.blockState) {
-            is BlockState.Success -> {
+    LaunchedEffect(uiState.unBlockState) {
+        when (uiState.unBlockState) {
+            is UnBlockState.Success -> {
                 snackbarHostState.showSnackbar(
-                    message = "사용자를 차단을 해제했습니다.",
+                    message = "차단을 해제했습니다.",
                     duration = SnackbarDuration.Short,
                 )
             }
 
-            is BlockState.Failure -> {
+            is UnBlockState.Failure -> {
                 snackbarHostState.showSnackbar(
-                    message = uiState.blockState.message,
+                    message = uiState.unBlockState.message,
                     duration = SnackbarDuration.Short,
                 )
             }
 
-            is BlockState.Idle, BlockState.Loading -> return@LaunchedEffect
+            is UnBlockState.Idle, UnBlockState.Loading -> return@LaunchedEffect
         }
     }
 
@@ -180,8 +184,14 @@ fun DetailScreen(
             // 모임에 참여한 사람들
             GroupUserCard(
                 users = uiState.groupUiModel.users,
-                onBlockUser = onBlockUser,
-                onUnBlockUser = onUnBlockUser,
+                onClick = {
+                    chooseOtherInfo = it
+                    if (!chooseOtherInfo.blocked) {
+                        showBlockDialog = true
+                    } else {
+                        onUnBlockUser(chooseOtherInfo.id)
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -191,6 +201,16 @@ fun DetailScreen(
                 onConfirm = {
                     showDeleteDialog = false
                     onExitClick()
+                },
+            )
+        }
+
+        if (showBlockDialog) {
+            BlockDialog(
+                onDismissRequest = { showBlockDialog = false },
+                onConfirm = {
+                    showBlockDialog = false
+                    onBlockUser(chooseOtherInfo.id)
                 },
             )
         }

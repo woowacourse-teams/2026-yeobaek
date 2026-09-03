@@ -43,8 +43,7 @@ fun UserCard(
     name: String,
     itsMe: Boolean,
     blocked: Boolean,
-    onBlockUser: (Int) -> Unit,
-    onUnBlockUser: (Int) -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isActionMenuExpanded by remember(Unit) {
@@ -123,7 +122,7 @@ fun UserCard(
             text = if (blocked) "차단 해제" else "차단",
             onClick = {
                 isActionMenuExpanded = false
-                if (blocked) onUnBlockUser(id) else onBlockUser(id)
+                onClick()
             },
             modifier = Modifier.padding(top = 32.dp),
         )
@@ -139,8 +138,7 @@ private fun UserCardPreview() {
             name = "하로",
             itsMe = true,
             blocked = false,
-            onBlockUser = {},
-            onUnBlockUser = {},
+            onClick = {},
         )
     }
 }
@@ -154,8 +152,7 @@ private fun OtherUserCardPreview() {
             name = "엘리",
             itsMe = false,
             blocked = false,
-            onBlockUser = {},
-            onUnBlockUser = {},
+            onClick = {},
         )
     }
 }

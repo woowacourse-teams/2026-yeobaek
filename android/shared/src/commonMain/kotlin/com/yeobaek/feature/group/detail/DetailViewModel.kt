@@ -142,7 +142,7 @@ class DetailViewModel(
     }
 
     fun unBlockUser(otherUserId: Int) {
-        if (uiState.blockState is BlockState.Loading) return
+        if (uiState.unBlockState is UnBlockState.Loading) return
 
         uiState = uiState.copy(
             blockState = BlockState.Loading,
@@ -152,14 +152,14 @@ class DetailViewModel(
             viewModelScope.launch {
                 userRepository.unBlockUser(otherUserId)
                 uiState = uiState.copy(
-                    blockState = BlockState.Success,
+                    unBlockState = UnBlockState.Success,
                 )
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             uiState = uiState.copy(
-                blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+                unBlockState = UnBlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
             )
         }
     }
