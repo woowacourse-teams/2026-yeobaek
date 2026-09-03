@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +62,7 @@ fun ReaderScreen(
     onCommentDelete: (Long) -> Unit,
     onCommentDeleteCancel: () -> Unit,
     onCommentDeleteConfirm: () -> Unit,
+    onCommentReport: (Long) -> Unit,
     onLoadPrevious: () -> Boolean,
     onLoadNext: () -> Unit,
     onVisiblePassageChange: (PassageUiModel) -> Unit,
@@ -357,6 +360,7 @@ fun ReaderScreen(
             onSubmit = onCommentSubmit,
             onEditComment = onCommentEdit,
             onCancelEdit = onCommentEditCancel,
+            onCommentReport = onCommentReport,
             onDeleteComment = onCommentDelete,
             onCancelDelete = onCommentDeleteCancel,
             onConfirmDelete = onCommentDeleteConfirm,
@@ -542,6 +546,7 @@ private fun ReaderScreenPreview() {
             onCommentDelete = {},
             onCommentDeleteCancel = {},
             onCommentDeleteConfirm = {},
+            onCommentReport = {},
             onLoadPrevious = { false },
             onLoadNext = {},
             onVisiblePassageChange = {},

@@ -139,7 +139,7 @@ class ReaderViewModel(
         val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return false
 
         if (
-            // 이전 passage를 가져오는 코루틴이 실행 중
+        // 이전 passage를 가져오는 코루틴이 실행 중
             previousPassagesJob?.isActive == true ||
             // 이전 목록 로딩 중
             uiState.isLoadingPrevious ||
@@ -821,6 +821,24 @@ class ReaderViewModel(
         }
     }
 
+    fun reportComment(commentId: Long) {
+
+        if (uiState.reportState is ReportState.Loading) return
+
+        uiState = uiState.copy(reportState = ReportState.Loading)
+
+        viewModelScope.launch {
+            try {
+                commentRepository.reportComment(commentId)
+                uiState = uiState.copy(reportState = ReportState.Success)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(reportState = ReportState.Failure("댓글 신고를 실패했습니다."))
+            }
+        }
+    }
+
     private fun updateCommentSheet(
         sentenceId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
@@ -941,6 +959,13 @@ class ReaderViewModelFactory(
 
         throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
     }
+}
+
+sealed class ReportState {
+    data object Idle : ReportState()
+    data object Loading : ReportState()
+    data object Success : ReportState()
+    data class Failure(val message: String) : ReportState()
 }
 
 private const val FIRST_PASSAGE_SEQUENCE = 1
