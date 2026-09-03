@@ -152,7 +152,6 @@ fun App(
 
                 HomeScreen(
                     appName = appContainer.appName,
-                    appVersion = appContainer.appVersion,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
                         navController.navigate(Join)
