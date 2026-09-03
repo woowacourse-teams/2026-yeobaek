@@ -199,7 +199,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+			shellScript = "if [ \"${SKIP_CRASHLYTICS_UPLOAD:-0}\" = \"1\" ]; then\n    echo \"Skipping Crashlytics symbol upload in CI\"\n    exit 0\nfi\n\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
 		};
 		EBBDE7F4D2032BBD903CF08B /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
