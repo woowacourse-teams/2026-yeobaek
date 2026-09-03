@@ -26,3 +26,6 @@ data object Join
 data class Reader(
     val groupId: Long,
 )
+
+@Serializable
+data object MyPage
