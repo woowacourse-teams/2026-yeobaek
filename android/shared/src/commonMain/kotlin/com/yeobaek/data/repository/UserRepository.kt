@@ -9,4 +9,6 @@ interface UserRepository {
     suspend fun getUserId(): Int
     suspend fun getUsername(): String
     suspend fun deleteAccount()
+    suspend fun blockUser(userId: Int)
+    suspend fun unBlockUser(userId: Int)
 }

@@ -15,6 +15,7 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
@@ -22,6 +23,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
+    private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
 ) : ViewModel() {
@@ -46,6 +48,7 @@ class DetailViewModel(
                         currentProgress = groupDetail.myProgress?.progressRate ?: 0,
                     ),
                     groupUiModel = GroupUiModel(
+                        id = groupId,
                         name = groupDetail.name,
                         groupCode = groupDetail.joinCode,
                         users = groupDetail.members.map { member ->
@@ -53,6 +56,7 @@ class DetailViewModel(
                                 id = member.id,
                                 name = member.nickname,
                                 itsMe = member.mine,
+                                blocked = member.blocked,
                             )
                         },
                     ),
@@ -114,6 +118,51 @@ class DetailViewModel(
         }
     }
 
+    fun blockUser(otherUserId: Int) {
+        if (uiState.blockState is BlockState.Loading) return
+
+        uiState = uiState.copy(
+            blockState = BlockState.Loading,
+        )
+        viewModelScope.launch {
+            try {
+                userRepository.blockUser(otherUserId)
+                uiState = uiState.copy(
+                    blockState = BlockState.Success,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+                )
+            }
+        }
+    }
+
+    fun unBlockUser(otherUserId: Int) {
+        if (uiState.unBlockState is UnBlockState.Loading) return
+
+        uiState = uiState.copy(
+            unBlockState = UnBlockState.Loading,
+        )
+
+        viewModelScope.launch {
+            try {
+                userRepository.unBlockUser(otherUserId)
+                uiState = uiState.copy(
+                    unBlockState = UnBlockState.Success,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    unBlockState = UnBlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+                )
+            }
+        }
+    }
+
     private fun crashContext(operation: CrashOperation) = CrashContext(
         screen = TrackedScreen.GROUP_DETAIL,
         operation = operation,
@@ -121,11 +170,13 @@ class DetailViewModel(
 
     companion object {
         fun detailViewModelFactory(
+            userRepository: UserRepository,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
+                    userRepository = userRepository,
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
                 )
@@ -139,4 +190,18 @@ sealed class ExitState {
     data object Loading : ExitState()
     data object Success : ExitState()
     data class Failure(val message: String) : ExitState()
+}
+
+sealed class BlockState {
+    data object Idle : BlockState()
+    data object Loading : BlockState()
+    data object Success : BlockState()
+    data class Failure(val message: String) : BlockState()
+}
+
+sealed class UnBlockState {
+    data object Idle : UnBlockState()
+    data object Loading : UnBlockState()
+    data object Success : UnBlockState()
+    data class Failure(val message: String) : UnBlockState()
 }

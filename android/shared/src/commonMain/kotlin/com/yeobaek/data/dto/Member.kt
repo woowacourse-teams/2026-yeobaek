@@ -8,6 +8,7 @@ data class Member(
     val memberId: Int,
     val mine: Boolean,
     val nickname: String,
+    val blocked: Boolean,
 )
 
 fun Member.toModel(): MemberModel =
@@ -15,4 +16,5 @@ fun Member.toModel(): MemberModel =
         id = memberId,
         mine = mine,
         nickname = nickname,
+        blocked = blocked,
     )

@@ -4,4 +4,5 @@ data class UserUiModel(
     val id: Int = 0,
     val name: String = "",
     val itsMe: Boolean = false,
+    val blocked: Boolean = false,
 )
