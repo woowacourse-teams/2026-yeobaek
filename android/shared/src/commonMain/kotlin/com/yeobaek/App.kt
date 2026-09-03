@@ -361,7 +361,7 @@ fun App(
                     deleteAccount = myPageViewModel::deleteAccount,
                     navigateToNickname = {
                         navController.navigate(Nickname) {
-                            popUpTo<MyPage> {
+                            popUpTo<Home> {
                                 inclusive = true
                             }
                         }
