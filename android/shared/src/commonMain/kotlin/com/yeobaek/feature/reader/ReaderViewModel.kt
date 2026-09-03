@@ -139,7 +139,7 @@ class ReaderViewModel(
         val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return false
 
         if (
-        // 이전 passage를 가져오는 코루틴이 실행 중
+            // 이전 passage를 가져오는 코루틴이 실행 중
             previousPassagesJob?.isActive == true ||
             // 이전 목록 로딩 중
             uiState.isLoadingPrevious ||
@@ -822,7 +822,6 @@ class ReaderViewModel(
     }
 
     fun reportComment(commentId: Long) {
-
         if (uiState.reportState is ReportState.Loading) return
 
         uiState = uiState.copy(reportState = ReportState.Loading)
