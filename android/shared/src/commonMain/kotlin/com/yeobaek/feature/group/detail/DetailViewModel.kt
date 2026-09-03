@@ -124,20 +124,19 @@ class DetailViewModel(
         uiState = uiState.copy(
             blockState = BlockState.Loading,
         )
-
-        try {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            try {
                 userRepository.blockUser(otherUserId)
                 uiState = uiState.copy(
                     blockState = BlockState.Success,
                 )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+                )
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            uiState = uiState.copy(
-                blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
-            )
         }
     }
 
@@ -148,19 +147,19 @@ class DetailViewModel(
             blockState = BlockState.Loading,
         )
 
-        try {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            try {
                 userRepository.unBlockUser(otherUserId)
                 uiState = uiState.copy(
                     unBlockState = UnBlockState.Success,
                 )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    unBlockState = UnBlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
+                )
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            uiState = uiState.copy(
-                unBlockState = UnBlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
-            )
         }
     }
 
