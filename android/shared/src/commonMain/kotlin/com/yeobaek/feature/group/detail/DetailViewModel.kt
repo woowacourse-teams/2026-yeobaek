@@ -144,7 +144,7 @@ class DetailViewModel(
         if (uiState.unBlockState is UnBlockState.Loading) return
 
         uiState = uiState.copy(
-            blockState = BlockState.Loading,
+            unBlockState = UnBlockState.Loading,
         )
 
         viewModelScope.launch {
