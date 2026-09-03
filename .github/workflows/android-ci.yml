@@ -23,20 +23,40 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect android changes
+        id: android-changes
+        working-directory: .
+        run: |
+          if git diff --quiet \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            -- \
+            'android/**' \
+            '.github/workflows/android-ci.yml'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up JDK
+        if: steps.android-changes.outputs.changed == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle cache
+        if: steps.android-changes.outputs.changed == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
           cache-read-only: false
 
       - name: Create non-sensitive CI configuration
+        if: steps.android-changes.outputs.changed == 'true'
         run: |
           set -euo pipefail
 
@@ -76,19 +96,23 @@ jobs:
             androidApp/src/debug/google-services.json
 
       - name: Build Debug APK
+        if: steps.android-changes.outputs.changed == 'true'
         run: ./gradlew :androidApp:assembleDebug --stacktrace --console=plain
 
       - name: Run Android host tests
+        if: steps.android-changes.outputs.changed == 'true'
         run: ./gradlew :shared:testAndroidHostTest --stacktrace --console=plain
 
       - name: Run Android Lint
+        if: steps.android-changes.outputs.changed == 'true'
         run: ./gradlew :androidApp:lintDebug --stacktrace --console=plain
 
       - name: Run ktlint
+        if: steps.android-changes.outputs.changed == 'true'
         run: ./gradlew :shared:ktlintCheck --stacktrace --console=plain
 
       - name: Upload verification reports
-        if: always()
+        if: always() && steps.android-changes.outputs.changed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: android-ci-reports
@@ -108,20 +132,40 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect android changes
+        id: android-changes
+        working-directory: .
+        run: |
+          if git diff --quiet \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            -- \
+            'android/**' \
+            '.github/workflows/android-ci.yml'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up JDK
+        if: steps.android-changes.outputs.changed == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Gradle cache
+        if: steps.android-changes.outputs.changed == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
           cache-read-only: false
 
       - name: Cache Kotlin Native
+        if: steps.android-changes.outputs.changed == 'true'
         uses: actions/cache@v5
         with:
           path: ~/.konan
@@ -130,6 +174,7 @@ jobs:
             ${{ runner.os }}-konan-
 
       - name: Cache Swift packages
+        if: steps.android-changes.outputs.changed == 'true'
         uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/SourcePackages
@@ -138,6 +183,7 @@ jobs:
             ${{ runner.os }}-spm-
 
       - name: Create non-sensitive iOS configuration
+        if: steps.android-changes.outputs.changed == 'true'
         run: |
           set -euo pipefail
 
@@ -177,9 +223,11 @@ jobs:
             iosApp/Configuration/firebase/release/GoogleService-Info.plist
 
       - name: Compile iOS test sources
+        if: steps.android-changes.outputs.changed == 'true'
         run: ./gradlew :shared:compileTestKotlinIosSimulatorArm64 --stacktrace --console=plain
 
       - name: Build iOS Simulator app
+        if: steps.android-changes.outputs.changed == 'true'
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
@@ -197,7 +245,7 @@ jobs:
             build
 
       - name: Upload iOS verification reports
-        if: always()
+        if: always() && steps.android-changes.outputs.changed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ios-ci-reports
