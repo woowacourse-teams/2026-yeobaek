@@ -1,0 +1,99 @@
+name: android-ci
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: android-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pull-request-verification:
+    name: Android PR verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+          cache-read-only: false
+
+      - name: Create non-sensitive CI configuration
+        run: |
+          set -euo pipefail
+
+          mkdir -p androidApp/src/debug
+          printf '%s\n' \
+            'BASE_URL=https://ci.example.invalid/' \
+            'TEST_BASE_URL=https://ci.example.invalid/' \
+            > local.properties
+
+          create_google_services() {
+            local package_name="$1"
+            local output_path="$2"
+
+            jq -n --arg package_name "$package_name" '
+              {
+                project_info: {
+                  project_number: "000000000000",
+                  project_id: "yeobaek-ci",
+                  storage_bucket: "yeobaek-ci.invalid"
+                },
+                client: [
+                  {
+                    client_info: {
+                      mobilesdk_app_id: "1:000000000000:android:0000000000000000",
+                      android_client_info: {package_name: $package_name}
+                    },
+                    api_key: [{current_key: "ci-placeholder-not-a-real-api-key"}]
+                  }
+                ],
+                configuration_version: "1"
+              }
+            ' > "$output_path"
+          }
+
+          create_google_services \
+            com.yeobaek.debug \
+            androidApp/src/debug/google-services.json
+
+      - name: Build Debug APK
+        run: ./gradlew :androidApp:assembleDebug --stacktrace --console=plain
+
+      - name: Run Android host tests
+        run: ./gradlew :shared:testAndroidHostTest --stacktrace --console=plain
+
+      - name: Run Android Lint
+        run: ./gradlew :androidApp:lintDebug --stacktrace --console=plain
+
+      - name: Run ktlint
+        run: ./gradlew :shared:ktlintCheck --stacktrace --console=plain
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ci-reports
+          path: |
+            android/**/build/reports/**
+            android/**/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
