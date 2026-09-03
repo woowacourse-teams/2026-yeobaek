@@ -18,8 +18,10 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateViewModel
+import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.home.HomeScreen
@@ -190,10 +192,20 @@ fun App(
                 )
                 LaunchedEffect(
                     route.groupId,
+                ) {
+                    detailViewModel.initGroupData(groupId = route.groupId)
+                }
+
+                LaunchedEffect(
                     detailViewModel.uiState.blockState,
                     detailViewModel.uiState.unBlockState,
                 ) {
-                    detailViewModel.initGroupData(groupId = route.groupId)
+                    if (detailViewModel.uiState.blockState is BlockState.Success) {
+                        detailViewModel.initGroupData(groupId = route.groupId)
+                    }
+                    if (detailViewModel.uiState.unBlockState is UnBlockState.Success) {
+                        detailViewModel.initGroupData(groupId = route.groupId)
+                    }
                 }
 
                 DetailScreen(
