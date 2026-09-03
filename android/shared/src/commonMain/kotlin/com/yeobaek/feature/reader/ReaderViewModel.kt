@@ -838,6 +838,11 @@ class ReaderViewModel(
         }
     }
 
+    fun consumeReportResult() {
+        if (uiState.reportState is ReportState.Loading) return
+        uiState = uiState.copy(reportState = ReportState.Idle)
+    }
+
     private fun updateCommentSheet(
         sentenceId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
