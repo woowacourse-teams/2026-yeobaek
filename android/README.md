@@ -26,6 +26,22 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 - Android tests: `./gradlew :shared:testAndroidHostTest`
 - iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
 
+### Pull request CI
+
+Pull requests targeting `develop` run Android and iOS verification with non-sensitive CI
+configuration. Android verification builds the Debug APK, runs Android host tests, Android Lint,
+and ktlint. iOS verification compiles the iOS test sources and builds the iOS Simulator app without
+code signing. Gradle, Kotlin/Native, and Swift Package caches reduce repeated build time. Common
+tests execute on the Android host because standalone Kotlin/Native tests require separate Firebase
+framework linkage that the app's Swift Package setup does not provide.
+
+Each verification category has its own named workflow step. Start with the first failed step,
+then inspect its plain Gradle output and stack trace. Test, Android Lint, and ktlint reports are
+uploaded as the `android-ci-reports` artifact even when verification fails.
+
+To prevent a failed verification from being merged, configure the `develop` branch protection
+rule to require the `Android PR verification` and `iOS PR verification` status checks.
+
 ---
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
