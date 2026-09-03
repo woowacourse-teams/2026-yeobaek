@@ -42,6 +42,8 @@ fun UserCard(
     id: Int,
     name: String,
     itsMe: Boolean,
+    blocked: Boolean,
+    onBlockUser: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isActionMenuExpanded by remember(Unit) {
@@ -92,7 +94,12 @@ fun UserCard(
                         Text(name.substring(0, 1), fontSize = 12.sp, color = Color.White)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (itsMe) "(나) $name" else name, maxLines = 1, modifier = Modifier.basicMarquee())
+                    Text(
+                        if (itsMe) "(나) $name" else name,
+                        maxLines = 1,
+                        color = if (blocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.basicMarquee(),
+                    )
                 }
                 if (!itsMe) {
                     IconButton(
@@ -114,6 +121,7 @@ fun UserCard(
             onDismissRequest = { isActionMenuExpanded = false },
             onDelete = {
                 isActionMenuExpanded = false
+                onBlockUser(id)
             },
             modifier = Modifier.padding(top = 32.dp),
         )
@@ -128,6 +136,8 @@ private fun UserCardPreview() {
             id = 1,
             name = "하로",
             itsMe = true,
+            blocked = false,
+            onBlockUser = {},
         )
     }
 }
@@ -140,6 +150,8 @@ private fun OtherUserCardPreview() {
             id = 2,
             name = "엘리",
             itsMe = false,
+            blocked = false,
+            onBlockUser = {},
         )
     }
 }

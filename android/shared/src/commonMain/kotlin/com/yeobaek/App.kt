@@ -183,16 +183,20 @@ fun App(
 
                 val detailViewModel: DetailViewModel = viewModel(
                     factory = DetailViewModel.detailViewModelFactory(
+                        userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
-                LaunchedEffect(route.groupId) {
+                LaunchedEffect(route.groupId, detailViewModel.uiState.blockState) {
                     detailViewModel.initGroupData(groupId = route.groupId)
                 }
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
+                    onBlockUser = { otherUserId ->
+                        detailViewModel.blockUser(otherUserId)
+                    },
                     onBackClick = {
                         navController.popBackStack()
                     },

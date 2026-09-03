@@ -35,6 +35,7 @@ interface ClubApi {
         @Body request: JoinRequest,
     ): Response<Unit>
 
+    @Headers("Content-Type: application/json")
     @DELETE("api/clubs/{clubId}/members/me")
     suspend fun exitClub(
         @Path("clubId") clubId: Long,

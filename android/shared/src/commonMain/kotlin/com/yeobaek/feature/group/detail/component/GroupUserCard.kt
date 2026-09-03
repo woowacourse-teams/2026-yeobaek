@@ -27,6 +27,7 @@ import com.yeobaek.feature.group.detail.model.UserUiModel
 @Composable
 fun GroupUserCard(
     users: List<UserUiModel>,
+    onBlockUser: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val userCount = users.size
@@ -84,6 +85,8 @@ fun GroupUserCard(
                         id = user.id,
                         name = user.name,
                         itsMe = user.itsMe,
+                        blocked = user.blocked,
+                        onBlockUser = onBlockUser,
                     )
                 }
             }
@@ -97,6 +100,7 @@ private fun GroupUserCardNoUserPreview() {
     YeobaekTheme {
         GroupUserCard(
             users = emptyList(),
+            onBlockUser = {},
         )
     }
 }
@@ -111,11 +115,13 @@ private fun GroupUserCardPreview() {
                     id = 1,
                     name = "하로1",
                     itsMe = true,
+                    blocked = false,
                 ),
                 UserUiModel(
                     id = 2,
                     name = "하로2",
                     itsMe = false,
+                    blocked = true,
                 ),
                 UserUiModel(
                     id = 3,
@@ -123,6 +129,7 @@ private fun GroupUserCardPreview() {
                     itsMe = false,
                 ),
             ),
+            onBlockUser = {},
         )
     }
 }

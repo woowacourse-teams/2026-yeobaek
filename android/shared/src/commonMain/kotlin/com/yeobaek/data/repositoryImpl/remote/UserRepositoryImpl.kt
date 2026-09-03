@@ -64,4 +64,10 @@ class UserRepositoryImpl(
             throw IllegalArgumentException("회원 탈퇴 실패 ${response.status}")
         }
     }
+
+    override suspend fun blockUser(userId: Int) {
+        val response = userApi.blockUser(userId)
+
+        if (!response.isSuccessful) throw IllegalArgumentException("회원 차단 실패 ${response.status}")
+    }
 }
