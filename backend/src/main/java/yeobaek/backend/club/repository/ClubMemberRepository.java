@@ -3,6 +3,7 @@ package yeobaek.backend.club.repository;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.club.domain.ClubMember;
@@ -10,11 +11,28 @@ import yeobaek.backend.club.domain.ClubMemberStatus;
 
 public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
+    String MEMBER_ID = "memberId";
+
+    @Modifying
+    @Query("delete from ClubMember cm where cm.member.id = :memberId")
+    void deleteAllByMemberId(@Param(MEMBER_ID) Long memberId);
+
     boolean existsByMemberIdAndClubIdAndStatus(Long memberId, Long clubId, ClubMemberStatus status);
 
     default boolean existsJoinedByMemberIdAndClubId(Long memberId, Long clubId) {
         return existsByMemberIdAndClubIdAndStatus(memberId, clubId, ClubMemberStatus.JOINED);
     }
+
+    @Query("""
+            select count(cm) > 0 from ClubMember cm
+            where cm.member.id = :memberId
+              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
+              and cm.club.id = (
+                  select comment.clubMember.club.id from Comment comment where comment.id = :commentId
+              )
+            """)
+    boolean existsJoinedByMemberIdAndCommentId(@Param(MEMBER_ID) Long memberId,
+                                               @Param("commentId") Long commentId);
 
     Optional<ClubMember> findByMemberIdAndClubId(Long memberId, Long clubId);
 
@@ -34,7 +52,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
               and cm.lastReadAt is not null
             order by cm.lastReadAt desc
             """)
-    List<ClubMember> findAllJoinedWithLastReadingByMemberId(@Param("memberId") Long memberId);
+    List<ClubMember> findAllJoinedWithLastReadingByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
             select cm from ClubMember cm
@@ -44,7 +62,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
             where cm.member.id = :memberId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             """)
-    List<ClubMember> findAllJoinedWithClubAndBookByMemberId(@Param("memberId") Long memberId);
+    List<ClubMember> findAllJoinedWithClubAndBookByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
             select cm.club.id as clubId, count(cm) as memberCount
