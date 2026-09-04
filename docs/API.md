@@ -381,7 +381,8 @@
 }
 ```
 - 항상 마지막 열람 본문으로 덮어쓴다 (앞부분 재열람 시 진도율 후퇴 — PRD 3.4 트레이드오프).
-- 클라이언트는 문단이 화면에 노출되는 시점에 호출한다 (배치·디바운스는 클라이언트 재량).
+- 클라이언트는 일반 뷰어를 종료할 때 마지막으로 화면에 표시한 문단 ID로 호출한다. 본문을 읽는
+  동안에는 진도 갱신 호출을 늘리지 않고, 댓글 발견 API에 현재 문단 ID를 조회 경계로 전달한다.
 - 모임 도서가 삭제된 경우 저장된 진도를 변경하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 홈 — 마지막으로 읽던 책
@@ -434,11 +435,16 @@
 - 모임에서 탈퇴해도 조회 상태를 보존한다. 재가입하면 기존 상태를 복원하고, 탈퇴 기간에 작성된
   댓글은 `NEW`로 추가한다.
 - 댓글 수·목록·상태 전환은 요청자가 차단하지 않은 작성자의 댓글만 대상으로 한다.
-- 진도 안쪽은 댓글 문장이 속한 문단의 `sequence`가 요청 회원의 최근 열람 문단 `sequence`
-  이하인 범위다. 저장된 진도가 없으면 모든 문장을 미래 진도로 간주한다.
+- 댓글 발견 API에서 진도 안쪽은 댓글 문장이 속한 문단의 `sequence`가 요청의
+  `currentPassageId`가 가리키는 문단 `sequence` 이하인 범위다. 서버에 저장된 최근 열람 문단은
+  이 경계 계산에 사용하지 않으며, `currentPassageId`도 저장된 진도나 `lastReadAt`을 변경하지 않는다.
 
 ### 탑바 새 댓글 개수
-`GET /api/clubs/{clubId}/comments/new-count`
+`GET /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId}`
+
+- `currentPassageId`(필수): 댓글 발견 진도 경계로 사용할 일반 뷰어의 현재 문단 ID다. 이 문단까지를
+  진도 안쪽으로 계산한다. 값이 없거나 숫자가 아니거나, 해당 모임 도서에 속한 문단이 아니면 `400`
+  (`INVALID_REQUEST`)을 반환한다.
 
 응답 `200`:
 ```json
@@ -459,23 +465,28 @@
 요청:
 ```json
 {
+  "currentPassageId": 1042,
   "cursor": null,
   "size": 20
 }
 ```
 
-- 요청 본문은 필수 JSON 객체다. 첫 페이지에서 두 필드를 모두 생략하려면 `{}`를 보낸다.
+- 요청 본문은 필수 JSON 객체다.
+- `currentPassageId`(필수): 댓글 발견 진도 경계로 사용할 일반 뷰어의 현재 문단 ID다. 첫 페이지에서
+  이 문단까지를 진도 안쪽으로 확정한다. 다음 페이지에서도 첫 페이지와 같은 값을 보내며, 값이
+  없거나 숫자가 아니거나, 해당 모임 도서에 속한 문단이 아니거나, 커서에 묶인 값과 다르면 `400`
+  (`INVALID_REQUEST`)을 반환한다.
 - `cursor`(선택): 첫 페이지는 생략하거나 `null`을 보낸다. 다음 페이지부터 직전 응답의
   `nextCursor`를 그대로 전달하며, 클라이언트는 값을 해석하거나 조합하지 않는다.
 - `size`(선택): 기본값 20, 허용 범위 1~100. 범위를 벗어나거나 숫자가 아니면 `400`
   (`INVALID_REQUEST`)을 반환한다. 다음 페이지에서 다른 허용 범위의 `size`를 전달할 수 있으며,
   해당 요청부터 변경된 페이지 크기를 적용한다.
-- 커서는 요청 회원·모임과 최초 페이지에서 확정한 문장 목록·정렬 순서·각 문장에 포함된 댓글
+- 커서는 요청 회원·모임·`currentPassageId`와 최초 페이지에서 확정한 문장 목록·정렬 순서·각 문장에 포함된 댓글
   식별자·`viewStatus`·`future`·`commentCount`·`latestCommentCreatedAt` 스냅샷에 묶인다. 댓글
   식별자는 상태 전환 대상을 한정하는 서버 내부 커서 정보이며 응답 항목에는 노출하지 않는다.
   이후 페이지도 이 스냅샷을 이어서 반환한다. 탐색을 시작한 뒤 작성되거나 수정·삭제·상태가
-  변경된 댓글과 변경된 진도는 커서 탐색 도중 반영하지 않고, 커서 없이 첫 페이지를 다시
-  조회할 때 반영한다.
+  변경된 댓글과 일반 뷰어의 현재 문단 변경은 커서 탐색 도중 반영하지 않고, 변경된
+  `currentPassageId`로 커서 없이 첫 페이지를 다시 조회할 때 반영한다.
 - 형식이 잘못됐거나 다른 회원·모임에 발급됐거나 더 이상 사용할 수 없는 커서는 `400`
   (`INVALID_REQUEST`)을 반환한다. 클라이언트는 커서를 버리고 첫 페이지부터 다시 조회한다.
 
@@ -504,7 +515,7 @@
 - `viewStatus`는 해당 문장의 보이는 댓글 중 가장 덜 확인한 상태다. 하나라도 `NEW`이면 `NEW`,
   `NEW`가 없고 하나라도 `LIST_VIEWED`이면 `LIST_VIEWED`, 모두 직접 확인했으면
   `DETAIL_VIEWED`다.
-- `future`는 첫 페이지 탐색 시작 시점의 진도를 기준으로 해당 문장이 진도 밖인지 나타낸다.
+- `future`는 첫 페이지 요청의 `currentPassageId`를 기준으로 해당 문장이 진도 밖인지 나타낸다.
   클라이언트가 미래 문장의 가림을 해제해도 서버 상태와 이 필드는 변경되지 않는다.
 - 정렬 그룹은 다음 순서다. 같은 그룹에서는 `latestCommentCreatedAt` 내림차순, 값이 같으면
   `sentenceId` 내림차순으로 정렬한다.
@@ -809,16 +820,20 @@
 
 ### 댓글 발견과 임시 뷰어 계약
 
-- 뷰어 탑바는 `GET /api/clubs/{clubId}/comments/new-count`의 `newCommentCount`를 이용한다.
-  강조·배지 등 표현 방식과 조회 주기는 클라이언트가 결정한다.
+- 뷰어 탑바는 현재 읽는 문단 ID를 `currentPassageId`로 전달해
+  `GET /api/clubs/{clubId}/comments/new-count`의 `newCommentCount`를 이용한다. 강조·배지 등
+  표현 방식과 조회 주기는 클라이언트가 결정한다.
 - 댓글 문장 목록은 `POST /api/clubs/{clubId}/comment-list-views`를 커서 방식으로 호출한다.
-  응답 순서를 그대로 사용하고, `future=true`인 문장 내용은 사용자가 해제하기 전까지 가린다.
+  첫 페이지에 같은 `currentPassageId`를 전달하고 이후 페이지에서도 그 값을 유지한다. 응답
+  순서를 그대로 사용하고, `future=true`인 문장 내용은 사용자가 해제하기 전까지 가린다.
 - 목록 응답의 `viewStatus`는 상태 전환 전 값이다. 이번 화면에서는 `NEW` 항목을 새 댓글로
   표시하고, 새 탐색을 시작한 다음 조회부터 `LIST_VIEWED`로 표시한다.
 - 미래 문장의 가림 해제 여부는 현재 화면에서만 관리한다. 가림 해제만으로 조회 API나 상태
   전환 API를 추가 호출하지 않는다.
 - 댓글 문장에서 임시 뷰어를 열 때 `passageSequence`와 `sentenceId`를 이용해 기존 본문을
-  불러오되 진도 갱신 API는 호출하지 않는다. 그 외 읽기·댓글 기능은 일반 뷰어와 동일하다.
+  불러오되 진도 갱신 API는 호출하지 않는다. 임시 뷰어에서 댓글 발견 API를 호출할 때는 표시
+  중인 문단 ID로 바꾸지 않고, 진입 전 댓글 목록 탐색에 사용한 `currentPassageId`를 유지한다.
+  그 외 읽기·댓글 기능은 일반 뷰어와 동일하다.
 
 ### 응답 모델 변경
 
@@ -897,7 +912,7 @@
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
 | PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
-| GET | /api/clubs/{clubId}/comments/new-count | 탑바 새 댓글 개수 |
+| GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
 | POST | /api/clubs/{clubId}/comment-list-views | 댓글 문장 목록 페이지 조회 + 목록 확인 |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views | 댓글 상세 조회 + 직접 확인 |
 | GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 상세 조회 + 직접 확인 (deprecated 호환) |
