@@ -821,6 +821,28 @@ class ReaderViewModel(
         }
     }
 
+    fun reportComment(commentId: Long) {
+        if (uiState.reportState is ReportState.Loading) return
+
+        uiState = uiState.copy(reportState = ReportState.Loading)
+
+        viewModelScope.launch {
+            try {
+                commentRepository.reportComment(commentId)
+                uiState = uiState.copy(reportState = ReportState.Success)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(reportState = ReportState.Failure("댓글 신고를 실패했습니다."))
+            }
+        }
+    }
+
+    fun consumeReportResult() {
+        if (uiState.reportState is ReportState.Loading) return
+        uiState = uiState.copy(reportState = ReportState.Idle)
+    }
+
     private fun updateCommentSheet(
         sentenceId: Long,
         transform: (PassageCommentSheetUiState) -> PassageCommentSheetUiState,
@@ -941,6 +963,13 @@ class ReaderViewModelFactory(
 
         throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
     }
+}
+
+sealed class ReportState {
+    data object Idle : ReportState()
+    data object Loading : ReportState()
+    data object Success : ReportState()
+    data class Failure(val message: String) : ReportState()
 }
 
 private const val FIRST_PASSAGE_SEQUENCE = 1

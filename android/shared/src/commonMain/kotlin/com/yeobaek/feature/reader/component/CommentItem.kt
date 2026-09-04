@@ -42,11 +42,16 @@ fun CommentItem(
     comment: PassageCommentUiModel,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isActionMenuExpanded by remember(comment.commentId) {
         mutableStateOf(false)
     }
+    var isReportMenuExpanded by remember(comment.commentId) {
+        mutableStateOf(false)
+    }
+
     val longPressModifier = if (comment.mine) {
         Modifier
             .pointerInput(comment.commentId) {
@@ -64,6 +69,19 @@ fun CommentItem(
             }
     } else {
         Modifier
+            .pointerInput(comment.commentId) {
+                detectTapGestures(
+                    onLongPress = {
+                        isReportMenuExpanded = true
+                    },
+                )
+            }
+            .semantics {
+                onLongClick(label = "댓글 신고 메뉴 열기") {
+                    isReportMenuExpanded = true
+                    true
+                }
+            }
     }
 
     Box(
@@ -106,6 +124,18 @@ fun CommentItem(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                } else {
+                    IconButton(
+                        onClick = { isReportMenuExpanded = true },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_menu),
+                            contentDescription = "댓글 신고하기",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -129,6 +159,16 @@ fun CommentItem(
             onDelete = {
                 isActionMenuExpanded = false
                 onDelete()
+            },
+            modifier = Modifier.padding(top = 32.dp),
+        )
+
+        ReportActionMenu(
+            expanded = isReportMenuExpanded,
+            onDismissRequest = { isReportMenuExpanded = false },
+            onDelete = {
+                isReportMenuExpanded = false
+                onReport()
             },
             modifier = Modifier.padding(top = 32.dp),
         )
@@ -185,6 +225,7 @@ private fun OtherCommentItemPreview() {
             ),
             onEdit = {},
             onDelete = {},
+            onReport = {},
         )
     }
 }
@@ -205,6 +246,7 @@ private fun MyCommentItemPreview() {
             ),
             onEdit = {},
             onDelete = {},
+            onReport = {},
         )
     }
 }
