@@ -280,8 +280,11 @@ class ReaderViewModel(
 
     // 현재 읽고 있는 문단을 저장한다.
     fun saveCurrentPassage(onComplete: () -> Unit) {
-        // 같은 요청을 여러 번 보내지 않는다.
-        if (saveCurrentPassageJob?.isActive == true) return
+        // 이미 저장 중이라면 같은 요청을 다시 보내지 않는다.
+        if (saveCurrentPassageJob?.isActive == true) {
+            onComplete()
+            return
+        }
 
         // 현재 문단을 찾는다.
         val currentPassage = uiState.passages.firstOrNull { passage ->
@@ -319,9 +322,11 @@ class ReaderViewModel(
                         passageSequence = currentPassage.sequence,
                     ),
                 )
+            } finally {
+                saveCurrentPassageJob = null
             }
 
-            saveCurrentPassageJob = null
+            // 취소된 경우에는 화면이 이미 사라진 뒤이므로 호출하지 않는다.
             onComplete()
         }
     }
