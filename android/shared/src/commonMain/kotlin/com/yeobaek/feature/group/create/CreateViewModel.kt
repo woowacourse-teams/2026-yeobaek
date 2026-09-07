@@ -66,17 +66,6 @@ class CreateViewModel(
         }
     }
 
-    fun initInputValue() {
-        uiState = uiState.copy(
-            groupNameValue = "",
-            bookList = uiState.bookList.map {
-                it.copy(selected = false)
-            },
-            groupNameCondition = false,
-            selectedBookCondition = false,
-        )
-    }
-
     fun updateGroupNameValue(value: String) {
         uiState = uiState.copy(
             groupNameValue = value.take(20),

@@ -336,10 +336,6 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(true) {
-                    createViewModel.initInputValue()
-                }
-
                 LaunchedEffect(createViewModel.uiState.successBookLoading) {
                     createViewModel.initBookList()
                 }
