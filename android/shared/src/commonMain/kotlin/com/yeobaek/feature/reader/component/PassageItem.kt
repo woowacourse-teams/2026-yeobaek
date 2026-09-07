@@ -16,15 +16,16 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
-import com.yeobaek.core.designsystem.theme.YeobaekLine
 import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.designsystem.theme.YeobaekUnderline
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 
@@ -36,15 +37,15 @@ fun PassageItem(
     modifier: Modifier = Modifier,
 ) {
     val currentOnSentenceClick by rememberUpdatedState(onSentenceClick)
-    val underlineOffset = 8.dp
+    val underlineOffset = 6.dp
     val passageTextStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = YeobaekMaruBuri,
         fontSize = fontSize.sp,
         lineHeight = (fontSize * 2f).sp,
         letterSpacing = 1.sp,
     )
-    val (passageText, sentenceTextRanges) = remember(passage.sentences) {
-        val sentenceRanges = mutableListOf<SentenceTextRange>()
+    val (passageText, underlineTextRanges) = remember(passage.sentences) {
+        val commentedSentenceRanges = mutableListOf<TextRange>()
         val text = buildAnnotatedString {
             passage.sentences.forEach { sentence ->
                 val sentenceStart = length
@@ -64,16 +65,18 @@ fun PassageItem(
                     append(sentence.content.allowCharacterBreaks())
                 }
 
-                if (sentenceStart < length) {
-                    sentenceRanges += SentenceTextRange(
-                        sentence = sentence,
+                if (sentence.hasComment && sentenceStart < length) {
+                    commentedSentenceRanges += TextRange(
                         start = sentenceStart,
                         end = length,
                     )
                 }
             }
         }
-        text to sentenceRanges
+        val underlineRanges = commentedSentenceRanges.mapNotNull { sentenceRange ->
+            text.text.underlineRangeOf(sentenceRange)
+        }
+        text to underlineRanges
     }
     var textLayoutResult by remember(passageText) {
         mutableStateOf<TextLayoutResult?>(null)
@@ -88,62 +91,64 @@ fun PassageItem(
             .drawBehind {
                 val layoutResult = textLayoutResult ?: return@drawBehind
 
-                sentenceTextRanges
-                    .filter { sentenceRange -> sentenceRange.sentence.hasComment }
-                    .forEach { sentenceRange ->
-                        val sentenceStart = sentenceRange.start
-                        val sentenceEnd = sentenceRange.end
-                        val firstLine = layoutResult.getLineForOffset(sentenceStart)
-                        val lastLine = layoutResult.getLineForOffset(sentenceEnd - 1)
+                underlineTextRanges.forEach { underlineRange ->
+                    val firstLine = layoutResult.getLineForOffset(underlineRange.start)
+                    val lastLine = layoutResult.getLineForOffset(underlineRange.end - 1)
 
-                        for (lineIndex in firstLine..lastLine) {
-                            val lineStart = layoutResult.getLineStart(lineIndex)
-                            val lineEnd = layoutResult.getLineEnd(
-                                lineIndex = lineIndex,
-                                visibleEnd = true,
-                            )
-                            val underlineStart = maxOf(sentenceStart, lineStart)
-                            val underlineEnd = minOf(sentenceEnd, lineEnd)
+                    for (lineIndex in firstLine..lastLine) {
+                        val lineStart = layoutResult.getLineStart(lineIndex)
+                        val lineEnd = layoutResult.getLineEnd(
+                            lineIndex = lineIndex,
+                            visibleEnd = true,
+                        )
+                        val underlineStart = maxOf(underlineRange.start, lineStart)
+                        val underlineEnd = minOf(underlineRange.end, lineEnd)
 
-                            if (underlineStart >= underlineEnd) continue
+                        if (underlineStart >= underlineEnd) continue
 
-                            val startX = if (underlineStart == lineStart) {
-                                layoutResult.getLineLeft(lineIndex)
-                            } else {
-                                layoutResult.getHorizontalPosition(
-                                    offset = underlineStart,
-                                    usePrimaryDirection = true,
-                                )
-                            }
-                            val endX = if (underlineEnd == lineEnd) {
-                                layoutResult.getLineRight(lineIndex)
-                            } else {
-                                layoutResult.getHorizontalPosition(
-                                    offset = underlineEnd,
-                                    usePrimaryDirection = true,
-                                )
-                            }
-                            val underlineY = layoutResult.getLineBaseline(lineIndex) +
-                                underlineOffset.toPx()
-
-                            drawLine(
-                                color = YeobaekLine,
-                                start = Offset(x = startX, y = underlineY),
-                                end = Offset(x = endX, y = underlineY),
-                                strokeWidth = 1.dp.toPx(),
+                        val startX = if (underlineStart == lineStart) {
+                            layoutResult.getLineLeft(lineIndex)
+                        } else {
+                            layoutResult.getHorizontalPosition(
+                                offset = underlineStart,
+                                usePrimaryDirection = true,
                             )
                         }
+                        val endX = if (underlineEnd == lineEnd) {
+                            layoutResult.getLineRight(lineIndex)
+                        } else {
+                            layoutResult.getHorizontalPosition(
+                                offset = underlineEnd,
+                                usePrimaryDirection = true,
+                            )
+                        }
+                        val underlineY = layoutResult.getLineBaseline(lineIndex) +
+                            underlineOffset.toPx()
+
+                        drawLine(
+                            color = YeobaekUnderline,
+                            start = Offset(x = startX, y = underlineY),
+                            end = Offset(x = endX, y = underlineY),
+                            strokeWidth = 1.dp.toPx(),
+                        )
                     }
+                }
             },
         style = passageTextStyle,
     )
 }
 
-private data class SentenceTextRange(
-    val sentence: SentenceUiModel,
-    val start: Int,
-    val end: Int,
-)
+internal fun String.underlineRangeOf(range: TextRange): TextRange? {
+    var end = range.end
+
+    while (end > range.start && this[end - 1].isWhitespaceOrZeroWidthSpace()) {
+        end--
+    }
+
+    return if (end > range.start) TextRange(start = range.start, end = end) else null
+}
+
+private fun Char.isWhitespaceOrZeroWidthSpace(): Boolean = isWhitespace() || this == '\u200B'
 
 private fun String.allowCharacterBreaks(): String =
     buildString {
