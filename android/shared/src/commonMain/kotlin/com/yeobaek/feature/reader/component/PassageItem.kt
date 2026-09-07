@@ -23,9 +23,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
-import com.yeobaek.core.designsystem.theme.YeobaekLine
 import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.designsystem.theme.YeobaekUnderline
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 
@@ -37,7 +37,7 @@ fun PassageItem(
     modifier: Modifier = Modifier,
 ) {
     val currentOnSentenceClick by rememberUpdatedState(onSentenceClick)
-    val underlineOffset = 8.dp
+    val underlineOffset = 6.dp
     val passageTextStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = YeobaekMaruBuri,
         fontSize = fontSize.sp,
@@ -126,7 +126,7 @@ fun PassageItem(
                             underlineOffset.toPx()
 
                         drawLine(
-                            color = YeobaekLine,
+                            color = YeobaekUnderline,
                             start = Offset(x = startX, y = underlineY),
                             end = Offset(x = endX, y = underlineY),
                             strokeWidth = 1.dp.toPx(),
