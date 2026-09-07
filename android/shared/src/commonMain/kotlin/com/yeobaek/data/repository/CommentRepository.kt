@@ -21,4 +21,6 @@ interface CommentRepository {
     ): CommentModel
 
     suspend fun deleteComment(commentId: Long)
+
+    suspend fun reportComment(commentId: Long)
 }

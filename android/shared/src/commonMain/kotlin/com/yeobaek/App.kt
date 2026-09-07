@@ -266,6 +266,8 @@ fun App(
                     onCommentInputChange = readerViewModel::updateCommentInput,
                     onCommentSubmit = readerViewModel::submitComment,
                     onCommentEdit = readerViewModel::startEditingComment,
+                    onCommentReport = readerViewModel::reportComment,
+                    onCommentReportResultConsumed = readerViewModel::consumeReportResult,
                     onCommentEditCancel = readerViewModel::cancelEditingComment,
                     onCommentDelete = readerViewModel::requestDeleteComment,
                     onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
