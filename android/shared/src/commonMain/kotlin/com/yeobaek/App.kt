@@ -336,10 +336,6 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(createViewModel.uiState.successBookLoading) {
-                    createViewModel.initBookList()
-                }
-
                 CreateScreen(
                     uiState = createViewModel.uiState,
                     updateGroupNameValue = createViewModel::updateGroupNameValue,

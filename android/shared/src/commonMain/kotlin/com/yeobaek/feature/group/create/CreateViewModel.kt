@@ -27,7 +27,15 @@ class CreateViewModel(
     var uiState by mutableStateOf(CreateUiState())
         private set
 
+    init {
+        initBookList()
+    }
+
     fun initBookList() {
+        uiState = uiState.copy(
+            bookState = BookState.Loading,
+        )
+
         viewModelScope.launch {
             try {
                 val groups = bookRepository.getBooks()
@@ -41,7 +49,7 @@ class CreateViewModel(
                             description = it.description,
                         )
                     },
-                    successBookLoading = true,
+                    bookState = BookState.Success,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
@@ -59,7 +67,7 @@ class CreateViewModel(
                     context = crashContext(CrashOperation.GROUP_BOOKS_FAILED),
                 )
                 uiState = uiState.copy(
-                    successBookLoading = false,
+                    bookState = BookState.Failure(e.message ?: "책 목록을 가져오는데 실패했습니다."),
                     bookList = emptyList(),
                 )
             }
@@ -185,6 +193,13 @@ class CreateViewModel(
         screen = TrackedScreen.GROUP_CREATE,
         operation = operation,
     )
+}
+
+sealed class BookState {
+    data object Idle : BookState()
+    data object Loading : BookState()
+    data object Success : BookState()
+    data class Failure(val message: String) : BookState()
 }
 
 sealed class CreateState {
