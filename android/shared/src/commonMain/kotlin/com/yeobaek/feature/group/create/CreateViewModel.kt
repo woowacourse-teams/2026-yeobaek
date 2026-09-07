@@ -96,6 +96,9 @@ class CreateViewModel(
 
     fun createGroup() {
         val selectedBookId = uiState.bookList.find { it.selected }?.id
+
+        if (uiState.createState is CreateState.Loading) return
+
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = CrashContext(
@@ -104,8 +107,6 @@ class CreateViewModel(
                 bookId = selectedBookId,
             ),
         )
-
-        if (uiState.createState is CreateState.Loading) return
 
         uiState = uiState.copy(
             createState = CreateState.Loading,
