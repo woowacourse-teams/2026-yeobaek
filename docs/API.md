@@ -426,12 +426,11 @@
 
 | `viewStatus` | 의미 | 전환 조건 |
 |---|---|---|
-| `NEW` | 댓글 목록에서도 확인하지 않은 댓글 | 다른 회원의 댓글이 작성됐거나 기존 댓글에 대한 최초 상태가 만들어짐 |
-| `LIST_VIEWED` | 댓글 목록에서는 확인했지만 문장을 직접 선택하지 않은 댓글 | 댓글 문장 목록의 해당 페이지 조회 성공 시 현재 진도 안쪽인 `NEW` 댓글 |
-| `DETAIL_VIEWED` | 문장을 선택해 댓글 목록을 직접 확인한 댓글 | 문장의 댓글 상세 조회 성공 또는 본인이 댓글 작성 |
+| `NEW` | 댓글 상세를 직접 확인하지 않은 댓글 | 다른 회원의 댓글이 작성됐거나 기존 댓글에 대한 최초 상태가 만들어짐 |
+| `VIEWED` | 문장을 선택해 댓글 목록을 직접 확인한 댓글 | 문장의 댓글 상세 조회 성공 또는 본인이 댓글 작성 |
 
-- 상태는 `NEW → LIST_VIEWED → DETAIL_VIEWED` 방향으로만 전환한다. 댓글 수정은 상태를 바꾸지
-  않으며 정렬에 사용하는 `createdAt`도 그대로 유지한다.
+- 상태는 `NEW → VIEWED` 방향으로만 전환한다. 댓글 문장 목록 조회는 상태를 바꾸지 않는다.
+  댓글 수정도 상태를 바꾸지 않으며 정렬에 사용하는 `createdAt`을 그대로 유지한다.
 - 기능 도입 전에 존재한 댓글과 신규 참여 전에 작성된 댓글은 해당 회원에게 `NEW`로 시작한다.
 - 모임에서 탈퇴해도 조회 상태를 보존한다. 재가입하면 기존 상태를 복원하고, 탈퇴 기간에 작성된
   댓글은 `NEW`로 추가한다.
@@ -453,7 +452,7 @@
 ```
 
 - 현재 진도 안쪽에 있으면서 `NEW`인 보이는 댓글의 총개수다. 미래 진도의 `NEW` 댓글은 세지 않는다.
-- 기능 도입 후 본인이 작성한 댓글은 생성 즉시 `DETAIL_VIEWED`이므로 개수에 포함되지 않는다.
+- 기능 도입 후 본인이 작성한 댓글은 생성 즉시 `VIEWED`이므로 개수에 포함되지 않는다.
   기능 도입 전에 작성한 본인 댓글은 초기화 정책에 따라 `NEW`이며 다른 기존 댓글과 동일하게 처리한다.
 - 조회 상태를 변경하지 않는 부작용 없는 API다. 호출 시점과 주기는 클라이언트가 결정하며,
   서버 푸시는 이 계약의 범위에 포함하지 않는다.
@@ -461,31 +460,20 @@
   (`CLUB_NOT_FOUND`)을 반환한다. 모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 문장 목록 페이지 조회
-`POST /api/clubs/{clubId}/comment-list-views`
+`GET /api/clubs/{clubId}/commented-sentences?currentPassageId=1042&cursor={cursor}&size=20`
 
-요청:
-```json
-{
-  "currentPassageId": 1042,
-  "cursor": null,
-  "size": 20
-}
-```
-
-- 요청 본문은 필수 JSON 객체다.
-- `currentPassageId`(필수): 댓글 발견 진도 경계로 사용할 일반 뷰어의 현재 문단 ID다. 첫 페이지에서
+- `currentPassageId`(필수 쿼리 파라미터): 댓글 발견 진도 경계로 사용할 일반 뷰어의 현재 문단 ID다. 첫 페이지에서
   이 문단까지를 진도 안쪽으로 확정한다. 다음 페이지에서도 첫 페이지와 같은 값을 보내며, 값이
   없거나 숫자가 아니거나, 해당 모임 도서에 속한 문단이 아니거나, 커서에 묶인 값과 다르면 `400`
   (`INVALID_REQUEST`)을 반환한다.
-- `cursor`(선택): 첫 페이지는 생략하거나 `null`을 보낸다. 다음 페이지부터 직전 응답의
+- `cursor`(선택 쿼리 파라미터): 첫 페이지는 생략한다. 다음 페이지부터 직전 응답의
   `nextCursor`를 그대로 전달하며, 클라이언트는 값을 해석하거나 조합하지 않는다.
-- `size`(선택): 기본값 20, 허용 범위 1~100. 범위를 벗어나거나 숫자가 아니면 `400`
+- `size`(선택 쿼리 파라미터): 기본값 20, 허용 범위 1~100. 범위를 벗어나거나 숫자가 아니면 `400`
   (`INVALID_REQUEST`)을 반환한다. 다음 페이지에서 다른 허용 범위의 `size`를 전달할 수 있으며,
   해당 요청부터 변경된 페이지 크기를 적용한다.
-- 커서는 요청 회원·모임·`currentPassageId`와 최초 페이지에서 확정한 문장 목록·정렬 순서·각 문장에 포함된 댓글
-  식별자·`viewStatus`·`future`·`commentCount`·`latestCommentCreatedAt` 스냅샷에 묶인다. 댓글
-  식별자는 상태 전환 대상을 한정하는 서버 내부 커서 정보이며 응답 항목에는 노출하지 않는다.
-  이후 페이지도 이 스냅샷을 이어서 반환한다. 탐색을 시작한 뒤 작성되거나 수정·삭제·상태가
+- 커서는 요청 회원·모임·`currentPassageId`와 최초 페이지에서 확정한 문장 목록·정렬 순서·
+  `future`·`commentCount`·`unreadCommentCount`·`latestCommentCreatedAt` 스냅샷에 묶인다.
+  이후 페이지도 이 스냅샷을 이어서 반환한다. 탐색을 시작한 뒤 작성되거나 수정·삭제·조회 상태가
   변경된 댓글과 일반 뷰어의 현재 문단 변경은 커서 탐색 도중 반영하지 않고, 변경된
   `currentPassageId`로 커서 없이 첫 페이지를 다시 조회할 때 반영한다.
 - 형식이 잘못됐거나 다른 회원·모임에 발급됐거나 더 이상 사용할 수 없는 커서는 `400`
@@ -501,9 +489,9 @@
       "passageId": 1042,
       "passageSequence": 42,
       "sentenceSequence": 1,
-      "viewStatus": "NEW",
       "future": false,
       "commentCount": 3,
+      "unreadCommentCount": 2,
       "latestCommentCreatedAt": "2026-08-05T14:30:00"
     }
   ],
@@ -513,25 +501,19 @@
 
 - `commentedSentences`에는 모임 책 전체에서 요청 회원에게 보이는 댓글이 하나라도 있는 문장을
   담는다. 댓글 본문과 작성자 정보는 포함하지 않으며, 문장 선택 후 댓글 상세 조회 API를 사용한다.
-- `viewStatus`는 해당 문장의 보이는 댓글 중 가장 덜 확인한 상태다. 하나라도 `NEW`이면 `NEW`,
-  `NEW`가 없고 하나라도 `LIST_VIEWED`이면 `LIST_VIEWED`, 모두 직접 확인했으면
-  `DETAIL_VIEWED`다.
+- `commentCount`는 해당 문장에서 요청 회원에게 보이는 전체 댓글 수다.
+  `unreadCommentCount`는 그중 상태가 `NEW`인 댓글 수이며 `0` 이상 `commentCount` 이하다.
+- 댓글 문장 목록 조회는 조회 상태를 변경하지 않는다. 같은 문장을 목록에서 여러 번 보더라도
+  `unreadCommentCount`는 줄어들지 않으며, 댓글 상세 조회가 성공한 뒤 새 탐색을 시작할 때 갱신된다.
 - `future`는 첫 페이지 요청의 `currentPassageId`를 기준으로 해당 문장이 진도 밖인지 나타낸다.
   클라이언트가 미래 문장의 가림을 해제해도 서버 상태와 이 필드는 변경되지 않는다.
 - 정렬 그룹은 다음 순서다. 같은 그룹에서는 `latestCommentCreatedAt` 내림차순, 값이 같으면
   `sentenceId` 내림차순으로 정렬한다.
-  1. `future=false`이고 `viewStatus=NEW`인 새 댓글 문장
-  2. `future=false`이고 `viewStatus=LIST_VIEWED`인 이미 읽은 문장
-  3. `future=true`이고 `viewStatus`가 `NEW` 또는 `LIST_VIEWED`인 미래 문장
-  4. 진도와 관계없이 `viewStatus=DETAIL_VIEWED`인 확인한 문장
-- 응답의 `viewStatus`는 첫 페이지 탐색 시작 시점의 상태 스냅샷이다. 서버는 이번 페이지의
-  스냅샷에 식별자가 포함됐고, 해당 스냅샷에서 진도 안쪽이면서 현재 상태도 `NEW`인 댓글만
-  같은 요청 안에서 `LIST_VIEWED`로 전환한다. 탐색 시작 후 새로 작성된 댓글은 전환하지 않고,
-  이미 `DETAIL_VIEWED`가 된 댓글도 이전 상태로 되돌리지 않는다. 따라서 첫
-  조회 응답에서는 `NEW`로 강조할 수 있고, 새 탐색의 다음 조회부터 `LIST_VIEWED`로 보인다.
-- 상태 전환과 응답 생성은 서버 트랜잭션 하나로 처리한다. 서버가 트랜잭션을 완료하지 못하면
-  어떤 댓글 상태도 변경하지 않는다. 커밋 후 네트워크에서 응답만 유실된 경우에는 상태 전환이
-  유지되며, 재시도나 새 탐색에서는 갱신된 상태를 반환할 수 있다.
+  1. `future=false`이고 `unreadCommentCount>0`인 새 댓글 문장
+  2. `future=true`이고 `unreadCommentCount>0`인 미래 문장
+  3. 진도와 관계없이 `unreadCommentCount=0`인 확인한 문장
+- 응답 필드는 첫 페이지 탐색 시작 시점의 스냅샷이다. 탐색 중 댓글을 직접 확인해 상태가 바뀌거나
+  새 댓글이 작성되더라도 현재 커서에는 반영하지 않고, 커서 없이 첫 페이지를 다시 조회할 때 반영한다.
 - `nextCursor`는 다음 페이지가 있으면 불투명 문자열, 마지막 페이지면 `null`이다.
 - 결과가 비어 있으면 `commentedSentences`는 빈 배열이고 `nextCursor`는 `null`이다.
 - 모임 미소속 회원은 `403` (`NOT_CLUB_MEMBER`), 존재하지 않는 모임은 `400`
@@ -558,7 +540,7 @@
   ]
 }
 ```
-- 응답 생성과 함께 그 시점에 요청 회원에게 보이는 해당 문장의 댓글을 모두 `DETAIL_VIEWED`로
+- 응답 생성과 함께 그 시점에 요청 회원에게 보이는 해당 문장의 댓글을 모두 `VIEWED`로
   전환한다. 응답 생성과 상태 전환은 서버 트랜잭션 하나로 처리한다. 서버가 트랜잭션을 완료하지
   못하면 상태를 변경하지 않지만, 커밋 후 네트워크에서 응답만 유실된 경우에는 상태 전환이 유지된다.
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
@@ -577,7 +559,7 @@
 - 기존 Android 클라이언트와의 호환을 위해 일시적으로 유지한다. 신규 클라이언트는 위의
   `POST .../comment-detail-views`를 사용한다.
 - 응답과 오류 계약은 신규 상세 조회 API와 같다. 구버전 클라이언트의 조회도 누락되지 않도록
-  보이는 댓글 전체를 `DETAIL_VIEWED`로 전환한다.
+  보이는 댓글 전체를 `VIEWED`로 전환한다.
 - 이 `GET`의 상태 전환은 마이그레이션 기간에만 허용하는 호환성 예외다. Android가 신규
   `POST`로 전환되고 배포까지 완료됐음을 확인한 뒤 별도 변경에서 이 API를 제거한다.
 
@@ -592,7 +574,7 @@
 
 응답 `201`: 댓글 목록의 원소와 동일 형태 (`mine: true`).
 
-- 작성자의 조회 상태는 생성 즉시 `DETAIL_VIEWED`다. 다른 회원에게는 `NEW`로 시작한다.
+- 작성자의 조회 상태는 생성 즉시 `VIEWED`다. 다른 회원에게는 `NEW`로 시작한다.
 - 모임 도서가 삭제된 경우 댓글을 저장하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 수정
@@ -824,11 +806,12 @@
 - 뷰어 탑바는 현재 읽는 문단 ID를 `currentPassageId`로 전달해
   `GET /api/clubs/{clubId}/comments/new-count`의 `newCommentCount`를 이용한다. 강조·배지 등
   표현 방식과 조회 주기는 클라이언트가 결정한다.
-- 댓글 문장 목록은 `POST /api/clubs/{clubId}/comment-list-views`를 커서 방식으로 호출한다.
-  첫 페이지에 같은 `currentPassageId`를 전달하고 이후 페이지에서도 그 값을 유지한다. 응답
-  순서를 그대로 사용하고, `future=true`인 문장 내용은 사용자가 해제하기 전까지 가린다.
-- 목록 응답의 `viewStatus`는 상태 전환 전 값이다. 이번 화면에서는 `NEW` 항목을 새 댓글로
-  표시하고, 새 탐색을 시작한 다음 조회부터 `LIST_VIEWED`로 표시한다.
+- 댓글 문장 목록은 `GET /api/clubs/{clubId}/commented-sentences`를 커서 방식으로 호출한다.
+  `currentPassageId`, `cursor`, `size`는 쿼리 파라미터로 전달하고 이후 페이지에서도 첫 페이지의
+  `currentPassageId`를 유지한다. 응답 순서를 그대로 사용하고, `future=true`인 문장 내용은
+  사용자가 해제하기 전까지 가린다.
+- 목록의 `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 아직 직접 열어보지 않은
+  댓글 수다. 목록 조회는 상태를 변경하지 않으므로 새 댓글 표시는 댓글 상세 조회 전까지 유지된다.
 - 미래 문장의 가림 해제 여부는 현재 화면에서만 관리한다. 가림 해제만으로 조회 API나 상태
   전환 API를 추가 호출하지 않는다.
 - 댓글 문장의 “보러 가기”를 선택하면 `passageSequence`와 `sentenceId`를 이용해 일반 뷰어의
@@ -916,7 +899,7 @@
 | PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
 | GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
-| POST | /api/clubs/{clubId}/comment-list-views | 댓글 문장 목록 페이지 조회 + 목록 확인 |
+| GET | /api/clubs/{clubId}/commented-sentences | 댓글 문장 목록 페이지 조회 |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views | 댓글 상세 조회 + 직접 확인 |
 | GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 상세 조회 + 직접 확인 (deprecated 호환) |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |
