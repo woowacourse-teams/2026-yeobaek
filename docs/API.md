@@ -472,7 +472,8 @@
   (`INVALID_REQUEST`)을 반환한다. 다음 페이지에서 다른 허용 범위의 `size`를 전달할 수 있으며,
   해당 요청부터 변경된 페이지 크기를 적용한다.
 - 커서는 요청 회원·모임·`currentPassageId`와 최초 페이지에서 확정한 문장 목록·정렬 순서·
-  `future`·`commentCount`·`unreadCommentCount`·`latestCommentCreatedAt` 스냅샷에 묶인다.
+  `future`·`commentCount`·`unreadCommentCount`·`contentVisibility`·`latestCommentCreatedAt`
+  스냅샷에 묶인다.
   이후 페이지도 이 스냅샷을 이어서 반환한다. 탐색을 시작한 뒤 작성되거나 수정·삭제·조회 상태가
   변경된 댓글과 일반 뷰어의 현재 문단 변경은 커서 탐색 도중 반영하지 않고, 변경된
   `currentPassageId`로 커서 없이 첫 페이지를 다시 조회할 때 반영한다.
@@ -489,9 +490,10 @@
       "passageId": 1042,
       "passageSequence": 42,
       "sentenceSequence": 1,
-      "future": false,
+      "future": true,
       "commentCount": 3,
       "unreadCommentCount": 2,
+      "contentVisibility": "REVEAL_REQUIRED",
       "latestCommentCreatedAt": "2026-08-05T14:30:00"
     }
   ],
@@ -506,7 +508,15 @@
 - 댓글 문장 목록 조회는 조회 상태를 변경하지 않는다. 같은 문장을 목록에서 여러 번 보더라도
   `unreadCommentCount`는 줄어들지 않으며, 댓글 상세 조회가 성공한 뒤 새 탐색을 시작할 때 갱신된다.
 - `future`는 첫 페이지 요청의 `currentPassageId`를 기준으로 해당 문장이 진도 밖인지 나타낸다.
-  클라이언트가 미래 문장의 가림을 해제해도 서버 상태와 이 필드는 변경되지 않는다.
+- `contentVisibility`는 문장 내용을 최초에 바로 노출할 수 있는지 나타내는 서버의 권위 있는
+  정책 값이다.
+  - `VISIBLE`: 문장 내용을 바로 노출할 수 있다.
+  - `REVEAL_REQUIRED`: 사용자의 명시적인 해제 동작 전까지 문장 내용을 가려야 한다.
+- 서버는 `future=true`이면서 `unreadCommentCount>0`일 때만 `REVEAL_REQUIRED`를 반환하고, 그 외에는
+  `VISIBLE`을 반환한다. 클라이언트는 `future`와 `unreadCommentCount`를 조합해 노출 정책을 다시
+  계산하지 않고 `contentVisibility`를 따른다.
+- `REVEAL_REQUIRED`여도 응답의 `content`는 포함한다. 클라이언트는 블러·덮개 등 구체적인 표현과
+  사용자가 현재 화면에서 해제했는지를 관리한다. 해제만으로 서버 상태와 응답 필드는 변경되지 않는다.
 - 정렬 그룹은 다음 순서다. 같은 그룹에서는 `latestCommentCreatedAt` 내림차순, 값이 같으면
   `sentenceId` 내림차순으로 정렬한다.
   1. `future=false`이고 `unreadCommentCount>0`인 새 댓글 문장
@@ -808,12 +818,12 @@
   표현 방식과 조회 주기는 클라이언트가 결정한다.
 - 댓글 문장 목록은 `GET /api/clubs/{clubId}/commented-sentences`를 커서 방식으로 호출한다.
   `currentPassageId`, `cursor`, `size`는 쿼리 파라미터로 전달하고 이후 페이지에서도 첫 페이지의
-  `currentPassageId`를 유지한다. 응답 순서를 그대로 사용하고, `future=true`인 문장 내용은
-  사용자가 해제하기 전까지 가린다.
+  `currentPassageId`를 유지한다. 응답 순서를 그대로 사용한다.
 - 목록의 `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 아직 직접 열어보지 않은
   댓글 수다. 목록 조회는 상태를 변경하지 않으므로 새 댓글 표시는 댓글 상세 조회 전까지 유지된다.
-- 미래 문장의 가림 해제 여부는 현재 화면에서만 관리한다. 가림 해제만으로 조회 API나 상태
-  전환 API를 추가 호출하지 않는다.
+- 문장 내용의 최초 노출 여부는 서버가 계산한 `contentVisibility`를 따른다. `REVEAL_REQUIRED`이면
+  사용자의 명시적인 해제 전까지 문장 내용을 가리되, 블러·덮개 등 표현 방식과 해제 여부는 현재
+  화면에서 관리한다. 해제만으로 조회 API나 상태 전환 API를 추가 호출하지 않는다.
 - 댓글 문장의 “보러 가기”를 선택하면 `passageSequence`와 `sentenceId`를 이용해 일반 뷰어의
   해당 위치로 이동한다. 이동 전 읽던 문단은 클라이언트 화면 상태로 기억하고, 그 위치로 쉽게
   돌아갈 수 있는 동작을 제공한다.
