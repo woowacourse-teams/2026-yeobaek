@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,9 +28,25 @@ fun CreateScreen(
     updateGroupNameValue: (String) -> Unit,
     selectBook: (Int) -> Unit,
     onBackClick: () -> Unit,
+    onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.createState) {
+        when (uiState.createState) {
+            is CreateState.Success -> navigateToHome()
+
+            is CreateState.Failure -> snackbarHostState.showSnackbar(
+                message = uiState.createState.message,
+                duration = SnackbarDuration.Short,
+            )
+
+            is CreateState.Loading, CreateState.Idle -> return@LaunchedEffect
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -37,9 +58,13 @@ fun CreateScreen(
         bottomBar = {
             YeobaekButton(
                 text = "모임 생성하고 친구 초대하기",
-                onClick = navigateToHome,
+                onClick = onCreateGroup,
+                enabled = uiState.createState !is CreateState.Loading && uiState.createState !is CreateState.Success,
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         },
     ) { innerPadding ->
         Column(
@@ -62,7 +87,7 @@ fun CreateScreen(
                 },
                 subTitle = if (uiState.selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
                 isError = uiState.selectedBookCondition,
-                isLoading = uiState.successBookLoading,
+                bookState = uiState.bookState,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -78,6 +103,7 @@ private fun CreateScreenPreview() {
             updateGroupNameValue = {},
             selectBook = {},
             onBackClick = {},
+            onCreateGroup = {},
             navigateToHome = {},
         )
     }
