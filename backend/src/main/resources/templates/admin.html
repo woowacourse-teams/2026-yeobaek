@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>여백 관리자</title>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+        body { font-family: sans-serif; max-width: 1200px; margin: 2rem auto; padding: 0 1rem; color: #222; }
         h1 { font-size: 1.4rem; }
         section { margin-bottom: 2rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; }
         label { display: block; margin-bottom: .3rem; font-weight: 600; }
@@ -18,8 +18,9 @@
         .result { margin-top: .8rem; white-space: pre-wrap; font-family: monospace; font-size: .85rem; }
         .ok { color: #0a7a2f; }
         .error { color: #c0272d; }
-        .book-entry { display: flex; align-items: center; gap: .5rem; margin: .25rem 0; }
-        .book-title { flex: 1; }
+        .inventory-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+        .book-author { margin: .2rem 0; }
+        .author-isni { display: block; color: #555; font-size: .75rem; }
         .book-status { font-size: .8rem; color: #0a7a2f; }
         .book-status.deleted { color: #777; }
         .delete-book { padding: .25rem .6rem; }
@@ -67,13 +68,19 @@
 </section>
 
 <section>
-    <h2>등록 작가 · 작품 조회</h2>
-    <p>업로드 전에 같은 작가가 이미 있는지 확인하세요. ISNI가 없는 작가를 재사용하려면 아래 authorId를 업로드 JSON에 기재합니다.</p>
-    <button type="button" id="load-authors">작가 목록 불러오기</button>
-    <div id="authors-result" class="result"></div>
-    <table id="authors-table" hidden>
+    <h2>업로드된 도서 조회</h2>
+    <p>삭제된 도서를 포함한 업로드 현황입니다. 조회한 목록은 같은 내용의 CSV 파일로 저장할 수 있습니다.</p>
+    <div class="inventory-actions">
+        <button type="button" id="load-books">책 목록 불러오기</button>
+        <button type="button" id="download-books-csv" disabled>조회 결과 CSV 저장</button>
+    </div>
+    <div id="books-result" class="result" aria-live="polite"></div>
+    <table id="books-table" hidden>
         <thead>
-        <tr><th>authorId</th><th>이름</th><th>ISNI</th><th>작품</th></tr>
+        <tr>
+            <th>bookId</th><th>표지</th><th>제목</th><th>작가 (authorId / ISNI)</th>
+            <th>출판사</th><th>출판 연도</th><th>본문 수</th><th>상태</th><th>관리</th>
+        </tr>
         </thead>
         <tbody></tbody>
     </table>
@@ -113,6 +120,7 @@
     <div id="upload-result" class="result" aria-live="polite"></div>
 </section>
 
+<script src="/admin-book-inventory.js"></script>
 <script>
     function adminToken() {
         return document.getElementById('admin-token').value.trim();
@@ -189,29 +197,63 @@
         }
     }
 
-    async function loadAuthors() {
-        const result = document.getElementById('authors-result');
-        const table = document.getElementById('authors-table');
-        table.hidden = true;
+    const inventoryState = AdminBookInventory.createState();
+    const booksTable = document.getElementById('books-table');
+    const downloadBooksCsvButton = document.getElementById('download-books-csv');
+
+    function invalidateInventory(message) {
+        inventoryState.invalidate();
+        booksTable.hidden = true;
+        downloadBooksCsvButton.disabled = true;
+        if (message) {
+            show(document.getElementById('books-result'), message, false);
+        }
+    }
+
+    document.getElementById('admin-token').addEventListener('input', () => {
+        const hadInventoryRequest = inventoryState.hasSnapshot() || inventoryState.isLoading() || !booksTable.hidden;
+        invalidateInventory(hadInventoryRequest
+            ? '관리자 토큰이 변경되었습니다. 책 목록을 다시 불러오세요.'
+            : null);
+    });
+
+    async function loadBooks() {
+        const result = document.getElementById('books-result');
+        const loadRevision = inventoryState.beginLoad();
+        booksTable.hidden = true;
+        downloadBooksCsvButton.disabled = true;
+        show(result, '책 목록을 불러오는 중입니다.', false);
         try {
-            const response = await fetch('/api/admin/authors', {
+            const response = await fetch('/api/admin/books', {
                 headers: { 'X-Admin-Token': adminToken() }
             });
             const body = await response.json();
-            if (!response.ok) {
-                show(result, body.code + ': ' + body.message, true);
-                return;
+            if (!inventoryState.isCurrent(loadRevision)) {
+                return false;
             }
-            const rows = body.authors.map(author => '<tr>'
-                + '<td>' + author.authorId + '</td>'
-                + '<td>' + escapeHtml(author.name) + '</td>'
-                + '<td>' + (author.isni ?? '-') + '</td>'
-                + '<td>' + author.books.map(book => '<div class="book-entry">'
-                    + (book.coverImageUrl ? '<img class="cover-preview" src="' + escapeHtml(book.coverImageUrl)
-                        + '" alt="">' : '')
-                    + '<span class="book-title">' + escapeHtml(book.title) + ' (#' + book.bookId + ')</span>'
-                    + '<span class="book-status' + (book.status === 'DELETED' ? ' deleted' : '') + '">'
-                    + (book.status === 'DELETED' ? '삭제됨' : '활성') + '</span>'
+            if (!response.ok) {
+                inventoryState.failLoad(loadRevision);
+                show(result, body.code + ': ' + body.message, true);
+                return false;
+            }
+            if (!inventoryState.completeLoad(loadRevision, body.books)) {
+                return false;
+            }
+            const rows = body.books.map(book => '<tr>'
+                + '<td>' + book.bookId + '</td>'
+                + '<td>' + (book.coverImageUrl ? '<img class="cover-preview" src="'
+                    + escapeHtml(book.coverImageUrl) + '" alt="">' : '-') + '</td>'
+                + '<td>' + escapeHtml(book.title) + '</td>'
+                + '<td>' + book.authors.map(author => '<div class="book-author">'
+                    + escapeHtml(author.name) + ' (#' + author.authorId + ')'
+                    + (author.isni ? '<span class="author-isni">ISNI ' + escapeHtml(author.isni) + '</span>' : '')
+                    + '</div>').join('') + '</td>'
+                + '<td>' + escapeHtml(book.publisher ?? '-') + '</td>'
+                + '<td>' + (book.publishedYear ?? '-') + '</td>'
+                + '<td>' + book.passageCount + '</td>'
+                + '<td><span class="book-status' + (book.status === 'DELETED' ? ' deleted' : '') + '">'
+                    + (book.status === 'DELETED' ? '삭제됨' : '활성') + '</span></td>'
+                + '<td><div class="inventory-actions">'
                     + '<button type="button" class="delete-book" data-book-id="' + book.bookId + '"'
                     + (book.status === 'DELETED' ? ' disabled' : '') + '>삭제</button>'
                     + '<input type="file" class="replace-cover-file" data-book-id="' + book.bookId
@@ -221,36 +263,55 @@
                     + (book.status === 'DELETED' ? ' disabled' : '') + '>표지 교체</button>'
                     + '<button type="button" class="remove-cover" data-book-id="' + book.bookId + '"'
                     + (book.status === 'DELETED' || !book.coverImageUrl ? ' disabled' : '') + '>표지 제거</button>'
-                    + '</div>').join('') + '</td>'
+                    + '</div></td>'
                 + '</tr>').join('');
-            table.querySelector('tbody').innerHTML = rows;
-            const booksById = new Map(body.authors
-                .flatMap(author => author.books)
-                .map(book => [String(book.bookId), book]));
-            table.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
+            booksTable.querySelector('tbody').innerHTML = rows;
+            const booksById = new Map(body.books.map(book => [String(book.bookId), book]));
+            booksTable.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => deleteBook(booksById.get(button.dataset.bookId)));
             });
-            table.querySelectorAll('.replace-cover:not(:disabled)').forEach(button => {
+            booksTable.querySelectorAll('.replace-cover:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => replaceBookCover(
-                    booksById.get(button.dataset.bookId), button.closest('.book-entry').querySelector('input')));
+                    booksById.get(button.dataset.bookId), button.closest('.inventory-actions').querySelector('input')));
             });
-            table.querySelectorAll('.remove-cover:not(:disabled)').forEach(button => {
+            booksTable.querySelectorAll('.remove-cover:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => removeBookCover(booksById.get(button.dataset.bookId)));
             });
-            table.hidden = false;
-            show(result, '작가 ' + body.authors.length + '명', false);
+            booksTable.hidden = false;
+            downloadBooksCsvButton.disabled = false;
+            show(result, '책 ' + body.books.length + '권', false);
+            return true;
         } catch (error) {
-            show(result, '요청 실패: ' + error, true);
+            if (inventoryState.failLoad(loadRevision)) {
+                show(result, '요청 실패: ' + error, true);
+            }
+            return false;
         }
     }
 
-    document.getElementById('load-authors').addEventListener('click', loadAuthors);
+    document.getElementById('load-books').addEventListener('click', loadBooks);
+
+    downloadBooksCsvButton.addEventListener('click', () => {
+        const books = inventoryState.snapshotForExport(!booksTable.hidden);
+        if (books === null) {
+            downloadBooksCsvButton.disabled = true;
+            return;
+        }
+        const blob = new Blob([AdminBookInventory.booksToCsv(books)], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'book-upload-status.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+    });
 
     async function deleteBook(book) {
         if (!book || !window.confirm('"' + book.title + '" 도서를 삭제하시겠습니까?')) {
             return;
         }
-        const result = document.getElementById('authors-result');
+        const result = document.getElementById('books-result');
+        invalidateInventory();
         try {
             const response = await fetch('/api/admin/books/' + book.bookId, {
                 method: 'DELETE',
@@ -261,8 +322,9 @@
                 show(result, body.code + ': ' + body.message, true);
                 return;
             }
-            await loadAuthors();
-            show(result, '삭제 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            if (await loadBooks()) {
+                show(result, '삭제 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            }
         } catch (error) {
             show(result, '요청 실패: ' + error, true);
         }
@@ -336,6 +398,7 @@
                 show(result, body.code + ': ' + body.message, true);
                 return;
             }
+            invalidateInventory('새 도서가 업로드되었습니다. 책 목록을 다시 불러오세요.');
             show(result, '업로드 완료 — bookId ' + body.bookId + ', 본문 ' + body.passageCount + '개', false);
         } catch (error) {
             show(result, '요청 실패: ' + error, true);
@@ -375,7 +438,7 @@
     }
 
     async function replaceBookCover(book, input) {
-        const result = document.getElementById('authors-result');
+        const result = document.getElementById('books-result');
         const file = input.files[0];
         if (!file) {
             show(result, '교체할 표지 파일을 선택하세요.', true);
@@ -384,6 +447,7 @@
         try {
             show(result, '새 표지 이미지를 업로드하는 중입니다.', false);
             const coverImageKey = await uploadCover(file);
+            invalidateInventory();
             const response = await fetch('/api/admin/books/' + book.bookId + '/cover', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
@@ -394,8 +458,9 @@
                 show(result, body.code + ': ' + body.message, true);
                 return;
             }
-            await loadAuthors();
-            show(result, '표지 교체 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            if (await loadBooks()) {
+                show(result, '표지 교체 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            }
         } catch (error) {
             show(result, '표지 교체 실패: ' + error.message, true);
         }
@@ -405,7 +470,8 @@
         if (!window.confirm('"' + book.title + '" 도서의 표지를 제거하시겠습니까?')) {
             return;
         }
-        const result = document.getElementById('authors-result');
+        const result = document.getElementById('books-result');
+        invalidateInventory();
         try {
             const response = await fetch('/api/admin/books/' + book.bookId + '/cover', {
                 method: 'DELETE',
@@ -416,8 +482,9 @@
                 show(result, body.code + ': ' + body.message, true);
                 return;
             }
-            await loadAuthors();
-            show(result, '표지 제거 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            if (await loadBooks()) {
+                show(result, '표지 제거 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            }
         } catch (error) {
             show(result, '표지 제거 실패: ' + error, true);
         }

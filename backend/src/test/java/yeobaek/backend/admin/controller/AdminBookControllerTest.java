@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -23,6 +24,9 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.admin.dto.AuthorEntryRequest;
+import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
+import yeobaek.backend.admin.dto.AdminBookResponse;
+import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
@@ -30,6 +34,7 @@ import yeobaek.backend.admin.dto.PassageUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
+import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -44,6 +49,65 @@ class AdminBookControllerTest extends ControllerTest {
 
     @MockitoBean
     private AdminBookService adminBookService;
+
+    @Test
+    @DisplayName("업로드된 도서 목록의 전체 응답 계약을 반환한다")
+    void findBooks() throws Exception {
+        var response = new AdminBooksResponse(List.of(
+                new AdminBookResponse(
+                        3L,
+                        "함께 쓴 책",
+                        List.of(
+                                new AdminBookAuthorResponse(7L, "첫 작가", "000000012345964X"),
+                                new AdminBookAuthorResponse(8L, "둘째 작가", null)),
+                        "여백 출판",
+                        2026,
+                        42,
+                        "https://covers.example/books/3.jpg",
+                        BookStatus.ACTIVE),
+                new AdminBookResponse(
+                        4L,
+                        "삭제된 책",
+                        List.of(),
+                        null,
+                        null,
+                        0,
+                        null,
+                        BookStatus.DELETED)));
+        given(adminBookService.findBooks()).willReturn(response);
+
+        mockMvc.perform(get("/api/admin/books")
+                        .header("X-Admin-Token", "controller-test-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.books").isArray())
+                .andExpect(jsonPath("$.books.length()").value(2))
+                .andExpect(jsonPath("$.books[0].bookId").value(3))
+                .andExpect(jsonPath("$.books[0].title").value("함께 쓴 책"))
+                .andExpect(jsonPath("$.books[0].authors").isArray())
+                .andExpect(jsonPath("$.books[0].authors.length()").value(2))
+                .andExpect(jsonPath("$.books[0].authors[0].authorId").value(7))
+                .andExpect(jsonPath("$.books[0].authors[0].name").value("첫 작가"))
+                .andExpect(jsonPath("$.books[0].authors[0].isni").value("000000012345964X"))
+                .andExpect(jsonPath("$.books[0].authors[1].authorId").value(8))
+                .andExpect(jsonPath("$.books[0].authors[1].name").value("둘째 작가"))
+                .andExpect(jsonPath("$.books[0].authors[1].isni").value((Object) null))
+                .andExpect(jsonPath("$.books[0].publisher").value("여백 출판"))
+                .andExpect(jsonPath("$.books[0].publishedYear").value(2026))
+                .andExpect(jsonPath("$.books[0].passageCount").value(42))
+                .andExpect(jsonPath("$.books[0].coverImageUrl").value("https://covers.example/books/3.jpg"))
+                .andExpect(jsonPath("$.books[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.books[1].bookId").value(4))
+                .andExpect(jsonPath("$.books[1].title").value("삭제된 책"))
+                .andExpect(jsonPath("$.books[1].authors").isEmpty())
+                .andExpect(jsonPath("$.books[1].publisher").value((Object) null))
+                .andExpect(jsonPath("$.books[1].publishedYear").value((Object) null))
+                .andExpect(jsonPath("$.books[1].passageCount").value(0))
+                .andExpect(jsonPath("$.books[1].coverImageUrl").value((Object) null))
+                .andExpect(jsonPath("$.books[1].status").value("DELETED"));
+
+        verify(adminBookService, times(1)).findBooks();
+    }
 
     @Test
     @DisplayName("도서 삭제 요청의 ID를 서비스에 전달하고 빈 204 응답을 반환한다")

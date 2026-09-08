@@ -17,6 +17,19 @@ class AdminPageControllerTest extends IntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    @DisplayName("관리자 페이지는 책 목록 조회와 표시된 결과의 CSV 저장 동작을 제공한다")
+    void serveBookInventoryUi() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"load-books\"")))
+                .andExpect(content().string(containsString("id=\"download-books-csv\" disabled")))
+                .andExpect(content().string(containsString("id=\"books-table\" hidden")))
+                .andExpect(content().string(containsString("src=\"/admin-book-inventory.js\"")))
+                .andExpect(content().string(containsString("fetch('/api/admin/books'")))
+                .andExpect(content().string(containsString("snapshotForExport(!booksTable.hidden)")));
+    }
+
+    @Test
     @DisplayName("관리자 페이지는 삭제 상태와 도서 삭제 동작을 제공한다")
     void serveBookDeleteUi() throws Exception {
         mockMvc.perform(get("/admin"))

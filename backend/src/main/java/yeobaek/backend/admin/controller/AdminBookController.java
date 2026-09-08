@@ -6,12 +6,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.dto.BookCoverUpdateRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
@@ -26,6 +28,12 @@ public class AdminBookController {
 
     private final BookIngestService bookIngestService;
     private final AdminBookService adminBookService;
+
+    @Operation(summary = "업로드된 도서 목록 조회", description = "삭제된 도서를 포함해 도서 ID 순으로 반환한다.")
+    @GetMapping("/api/admin/books")
+    public AdminBooksResponse findBooks() {
+        return adminBookService.findBooks();
+    }
 
     @Operation(summary = "도서 업로드 (인제스트 규격 JSON)",
             description = "본문 순서는 배열 등장 순서로 서버가 1..N을 부여한다. 앱은 사용하지 않는다.")
