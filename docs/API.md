@@ -756,6 +756,36 @@
 - 성공 응답: `204 No Content`.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
+### 업로드된 도서 목록 조회
+`GET /api/admin/books`
+
+응답 `200` — 도서 ID 오름차순, 페이징·최대 건수 제한 없음:
+```json
+{
+  "books": [
+    {
+      "bookId": 3,
+      "title": "운수 좋은 날",
+      "authors": [
+        { "authorId": 12, "name": "현진건", "isni": "000000012345964X" }
+      ],
+      "publisher": "자체 제작",
+      "publishedYear": 1924,
+      "passageCount": 30,
+      "coverImageUrl": null,
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+- 업로드된 도서를 한 권당 한 항목으로 반환한다. 공저자는 같은 도서의 `authors`에 함께 반환한다.
+- 삭제된 도서도 포함하며 `status`는 `ACTIVE` 또는 `DELETED`다.
+- `publisher`, `publishedYear`, `coverImageUrl`, 작가의 `isni`는 없으면 `null`이다.
+- 도서가 없으면 `{ "books": [] }`를 반환한다.
+- 기존 `GET /api/admin/authors` 계약은 유지한다.
+- 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
+
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
 
@@ -786,7 +816,17 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 작가·작품 조회·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+
+- 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
+- CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
+- CSV 열은 `bookId,title,authorNames,authorIds,publisher,publishedYear,passageCount,status` 순서다.
+  공저자 이름과 ID는 각각 같은 순서로 ` | `로 연결하며, 없는 출판 정보는 빈 셀로 저장한다.
+- 파일명은 `book-upload-status.csv`다. UTF-8 BOM과 CRLF 행 구분을 사용하고, 텍스트 셀의
+  쉼표·따옴표·줄바꿈을 이스케이프한다. 수식으로 해석될 수 있는 텍스트에는 작은따옴표를 앞에 붙인다.
+  숫자 필드는 숫자로 보존한다. 조회 결과가 없으면 헤더만 저장한다.
+- 조회 전·재조회 중·조회 실패 시에는 CSV 저장을 비활성화한다. 토큰 변경과 도서 변경 시 이전
+  조회 결과를 무효화하고, 늦게 도착한 이전 조회 응답은 표시하지 않는다.
 
 - 활성 작품에는 삭제 버튼을 표시한다.
 - 표지가 있는 작품에는 표지 교체·제거를, 없는 작품에는 표지 추가를 제공한다.
@@ -918,6 +958,7 @@
 | POST | /api/comments/{commentId}/reports | 댓글 신고 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
+| GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
