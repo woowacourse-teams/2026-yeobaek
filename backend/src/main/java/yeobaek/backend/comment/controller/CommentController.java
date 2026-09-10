@@ -12,13 +12,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.comment.dto.CommentCreateRequest;
+import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentUpdateRequest;
 import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
@@ -29,27 +32,52 @@ import yeobaek.backend.support.analytics.AnalyticsTracker;
 @RequiredArgsConstructor
 public class CommentController {
 
+    private static final String CLUB_ID_DESCRIPTION = "모임 ID";
+
     private final CommentService commentService;
     private final AnalyticsTracker analyticsTracker;
 
-    @Operation(summary = "문장의 댓글 목록 조회", description = "작성일 오름차순. 이 모임에서 작성된 댓글만 보인다.")
+    @Operation(summary = "문장의 댓글 목록 조회 (deprecated)",
+            description = "호환 API. 보이는 댓글을 작성일 오름차순으로 반환하고 VIEWED로 전환한다. 신규 클라이언트는 POST 상세 조회를 사용한다.",
+            deprecated = true)
     @GetMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comments")
     public CommentsResponse findComments(@AuthMember Long memberId,
-                                         @Parameter(description = "모임 ID") @PathVariable Long clubId,
+                                         @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                          @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
-        CommentsResponse response = commentService.findComments(memberId, clubId, sentenceId);
-        if (!response.comments().isEmpty()) {
-            analyticsTracker.track(memberId,
-                    AnalyticsEvent.commentsViewed(clubId, sentenceId, response.comments().size()));
-        }
-        return response;
+        return trackViewedComments(memberId, clubId, sentenceId);
+    }
+
+    @Operation(summary = "문장의 댓글 상세 조회와 직접 확인", description = "보이는 댓글을 작성일 오름차순으로 반환하고 VIEWED로 전환한다.")
+    @PostMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views")
+    public CommentsResponse findCommentDetails(@AuthMember Long memberId,
+                                               @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
+                                               @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
+        return trackViewedComments(memberId, clubId, sentenceId);
+    }
+
+    @Operation(summary = "탑바 새 댓글 개수")
+    @GetMapping("/api/clubs/{clubId}/comments/new-count")
+    public NewCommentCountResponse countNewComments(
+            @AuthMember Long memberId,
+            @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
+            @RequestParam("currentPassageId") Long currentPassageId) {
+        return commentService.countNewComments(memberId, clubId, currentPassageId);
+    }
+
+    @Operation(summary = "댓글 문장 전체 목록 조회")
+    @GetMapping("/api/clubs/{clubId}/commented-sentences")
+    public CommentedSentencesResponse findCommentedSentences(
+            @AuthMember Long memberId,
+            @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
+            @RequestParam("currentPassageId") Long currentPassageId) {
+        return commentService.findCommentedSentences(memberId, clubId, currentPassageId);
     }
 
     @Operation(summary = "댓글 작성")
     @PostMapping("/api/clubs/{clubId}/sentences/{sentenceId}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public CommentResponse create(@AuthMember Long memberId,
-                                  @Parameter(description = "모임 ID") @PathVariable Long clubId,
+                                  @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                   @Parameter(description = "문장 ID") @PathVariable Long sentenceId,
                                   @RequestBody CommentCreateRequest request) {
         CommentResponse response = commentService.create(memberId, clubId, sentenceId, request.content());
@@ -78,5 +106,14 @@ public class CommentController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void report(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
         commentService.report(memberId, commentId);
+    }
+
+    private CommentsResponse trackViewedComments(Long memberId, Long clubId, Long sentenceId) {
+        CommentsResponse response = commentService.findComments(memberId, clubId, sentenceId);
+        if (!response.comments().isEmpty()) {
+            analyticsTracker.track(memberId,
+                    AnalyticsEvent.commentsViewed(clubId, sentenceId, response.comments().size()));
+        }
+        return response;
     }
 }

@@ -21,9 +21,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.comment.dto.CommentResponse;
+import yeobaek.backend.comment.dto.CommentedSentenceResponse;
+import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.dto.NewCommentCountResponse;
+import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -75,6 +80,114 @@ class CommentControllerTest extends ControllerTest {
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker, times(1))
                 .track(1L, AnalyticsEvent.commentsViewed(10L, 1042L, 2));
+    }
+
+    @Test
+    @DisplayName("댓글 상세 조회 요청을 서비스에 전달하고 보이는 댓글을 분석 이벤트로 기록한다")
+    void findCommentDetails() throws Exception {
+        givenValidMember(1L);
+        var createdAt = LocalDateTime.of(2026, 8, 5, 14, 30);
+        var response = new CommentsResponse(List.of(
+                new CommentResponse(7L, 2L, "지수", "첫 댓글", createdAt, null, false)));
+        given(commentService.findComments(1L, 10L, 1042L)).willReturn(response);
+
+        mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views", 10L, 1042L)
+                        .header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.comments.length()").value(1))
+                .andExpect(jsonPath("$.comments[0].commentId").value(7))
+                .andExpect(jsonPath("$.comments[0].memberId").value(2))
+                .andExpect(jsonPath("$.comments[0].nickname").value("지수"))
+                .andExpect(jsonPath("$.comments[0].content").value("첫 댓글"))
+                .andExpect(jsonPath("$.comments[0].createdAt").value("2026-08-05T14:30:00"))
+                .andExpect(jsonPath("$.comments[0].updatedAt").value((Object) null))
+                .andExpect(jsonPath("$.comments[0].mine").value(false));
+
+        verify(commentService, times(1)).findComments(1L, 10L, 1042L);
+        verify(analyticsTracker, times(1))
+                .track(1L, AnalyticsEvent.commentsViewed(10L, 1042L, 1));
+    }
+
+    @Test
+    @DisplayName("현재 문단까지의 새 댓글 개수를 반환한다")
+    void countNewComments() throws Exception {
+        givenValidMember(3L);
+        given(commentService.countNewComments(3L, 10L, 1042L)).willReturn(new NewCommentCountResponse(5));
+
+        mockMvc.perform(get("/api/clubs/{clubId}/comments/new-count", 10L)
+                        .header("X-Member-Id", "3")
+                        .queryParam("currentPassageId", "1042"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.newCommentCount").value(5));
+
+        verify(commentService, times(1)).countNewComments(3L, 10L, 1042L);
+    }
+
+    @Test
+    @DisplayName("댓글 문장 전체 목록의 모든 계약 필드를 반환한다")
+    void findCommentedSentences() throws Exception {
+        givenValidMember(4L);
+        var latestCreatedAt = LocalDateTime.of(2026, 8, 7, 9, 10);
+        var response = new CommentedSentencesResponse(List.of(new CommentedSentenceResponse(
+                5012L, "가려질 문장", 1043L, 43, 2, true,
+                3, 2, ContentVisibility.REVEAL_REQUIRED, latestCreatedAt)));
+        given(commentService.findCommentedSentences(4L, 10L, 1042L)).willReturn(response);
+
+        mockMvc.perform(get("/api/clubs/{clubId}/commented-sentences", 10L)
+                        .header("X-Member-Id", "4")
+                        .queryParam("currentPassageId", "1042"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.nextCursor").doesNotExist())
+                .andExpect(jsonPath("$.commentedSentences").isArray())
+                .andExpect(jsonPath("$.commentedSentences.length()").value(1))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceId").value(5012))
+                .andExpect(jsonPath("$.commentedSentences[0].content").value("가려질 문장"))
+                .andExpect(jsonPath("$.commentedSentences[0].passageId").value(1043))
+                .andExpect(jsonPath("$.commentedSentences[0].passageSequence").value(43))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceSequence").value(2))
+                .andExpect(jsonPath("$.commentedSentences[0].future").value(true))
+                .andExpect(jsonPath("$.commentedSentences[0].commentCount").value(3))
+                .andExpect(jsonPath("$.commentedSentences[0].unreadCommentCount").value(2))
+                .andExpect(jsonPath("$.commentedSentences[0].contentVisibility").value("REVEAL_REQUIRED"))
+                .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt")
+                        .value("2026-08-07T09:10:00"));
+
+        verify(commentService, times(1)).findCommentedSentences(4L, 10L, 1042L);
+    }
+
+    @Test
+    @DisplayName("댓글 문장 목록이 비어 있으면 빈 배열을 반환한다")
+    void findEmptyCommentedSentences() throws Exception {
+        givenValidMember(5L);
+        given(commentService.findCommentedSentences(5L, 10L, 1042L))
+                .willReturn(new CommentedSentencesResponse(List.of()));
+
+        mockMvc.perform(get("/api/clubs/{clubId}/commented-sentences", 10L)
+                        .header("X-Member-Id", "5")
+                        .queryParam("currentPassageId", "1042"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentedSentences").isArray())
+                .andExpect(jsonPath("$.commentedSentences").isEmpty());
+
+        verify(commentService, times(1)).findCommentedSentences(5L, 10L, 1042L);
+    }
+
+    @Test
+    @DisplayName("필수 currentPassageId가 없으면 댓글 발견 서비스를 호출하지 않는다")
+    void rejectMissingCurrentPassageId() throws Exception {
+        givenValidMember(6L);
+
+        mockMvc.perform(get("/api/clubs/{clubId}/comments/new-count", 10L)
+                        .header("X-Member-Id", "6"))
+                .andExpect(result -> assertInstanceOf(
+                        MissingServletRequestParameterException.class,
+                        result.getResolvedException()));
+
+        verifyNoInteractions(commentService);
     }
 
     @Test
@@ -223,6 +336,43 @@ class CommentControllerTest extends ControllerTest {
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
         verify(commentService, times(1)).findComments(7L, 999L, 1042L);
+        verifyNoInteractions(analyticsTracker);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "/api/clubs/10/comments/new-count", "/api/clubs/10/commented-sentences"
+    })
+    @DisplayName("발견 API의 currentPassageId 숫자 형식 오류는 서비스 호출 전에 거부한다")
+    void rejectMalformedCurrentPassage(String path) throws Exception {
+        givenValidMember(1L);
+        mockMvc.perform(get(path).header("X-Member-Id", "1").param("currentPassageId", "abc"))
+                .andExpect(result -> assertInstanceOf(
+                        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+                        result.getResolvedException()));
+        verifyNoInteractions(commentService);
+    }
+
+    @Test
+    @DisplayName("문장 전체 목록에도 currentPassageId가 필수다")
+    void rejectMissingListCurrentPassage() throws Exception {
+        givenValidMember(1L);
+        mockMvc.perform(get("/api/clubs/10/commented-sentences").header("X-Member-Id", "1"))
+                .andExpect(result -> assertInstanceOf(MissingServletRequestParameterException.class,
+                        result.getResolvedException()));
+        verifyNoInteractions(commentService);
+    }
+
+    @Test
+    @DisplayName("새 상세 POST의 빈 목록은 이벤트 없이 빈 배열을 반환한다")
+    void emptyPostDetails() throws Exception {
+        givenValidMember(1L);
+        given(commentService.findComments(1L, 10L, 1042L)).willReturn(new CommentsResponse(List.of()));
+        mockMvc.perform(post("/api/clubs/10/sentences/1042/comment-detail-views").header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.comments").isArray())
+                .andExpect(jsonPath("$.comments").isEmpty());
+        verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verifyNoInteractions(analyticsTracker);
     }
 }
