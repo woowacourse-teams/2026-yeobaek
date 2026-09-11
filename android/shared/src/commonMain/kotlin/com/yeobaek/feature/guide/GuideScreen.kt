@@ -38,34 +38,47 @@ fun GuideScreen(
     var currentPage by remember { mutableStateOf(1) }
     var previousEnabled by remember { mutableStateOf(false) }
     var nextEnabled by remember { mutableStateOf(false) }
+
     var isClickJoin by remember { mutableStateOf(false) }
     var isClickCreate by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(isClickJoin, isClickCreate) {
-        if (isClickCreate && isClickJoin) {
-            nextEnabled = true
-        }
-        if (isClickJoin) {
-            snackbarHostState.showSnackbar(
-                message = "모임 참여하기를 눌러 모임에 참여할 수 있어요!",
-                duration = SnackbarDuration.Short,
-            )
-        }
+    LaunchedEffect(isClickCreate) {
         if (isClickCreate) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+
             snackbarHostState.showSnackbar(
                 message = "새 모임 만들기를 눌러 모임을 만들 수 있어요!",
                 duration = SnackbarDuration.Short,
             )
         }
+        if (isClickCreate && isClickJoin) {
+            nextEnabled = true
+        }
+    }
+
+    LaunchedEffect(isClickJoin) {
+        if (isClickJoin) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+
+            snackbarHostState.showSnackbar(
+                message = "모임 참여하기를 눌러 모임에 참여할 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+        }
+        if (isClickJoin && isClickCreate) {
+            nextEnabled = true
+        }
     }
 
     LaunchedEffect(currentPage) {
         nextEnabled = false
-        if (currentPage == 1) {
-            isClickJoin = false
-            isClickCreate = false
+        when (currentPage) {
+            1 -> {
+                isClickJoin = false
+                isClickCreate = false
+            }
         }
     }
 
@@ -110,6 +123,8 @@ fun GuideScreen(
                         currentPage += 1
                         if (currentPage > 1) previousEnabled = true
                         if (currentPage == 3) nextEnabled = false
+
+                        snackbarHostState.currentSnackbarData?.dismiss()
                     },
                     text = "다음",
                     modifier = Modifier.weight(1f),
