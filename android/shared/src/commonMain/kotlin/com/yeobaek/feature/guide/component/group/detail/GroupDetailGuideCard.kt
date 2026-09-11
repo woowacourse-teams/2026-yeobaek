@@ -1,4 +1,4 @@
-package com.yeobaek.feature.guide.component
+package com.yeobaek.feature.guide.component.group.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

@@ -26,9 +26,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.guide.component.GroupDetailGuideCard
-import com.yeobaek.feature.guide.component.HomeGuideCard
-import com.yeobaek.feature.guide.component.ReaderGuideCard
+import com.yeobaek.feature.guide.component.group.detail.GroupDetailGuideCard
+import com.yeobaek.feature.guide.component.home.HomeGuideCard
+import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
 
 @Composable
 fun GuideScreen(

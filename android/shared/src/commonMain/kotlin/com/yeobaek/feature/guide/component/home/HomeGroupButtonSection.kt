@@ -1,4 +1,4 @@
-package com.yeobaek.feature.guide.component
+package com.yeobaek.feature.guide.component.home
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_plus
