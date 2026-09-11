@@ -42,6 +42,8 @@ fun GuideScreen(
     var isClickJoin by remember { mutableStateOf(false) }
     var isClickCreate by remember { mutableStateOf(false) }
 
+    var isClickCopy by remember { mutableStateOf(false) }
+
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(isClickCreate) {
@@ -72,12 +74,27 @@ fun GuideScreen(
         }
     }
 
+    LaunchedEffect(isClickCopy) {
+        if (isClickCopy) {
+            nextEnabled = true
+
+            snackbarHostState.showSnackbar(
+                message = "초대 코드를 복사할 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+        }
+    }
+
     LaunchedEffect(currentPage) {
         nextEnabled = false
         when (currentPage) {
             1 -> {
                 isClickJoin = false
                 isClickCreate = false
+            }
+
+            2 -> {
+                isClickCopy = false
             }
         }
     }
@@ -151,7 +168,13 @@ fun GuideScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                2 -> GroupDetailGuideCard()
+                2 -> GroupDetailGuideCard(
+                    onClickCopy = {
+                        isClickCopy = true
+                    },
+                    enabled = !isClickCopy,
+                    modifier = Modifier.weight(1f),
+                )
 
                 3 -> ReaderGuideCard()
             }
