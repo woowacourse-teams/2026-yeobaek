@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -29,7 +30,10 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.guide.component.group.detail.GroupDetailGuideCard
 import com.yeobaek.feature.guide.component.home.HomeGuideCard
 import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuideScreen(
     navigateToHome: () -> Unit,
@@ -43,6 +47,10 @@ fun GuideScreen(
     var isClickCreate by remember { mutableStateOf(false) }
 
     var isClickCopy by remember { mutableStateOf(false) }
+
+    var isClickCommentSentence by remember { mutableStateOf(false) }
+    var isClickUnCommentSentence by remember { mutableStateOf(false) }
+    var isSuccessCancel by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -85,6 +93,36 @@ fun GuideScreen(
         }
     }
 
+    LaunchedEffect(isClickCommentSentence) {
+        snackbarHostState.currentSnackbarData?.dismiss()
+        delay(50.milliseconds)
+        if (isClickCommentSentence) {
+            snackbarHostState.showSnackbar(
+                message = "댓글창 뒤의 배경을 눌러 댓글창을 닫을 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+            isClickCommentSentence = false
+        }
+    }
+
+    LaunchedEffect(isClickUnCommentSentence) {
+        snackbarHostState.currentSnackbarData?.dismiss()
+        delay(50.milliseconds)
+        if (isClickUnCommentSentence) {
+            snackbarHostState.showSnackbar(
+                message = "밑줄이 있는 문장을 눌러 다른 사람의 생각을 읽어봐요!",
+                duration = SnackbarDuration.Short,
+            )
+            isClickUnCommentSentence = false
+        }
+    }
+
+    LaunchedEffect(isSuccessCancel) {
+        if (isSuccessCancel) {
+            nextEnabled = true
+        }
+    }
+
     LaunchedEffect(currentPage) {
         nextEnabled = false
         when (currentPage) {
@@ -95,6 +133,14 @@ fun GuideScreen(
 
             2 -> {
                 isClickCopy = false
+            }
+
+            3 -> {
+                isSuccessCancel = false
+            }
+
+            else -> {
+                navigateToHome()
             }
         }
     }
@@ -118,7 +164,7 @@ fun GuideScreen(
         },
         bottomBar = {
             Row(
-                modifier = Modifier.navigationBarsPadding().padding(horizontal = 10.dp).fillMaxWidth(),
+                modifier = Modifier.navigationBarsPadding().padding(10.dp).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (previousEnabled) {
@@ -143,7 +189,7 @@ fun GuideScreen(
 
                         snackbarHostState.currentSnackbarData?.dismiss()
                     },
-                    text = "다음",
+                    text = if (currentPage == 3) "여백 시작하기" else "다음",
                     modifier = Modifier.weight(1f),
                     enabled = nextEnabled,
                 )
@@ -176,7 +222,17 @@ fun GuideScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                3 -> ReaderGuideCard()
+                3 -> ReaderGuideCard(
+                    onClickCommentSentence = {
+                        isClickCommentSentence = true
+                    },
+                    onClickUnCommentSentence = {
+                        isClickUnCommentSentence = true
+                    },
+                    onCancel = {
+                        isSuccessCancel = true
+                    },
+                )
             }
         }
     }
