@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,11 +32,42 @@ import com.yeobaek.feature.guide.component.ReaderGuideCard
 
 @Composable
 fun GuideScreen(
+    navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var currentPage by remember { mutableStateOf(1) }
     var previousEnabled by remember { mutableStateOf(false) }
-    var nextEnabled by remember { mutableStateOf(true) }
+    var nextEnabled by remember { mutableStateOf(false) }
+    var isClickJoin by remember { mutableStateOf(false) }
+    var isClickCreate by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(isClickJoin, isClickCreate) {
+        if (isClickCreate && isClickJoin) {
+            nextEnabled = true
+        }
+        if (isClickJoin) {
+            snackbarHostState.showSnackbar(
+                message = "모임 참여하기를 눌러 모임에 참여할 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+        }
+        if (isClickCreate) {
+            snackbarHostState.showSnackbar(
+                message = "새 모임 만들기를 눌러 모임을 만들 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+        }
+    }
+
+    LaunchedEffect(currentPage) {
+        nextEnabled = false
+        if (currentPage == 1) {
+            isClickJoin = false
+            isClickCreate = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -42,7 +77,9 @@ fun GuideScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = {},
+                        onClick = {
+                            navigateToHome()
+                        },
                     ) {
                         Text("건너뛰기")
                     }
@@ -80,13 +117,27 @@ fun GuideScreen(
                 )
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = modifier.padding(innerPadding).fillMaxSize(),
+            modifier = modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
         ) {
-            when(currentPage) {
-                1 -> HomeGuideCard()
+            Text("$currentPage / 3")
+            when (currentPage) {
+                1 -> HomeGuideCard(
+                    onClickJoin = {
+                        isClickJoin = true
+                    },
+                    onClickCreate = {
+                        isClickCreate = true
+                    },
+                    isJoinEnabled = !isClickJoin,
+                    isCreateEnabled = !isClickCreate,
+                    modifier = Modifier.weight(1f),
+                )
+
                 2 -> GroupDetailGuideCard()
+
                 3 -> ReaderGuideCard()
             }
         }
@@ -97,6 +148,8 @@ fun GuideScreen(
 @Composable
 private fun GuideScreenPreview() {
     YeobaekTheme {
-        GuideScreen()
+        GuideScreen(
+            navigateToHome = {},
+        )
     }
 }
