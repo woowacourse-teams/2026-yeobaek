@@ -93,6 +93,11 @@ fun App(
                 )
             }
             composable<Guide> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.GUIDE,
+                )
                 GuideScreen(
                     navigateToHome = {
                         navController.navigate(Home) {
@@ -338,6 +343,11 @@ fun App(
                 )
             }
             composable<MyPage> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.MY_PAGE,
+                )
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
