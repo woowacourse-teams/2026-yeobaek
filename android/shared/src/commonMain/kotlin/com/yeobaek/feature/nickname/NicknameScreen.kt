@@ -51,7 +51,7 @@ fun NicknameScreen(
                 text = "시작하기",
                 enabled = uiState.isEnabled,
                 onClick = onNicknameSet,
-                modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp).fillMaxWidth(),
+                modifier = Modifier.navigationBarsPadding().padding(16.dp).fillMaxWidth(),
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

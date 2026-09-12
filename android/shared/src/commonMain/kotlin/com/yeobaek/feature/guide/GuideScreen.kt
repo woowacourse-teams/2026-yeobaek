@@ -119,7 +119,7 @@ fun GuideScreen(
         Column(
             modifier = modifier.padding(innerPadding).padding(horizontal = 16.dp).fillMaxSize(),
         ) {
-            Text(currentPageText)
+            Text(currentPageText, color = MaterialTheme.colorScheme.secondary)
             when (uiState.currentPage) {
                 1 -> HomeGuideCard(
                     onClickJoin = {},
