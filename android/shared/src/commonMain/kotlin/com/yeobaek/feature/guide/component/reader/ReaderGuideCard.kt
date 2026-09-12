@@ -24,8 +24,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -41,6 +46,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekHighlight
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.designsystem.theme.YeobaekUnderline
 import com.yeobaek.feature.reader.component.underlineRangeOf
+import io.ktor.client.request.invoke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +55,7 @@ fun ReaderGuideCard(
     onClickUnCommentSentence: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    sentenceEnabled: Boolean = false,
 ) {
     val mockSentences = listOf(
         SentenceGuidUiModel(
@@ -192,12 +199,31 @@ fun ReaderGuideCard(
                                 val underlineY = layoutResult.getLineBaseline(lineIndex) +
                                     6.dp.toPx()
 
+                                val overlineY = layoutResult.getLineTop(lineIndex)
+
                                 drawLine(
                                     color = YeobaekUnderline,
                                     start = Offset(x = startX, y = underlineY),
                                     end = Offset(x = endX, y = underlineY),
                                     strokeWidth = 1.dp.toPx(),
                                 )
+                                if (sentenceEnabled) {
+                                    drawRoundRect(
+                                        color = Color.Yellow.copy(
+                                            alpha = 0.5f
+                                        ),
+                                        topLeft = Offset(x = startX - 6.dp.toPx(), y = underlineY),
+                                        size = Size(
+                                            width = endX - startX + 10.dp.toPx(),
+                                            height = overlineY - underlineY,
+                                        ),
+                                        cornerRadius = CornerRadius(x = 8.dp.toPx(), y = 8.dp.toPx()),
+                                        style = Stroke(
+                                            width = 3.dp.toPx(),
+                                            cap = StrokeCap.Round,
+                                        )
+                                    )
+                                }
                             }
                         }
                     },

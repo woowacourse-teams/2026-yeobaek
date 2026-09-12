@@ -47,55 +47,12 @@ fun GuideScreen(
     var previousEnabled by remember { mutableStateOf(false) }
     var nextEnabled by remember { mutableStateOf(false) }
 
-    var isClickJoin by remember { mutableStateOf(false) }
-    var isClickCreate by remember { mutableStateOf(false) }
-
-    var isClickCopy by remember { mutableStateOf(false) }
-
     var isClickCommentSentence by remember { mutableStateOf(false) }
     var isClickUnCommentSentence by remember { mutableStateOf(false) }
-    var isSuccessCancel by remember { mutableStateOf(false) }
+
+    var isSuccessGuide by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(isClickCreate) {
-        if (isClickCreate) {
-            snackbarHostState.currentSnackbarData?.dismiss()
-
-            snackbarHostState.showSnackbar(
-                message = "새 모임 만들기를 눌러 모임을 만들 수 있어요!",
-                duration = SnackbarDuration.Short,
-            )
-        }
-        if (isClickCreate && isClickJoin) {
-            nextEnabled = true
-        }
-    }
-
-    LaunchedEffect(isClickJoin) {
-        if (isClickJoin) {
-            snackbarHostState.currentSnackbarData?.dismiss()
-
-            snackbarHostState.showSnackbar(
-                message = "모임 참여하기를 눌러 모임에 참여할 수 있어요!",
-                duration = SnackbarDuration.Short,
-            )
-        }
-        if (isClickJoin && isClickCreate) {
-            nextEnabled = true
-        }
-    }
-
-    LaunchedEffect(isClickCopy) {
-        if (isClickCopy) {
-            nextEnabled = true
-
-            snackbarHostState.showSnackbar(
-                message = "초대 코드를 복사할 수 있어요!",
-                duration = SnackbarDuration.Short,
-            )
-        }
-    }
 
     LaunchedEffect(isClickCommentSentence) {
         snackbarHostState.currentSnackbarData?.dismiss()
@@ -109,38 +66,23 @@ fun GuideScreen(
         }
     }
 
-    LaunchedEffect(isClickUnCommentSentence) {
-        snackbarHostState.currentSnackbarData?.dismiss()
-        delay(50.milliseconds)
-        if (isClickUnCommentSentence) {
-            snackbarHostState.showSnackbar(
-                message = "밑줄이 있는 문장을 눌러 다른 사람의 생각을 읽어봐요!",
-                duration = SnackbarDuration.Short,
-            )
-            isClickUnCommentSentence = false
-        }
-    }
-
-    LaunchedEffect(isSuccessCancel) {
-        if (isSuccessCancel) {
+    LaunchedEffect(isSuccessGuide) {
+        if (isSuccessGuide) {
             nextEnabled = true
         }
     }
 
     LaunchedEffect(currentPage) {
-        nextEnabled = false
         when (currentPage) {
             1 -> {
-                isClickJoin = false
-                isClickCreate = false
+                nextEnabled = true
             }
-
             2 -> {
-                isClickCopy = false
+                nextEnabled = true
             }
-
             3 -> {
-                isSuccessCancel = false
+                isSuccessGuide = false
+                nextEnabled = false
             }
 
             else -> {
@@ -210,22 +152,13 @@ fun GuideScreen(
             Text("${minOf(currentPage, TOTAL_PAGES)} / $TOTAL_PAGES")
             when (currentPage) {
                 1 -> HomeGuideCard(
-                    onClickJoin = {
-                        isClickJoin = true
-                    },
-                    onClickCreate = {
-                        isClickCreate = true
-                    },
-                    isJoinEnabled = !isClickJoin,
-                    isCreateEnabled = !isClickCreate,
+                    onClickJoin = {},
+                    onClickCreate = {},
                     modifier = Modifier.weight(1f),
                 )
 
                 2 -> GroupDetailGuideCard(
-                    onClickCopy = {
-                        isClickCopy = true
-                    },
-                    enabled = !isClickCopy,
+                    onClickCopy = {},
                     modifier = Modifier.weight(1f),
                 )
 
@@ -237,8 +170,9 @@ fun GuideScreen(
                         isClickUnCommentSentence = true
                     },
                     onCancel = {
-                        isSuccessCancel = true
+                        isSuccessGuide = true
                     },
+                    sentenceEnabled = isClickUnCommentSentence
                 )
             }
         }
