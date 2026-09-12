@@ -10,5 +10,5 @@ enum class TrackedScreen(
     GROUP_JOIN("group_join"),
     GROUP_CREATE("group_create"),
     READER("reader"),
-    MY_PAGE("my_page")
+    MY_PAGE("my_page"),
 }

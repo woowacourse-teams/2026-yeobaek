@@ -26,6 +26,7 @@ import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.guide.GuideScreen
+import com.yeobaek.feature.guide.GuideStateHolder
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.mypage.MyPageScreen
@@ -98,7 +99,9 @@ fun App(
                     analyticsTracker = appContainer.analyticsTracker,
                     screen = TrackedScreen.GUIDE,
                 )
+                val guideStateHolder = remember { GuideStateHolder() }
                 GuideScreen(
+                    uiState = guideStateHolder.uiState,
                     navigateToHome = {
                         navController.navigate(Home) {
                             popUpTo<Guide> {
@@ -106,6 +109,17 @@ fun App(
                             }
                         }
                     },
+                    onCurrentPage = {
+                        guideStateHolder.onCurrentPage(it)
+                    },
+                    onSuccessGuide = guideStateHolder::onSuccessGuide,
+                    onClickPrevious = guideStateHolder::onClickPrevious,
+                    onClickNext = guideStateHolder::onClickNext,
+                    isLast = guideStateHolder.isLast(),
+                    currentPageText = guideStateHolder.currentPageText(),
+                    onClickCommentSentence = guideStateHolder::onClickCommentSentence,
+                    onClickUnCommentSentence = guideStateHolder::onClickUnCommentSentence,
+                    onCancel = guideStateHolder::onCancel,
                 )
             }
             composable<Home> {
