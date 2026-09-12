@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -16,6 +17,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +34,8 @@ import com.yeobaek.feature.guide.component.home.HomeGuideCard
 import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
+
+private const val TOTAL_PAGES = 3
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -160,6 +164,9 @@ fun GuideScreen(
                         Text("건너뛰기")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors().copy(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
         bottomBar = {
@@ -172,7 +179,7 @@ fun GuideScreen(
                         onClick = {
                             if (currentPage > 1) currentPage -= 1
                             if (currentPage == 1) previousEnabled = false
-                            if (currentPage < 3) nextEnabled = true
+                            if (currentPage < TOTAL_PAGES) nextEnabled = true
                         },
                         text = "이전",
                         modifier = Modifier.weight(1f),
@@ -185,11 +192,11 @@ fun GuideScreen(
                     onClick = {
                         currentPage += 1
                         if (currentPage > 1) previousEnabled = true
-                        if (currentPage == 3) nextEnabled = false
+                        if (currentPage == TOTAL_PAGES) nextEnabled = false
 
                         snackbarHostState.currentSnackbarData?.dismiss()
                     },
-                    text = if (currentPage == 3) "여백 시작하기" else "다음",
+                    text = if (currentPage == TOTAL_PAGES) "여백 시작하기" else "다음",
                     modifier = Modifier.weight(1f),
                     enabled = nextEnabled,
                 )
@@ -200,7 +207,7 @@ fun GuideScreen(
         Column(
             modifier = modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
         ) {
-            Text("$currentPage / 3")
+            Text("${minOf(currentPage, TOTAL_PAGES)} / $TOTAL_PAGES")
             when (currentPage) {
                 1 -> HomeGuideCard(
                     onClickJoin = {
