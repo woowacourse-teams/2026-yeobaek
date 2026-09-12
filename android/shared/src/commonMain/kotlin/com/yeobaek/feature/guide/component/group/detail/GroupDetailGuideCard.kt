@@ -39,7 +39,7 @@ fun GroupDetailGuideCard(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                "복사 버튼을 눌러보세요!",
+                "코드를 공유한 친구와 같은 모임에서 함께 읽을 수 있어요",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 15.sp,
                     lineHeight = 20.sp,

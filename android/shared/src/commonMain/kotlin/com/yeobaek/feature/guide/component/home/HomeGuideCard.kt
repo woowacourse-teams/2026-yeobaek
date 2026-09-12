@@ -41,7 +41,7 @@ fun HomeGuideCard(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                "아래의 버튼을 눌러보세요!",
+                "친구의 모임에 참여하거나,\n내가 먼저 모임을 시작할 수 있어요",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 15.sp,
                     lineHeight = 20.sp,
