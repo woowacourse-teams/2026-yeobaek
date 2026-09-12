@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.onboarding.component.OnboardingYeobaekTextField
+import com.yeobaek.feature.nickname.component.NicknameTextField
 
 @Composable
 fun NicknameScreen(
@@ -62,7 +62,7 @@ fun NicknameScreen(
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp).fillMaxSize(),
             ) {
-                OnboardingYeobaekTextField(
+                NicknameTextField(
                     title = if (uiState.nicknameState) "닉네임 입력 (필수)" else "허용하지 않는 닉네임입니다. 다시 입력해주세요.",
                     isError = !uiState.nicknameState,
                     value = uiState.nicknameValue,
