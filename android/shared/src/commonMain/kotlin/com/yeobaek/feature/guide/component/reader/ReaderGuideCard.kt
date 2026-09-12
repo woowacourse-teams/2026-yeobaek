@@ -29,7 +29,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -45,47 +44,25 @@ import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.designsystem.theme.YeobaekUnderline
+import com.yeobaek.feature.guide.model.SentenceGuidUiModel
 import com.yeobaek.feature.reader.component.underlineRangeOf
-import io.ktor.client.request.invoke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderGuideCard(
+    sentences: List<SentenceGuidUiModel>,
     onClickCommentSentence: () -> Unit,
     onClickUnCommentSentence: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     sentenceEnabled: Boolean = false,
 ) {
-    val mockSentences = listOf(
-        SentenceGuidUiModel(
-            sentenceId = 1,
-            content = "처음 찰스 스트릭랜드를 알게 되었을 때, 나는 그에게 범상치 않은 구석이 있으리라고는 단 한순간도 알아보지 못했음을 고백한다. ",
-            isComment = false,
-        ),
-        SentenceGuidUiModel(
-            sentenceId = 2,
-            content = "그러나 이제 그의 위대함을 부정할 사람은 거의 없을 것이다. ",
-            isComment = true,
-        ),
-        SentenceGuidUiModel(
-            sentenceId = 3,
-            content = "내가 말하는 위대함은 운 좋은 청지가나 승승장구한 군인이 얻는 그런 것이 아니다. ",
-            isComment = false,
-        ),
-        SentenceGuidUiModel(
-            sentenceId = 4,
-            content = "그것은 당사자보다 그가 차지한 자리에 딸린 속성이어서, 형편이 바뀌면 놀라울 만큼 초라해지고 만다. ",
-            isComment = false,
-        ),
-    )
-
     var showCommentBottomSheet by remember { mutableStateOf(false) }
 
     val (passageText, underlineTextRanges) = remember {
         val commentedSenteceRanges = mutableListOf<TextRange>()
         val text = buildAnnotatedString {
-            mockSentences.forEach { sentence ->
+            sentences.forEach { sentence ->
                 val sentenceStart = length
                 withLink(
                     LinkAnnotation.Clickable(
@@ -210,7 +187,7 @@ fun ReaderGuideCard(
                                 if (sentenceEnabled) {
                                     drawRoundRect(
                                         color = Color.Yellow.copy(
-                                            alpha = 0.5f
+                                            alpha = 0.5f,
                                         ),
                                         topLeft = Offset(x = startX - 6.dp.toPx(), y = underlineY),
                                         size = Size(
@@ -221,7 +198,7 @@ fun ReaderGuideCard(
                                         style = Stroke(
                                             width = 3.dp.toPx(),
                                             cap = StrokeCap.Round,
-                                        )
+                                        ),
                                     )
                                 }
                             }
@@ -247,7 +224,7 @@ fun ReaderGuideCard(
                         color = MaterialTheme.colorScheme.surface,
                     ) {
                         CommentGuideBottomSheetContent(
-                            passage = mockSentences.first { it.isComment }.content,
+                            passage = sentences.first { it.isComment }.content,
                         )
                     }
                     Box(
@@ -269,17 +246,12 @@ fun ReaderGuideCard(
     }
 }
 
-data class SentenceGuidUiModel(
-    val sentenceId: Int = 0,
-    val content: String = "",
-    val isComment: Boolean = false,
-)
-
 @Preview(showBackground = true, name = "리더화면 가이드 카드")
 @Composable
 private fun ReaderGuideCardPreview() {
     YeobaekTheme {
         ReaderGuideCard(
+            sentences = emptyList(),
             onClickCommentSentence = {},
             onClickUnCommentSentence = {},
             onCancel = {},
