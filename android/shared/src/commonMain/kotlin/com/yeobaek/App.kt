@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -103,9 +104,18 @@ fun App(
                 GuideScreen(
                     uiState = guideStateHolder.uiState,
                     navigateToHome = {
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
+                        }
                         navController.navigate(Home) {
-                            popUpTo<Guide> {
-                                inclusive = true
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Guide> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },
@@ -376,6 +386,13 @@ fun App(
                         navController.navigate(Nickname) {
                             popUpTo<Home> {
                                 inclusive = true
+                            }
+                        }
+                    },
+                    navigateToGuide = {
+                        navController.navigate(Guide) {
+                            popUpTo<MyPage> {
+                                inclusive = false
                             }
                         }
                     },
