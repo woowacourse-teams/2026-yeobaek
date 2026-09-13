@@ -127,7 +127,7 @@ fun CommentInput(
             enabled = enabled,
             placeholder = {
                 Text(
-                    text = "이 문단에 당신의 여백을 남겨주세요",
+                    text = "문장의 여백에 당신의 이야기를 남겨주세요",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium.copy(
