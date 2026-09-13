@@ -128,7 +128,7 @@ fun ReaderScreen(
     if (uiState.isTableOfContentsVisible) {
         ReaderTableOfContents(
             chapters = uiState.chapters,
-            currentPassageSequence = uiState.currentSequence,
+            readingPassageSequence = uiState.readingSequence,
             onDismissRequest = actions.onTableOfContentsDismiss,
             onChapterClick = actions.onChapterClick,
         )
@@ -307,7 +307,7 @@ private fun ReaderScreenPreview() {
                         ),
                     ),
                 ),
-                currentSequence = 4,
+                readingSequence = 4,
                 totalPassageCount = 5,
             ),
             commentSheet = null,

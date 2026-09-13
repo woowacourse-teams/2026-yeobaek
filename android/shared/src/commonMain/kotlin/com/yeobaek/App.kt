@@ -254,7 +254,7 @@ fun App(
                 val actions = remember(readerViewModel, navController) {
                     ReaderActions(
                         onBackClick = {
-                            readerViewModel.saveCurrentPassage(
+                            readerViewModel.saveReadingProgress(
                                 onComplete = navController::popBackStack,
                             )
                         },
@@ -269,7 +269,7 @@ fun App(
                         onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
                         onLoadPrevious = readerViewModel::loadPreviousPassages,
                         onLoadNext = readerViewModel::loadNextPassages,
-                        onVisiblePassageChange = readerViewModel::updateCurrentPassage,
+                        onVisiblePassageChange = readerViewModel::updateReadingPassage,
                         onTargetPassageReached = readerViewModel::completeProgressSeek,
                         onTargetPassageNotFound = readerViewModel::recoverFromMissingTargetPassage,
                     )

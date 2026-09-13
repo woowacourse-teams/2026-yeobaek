@@ -9,7 +9,7 @@ data class ReaderUiState(
     val author: String = "",
     val chapters: List<ChapterUiModel> = emptyList(),
     val passages: LoadedPassages = LoadedPassages(),
-    val currentSequence: Int = 0,
+    val readingSequence: Int = 0,
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
     val loadState: ReaderLoadState = ReaderLoadState.Loading,
@@ -18,15 +18,15 @@ data class ReaderUiState(
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
 ) {
-    val progress: Float
+    val readingProgress: Float
         get() = sequenceToProgress(
-            sequence = currentSequence,
+            sequence = readingSequence,
             totalPassageCount = totalPassageCount,
         )
 
     val displayProgress: Float
         get() = when (val currentMode = mode) {
-            ReaderMode.Idle -> progress
+            ReaderMode.Idle -> readingProgress
 
             is ReaderMode.SelectingProgress -> currentMode.progress
 

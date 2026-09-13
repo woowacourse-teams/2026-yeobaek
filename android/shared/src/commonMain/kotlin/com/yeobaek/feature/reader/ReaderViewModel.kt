@@ -68,7 +68,7 @@ class ReaderViewModel(
     private var previousPassagesJob: Job? = null // 이전 문단 로딩
     private var nextPassagesJob: Job? = null // 다음 문단 로딩
     private var moveToPassageJob: Job? = null // 특정 문단으로 이동
-    private var saveCurrentPassageJob: Job? = null // 사용자가 보고 있는 문단 저장
+    private var saveReadingProgressJob: Job? = null // 읽고 있는 위치 저장
 
     private var currentBookId: Long? = null
 
@@ -91,7 +91,7 @@ class ReaderViewModel(
                 val passageCount = groupDetail.book.passageCount
 
                 // 사용자가 읽고 있는 문단 번호
-                val currentSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
+                val readingSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
                     .coerceIn( // 값이 지정한 범위를 벗어나면 경계값으로 맞춰주고, 범위 안이면 원래 값을 그대로 반환
                         minimumValue = 0,
                         maximumValue = passageCount,
@@ -101,7 +101,7 @@ class ReaderViewModel(
                     emptyList()
                 } else {
                     val passageRange = passageRangeForTarget(
-                        targetSequence = currentSequence,
+                        targetSequence = readingSequence,
                         totalPassageCount = passageCount,
                     )
                     readerRepository.getPassages(
@@ -116,13 +116,13 @@ class ReaderViewModel(
                     author = groupDetail.book.authors.joinToString(", "),
                     chapters = bookDetail.chapters.map { chapter -> chapter.toUiModel() },
                     passages = LoadedPassages(passageModels.map(PassageModel::toUiModel)),
-                    currentSequence = currentSequence,
+                    readingSequence = readingSequence,
                     totalPassageCount = passageCount,
                     loadState = ReaderLoadState.Ready,
                 )
                 track(
                     operation = CrashOperation.READER_LOADED,
-                    passageSequence = currentSequence.takeIf { it > 0 },
+                    passageSequence = readingSequence.takeIf { it > 0 },
                     itemCount = passageModels.size,
                 )
             } catch (exception: CancellationException) {
@@ -136,7 +136,7 @@ class ReaderViewModel(
         }
     }
 
-    // 현재 문단보다 앞에 있는 문단들을 추가한다.
+    // 불러온 첫 문단보다 앞에 있는 문단들을 추가한다.
     // 실제 요청을 시작하면 true를 반환한다.
     fun loadPreviousPassages(): Boolean {
         // 현재 화면에 불러와진 문단 리스트에서 첫 번째 문단의 번호
@@ -218,56 +218,56 @@ class ReaderViewModel(
         }
     }
 
-    // 스크롤 결과 실제로 화면에 보이는 문단을 현재 문단으로 반영한다.
-    fun updateCurrentPassage(passage: PassageUiModel) {
+    // 스크롤 결과 실제로 화면에 보이는 문단을 읽고 있는 문단으로 반영한다.
+    fun updateReadingPassage(passage: PassageUiModel) {
         // 드래그나 특정 위치 이동 중에는 스크롤 위치가 일시적으로 크게 바뀌므로 무시한다.
         if (
             uiState.mode != ReaderMode.Idle ||
             passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
-            passage.sequence == uiState.currentSequence
+            passage.sequence == uiState.readingSequence
         ) {
             return
         }
 
-        uiState = uiState.copy(currentSequence = passage.sequence)
+        uiState = uiState.copy(readingSequence = passage.sequence)
         crashReporter.updateContext(
             readerContext(CrashOperation.READER_POSITION_UPDATED, passageSequence = passage.sequence),
         )
     }
 
     // 현재 읽고 있는 문단을 저장한다.
-    fun saveCurrentPassage(onComplete: () -> Unit) {
+    fun saveReadingProgress(onComplete: () -> Unit) {
         // 이미 저장 중이라면 같은 요청을 다시 보내지 않는다.
-        if (saveCurrentPassageJob?.isActive == true) {
+        if (saveReadingProgressJob?.isActive == true) {
             onComplete()
             return
         }
 
-        // 현재 문단을 찾는다.
-        val currentPassage = uiState.passages.findBySequence(uiState.currentSequence)
-        if (currentPassage == null) {
+        // 읽고 있는 문단을 찾는다.
+        val readingPassage = uiState.passages.findBySequence(uiState.readingSequence)
+        if (readingPassage == null) {
             track(CrashOperation.READER_PROGRESS_SAVE_SKIPPED, CrashLogLevel.WARN)
             onComplete()
             return
         }
 
-        saveCurrentPassageJob = viewModelScope.launch {
+        saveReadingProgressJob = viewModelScope.launch {
             try {
                 readerRepository.updatePassage(
                     clubId = groupId,
-                    passageId = currentPassage.passageId,
+                    passageId = readingPassage.passageId,
                 )
-                track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = currentPassage.sequence)
+                track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = readingPassage.sequence)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 recordFailure(
                     exception = exception,
                     operation = CrashOperation.READER_PROGRESS_SAVE_FAILED,
-                    passageSequence = currentPassage.sequence,
+                    passageSequence = readingPassage.sequence,
                 )
             } finally {
-                saveCurrentPassageJob = null
+                saveReadingProgressJob = null
             }
 
             // 취소된 경우에는 화면이 이미 사라진 뒤이므로 호출하지 않는다.
@@ -396,7 +396,7 @@ class ReaderViewModel(
 
         moveToPassageJob = null
         uiState = uiState.copy(
-            currentSequence = passage.sequence,
+            readingSequence = passage.sequence,
             mode = ReaderMode.Idle,
         )
     }
@@ -454,7 +454,7 @@ class ReaderViewModel(
     private fun track(
         operation: CrashOperation,
         level: CrashLogLevel = CrashLogLevel.INFO,
-        passageSequence: Int? = currentPassageSequenceOrNull(),
+        passageSequence: Int? = readingSequenceOrNull(),
         chapterSequence: Int? = null,
         itemCount: Int? = null,
     ) {
@@ -472,7 +472,7 @@ class ReaderViewModel(
     private fun recordFailure(
         exception: Exception,
         operation: CrashOperation,
-        passageSequence: Int? = currentPassageSequenceOrNull(),
+        passageSequence: Int? = readingSequenceOrNull(),
     ) {
         crashReporter.recordException(
             throwable = exception,
@@ -484,7 +484,7 @@ class ReaderViewModel(
     }
 
     // 로그에 담을 현재 읽는 문단 번호. 아직 읽을 위치가 정해지지 않았으면(0) null이다.
-    private fun currentPassageSequenceOrNull(): Int? = uiState.currentSequence.takeIf { it > 0 }
+    private fun readingSequenceOrNull(): Int? = uiState.readingSequence.takeIf { it > 0 }
 
     // chapterSequence를 넘기지 않으면 passageSequence가 속한 챕터로 채운다.
     private fun readerContext(

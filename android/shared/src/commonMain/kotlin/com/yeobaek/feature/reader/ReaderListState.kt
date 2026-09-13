@@ -107,13 +107,13 @@ private fun ScrollToInitialPassageEffect(
 ) {
     LaunchedEffect(
         uiState.passages,
-        uiState.currentSequence,
+        uiState.readingSequence,
         uiState.loadState,
     ) {
         if (!state.hasPositionedInitialPassage && uiState.loadState == ReaderLoadState.Ready) {
-            val currentPassageIndex = uiState.passages.indexOfSequence(uiState.currentSequence)
-            if (currentPassageIndex >= 0) {
-                state.listState.scrollToItem(currentPassageIndex)
+            val readingPassageIndex = uiState.passages.indexOfSequence(uiState.readingSequence)
+            if (readingPassageIndex >= 0) {
+                state.listState.scrollToItem(readingPassageIndex)
             }
             state.hasPositionedInitialPassage = true
         }
@@ -180,7 +180,7 @@ private fun RestorePositionAfterFontSizeChangeEffect(
     }
 }
 
-// 현재 보이는 passage를 계속 관찰해 ViewModel의 currentSequence와 진행률을 갱신한다.
+// 화면에 보이는 passage를 계속 관찰해 ViewModel의 readingSequence와 진행률을 갱신한다.
 @Composable
 private fun ReportVisiblePassageEffect(
     state: ReaderListState,
@@ -308,7 +308,7 @@ private fun LoadPassagesNearEdgesEffect(
             ) {
                 val position = state.firstVisiblePosition(latestUiState.passages)
                 // 요청이 실제로 시작된 경우에만 위치를 기억한다. 요청이 거절됐는데 위치가 남아 있으면
-                // 복원이 끝나지 않은 것으로 여겨져 이후 페이지 요청과 현재 문단 갱신이 계속 막힌다.
+                // 복원이 끝나지 않은 것으로 여겨져 이후 페이지 요청과 읽는 문단 갱신이 계속 막힌다.
                 if (position != null && currentOnLoadPrevious()) {
                     state.positionBeforePrepend = position
                 }
