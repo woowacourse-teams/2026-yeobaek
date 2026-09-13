@@ -32,6 +32,10 @@ public class BookManagementRepository {
         return bookJpaRepository.findAll();
     }
 
+    public List<Book> findAllByOrderByIdAsc() {
+        return bookJpaRepository.findAllByOrderByIdAsc();
+    }
+
     public Book getByIdForUpdate(Long bookId) {
         return bookJpaRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));

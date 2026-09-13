@@ -2,6 +2,7 @@ package yeobaek.backend.admin.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -13,15 +14,18 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
+import yeobaek.backend.admin.dto.AdminBookResponse;
+import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
+import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
@@ -70,6 +74,54 @@ class AdminBookServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Test
+    @DisplayName("삭제 상태와 공동 작가 및 nullable 정보를 포함해 모든 도서를 ID 순으로 조회한다")
+    void findBooks() {
+        Book first = bookRepository.save(new Book("표지 없는 책", null, null, 0));
+        Book second = bookRepository.save(new Book(
+                "함께 쓴 책",
+                "여백 출판",
+                2026,
+                42,
+                COVER_KEY));
+        Author firstAuthor = authorRepository.save(new Author("첫 작가", "000000012345964X"));
+        Author secondAuthor = authorRepository.save(new Author("둘째 작가"));
+        authorBookRepository.save(new AuthorBook(firstAuthor, second));
+        authorBookRepository.save(new AuthorBook(secondAuthor, second));
+        bookRepository.delete(second.getId());
+
+        AdminBooksResponse response = adminBookService.findBooks();
+
+        assertThat(response.books())
+                .extracting(
+                        AdminBookResponse::bookId,
+                        AdminBookResponse::title,
+                        AdminBookResponse::publisher,
+                        AdminBookResponse::publishedYear,
+                        AdminBookResponse::passageCount,
+                        AdminBookResponse::coverImageUrl,
+                        AdminBookResponse::status)
+                .containsExactly(
+                        tuple(first.getId(), "표지 없는 책", null, null, 0, null, BookStatus.ACTIVE),
+                        tuple(second.getId(), "함께 쓴 책", "여백 출판", 2026, 42,
+                                "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/" + COVER_KEY,
+                                BookStatus.DELETED));
+        assertThat(response.books().getFirst().authors()).isEmpty();
+        AdminBookResponse secondResponse = response.books().getLast();
+        assertThat(secondResponse.authors())
+                .extracting(AdminBookAuthorResponse::authorId, AdminBookAuthorResponse::name,
+                        AdminBookAuthorResponse::isni)
+                .containsExactlyInAnyOrder(
+                        tuple(firstAuthor.getId(), "첫 작가", "000000012345964X"),
+                        tuple(secondAuthor.getId(), "둘째 작가", null));
+    }
+
+    @Test
+    @DisplayName("도서가 없으면 빈 목록을 반환한다")
+    void findBooksWhenEmpty() {
+        assertThat(adminBookService.findBooks().books()).isEmpty();
+    }
 
     @Test
     @DisplayName("도서를 삭제해도 기존 모임과 독서 활동 기록의 연결은 보존된다")

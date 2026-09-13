@@ -7,6 +7,6 @@ data class CreateUiState(
     val bookList: List<CreateBookUiModel> = emptyList(),
     val groupNameCondition: Boolean = false,
     val selectedBookCondition: Boolean = false,
-    val successCreate: Boolean = false,
-    val successBookLoading: Boolean = false,
+    val createState: CreateState = CreateState.Idle,
+    val bookState: BookState = BookState.Idle,
 )

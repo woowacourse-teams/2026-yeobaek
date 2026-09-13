@@ -11,6 +11,7 @@ import yeobaek.backend.comment.domain.Comment;
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     String MEMBER_ID = "memberId";
+    String CLUB_ID = "clubId";
 
     @Query("""
             select c from Comment c
@@ -47,7 +48,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             order by c.createdAt asc, c.id asc
             """)
     List<Comment> findAllVisibleWithWriterByClubIdAndSentenceId(@Param(MEMBER_ID) Long memberId,
-                                                                @Param("clubId") Long clubId,
+                                                                @Param(CLUB_ID) Long clubId,
                                                                 @Param("sentenceId") Long sentenceId);
 
     @Query("""
@@ -61,6 +62,46 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             group by c.sentence.id
             """)
     List<SentenceCommentCount> countVisibleByMemberIdAndClubIdAndSentenceIdIn(@Param(MEMBER_ID) Long memberId,
-                                                                              @Param("clubId") Long clubId,
+                                                                              @Param(CLUB_ID) Long clubId,
                                                                               @Param("sentenceIds") List<Long> sentenceIds);
+
+    @Query("""
+            select s.id as sentenceId,
+                   s.content as content,
+                   p.id as passageId,
+                   p.sequence as passageSequence,
+                   s.sequence as sentenceSequence,
+                   count(distinct c.id) as commentCount,
+                   count(distinct case when cv.id is null then c.id else null end) as unreadCommentCount,
+                   max(c.createdAt) as latestCommentCreatedAt
+            from Comment c
+            join c.sentence s
+            join s.passage p
+            left join CommentView cv on cv.comment.id = c.id and cv.member.id = :memberId
+            where c.clubMember.club.id = :clubId
+              and not exists (
+                  select mb.id from MemberBlock mb
+                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+              )
+            group by s.id, s.content, p.id, p.sequence, s.sequence
+            """)
+    List<CommentedSentenceSummary> findCommentedSentenceSummaries(@Param(MEMBER_ID) Long memberId,
+                                                                  @Param(CLUB_ID) Long clubId);
+
+    @Query("""
+            select count(c) from Comment c
+            where c.clubMember.club.id = :clubId
+              and c.sentence.passage.sequence <= :currentPassageSequence
+              and not exists (
+                  select cv.id from CommentView cv
+                  where cv.member.id = :memberId and cv.comment.id = c.id
+              )
+              and not exists (
+                  select mb.id from MemberBlock mb
+                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+              )
+            """)
+    long countNewVisibleCommentsWithinProgress(@Param(MEMBER_ID) Long memberId,
+                                               @Param(CLUB_ID) Long clubId,
+                                               @Param("currentPassageSequence") int currentPassageSequence);
 }
