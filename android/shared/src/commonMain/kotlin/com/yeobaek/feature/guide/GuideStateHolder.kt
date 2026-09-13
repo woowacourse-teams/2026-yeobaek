@@ -40,6 +40,10 @@ class GuideStateHolder {
 
             else -> {
                 onEvent()
+                uiState = uiState.copy(
+                    nextEnabled = false,
+                    previousEnabled = false,
+                )
             }
         }
     }
