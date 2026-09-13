@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
@@ -87,56 +89,69 @@ fun PassageItem(
             .fillMaxWidth()
             .drawBehind {
                 val layoutResult = textLayoutResult ?: return@drawBehind
-
-                sentenceTextRanges
-                    .filter { sentenceRange -> sentenceRange.sentence.hasComment }
-                    .forEach { sentenceRange ->
-                        val sentenceStart = sentenceRange.start
-                        val sentenceEnd = sentenceRange.end
-                        val firstLine = layoutResult.getLineForOffset(sentenceStart)
-                        val lastLine = layoutResult.getLineForOffset(sentenceEnd - 1)
-
-                        for (lineIndex in firstLine..lastLine) {
-                            val lineStart = layoutResult.getLineStart(lineIndex)
-                            val lineEnd = layoutResult.getLineEnd(
-                                lineIndex = lineIndex,
-                                visibleEnd = true,
-                            )
-                            val underlineStart = maxOf(sentenceStart, lineStart)
-                            val underlineEnd = minOf(sentenceEnd, lineEnd)
-
-                            if (underlineStart >= underlineEnd) continue
-
-                            val startX = if (underlineStart == lineStart) {
-                                layoutResult.getLineLeft(lineIndex)
-                            } else {
-                                layoutResult.getHorizontalPosition(
-                                    offset = underlineStart,
-                                    usePrimaryDirection = true,
-                                )
-                            }
-                            val endX = if (underlineEnd == lineEnd) {
-                                layoutResult.getLineRight(lineIndex)
-                            } else {
-                                layoutResult.getHorizontalPosition(
-                                    offset = underlineEnd,
-                                    usePrimaryDirection = true,
-                                )
-                            }
-                            val underlineY = layoutResult.getLineBaseline(lineIndex) +
-                                underlineOffset.toPx()
-
-                            drawLine(
-                                color = YeobaekLine,
-                                start = Offset(x = startX, y = underlineY),
-                                end = Offset(x = endX, y = underlineY),
-                                strokeWidth = 1.dp.toPx(),
-                            )
-                        }
-                    }
+                drawCommentUnderlines(
+                    layoutResult = layoutResult,
+                    sentenceTextRanges = sentenceTextRanges,
+                    underlineOffset = underlineOffset,
+                )
             },
         style = passageTextStyle,
     )
+}
+
+// 댓글이 달린 문장 아래에 밑줄을 긋는다.
+// 문장이 여러 줄에 걸치면 줄마다 그 문장이 차지하는 구간에만 긋는다.
+private fun DrawScope.drawCommentUnderlines(
+    layoutResult: TextLayoutResult,
+    sentenceTextRanges: List<SentenceTextRange>,
+    underlineOffset: Dp,
+) {
+    sentenceTextRanges
+        .filter { sentenceRange -> sentenceRange.sentence.hasComment }
+        .forEach { sentenceRange ->
+            val sentenceStart = sentenceRange.start
+            val sentenceEnd = sentenceRange.end
+            val firstLine = layoutResult.getLineForOffset(sentenceStart)
+            val lastLine = layoutResult.getLineForOffset(sentenceEnd - 1)
+
+            for (lineIndex in firstLine..lastLine) {
+                val lineStart = layoutResult.getLineStart(lineIndex)
+                val lineEnd = layoutResult.getLineEnd(
+                    lineIndex = lineIndex,
+                    visibleEnd = true,
+                )
+                val underlineStart = maxOf(sentenceStart, lineStart)
+                val underlineEnd = minOf(sentenceEnd, lineEnd)
+
+                if (underlineStart >= underlineEnd) continue
+
+                val startX = if (underlineStart == lineStart) {
+                    layoutResult.getLineLeft(lineIndex)
+                } else {
+                    layoutResult.getHorizontalPosition(
+                        offset = underlineStart,
+                        usePrimaryDirection = true,
+                    )
+                }
+                val endX = if (underlineEnd == lineEnd) {
+                    layoutResult.getLineRight(lineIndex)
+                } else {
+                    layoutResult.getHorizontalPosition(
+                        offset = underlineEnd,
+                        usePrimaryDirection = true,
+                    )
+                }
+                val underlineY = layoutResult.getLineBaseline(lineIndex) +
+                    underlineOffset.toPx()
+
+                drawLine(
+                    color = YeobaekLine,
+                    start = Offset(x = startX, y = underlineY),
+                    end = Offset(x = endX, y = underlineY),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+        }
 }
 
 private data class SentenceTextRange(

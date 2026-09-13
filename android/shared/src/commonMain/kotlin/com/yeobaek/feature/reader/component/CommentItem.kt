@@ -101,7 +101,7 @@ fun CommentItem(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = comment.createdAt.toDisplayDate(),
+                        text = comment.displayCreatedAt,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -161,15 +161,6 @@ private fun CommentAvatar(
             ),
         )
     }
-}
-
-private fun String.toDisplayDate(): String {
-    if (length < 10) return this
-    val date = "${substring(0, 4)}.${substring(5, 7)}.${substring(8, 10)}"
-    if (length < 19) return date
-
-    val time = "${substring(11, 13)}:${substring(14, 16)}"
-    return "$date  $time"
 }
 
 @Preview(showBackground = true, name = "타인 댓글")

@@ -45,7 +45,6 @@ import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
-import com.yeobaek.feature.reader.ReaderViewModelFactory
 
 @Composable
 fun App(
@@ -241,7 +240,7 @@ fun App(
                     screen = TrackedScreen.READER,
                 )
                 val readerViewModel = viewModel<ReaderViewModel>(
-                    factory = ReaderViewModelFactory(
+                    factory = ReaderViewModel.readerViewModelFactory(
                         groupId = route.groupId,
                         bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,

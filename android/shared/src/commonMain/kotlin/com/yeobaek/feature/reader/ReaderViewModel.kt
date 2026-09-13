@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -23,7 +24,6 @@ import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
-import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -436,6 +436,28 @@ class ReaderViewModel(
         commentSheet.open(sentence)
     }
 
+    companion object {
+        fun readerViewModelFactory(
+            groupId: Long,
+            bookRepository: BookRepository,
+            groupRepository: GroupRepository,
+            readerRepository: ReaderRepository,
+            commentRepository: CommentRepository,
+            crashReporter: CrashReporter,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                ReaderViewModel(
+                    groupId = groupId,
+                    bookRepository = bookRepository,
+                    groupRepository = groupRepository,
+                    readerRepository = readerRepository,
+                    commentRepository = commentRepository,
+                    crashReporter = crashReporter,
+                )
+            }
+        }
+    }
+
     // 특정 위치로 이동할 때 이전 문단이나 다음 문단 요청 결과가 목록을 덮어쓰지 않도록 취소한다.
     private fun cancelPaginationLoads() {
         previousPassagesJob?.cancel()
@@ -500,32 +522,4 @@ class ReaderViewModel(
         passageSequence = passageSequence,
         itemCount = itemCount,
     )
-}
-
-class ReaderViewModelFactory(
-    private val groupId: Long,
-    private val bookRepository: BookRepository,
-    private val groupRepository: GroupRepository,
-    private val readerRepository: ReaderRepository,
-    private val commentRepository: CommentRepository,
-    private val crashReporter: CrashReporter,
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(
-        modelClass: KClass<T>,
-        extras: CreationExtras,
-    ): T {
-        if (modelClass == ReaderViewModel::class) {
-            @Suppress("UNCHECKED_CAST")
-            return ReaderViewModel(
-                groupId = groupId,
-                bookRepository = bookRepository,
-                groupRepository = groupRepository,
-                readerRepository = readerRepository,
-                commentRepository = commentRepository,
-                crashReporter = crashReporter,
-            ) as T
-        }
-
-        throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
-    }
 }

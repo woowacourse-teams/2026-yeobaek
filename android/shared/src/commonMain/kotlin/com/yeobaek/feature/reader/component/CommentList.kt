@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -28,44 +29,21 @@ fun CommentList(
     listState: LazyListState = rememberLazyListState(),
 ) {
     when {
-        uiState.isLoading -> {
-            Box(
-                modifier = modifier,
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "댓글을 불러오는 중이에요.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
+        uiState.isLoading -> CommentListMessage(
+            text = "댓글을 불러오는 중이에요.",
+            modifier = modifier,
+        )
 
-        uiState.loadErrorMessage != null -> {
-            Box(
-                modifier = modifier,
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = uiState.loadErrorMessage,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
+        uiState.loadErrorMessage != null -> CommentListMessage(
+            text = uiState.loadErrorMessage,
+            color = MaterialTheme.colorScheme.error,
+            modifier = modifier,
+        )
 
-        uiState.comments.isEmpty() -> {
-            Box(
-                modifier = modifier,
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "아직 댓글이 없어요.\n첫 번째 생각을 남겨보세요.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
+        uiState.comments.isEmpty() -> CommentListMessage(
+            text = "아직 댓글이 없어요.\n첫 번째 생각을 남겨보세요.",
+            modifier = modifier,
+        )
 
         else -> {
             LazyColumn(
@@ -91,6 +69,25 @@ fun CommentList(
                 }
             }
         }
+    }
+}
+
+// 댓글 목록 자리에 대신 보여주는 안내 문구 (로딩 중, 에러, 댓글 없음)
+@Composable
+private fun CommentListMessage(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = color,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
