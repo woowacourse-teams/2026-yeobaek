@@ -44,13 +44,13 @@ import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.designsystem.theme.YeobaekUnderline
-import com.yeobaek.feature.guide.model.SentenceGuidUiModel
+import com.yeobaek.feature.guide.model.SentenceGuideUiModel
 import com.yeobaek.feature.reader.component.underlineRangeOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderGuideCard(
-    sentences: List<SentenceGuidUiModel>,
+    sentences: List<SentenceGuideUiModel>,
     onClickCommentSentence: () -> Unit,
     onClickUnCommentSentence: () -> Unit,
     onCancel: () -> Unit,

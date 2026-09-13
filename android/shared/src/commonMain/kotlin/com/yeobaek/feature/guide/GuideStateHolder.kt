@@ -3,7 +3,7 @@ package com.yeobaek.feature.guide
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.yeobaek.feature.guide.model.SentenceGuidUiModel
+import com.yeobaek.feature.guide.model.SentenceGuideUiModel
 
 class GuideStateHolder {
     var uiState by mutableStateOf(GuideUiState())
@@ -84,22 +84,22 @@ class GuideStateHolder {
         private const val TOTAL_PAGES = 3
 
         private val mockSentences = listOf(
-            SentenceGuidUiModel(
+            SentenceGuideUiModel(
                 sentenceId = 1,
                 content = "처음 찰스 스트릭랜드를 알게 되었을 때, 나는 그에게 범상치 않은 구석이 있으리라고는 단 한순간도 알아보지 못했음을 고백한다. ",
                 isComment = false,
             ),
-            SentenceGuidUiModel(
+            SentenceGuideUiModel(
                 sentenceId = 2,
                 content = "그러나 이제 그의 위대함을 부정할 사람은 거의 없을 것이다. ",
                 isComment = true,
             ),
-            SentenceGuidUiModel(
+            SentenceGuideUiModel(
                 sentenceId = 3,
                 content = "내가 말하는 위대함은 운 좋은 청지가나 승승장구한 군인이 얻는 그런 것이 아니다. ",
                 isComment = false,
             ),
-            SentenceGuidUiModel(
+            SentenceGuideUiModel(
                 sentenceId = 4,
                 content = "그것은 당사자보다 그가 차지한 자리에 딸린 속성이어서, 형편이 바뀌면 놀라울 만큼 초라해지고 만다. ",
                 isComment = false,
