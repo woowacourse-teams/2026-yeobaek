@@ -136,20 +136,19 @@ class ReaderViewModel(
     }
 
     // 불러온 첫 문단보다 앞에 있는 문단들을 추가한다.
-    // 실제 요청을 시작하면 true를 반환한다.
-    fun loadPreviousPassages(): Boolean {
+    fun loadPreviousPassages() {
         // 현재 화면에 불러와진 문단 리스트에서 첫 번째 문단의 번호
-        val firstSequence = uiState.passages.firstSequence ?: return false
+        val firstSequence = uiState.passages.firstSequence ?: return
 
         if (
             uiState.pagingState != PagingState.Idle ||
             uiState.mode != ReaderMode.Idle
         ) {
-            return false
+            return
         }
 
         // 현재 첫 문단이 책의 첫 문단이면 더 불러올 것이 없다.
-        val window = previousPassageRange(firstSequence) ?: return false
+        val window = previousPassageRange(firstSequence) ?: return
 
         uiState = uiState.copy(pagingState = PagingState.LoadingPrevious)
 
@@ -174,8 +173,6 @@ class ReaderViewModel(
                 uiState = uiState.copy(pagingState = PagingState.Idle)
             }
         }
-
-        return true
     }
 
     fun loadNextPassages() {

@@ -28,9 +28,6 @@ class ReaderListState(
     // passages가 바뀔 때마다 다시 이동하면 사용자가 스크롤한 위치를 잃으므로 한 번만 이동한다.
     var hasPositionedInitialPassage by mutableStateOf(false)
 
-    // 앞쪽 문단을 불러오기 전에 보던 위치. 목록 앞에 문단이 추가된 뒤 이 위치로 되돌린다.
-    var positionBeforePrepend by mutableStateOf<PassagePosition?>(null)
-
     // 글자 크기를 바꾸기 전에 보던 위치. 항목 높이가 달라진 뒤 이 위치로 되돌린다.
     var positionBeforeFontSizeChange by mutableStateOf<PassagePosition?>(null)
 
@@ -44,7 +41,7 @@ class ReaderListState(
     // 화면 맨 위에 보이는 문단과, 그 문단 안에서 스크롤된 정도
     fun firstVisiblePosition(passages: LoadedPassages): PassagePosition? {
         val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return null
-        val passage = passages.getOrNull(firstVisibleItem.index) ?: return null
+        val passage = passages.findByItemKey(firstVisibleItem.key) ?: return null
         return PassagePosition(
             passageId = passage.passageId,
             scrollOffset = listState.firstVisibleItemScrollOffset,
@@ -84,10 +81,6 @@ fun rememberReaderListState(
         state = readerListState,
         uiState = uiState,
         onVisiblePassageChange = actions.onVisiblePassageChange,
-    )
-    RestorePositionAfterPrependEffect(
-        state = readerListState,
-        uiState = uiState,
     )
     LoadPassagesNearEdgesEffect(
         state = readerListState,
@@ -197,11 +190,9 @@ private fun ReportVisiblePassageEffect(
             val latestUiState = currentUiState
             val passage = readingPassage(state.listState, latestUiState)
 
-            // 코드가 위치를 복원하거나 다른 위치로 이동시키는 동안 발생한 스크롤 이벤트는
+            // 글자 크기 변경 뒤 위치를 복원하거나 다른 위치로 이동시키는 동안 생긴 스크롤은
             // 사용자의 실제 독서 위치가 아니므로 ViewModel에 전달하지 않는다.
-            val isScrolledByCode = latestUiState.pagingState == PagingState.LoadingPrevious ||
-                state.positionBeforePrepend != null ||
-                state.positionBeforeFontSizeChange != null ||
+            val isScrolledByCode = state.positionBeforeFontSizeChange != null ||
                 latestUiState.mode != ReaderMode.Idle
 
             passage to isScrolledByCode
@@ -222,11 +213,11 @@ private fun readingPassage(
     val layoutInfo = listState.layoutInfo
     val firstVisibleItem = layoutInfo.visibleItemsInfo.firstOrNull()
     val firstVisiblePassage = firstVisibleItem?.let { item ->
-        uiState.passages.getOrNull(item.index)
+        uiState.passages.findByItemKey(item.key)
     }
     val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
     val lastVisiblePassage = lastVisibleItem?.let { item ->
-        uiState.passages.getOrNull(item.index)
+        uiState.passages.findByItemKey(item.key)
     }
     val isLastPassageFullyVisible = lastVisibleItem != null &&
         lastVisiblePassage?.sequence == uiState.totalPassageCount &&
@@ -239,38 +230,12 @@ private fun readingPassage(
     }
 }
 
-// 이전 passage를 목록 앞에 추가하면 기존 항목의 인덱스가 뒤로 밀린다. 요청 전에 기억한
-// passageId를 새 목록에서 다시 찾아 같은 내용과 오프셋이 보이도록 복원한다.
-@Composable
-private fun RestorePositionAfterPrependEffect(
-    state: ReaderListState,
-    uiState: ReaderUiState,
-) {
-    LaunchedEffect(
-        uiState.pagingState,
-        uiState.passages.firstPassageId,
-    ) {
-        val passagePosition = state.positionBeforePrepend
-        if (passagePosition != null && uiState.pagingState == PagingState.Idle) {
-            val passageIndex = uiState.passages.indexOfPassageId(passagePosition.passageId)
-            if (passageIndex >= 0) {
-                state.listState.scrollToItem(
-                    index = passageIndex,
-                    scrollOffset = passagePosition.scrollOffset,
-                )
-            }
-
-            state.positionBeforePrepend = null
-        }
-    }
-}
-
 // 목록의 처음 또는 끝에서 PAGINATION_THRESHOLD개 이내에 들어오면 앞뒤 문단을 더 요청한다.
 @Composable
 private fun LoadPassagesNearEdgesEffect(
     state: ReaderListState,
     uiState: ReaderUiState,
-    onLoadPrevious: () -> Boolean,
+    onLoadPrevious: () -> Unit,
     onLoadNext: () -> Unit,
 ) {
     val currentUiState by rememberUpdatedState(uiState)
@@ -301,17 +266,13 @@ private fun LoadPassagesNearEdgesEffect(
                 return@collect
             }
 
+            // 앞쪽 문단이 목록 앞에 추가돼도 LazyColumn이 key(문단 id)를 기준으로 보던 문단의 위치를 유지하므로
+            // 따로 위치를 기억했다가 복원하지 않는다.
             if (
                 isNearStart &&
-                latestUiState.passages.firstSequence != FIRST_PASSAGE_SEQUENCE &&
-                state.positionBeforePrepend == null
+                latestUiState.passages.firstSequence != FIRST_PASSAGE_SEQUENCE
             ) {
-                val position = state.firstVisiblePosition(latestUiState.passages)
-                // 요청이 실제로 시작된 경우에만 위치를 기억한다. 요청이 거절됐는데 위치가 남아 있으면
-                // 복원이 끝나지 않은 것으로 여겨져 이후 페이지 요청과 읽는 문단 갱신이 계속 막힌다.
-                if (position != null && currentOnLoadPrevious()) {
-                    state.positionBeforePrepend = position
-                }
+                currentOnLoadPrevious()
             }
 
             if (
@@ -323,5 +284,10 @@ private fun LoadPassagesNearEdgesEffect(
         }
     }
 }
+
+// 본문 목록의 항목 key는 문단 id다. 앞에 문단이 추가되면 항목 번호(index)는 밀리지만 key는 그대로라,
+// 레이아웃 정보가 아직 갱신되기 전이라도 key로 찾으면 실제로 보이는 문단을 정확히 찾는다.
+private fun LoadedPassages.findByItemKey(key: Any): PassageUiModel? =
+    (key as? Long)?.let(::findByPassageId)
 
 private const val PAGINATION_THRESHOLD = 5

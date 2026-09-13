@@ -18,6 +18,9 @@ data class LoadedPassages(
     fun findBySequence(sequence: Int): PassageUiModel? =
         items.firstOrNull { passage -> passage.sequence == sequence }
 
+    fun findByPassageId(passageId: Long): PassageUiModel? =
+        items.firstOrNull { passage -> passage.passageId == passageId }
+
     fun indexOfSequence(sequence: Int): Int =
         items.indexOfFirst { passage -> passage.sequence == sequence }
 
