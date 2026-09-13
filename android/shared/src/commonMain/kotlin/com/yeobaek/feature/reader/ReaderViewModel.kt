@@ -80,22 +80,17 @@ class ReaderViewModel(
                         maximumValue = passageCount,
                     )
 
-                // 처음으로 불러올 문단 번호
-                val firstSequence = maxOf(
-                    FIRST_PASSAGE_SEQUENCE,
-                    currentSequence - PASSAGES_BEFORE_TARGET,
-                )
-
                 val passageModels = if (passageCount == 0) {
                     emptyList()
                 } else {
+                    val passageRange = passageRangeForTarget(
+                        targetSequence = currentSequence,
+                        totalPassageCount = passageCount,
+                    )
                     readerRepository.getPassages(
                         groupId = groupId,
-                        from = firstSequence,
-                        to = minOf(
-                            passageCount,
-                            firstSequence + MAX_PASSAGES_PER_REQUEST - 1,
-                        ),
+                        from = passageRange.first,
+                        to = passageRange.last,
                     ).passages
                 }
 
