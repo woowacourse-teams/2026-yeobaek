@@ -3,7 +3,6 @@ package com.yeobaek.feature.reader
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
-import kotlin.math.roundToInt
 
 data class ReaderUiState(
     val title: String = "",
@@ -34,28 +33,4 @@ data class ReaderUiState(
 
     val displayProgress: Float
         get() = targetProgress ?: progress
-}
-
-internal fun sequenceToProgress(
-    sequence: Int,
-    totalPassageCount: Int,
-): Float {
-    if (totalPassageCount <= 0) return 0f
-    if (totalPassageCount == 1) {
-        return if (sequence >= 1) 100f else 0f
-    }
-
-    val validSequence = sequence.coerceIn(1, totalPassageCount)
-    return ((validSequence - 1) * 100f) / (totalPassageCount - 1)
-}
-
-internal fun progressToSequence(
-    progress: Float,
-    totalPassageCount: Int,
-): Int {
-    if (totalPassageCount <= 0) return 0
-    if (totalPassageCount == 1) return 1
-
-    val validProgress = progress.coerceIn(0f, 100f) / 100f
-    return (validProgress * (totalPassageCount - 1)).roundToInt() + 1
 }
