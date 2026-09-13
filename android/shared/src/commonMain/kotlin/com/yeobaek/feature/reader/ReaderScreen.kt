@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
+import com.yeobaek.feature.reader.comment.CommentSheetUiState
+import com.yeobaek.feature.reader.comment.ReportState
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
@@ -45,6 +47,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 fun ReaderScreen(
     uiState: ReaderUiState,
+    commentSheet: CommentSheetUiState?,
+    reportState: ReportState,
     onSentenceClick: (SentenceUiModel) -> Unit,
     onBackClick: () -> Unit,
     onTableOfContentsClick: () -> Unit,
@@ -93,7 +97,6 @@ fun ReaderScreen(
     val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
     val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
     val currentOnTargetPassageReached by rememberUpdatedState(onTargetPassageReached)
-    val commentSheet = uiState.commentSheet
     val readyTargetSequence = (uiState.mode as? ReaderMode.MovingTo)
         ?.takeIf { movingTo -> movingTo.isTargetReady }
         ?.targetSequence
@@ -345,7 +348,7 @@ fun ReaderScreen(
         PassageCommentBottomSheet(
             sentence = selectedSentence,
             uiState = commentSheet,
-            reportState = uiState.reportState,
+            reportState = reportState,
             onDismissRequest = onCommentSheetDismiss,
             onInputChange = onCommentInputChange,
             onSubmit = onCommentSubmit,
@@ -525,6 +528,8 @@ private fun ReaderScreenPreview() {
                 currentSequence = 4,
                 totalPassageCount = 5,
             ),
+            commentSheet = null,
+            reportState = ReportState.Idle,
             onSentenceClick = {},
             onBackClick = {},
             onTableOfContentsClick = {},

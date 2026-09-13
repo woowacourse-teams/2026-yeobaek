@@ -33,8 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import com.yeobaek.feature.reader.PassageCommentSheetUiState
-import com.yeobaek.feature.reader.ReportState
+import com.yeobaek.feature.reader.comment.CommentSheetUiState
+import com.yeobaek.feature.reader.comment.ReportState
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlinx.coroutines.launch
 
@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PassageCommentBottomSheet(
     sentence: SentenceUiModel,
-    uiState: PassageCommentSheetUiState,
+    uiState: CommentSheetUiState,
     reportState: ReportState,
     onDismissRequest: () -> Unit,
     onInputChange: (String) -> Unit,

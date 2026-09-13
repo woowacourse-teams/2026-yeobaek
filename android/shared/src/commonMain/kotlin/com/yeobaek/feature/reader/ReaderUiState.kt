@@ -17,8 +17,6 @@ data class ReaderUiState(
     val mode: ReaderMode = ReaderMode.Idle,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
-    val commentSheet: PassageCommentSheetUiState? = null,
-    val reportState: ReportState = ReportState.Idle,
 ) {
     val progress: Float
         get() = sequenceToProgress(

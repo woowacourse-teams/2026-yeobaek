@@ -247,9 +247,12 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
+                val commentSheet = readerViewModel.commentSheet
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
+                    commentSheet = commentSheet.uiState,
+                    reportState = commentSheet.reportState,
                     onSentenceClick = readerViewModel::openSentenceComments,
                     onBackClick = {
                         readerViewModel.saveCurrentPassage(
@@ -262,16 +265,16 @@ fun App(
                     onTextSettingClick = readerViewModel::toggleTextSettingMenu,
                     onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
                     onFontSizeChange = readerViewModel::updateFontSize,
-                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
-                    onCommentInputChange = readerViewModel::updateCommentInput,
-                    onCommentSubmit = readerViewModel::submitComment,
-                    onCommentEdit = readerViewModel::startEditingComment,
-                    onCommentReport = readerViewModel::reportComment,
-                    onCommentReportResultConsumed = readerViewModel::consumeReportResult,
-                    onCommentEditCancel = readerViewModel::cancelEditingComment,
-                    onCommentDelete = readerViewModel::requestDeleteComment,
-                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
-                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
+                    onCommentSheetDismiss = commentSheet::dismiss,
+                    onCommentInputChange = commentSheet::updateInput,
+                    onCommentSubmit = commentSheet::submit,
+                    onCommentEdit = commentSheet::startEditing,
+                    onCommentReport = commentSheet::report,
+                    onCommentReportResultConsumed = commentSheet::consumeReportResult,
+                    onCommentEditCancel = commentSheet::cancelEditing,
+                    onCommentDelete = commentSheet::requestDelete,
+                    onCommentDeleteCancel = commentSheet::cancelDelete,
+                    onCommentDeleteConfirm = commentSheet::confirmDelete,
                     onLoadPrevious = readerViewModel::loadPreviousPassages,
                     onLoadNext = readerViewModel::loadNextPassages,
                     onVisiblePassageChange = readerViewModel::updateCurrentPassage,

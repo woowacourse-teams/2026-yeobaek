@@ -1,8 +1,8 @@
-package com.yeobaek.feature.reader
+package com.yeobaek.feature.reader.comment
 
 import com.yeobaek.feature.reader.model.PassageCommentUiModel
 
-data class PassageCommentSheetUiState(
+data class CommentSheetUiState(
     val sentenceId: Long,
     val comments: List<PassageCommentUiModel> = emptyList(),
     val input: String = "",
@@ -15,3 +15,10 @@ data class PassageCommentSheetUiState(
     val submitErrorMessage: String? = null,
     val deleteErrorMessage: String? = null,
 )
+
+sealed class ReportState {
+    data object Idle : ReportState()
+    data object Loading : ReportState()
+    data object Success : ReportState()
+    data class Failure(val message: String) : ReportState()
+}
