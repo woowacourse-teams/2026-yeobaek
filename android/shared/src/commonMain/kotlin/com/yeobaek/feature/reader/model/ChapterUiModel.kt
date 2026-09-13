@@ -3,7 +3,7 @@ package com.yeobaek.feature.reader.model
 import com.yeobaek.data.model.ChapterModel
 
 data class ChapterUiModel(
-    val chapterId: Int,
+    val chapterId: Long,
     val endPassageSequence: Int,
     val sequence: Int,
     val startPassageSequence: Int,
