@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,8 +37,7 @@ fun ReaderProgressBar(
     onProgressChangeFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var dragProgress by remember { mutableStateOf<Float?>(null) }
-    val sliderProgress = (dragProgress ?: progress).coerceIn(0f, 100f)
+    val sliderProgress = progress.coerceIn(0f, 100f)
     val interactionSource = remember { MutableInteractionSource() }
     val sliderColors = SliderDefaults.colors(
         thumbColor = MaterialTheme.colorScheme.secondary,
@@ -69,14 +67,8 @@ fun ReaderProgressBar(
         ) {
             Slider(
                 value = sliderProgress,
-                onValueChange = { value ->
-                    dragProgress = value
-                    onProgressChange(value)
-                },
-                onValueChangeFinished = {
-                    onProgressChangeFinished()
-                    dragProgress = null
-                },
+                onValueChange = onProgressChange,
+                onValueChangeFinished = onProgressChangeFinished,
                 valueRange = 0f..100f,
                 colors = sliderColors,
                 interactionSource = interactionSource,
