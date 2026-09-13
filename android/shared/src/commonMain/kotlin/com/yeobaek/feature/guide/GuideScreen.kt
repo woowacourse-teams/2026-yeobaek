@@ -29,6 +29,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.guide.component.group.detail.GroupDetailGuideCard
 import com.yeobaek.feature.guide.component.home.HomeGuideCard
 import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +52,21 @@ fun GuideScreen(
 
     LaunchedEffect(uiState.isClickCommentSentence) {
         if (uiState.isClickCommentSentence) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            delay(50.milliseconds)
             snackbarHostState.showSnackbar(
                 message = "댓글창 뒤의 배경을 눌러 댓글창을 닫을 수 있어요!",
+                duration = SnackbarDuration.Short,
+            )
+        }
+    }
+
+    LaunchedEffect(uiState.isClickUnCommentSentence) {
+        if (uiState.isClickUnCommentSentence) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            delay(50.milliseconds)
+            snackbarHostState.showSnackbar(
+                message = "밑줄이 있는 문장을 클릭해보세요!",
                 duration = SnackbarDuration.Short,
             )
         }
