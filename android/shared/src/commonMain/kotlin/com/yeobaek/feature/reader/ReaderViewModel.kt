@@ -83,7 +83,7 @@ class ReaderViewModel(
                 // 처음으로 불러올 문단 번호
                 val firstSequence = maxOf(
                     FIRST_PASSAGE_SEQUENCE,
-                    currentSequence - PREVIOUS_PASSAGE_COUNT,
+                    currentSequence - PASSAGES_BEFORE_TARGET,
                 )
 
                 val passageModels = if (passageCount == 0) {
@@ -146,20 +146,13 @@ class ReaderViewModel(
             // 진행률 바를 드래그하는 동안
             uiState.isProgressDragging ||
             // 특정 본문으로 이동 중
-            uiState.isMovingToPassage ||
-            // 현재 본문이 첫 번째
-            firstSequence <= FIRST_PASSAGE_SEQUENCE
+            uiState.isMovingToPassage
         ) {
             return false
         }
 
-        // 새로 가져올 범위의 마지막은 현재 첫 문단 바로 앞 번호
-        val to = firstSequence - 1
-
-        val from = maxOf(
-            FIRST_PASSAGE_SEQUENCE,
-            to - MAX_PASSAGES_PER_REQUEST + 1,
-        )
+        // 현재 첫 문단이 책의 첫 문단이면 더 불러올 것이 없다.
+        val window = previousPassageRange(firstSequence) ?: return false
 
         uiState = uiState.copy(isLoadingPrevious = true)
 
@@ -167,7 +160,7 @@ class ReaderViewModel(
             level = CrashLogLevel.DEBUG,
             context = readerContext(
                 operation = CrashOperation.READER_PREVIOUS_PAGE_LOAD,
-                passageSequence = from,
+                passageSequence = window.first,
             ),
         )
 
@@ -175,8 +168,8 @@ class ReaderViewModel(
             try {
                 val previousPassages = readerRepository.getPassages(
                     groupId = groupId,
-                    from = from,
-                    to = to,
+                    from = window.first,
+                    to = window.last,
                 ).passages.map(PassageModel::toUiModel)
 
                 uiState = uiState.copy(
@@ -192,7 +185,7 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.READER_PREVIOUS_PAGE_FAILED,
-                        passageSequence = from,
+                        passageSequence = window.first,
                     ),
                 )
                 uiState = uiState.copy(isLoadingPrevious = false)
@@ -208,32 +201,31 @@ class ReaderViewModel(
         if (
             uiState.isLoadingNext ||
             uiState.isProgressDragging ||
-            uiState.isMovingToPassage ||
-            lastSequence >= uiState.totalPassageCount
+            uiState.isMovingToPassage
         ) {
             return
         }
 
-        val from = lastSequence + 1
-        val to = minOf(
-            uiState.totalPassageCount,
-            from + MAX_PASSAGES_PER_REQUEST - 1,
-        )
+        // 현재 마지막 문단이 책의 마지막 문단이면 더 불러올 것이 없다.
+        val window = nextPassageRange(
+            lastLoadedSequence = lastSequence,
+            totalPassageCount = uiState.totalPassageCount,
+        ) ?: return
 
         uiState = uiState.copy(isLoadingNext = true)
         crashReporter.track(
             level = CrashLogLevel.DEBUG,
             context = readerContext(
                 operation = CrashOperation.READER_NEXT_PAGE_LOAD,
-                passageSequence = from,
+                passageSequence = window.first,
             ),
         )
         nextPassagesJob = viewModelScope.launch {
             try {
                 val nextPassages = readerRepository.getPassages(
                     groupId = groupId,
-                    from = from,
-                    to = to,
+                    from = window.first,
+                    to = window.last,
                 ).passages.map(PassageModel::toUiModel)
 
                 uiState = uiState.copy(
@@ -249,7 +241,7 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.READER_NEXT_PAGE_FAILED,
-                        passageSequence = from,
+                        passageSequence = window.first,
                     ),
                 )
                 uiState = uiState.copy(isLoadingNext = false)
@@ -416,7 +408,7 @@ class ReaderViewModel(
         )
         if (isTargetLoaded) return
 
-        val passageRange = passageWindowFor(
+        val passageRange = passageRangeForTarget(
             targetSequence = targetSequence,
             totalPassageCount = uiState.totalPassageCount,
         )
@@ -922,26 +914,6 @@ private fun List<PassageUiModel>.withSentenceCommentCount(
     }
 }
 
-// 한 번에 불러올 문단 범위를 계산
-internal fun passageWindowFor(
-    targetSequence: Int,
-    totalPassageCount: Int,
-): IntRange {
-    val initialFrom = maxOf(
-        FIRST_PASSAGE_SEQUENCE,
-        targetSequence - PREVIOUS_PASSAGE_COUNT,
-    )
-    val to = minOf(
-        totalPassageCount,
-        initialFrom + MAX_PASSAGES_PER_REQUEST - 1,
-    )
-    val from = maxOf(
-        FIRST_PASSAGE_SEQUENCE,
-        to - MAX_PASSAGES_PER_REQUEST + 1,
-    )
-    return from..to
-}
-
 class ReaderViewModelFactory(
     private val groupId: Long,
     private val bookRepository: BookRepository,
@@ -976,7 +948,3 @@ sealed class ReportState {
     data object Success : ReportState()
     data class Failure(val message: String) : ReportState()
 }
-
-private const val FIRST_PASSAGE_SEQUENCE = 1
-private const val PREVIOUS_PASSAGE_COUNT = 20
-private const val MAX_PASSAGES_PER_REQUEST = 100

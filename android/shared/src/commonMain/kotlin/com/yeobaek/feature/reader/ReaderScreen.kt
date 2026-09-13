@@ -571,5 +571,4 @@ internal fun positionToRestore(
     requestStarted: Boolean,
 ): PassagePosition? = passagePosition.takeIf { requestStarted } // true이면 원래 객체 반환, false이면 null 반환
 
-private const val FIRST_PASSAGE_SEQUENCE = 1
 private const val PAGINATION_THRESHOLD = 5
