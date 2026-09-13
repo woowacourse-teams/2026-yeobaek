@@ -55,7 +55,10 @@ class CommentSheetController(
                     sentenceId = sentence.sentenceId,
                 ).comments.map(CommentModel::toUiModel)
 
-                updateSheet(sentence.sentenceId) { sheet ->
+                updateSheet(
+                    sentenceId = sentence.sentenceId,
+                    isWaiting = { sheet -> sheet.isLoading },
+                ) { sheet ->
                     sheet.copy(
                         comments = comments,
                         isLoading = false,
@@ -75,7 +78,10 @@ class CommentSheetController(
                     operation = CrashOperation.COMMENTS_LOAD_FAILED,
                     sentenceId = sentence.sentenceId,
                 )
-                updateSheet(sentence.sentenceId) { sheet ->
+                updateSheet(
+                    sentenceId = sentence.sentenceId,
+                    isWaiting = { sheet -> sheet.isLoading },
+                ) { sheet ->
                     sheet.copy(
                         isLoading = false,
                         loadErrorMessage = "댓글을 불러오지 못했습니다.",
@@ -169,13 +175,15 @@ class CommentSheetController(
             try {
                 commentRepository.deleteComment(commentId = commentId)
 
-                val updatedSheet = updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                ) { currentSheet ->
                     currentSheet.withCommentDeleted(commentId)
                 }
-                // 응답 전에 시트가 닫혔더라도 서버에서는 삭제됐으므로 본문의 댓글 수는 갱신한다.
-                // 그때는 요청을 보낸 시점의 댓글 목록을 기준으로 계산한다.
-                val sheetAfterDelete = updatedSheet ?: sheet.withCommentDeleted(commentId)
-                val commentCount = sheetAfterDelete.comments.size
+                // 시트가 닫혔거나 다시 열려 시트에 반영하지 못했더라도, 서버에서는 삭제됐으므로 본문의 댓글 수는 갱신한다.
+                // 삭제하는 동안에는 목록을 바꾸는 다른 동작이 막혀 있어 요청을 보낸 시점의 목록으로 계산하면 된다.
+                val commentCount = sheet.withCommentDeleted(commentId).comments.size
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
@@ -190,7 +198,10 @@ class CommentSheetController(
                     operation = CrashOperation.COMMENT_DELETE_FAILED,
                     sentenceId = sheet.sentenceId,
                 )
-                updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                ) { currentSheet ->
                     currentSheet.copy(
                         isDeleting = false,
                         deleteErrorMessage = "댓글을 삭제하지 못했습니다.",
@@ -239,19 +250,21 @@ class CommentSheetController(
                     )
                 }.toUiModel()
 
-                val updatedSheet = updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                ) { currentSheet ->
                     currentSheet.withCommentSaved(
                         savedComment = savedComment,
                         editedCommentId = editingCommentId,
                     )
                 }
-                // 응답 전에 시트가 닫혔더라도 서버에는 저장됐으므로 본문의 댓글 수는 갱신한다.
-                // 그때는 요청을 보낸 시점의 댓글 목록을 기준으로 계산한다.
-                val sheetAfterSave = updatedSheet ?: sheet.withCommentSaved(
+                // 시트가 닫혔거나 다시 열려 시트에 반영하지 못했더라도, 서버에는 저장됐으므로 본문의 댓글 수는 갱신한다.
+                // 저장하는 동안에는 목록을 바꾸는 다른 동작이 막혀 있어 요청을 보낸 시점의 목록으로 계산하면 된다.
+                val commentCount = sheet.withCommentSaved(
                     savedComment = savedComment,
                     editedCommentId = editingCommentId,
-                )
-                val commentCount = sheetAfterSave.comments.size
+                ).comments.size
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
@@ -266,7 +279,10 @@ class CommentSheetController(
                     operation = CrashOperation.COMMENT_SAVE_FAILED,
                     sentenceId = sheet.sentenceId,
                 )
-                updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                ) { currentSheet ->
                     currentSheet.copy(
                         isSubmitting = false,
                         submitErrorMessage = "댓글을 저장하지 못했습니다.",
@@ -282,18 +298,24 @@ class CommentSheetController(
 
         uiState = sheet.copy(reportState = ReportState.Loading)
 
-        // 신고 결과는 신고한 문장의 시트가 아직 열려 있을 때만 보여준다.
-        // 응답 전에 시트를 닫았다면 신고는 그대로 접수되고, 결과만 표시하지 않는다.
+        // 신고 결과는 신고 응답을 기다리는 시트에만 보여준다.
+        // 응답 전에 시트를 닫았거나 다시 열었다면 신고는 그대로 접수되고, 결과만 표시하지 않는다.
         scope.launch {
             try {
                 commentRepository.reportComment(commentId)
-                updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.reportState is ReportState.Loading },
+                ) { currentSheet ->
                     currentSheet.copy(reportState = ReportState.Success)
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                updateSheet(sheet.sentenceId) { currentSheet ->
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet -> currentSheet.reportState is ReportState.Loading },
+                ) { currentSheet ->
                     currentSheet.copy(
                         reportState = ReportState.Failure("댓글 신고를 실패했습니다."),
                     )
@@ -310,16 +332,18 @@ class CommentSheetController(
         uiState = sheet.copy(reportState = ReportState.Idle)
     }
 
-    // sentenceId의 시트가 아직 열려 있을 때만 갱신하고, 갱신한 시트를 반환한다.
-    // 응답이 도착하기 전에 시트가 닫혔거나 다른 문장의 시트로 바뀌었다면 아무것도 하지 않고 null을 반환한다.
+    // 요청의 응답을 시트에 반영한다. 요청을 보낸 문장의 시트가 열려 있고,
+    // 그 시트가 아직 이 응답을 기다리는 중(isWaiting)일 때만 반영한다.
+    // 응답 전에 시트를 닫았다가 다시 열었다면 새 시트는 기다리는 중이 아니므로 반영하지 않는다.
     private fun updateSheet(
         sentenceId: Long,
+        isWaiting: (CommentSheetUiState) -> Boolean,
         transform: (CommentSheetUiState) -> CommentSheetUiState,
-    ): CommentSheetUiState? {
+    ) {
         val sheet = uiState
-            ?.takeIf { currentSheet -> currentSheet.sentenceId == sentenceId }
-            ?: return null
-        return transform(sheet).also { updatedSheet -> uiState = updatedSheet }
+            ?.takeIf { currentSheet -> currentSheet.sentenceId == sentenceId && isWaiting(currentSheet) }
+            ?: return
+        uiState = transform(sheet)
     }
 
     // 시트가 바뀌거나 닫힐 때 진행 중인 댓글 조회를 취소한다.
