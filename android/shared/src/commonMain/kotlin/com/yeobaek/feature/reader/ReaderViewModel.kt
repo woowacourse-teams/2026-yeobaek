@@ -37,7 +37,7 @@ class ReaderViewModel(
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
 ) : ViewModel() {
-    var uiState by mutableStateOf(ReaderUiState(isLoading = true))
+    var uiState by mutableStateOf(ReaderUiState())
         private set
 
     // Job은 코루틴의 상태(실행, 취소, 완료)를 추적하고 생명주기를 직접 제어할 수 있게 해주는 도구
@@ -60,10 +60,7 @@ class ReaderViewModel(
             context = readerContext(CrashOperation.READER_LOAD_STARTED),
         )
         viewModelScope.launch {
-            uiState = uiState.copy(
-                isLoading = true,
-                loadErrorMessage = null,
-            )
+            uiState = uiState.copy(loadState = ReaderLoadState.Loading)
 
             try {
                 val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
@@ -102,8 +99,7 @@ class ReaderViewModel(
                     passages = LoadedPassages(passageModels.map(PassageModel::toUiModel)),
                     currentSequence = currentSequence,
                     totalPassageCount = passageCount,
-                    isLoading = false,
-                    loadErrorMessage = null,
+                    loadState = ReaderLoadState.Ready,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
@@ -121,8 +117,7 @@ class ReaderViewModel(
                     context = readerContext(CrashOperation.READER_LOAD_FAILED),
                 )
                 uiState = uiState.copy(
-                    isLoading = false,
-                    loadErrorMessage = "본문을 불러오지 못했습니다.",
+                    loadState = ReaderLoadState.Failed(message = "본문을 불러오지 못했습니다."),
                 )
             }
         }

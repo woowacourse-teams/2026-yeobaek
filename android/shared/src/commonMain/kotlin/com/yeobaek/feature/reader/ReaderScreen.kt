@@ -102,10 +102,9 @@ fun ReaderScreen(
     LaunchedEffect(
         uiState.passages,
         uiState.currentSequence,
-        uiState.isLoading,
-        uiState.loadErrorMessage,
+        uiState.loadState,
     ) {
-        if (!hasPositionedInitialPassage && !uiState.isLoading && uiState.loadErrorMessage == null) {
+        if (!hasPositionedInitialPassage && uiState.loadState == ReaderLoadState.Ready) {
             val currentPassageIndex = uiState.passages.indexOfSequence(uiState.currentSequence)
             if (currentPassageIndex >= 0) {
                 listState.scrollToItem(currentPassageIndex)
@@ -235,10 +234,9 @@ fun ReaderScreen(
             // 초기 위치 복원 전이나 다른 이동 중에는 페이지 요청이 목록을 동시에 바꾸지 않게 한다.
             if (
                 !hasPositionedInitialPassage ||
-                state.isLoading ||
+                state.loadState != ReaderLoadState.Ready ||
                 state.pagingState != PagingState.Idle ||
-                state.mode != ReaderMode.Idle ||
-                state.loadErrorMessage != null
+                state.mode != ReaderMode.Idle
             ) {
                 return@collect
             }
@@ -311,7 +309,7 @@ fun ReaderScreen(
             )
         },
         bottomBar = {
-            if (!uiState.isLoading && uiState.loadErrorMessage == null) {
+            if (uiState.loadState == ReaderLoadState.Ready) {
                 ReaderProgressBar(
                     progress = uiState.displayProgress,
                     onProgressChange = onProgressChange,
@@ -321,17 +319,17 @@ fun ReaderScreen(
             }
         },
     ) { innerPadding ->
-        when {
-            uiState.isLoading -> ReaderLoading(
+        when (val loadState = uiState.loadState) {
+            ReaderLoadState.Loading -> ReaderLoading(
                 modifier = Modifier.padding(innerPadding),
             )
 
-            uiState.loadErrorMessage != null -> ReaderLoadError(
-                message = uiState.loadErrorMessage,
+            is ReaderLoadState.Failed -> ReaderLoadError(
+                message = loadState.message,
                 modifier = Modifier.padding(innerPadding),
             )
 
-            else -> ReaderContent(
+            ReaderLoadState.Ready -> ReaderContent(
                 passages = uiState.passages.items,
                 fontSize = uiState.fontSize,
                 listState = listState,
@@ -438,6 +436,7 @@ private fun ReaderScreenPreview() {
     YeobaekTheme {
         ReaderScreen(
             uiState = ReaderUiState(
+                loadState = ReaderLoadState.Ready,
                 title = "데미안",
                 author = "헤르만 헤세",
                 passages = LoadedPassages(

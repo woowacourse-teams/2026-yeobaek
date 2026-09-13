@@ -12,10 +12,9 @@ data class ReaderUiState(
     val currentSequence: Int = 0,
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
-    val isLoading: Boolean = false,
+    val loadState: ReaderLoadState = ReaderLoadState.Loading,
     val pagingState: PagingState = PagingState.Idle,
     val mode: ReaderMode = ReaderMode.Idle,
-    val loadErrorMessage: String? = null,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
     val commentSheet: PassageCommentSheetUiState? = null,
@@ -38,4 +37,35 @@ data class ReaderUiState(
                 totalPassageCount = totalPassageCount,
             )
         }
+}
+
+sealed interface ReaderLoadState {
+    data object Loading : ReaderLoadState
+
+    data object Ready : ReaderLoadState
+
+    data class Failed(
+        val message: String,
+    ) : ReaderLoadState
+}
+
+sealed interface PagingState {
+    data object Idle : PagingState
+
+    data object LoadingPrevious : PagingState
+
+    data object LoadingNext : PagingState
+}
+
+sealed interface ReaderMode {
+    data object Idle : ReaderMode
+
+    data class SelectingProgress(
+        val progress: Float,
+    ) : ReaderMode
+
+    data class MovingTo(
+        val targetSequence: Int,
+        val isTargetReady: Boolean,
+    ) : ReaderMode
 }
