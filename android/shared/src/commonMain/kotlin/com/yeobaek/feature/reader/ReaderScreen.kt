@@ -68,7 +68,8 @@ fun ReaderScreen(
     onVisiblePassageChange: (PassageUiModel) -> Unit,
     onProgressChange: (Float) -> Unit,
     onProgressChangeFinished: () -> Unit,
-    onProgressSeekCompleted: (PassageUiModel) -> Unit,
+    onTargetPassageReached: (PassageUiModel) -> Unit,
+    onTargetPassageNotFound: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PlatformBackHandler(onBack = onBackClick)
@@ -91,7 +92,7 @@ fun ReaderScreen(
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
     val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
     val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
-    val onTargetPassageReached by rememberUpdatedState(onProgressSeekCompleted)
+    val currentOnTargetPassageReached by rememberUpdatedState(onTargetPassageReached)
     val commentSheet = uiState.commentSheet
     val readyTargetSequence = (uiState.mode as? ReaderMode.MovingTo)
         ?.takeIf { movingTo -> movingTo.isTargetReady }
@@ -120,10 +121,13 @@ fun ReaderScreen(
     ) {
         val targetSequence = readyTargetSequence ?: return@LaunchedEffect
         val targetIndex = uiState.passages.indexOfSequence(targetSequence)
-        if (targetIndex >= 0) {
-            listState.scrollToItem(targetIndex)
-            uiState.passages.getOrNull(targetIndex)?.let(onTargetPassageReached)
+        if (targetIndex < 0) {
+            onTargetPassageNotFound(targetSequence)
+            return@LaunchedEffect
         }
+
+        listState.scrollToItem(targetIndex)
+        uiState.passages.getOrNull(targetIndex)?.let(currentOnTargetPassageReached)
     }
 
     // 글자 크기가 바뀌면 각 항목의 높이도 바뀐다. 변경 전에 저장한 passage와 오프셋을
@@ -545,7 +549,8 @@ private fun ReaderScreenPreview() {
             onVisiblePassageChange = {},
             onProgressChange = {},
             onProgressChangeFinished = {},
-            onProgressSeekCompleted = {},
+            onTargetPassageReached = {},
+            onTargetPassageNotFound = {},
         )
     }
 }

@@ -442,6 +442,21 @@ class ReaderViewModel(
         )
     }
 
+    fun recoverFromMissingTargetPassage(targetSequence: Int) {
+        val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
+        if (!movingTo.isTargetReady || targetSequence != movingTo.targetSequence) return
+
+        crashReporter.track(
+            level = CrashLogLevel.WARN,
+            context = readerContext(
+                operation = CrashOperation.READER_SEEK_TARGET_MISSING,
+                passageSequence = targetSequence,
+            ),
+        )
+        moveToPassageJob = null
+        uiState = uiState.copy(mode = ReaderMode.Idle)
+    }
+
     fun toggleTextSettingMenu() {
         uiState = uiState.copy(
             isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,

@@ -277,7 +277,8 @@ fun App(
                     onVisiblePassageChange = readerViewModel::updateCurrentPassage,
                     onProgressChange = readerViewModel::updateProgressDrag,
                     onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
-                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
+                    onTargetPassageReached = readerViewModel::completeProgressSeek,
+                    onTargetPassageNotFound = readerViewModel::recoverFromMissingTargetPassage,
                 )
             }
             composable<Join> {
