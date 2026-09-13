@@ -11,9 +11,6 @@ data class CommentUiModel(
     val updatedAt: String?,
     val isMine: Boolean,
 ) {
-    val isEdited: Boolean
-        get() = updatedAt != null
-
     // 화면에 보여줄 작성 시각. 예: "2026.08.05  14:30"
     val displayCreatedAt: String
         get() = createdAt.toDisplayDateTime()
