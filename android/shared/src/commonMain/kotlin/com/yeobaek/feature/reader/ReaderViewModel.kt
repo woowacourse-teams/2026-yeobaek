@@ -77,10 +77,7 @@ class ReaderViewModel(
     }
 
     private fun loadReader() {
-        crashReporter.track(
-            level = CrashLogLevel.DEBUG,
-            context = readerContext(CrashOperation.READER_LOAD_STARTED),
-        )
+        track(CrashOperation.READER_LOAD_STARTED, CrashLogLevel.DEBUG)
         viewModelScope.launch {
             uiState = uiState.copy(loadState = ReaderLoadState.Loading)
 
@@ -123,21 +120,15 @@ class ReaderViewModel(
                     totalPassageCount = passageCount,
                     loadState = ReaderLoadState.Ready,
                 )
-                crashReporter.track(
-                    level = CrashLogLevel.INFO,
-                    context = readerContext(
-                        operation = CrashOperation.READER_LOADED,
-                        passageSequence = currentSequence.takeIf { it > 0 },
-                        itemCount = passageModels.size,
-                    ),
+                track(
+                    operation = CrashOperation.READER_LOADED,
+                    passageSequence = currentSequence.takeIf { it > 0 },
+                    itemCount = passageModels.size,
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                crashReporter.recordException(
-                    throwable = exception,
-                    context = readerContext(CrashOperation.READER_LOAD_FAILED),
-                )
+                recordFailure(exception, CrashOperation.READER_LOAD_FAILED)
                 uiState = uiState.copy(
                     loadState = ReaderLoadState.Failed(message = "본문을 불러오지 못했습니다."),
                 )
@@ -163,13 +154,7 @@ class ReaderViewModel(
 
         uiState = uiState.copy(pagingState = PagingState.LoadingPrevious)
 
-        crashReporter.track(
-            level = CrashLogLevel.DEBUG,
-            context = readerContext(
-                operation = CrashOperation.READER_PREVIOUS_PAGE_LOAD,
-                passageSequence = window.first,
-            ),
-        )
+        track(CrashOperation.READER_PREVIOUS_PAGE_LOAD, CrashLogLevel.DEBUG, passageSequence = window.first)
 
         previousPassagesJob = viewModelScope.launch {
             try {
@@ -186,13 +171,7 @@ class ReaderViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                crashReporter.recordException(
-                    throwable = exception,
-                    context = readerContext(
-                        operation = CrashOperation.READER_PREVIOUS_PAGE_FAILED,
-                        passageSequence = window.first,
-                    ),
-                )
+                recordFailure(exception, CrashOperation.READER_PREVIOUS_PAGE_FAILED, passageSequence = window.first)
                 uiState = uiState.copy(pagingState = PagingState.Idle)
             }
         }
@@ -217,13 +196,7 @@ class ReaderViewModel(
         ) ?: return
 
         uiState = uiState.copy(pagingState = PagingState.LoadingNext)
-        crashReporter.track(
-            level = CrashLogLevel.DEBUG,
-            context = readerContext(
-                operation = CrashOperation.READER_NEXT_PAGE_LOAD,
-                passageSequence = window.first,
-            ),
-        )
+        track(CrashOperation.READER_NEXT_PAGE_LOAD, CrashLogLevel.DEBUG, passageSequence = window.first)
         nextPassagesJob = viewModelScope.launch {
             try {
                 val nextPassages = readerRepository.getPassages(
@@ -239,13 +212,7 @@ class ReaderViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                crashReporter.recordException(
-                    throwable = exception,
-                    context = readerContext(
-                        operation = CrashOperation.READER_NEXT_PAGE_FAILED,
-                        passageSequence = window.first,
-                    ),
-                )
+                recordFailure(exception, CrashOperation.READER_NEXT_PAGE_FAILED, passageSequence = window.first)
                 uiState = uiState.copy(pagingState = PagingState.Idle)
             }
         }
@@ -264,10 +231,7 @@ class ReaderViewModel(
 
         uiState = uiState.copy(currentSequence = passage.sequence)
         crashReporter.updateContext(
-            readerContext(
-                operation = CrashOperation.READER_POSITION_UPDATED,
-                passageSequence = passage.sequence,
-            ),
+            readerContext(CrashOperation.READER_POSITION_UPDATED, passageSequence = passage.sequence),
         )
     }
 
@@ -282,10 +246,7 @@ class ReaderViewModel(
         // 현재 문단을 찾는다.
         val currentPassage = uiState.passages.findBySequence(uiState.currentSequence)
         if (currentPassage == null) {
-            crashReporter.track(
-                level = CrashLogLevel.WARN,
-                context = readerContext(CrashOperation.READER_PROGRESS_SAVE_SKIPPED),
-            )
+            track(CrashOperation.READER_PROGRESS_SAVE_SKIPPED, CrashLogLevel.WARN)
             onComplete()
             return
         }
@@ -296,22 +257,14 @@ class ReaderViewModel(
                     clubId = groupId,
                     passageId = currentPassage.passageId,
                 )
-                crashReporter.track(
-                    level = CrashLogLevel.INFO,
-                    context = readerContext(
-                        operation = CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED,
-                        passageSequence = currentPassage.sequence,
-                    ),
-                )
+                track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = currentPassage.sequence)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                crashReporter.recordException(
-                    throwable = exception,
-                    context = readerContext(
-                        operation = CrashOperation.READER_PROGRESS_SAVE_FAILED,
-                        passageSequence = currentPassage.sequence,
-                    ),
+                recordFailure(
+                    exception = exception,
+                    operation = CrashOperation.READER_PROGRESS_SAVE_FAILED,
+                    passageSequence = currentPassage.sequence,
                 )
             } finally {
                 saveCurrentPassageJob = null
@@ -360,13 +313,10 @@ class ReaderViewModel(
 
     fun selectChapter(chapter: ChapterUiModel) {
         val targetSequence = chapter.startPassageSequence
-        crashReporter.track(
-            level = CrashLogLevel.INFO,
-            context = readerContext(
-                operation = CrashOperation.READER_CHAPTER_SELECTED,
-                chapterSequence = chapter.sequence,
-                passageSequence = targetSequence,
-            ),
+        track(
+            operation = CrashOperation.READER_CHAPTER_SELECTED,
+            passageSequence = targetSequence,
+            chapterSequence = chapter.sequence,
         )
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
@@ -410,12 +360,10 @@ class ReaderViewModel(
                 }
 
                 uiState = if (loadedTargetSequence == null) {
-                    crashReporter.track(
+                    track(
+                        operation = CrashOperation.READER_SEEK_TARGET_MISSING,
                         level = CrashLogLevel.WARN,
-                        context = readerContext(
-                            operation = CrashOperation.READER_SEEK_TARGET_MISSING,
-                            passageSequence = targetSequence,
-                        ),
+                        passageSequence = targetSequence,
                     )
                     uiState.copy(
                         mode = ReaderMode.Idle,
@@ -432,13 +380,7 @@ class ReaderViewModel(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                crashReporter.recordException(
-                    throwable = exception,
-                    context = readerContext(
-                        operation = CrashOperation.READER_SEEK_FAILED,
-                        passageSequence = targetSequence,
-                    ),
-                )
+                recordFailure(exception, CrashOperation.READER_SEEK_FAILED, passageSequence = targetSequence)
                 uiState = uiState.copy(
                     mode = ReaderMode.Idle,
                 )
@@ -463,13 +405,7 @@ class ReaderViewModel(
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
         if (!movingTo.isTargetReady || targetSequence != movingTo.targetSequence) return
 
-        crashReporter.track(
-            level = CrashLogLevel.WARN,
-            context = readerContext(
-                operation = CrashOperation.READER_SEEK_TARGET_MISSING,
-                passageSequence = targetSequence,
-            ),
-        )
+        track(CrashOperation.READER_SEEK_TARGET_MISSING, CrashLogLevel.WARN, passageSequence = targetSequence)
         moveToPassageJob = null
         uiState = uiState.copy(mode = ReaderMode.Idle)
     }
@@ -515,10 +451,46 @@ class ReaderViewModel(
         }?.sequence
     }
 
+    private fun track(
+        operation: CrashOperation,
+        level: CrashLogLevel = CrashLogLevel.INFO,
+        passageSequence: Int? = currentPassageSequenceOrNull(),
+        chapterSequence: Int? = null,
+        itemCount: Int? = null,
+    ) {
+        crashReporter.track(
+            level = level,
+            context = readerContext(
+                operation = operation,
+                passageSequence = passageSequence,
+                chapterSequence = chapterSequence,
+                itemCount = itemCount,
+            ),
+        )
+    }
+
+    private fun recordFailure(
+        exception: Exception,
+        operation: CrashOperation,
+        passageSequence: Int? = currentPassageSequenceOrNull(),
+    ) {
+        crashReporter.recordException(
+            throwable = exception,
+            context = readerContext(
+                operation = operation,
+                passageSequence = passageSequence,
+            ),
+        )
+    }
+
+    // 로그에 담을 현재 읽는 문단 번호. 아직 읽을 위치가 정해지지 않았으면(0) null이다.
+    private fun currentPassageSequenceOrNull(): Int? = uiState.currentSequence.takeIf { it > 0 }
+
+    // chapterSequence를 넘기지 않으면 passageSequence가 속한 챕터로 채운다.
     private fun readerContext(
         operation: CrashOperation,
+        passageSequence: Int?,
         chapterSequence: Int? = null,
-        passageSequence: Int? = uiState.currentSequence.takeIf { it > 0 },
         itemCount: Int? = null,
     ) = CrashContext(
         screen = TrackedScreen.READER,
