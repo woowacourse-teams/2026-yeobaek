@@ -13,7 +13,7 @@ data class ReaderUiState(
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
     val loadState: ReaderLoadState = ReaderLoadState.Loading,
-    val pagingState: PagingState = PagingState.Idle,
+    val isLoadingMorePassages: Boolean = false,
     val mode: ReaderMode = ReaderMode.Idle,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
@@ -45,14 +45,6 @@ sealed interface ReaderLoadState {
     data class Failed(
         val message: String,
     ) : ReaderLoadState
-}
-
-sealed interface PagingState {
-    data object Idle : PagingState
-
-    data object LoadingPrevious : PagingState
-
-    data object LoadingNext : PagingState
 }
 
 sealed interface ReaderMode {

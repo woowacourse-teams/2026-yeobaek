@@ -64,8 +64,7 @@ class ReaderViewModel(
 
     // Job은 코루틴의 상태(실행, 취소, 완료)를 추적하고 생명주기를 직접 제어할 수 있게 해주는 도구
     // 진행 여부를 확인하거나 더 이상 필요 없는 요청을 취소해, 중복 요청과 늦게 도착한 응답을 막는다.
-    private var previousPassagesJob: Job? = null // 이전 문단 로딩
-    private var nextPassagesJob: Job? = null // 다음 문단 로딩
+    private var pagingJob: Job? = null // 앞뒤 문단 이어서 로딩
     private var moveToPassageJob: Job? = null // 특정 문단으로 이동
     private var saveReadingProgressJob: Job? = null // 읽고 있는 위치 저장
 
@@ -141,7 +140,7 @@ class ReaderViewModel(
         val firstSequence = uiState.passages.firstSequence ?: return
 
         if (
-            uiState.pagingState != PagingState.Idle ||
+            uiState.isLoadingMorePassages ||
             uiState.mode != ReaderMode.Idle
         ) {
             return
@@ -150,11 +149,11 @@ class ReaderViewModel(
         // 현재 첫 문단이 책의 첫 문단이면 더 불러올 것이 없다.
         val window = previousPassageRange(firstSequence) ?: return
 
-        uiState = uiState.copy(pagingState = PagingState.LoadingPrevious)
+        uiState = uiState.copy(isLoadingMorePassages = true)
 
         track(CrashOperation.READER_PREVIOUS_PAGE_LOAD, CrashLogLevel.DEBUG, passageSequence = window.first)
 
-        previousPassagesJob = viewModelScope.launch {
+        pagingJob = viewModelScope.launch {
             try {
                 val previousPassages = readerRepository.getPassages(
                     groupId = groupId,
@@ -164,13 +163,13 @@ class ReaderViewModel(
 
                 uiState = uiState.copy(
                     passages = uiState.passages.addPrevious(previousPassages),
-                    pagingState = PagingState.Idle,
+                    isLoadingMorePassages = false,
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 recordFailure(exception, CrashOperation.READER_PREVIOUS_PAGE_FAILED, passageSequence = window.first)
-                uiState = uiState.copy(pagingState = PagingState.Idle)
+                uiState = uiState.copy(isLoadingMorePassages = false)
             }
         }
     }
@@ -179,7 +178,7 @@ class ReaderViewModel(
         val lastSequence = uiState.passages.lastSequence ?: return
 
         if (
-            uiState.pagingState != PagingState.Idle ||
+            uiState.isLoadingMorePassages ||
             uiState.mode != ReaderMode.Idle
         ) {
             return
@@ -191,9 +190,9 @@ class ReaderViewModel(
             totalPassageCount = uiState.totalPassageCount,
         ) ?: return
 
-        uiState = uiState.copy(pagingState = PagingState.LoadingNext)
+        uiState = uiState.copy(isLoadingMorePassages = true)
         track(CrashOperation.READER_NEXT_PAGE_LOAD, CrashLogLevel.DEBUG, passageSequence = window.first)
-        nextPassagesJob = viewModelScope.launch {
+        pagingJob = viewModelScope.launch {
             try {
                 val nextPassages = readerRepository.getPassages(
                     groupId = groupId,
@@ -203,13 +202,13 @@ class ReaderViewModel(
 
                 uiState = uiState.copy(
                     passages = uiState.passages.addNext(nextPassages),
-                    pagingState = PagingState.Idle,
+                    isLoadingMorePassages = false,
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 recordFailure(exception, CrashOperation.READER_NEXT_PAGE_FAILED, passageSequence = window.first)
-                uiState = uiState.copy(pagingState = PagingState.Idle)
+                uiState = uiState.copy(isLoadingMorePassages = false)
             }
         }
     }
@@ -457,11 +456,9 @@ class ReaderViewModel(
 
     // 특정 위치로 이동할 때 이전 문단이나 다음 문단 요청 결과가 목록을 덮어쓰지 않도록 취소한다.
     private fun cancelPaginationLoads() {
-        previousPassagesJob?.cancel()
-        nextPassagesJob?.cancel()
-        previousPassagesJob = null
-        nextPassagesJob = null
-        uiState = uiState.copy(pagingState = PagingState.Idle)
+        pagingJob?.cancel()
+        pagingJob = null
+        uiState = uiState.copy(isLoadingMorePassages = false)
     }
 
     private fun chapterSequenceFor(passageSequence: Int?): Int? = passageSequence?.let { sequence ->

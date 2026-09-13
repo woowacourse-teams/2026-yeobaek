@@ -9,9 +9,6 @@ data class LoadedPassages(
     val lastSequence: Int?
         get() = items.lastOrNull()?.sequence
 
-    val firstPassageId: Long?
-        get() = items.firstOrNull()?.passageId
-
     fun containsSequence(sequence: Int): Boolean =
         items.any { passage -> passage.sequence == sequence }
 

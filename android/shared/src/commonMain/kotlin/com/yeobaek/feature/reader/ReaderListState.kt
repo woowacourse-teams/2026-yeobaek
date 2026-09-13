@@ -84,7 +84,6 @@ fun rememberReaderListState(
     )
     LoadPassagesNearEdgesEffect(
         state = readerListState,
-        uiState = uiState,
         onLoadPrevious = actions.onLoadPrevious,
         onLoadNext = actions.onLoadNext,
     )
@@ -234,11 +233,9 @@ private fun readingPassage(
 @Composable
 private fun LoadPassagesNearEdgesEffect(
     state: ReaderListState,
-    uiState: ReaderUiState,
     onLoadPrevious: () -> Unit,
     onLoadNext: () -> Unit,
 ) {
-    val currentUiState by rememberUpdatedState(uiState)
     val currentOnLoadPrevious by rememberUpdatedState(onLoadPrevious)
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
 
@@ -254,33 +251,14 @@ private fun LoadPassagesNearEdgesEffect(
                 isNearStart to isNearEnd
             }
         }.distinctUntilChanged().collect { (isNearStart, isNearEnd) ->
-            val latestUiState = currentUiState
-
-            // 초기 위치 복원 전이나 다른 이동 중에는 페이지 요청이 목록을 동시에 바꾸지 않게 한다.
-            if (
-                !state.hasPositionedInitialPassage ||
-                latestUiState.loadState != ReaderLoadState.Ready ||
-                latestUiState.pagingState != PagingState.Idle ||
-                latestUiState.mode != ReaderMode.Idle
-            ) {
-                return@collect
-            }
+            // 초기 위치로 이동하기 전에는 목록이 맨 앞에 있어 앞쪽 문단을 잘못 요청하게 되므로 기다린다.
+            // 지금 요청해도 되는지(다른 로딩·이동 중인지, 책의 처음이나 끝인지)는 ViewModel이 판단한다.
+            if (!state.hasPositionedInitialPassage) return@collect
 
             // 앞쪽 문단이 목록 앞에 추가돼도 LazyColumn이 key(문단 id)를 기준으로 보던 문단의 위치를 유지하므로
             // 따로 위치를 기억했다가 복원하지 않는다.
-            if (
-                isNearStart &&
-                latestUiState.passages.firstSequence != FIRST_PASSAGE_SEQUENCE
-            ) {
-                currentOnLoadPrevious()
-            }
-
-            if (
-                isNearEnd &&
-                latestUiState.passages.lastSequence != latestUiState.totalPassageCount
-            ) {
-                currentOnLoadNext()
-            }
+            if (isNearStart) currentOnLoadPrevious()
+            if (isNearEnd) currentOnLoadNext()
         }
     }
 }
