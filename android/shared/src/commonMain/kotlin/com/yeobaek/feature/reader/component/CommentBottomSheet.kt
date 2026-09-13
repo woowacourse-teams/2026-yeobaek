@@ -33,8 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
-import com.yeobaek.feature.reader.comment.CommentSheetUiState
-import com.yeobaek.feature.reader.comment.ReportState
+import com.yeobaek.feature.reader.CommentSheetUiState
+import com.yeobaek.feature.reader.ReportState
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlinx.coroutines.launch
 

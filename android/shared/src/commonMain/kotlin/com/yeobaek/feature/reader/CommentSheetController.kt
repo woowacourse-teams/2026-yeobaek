@@ -1,4 +1,4 @@
-package com.yeobaek.feature.reader.comment
+package com.yeobaek.feature.reader
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

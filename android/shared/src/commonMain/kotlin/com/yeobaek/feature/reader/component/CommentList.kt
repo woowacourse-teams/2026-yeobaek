@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.reader.comment.CommentSheetUiState
+import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.model.CommentUiModel
 
 @Composable

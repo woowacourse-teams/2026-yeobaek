@@ -1,4 +1,4 @@
-package com.yeobaek.feature.reader.comment
+package com.yeobaek.feature.reader
 
 import com.yeobaek.feature.reader.model.CommentUiModel
 
