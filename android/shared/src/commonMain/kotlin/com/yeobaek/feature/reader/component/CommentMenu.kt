@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,11 +25,17 @@ import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekError
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
+data class CommentMenuItem(
+    val text: String,
+    val isWarning: Boolean = false,
+    val onClick: () -> Unit,
+)
+
 @Composable
-fun ReportActionMenu(
+fun CommentMenu(
     expanded: Boolean,
+    items: List<CommentMenuItem>,
     onDismissRequest: () -> Unit,
-    onReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -49,11 +56,26 @@ fun ReportActionMenu(
                         ),
                     ) {
                         Column {
-                            ReportActionMenuItem(
-                                text = "신고",
-                                color = YeobaekError,
-                                onClick = onReport,
-                            )
+                            items.forEachIndexed { index, item ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                    )
+                                }
+                                CommentMenuRow(
+                                    text = item.text,
+                                    color = if (item.isWarning) {
+                                        YeobaekError
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    onClick = {
+                                        onDismissRequest()
+                                        item.onClick()
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -63,7 +85,7 @@ fun ReportActionMenu(
 }
 
 @Composable
-private fun ReportActionMenuItem(
+private fun CommentMenuRow(
     text: String,
     color: Color,
     onClick: () -> Unit,
@@ -92,14 +114,31 @@ private fun ReportActionMenuItem(
     }
 }
 
-@Preview(showBackground = true, name = "댓글 메뉴")
+@Preview(showBackground = true, name = "내 댓글 메뉴")
 @Composable
-private fun ReportActionMenuPreview() {
+private fun MyCommentMenuPreview() {
     YeobaekTheme {
-        ReportActionMenu(
+        CommentMenu(
             expanded = true,
+            items = listOf(
+                CommentMenuItem(text = "수정", onClick = {}),
+                CommentMenuItem(text = "삭제", isWarning = true, onClick = {}),
+            ),
             onDismissRequest = {},
-            onReport = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "다른 사람 댓글 메뉴")
+@Composable
+private fun OtherCommentMenuPreview() {
+    YeobaekTheme {
+        CommentMenu(
+            expanded = true,
+            items = listOf(
+                CommentMenuItem(text = "신고", isWarning = true, onClick = {}),
+            ),
+            onDismissRequest = {},
         )
     }
 }

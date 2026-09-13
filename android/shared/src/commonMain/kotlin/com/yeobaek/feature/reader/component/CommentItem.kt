@@ -45,44 +45,38 @@ fun CommentItem(
     onReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var isActionMenuExpanded by remember(comment.commentId) {
-        mutableStateOf(false)
-    }
-    var isReportMenuExpanded by remember(comment.commentId) {
+    var isMenuExpanded by remember(comment.commentId) {
         mutableStateOf(false)
     }
 
-    val longPressModifier = if (comment.isMine) {
-        Modifier
-            .pointerInput(comment.commentId) {
-                detectTapGestures(
-                    onLongPress = {
-                        isActionMenuExpanded = true
-                    },
-                )
-            }
-            .semantics {
-                onLongClick(label = "댓글 수정 및 삭제 메뉴 열기") {
-                    isActionMenuExpanded = true
-                    true
-                }
-            }
+    // 내 댓글은 수정·삭제하고, 다른 사람의 댓글은 신고할 수 있다.
+    val menuItems = if (comment.isMine) {
+        listOf(
+            CommentMenuItem(text = "수정", onClick = onEdit),
+            CommentMenuItem(text = "삭제", isWarning = true, onClick = onDelete),
+        )
     } else {
-        Modifier
-            .pointerInput(comment.commentId) {
-                detectTapGestures(
-                    onLongPress = {
-                        isReportMenuExpanded = true
-                    },
-                )
-            }
-            .semantics {
-                onLongClick(label = "댓글 신고 메뉴 열기") {
-                    isReportMenuExpanded = true
-                    true
-                }
-            }
+        listOf(
+            CommentMenuItem(text = "신고", isWarning = true, onClick = onReport),
+        )
     }
+    val longPressLabel = if (comment.isMine) "댓글 수정 및 삭제 메뉴 열기" else "댓글 신고 메뉴 열기"
+    val menuButtonDescription = if (comment.isMine) "댓글 메뉴 열기" else "댓글 신고하기"
+
+    val longPressModifier = Modifier
+        .pointerInput(comment.commentId) {
+            detectTapGestures(
+                onLongPress = {
+                    isMenuExpanded = true
+                },
+            )
+        }
+        .semantics {
+            onLongClick(label = longPressLabel) {
+                isMenuExpanded = true
+                true
+            }
+        }
 
     Box(
         modifier = modifier
@@ -112,30 +106,16 @@ fun CommentItem(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                if (comment.isMine) {
-                    IconButton(
-                        onClick = { isActionMenuExpanded = true },
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_menu),
-                            contentDescription = "댓글 메뉴 열기",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = { isReportMenuExpanded = true },
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(Res.drawable.ic_menu),
-                            contentDescription = "댓글 신고하기",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                IconButton(
+                    onClick = { isMenuExpanded = true },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_menu),
+                        contentDescription = menuButtonDescription,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -149,27 +129,10 @@ fun CommentItem(
             }
         }
 
-        CommentActionMenu(
-            expanded = isActionMenuExpanded,
-            onDismissRequest = { isActionMenuExpanded = false },
-            onEdit = {
-                isActionMenuExpanded = false
-                onEdit()
-            },
-            onDelete = {
-                isActionMenuExpanded = false
-                onDelete()
-            },
-            modifier = Modifier.padding(top = 32.dp),
-        )
-
-        ReportActionMenu(
-            expanded = isReportMenuExpanded,
-            onDismissRequest = { isReportMenuExpanded = false },
-            onReport = {
-                isReportMenuExpanded = false
-                onReport()
-            },
+        CommentMenu(
+            expanded = isMenuExpanded,
+            items = menuItems,
+            onDismissRequest = { isMenuExpanded = false },
             modifier = Modifier.padding(top = 32.dp),
         )
     }
