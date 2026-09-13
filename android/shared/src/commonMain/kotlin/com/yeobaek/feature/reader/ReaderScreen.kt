@@ -37,6 +37,7 @@ import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
 import com.yeobaek.feature.reader.component.ReaderTopBar
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,7 +91,7 @@ fun ReaderScreen(
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
     val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
     val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
-    val currentOnProgressSeekCompleted by rememberUpdatedState(onProgressSeekCompleted)
+    val onTargetPassageReached by rememberUpdatedState(onProgressSeekCompleted)
     val commentSheet = uiState.commentSheet
 
     // 첫 로딩이 끝나면 서버에 저장된 마지막 독서 위치로 목록을 이동한다.
@@ -101,9 +102,7 @@ fun ReaderScreen(
         uiState.loadErrorMessage,
     ) {
         if (!hasPositionedInitialPassage && !uiState.isLoading && uiState.loadErrorMessage == null) {
-            val currentPassageIndex = uiState.passages.indexOfFirst { passage ->
-                passage.sequence == uiState.currentSequence
-            }
+            val currentPassageIndex = uiState.passages.indexOfSequence(uiState.currentSequence)
             if (currentPassageIndex >= 0) {
                 listState.scrollToItem(currentPassageIndex)
             }
@@ -118,12 +117,10 @@ fun ReaderScreen(
         uiState.passages,
     ) {
         val targetSequence = uiState.scrollTargetSequence ?: return@LaunchedEffect
-        val targetIndex = uiState.passages.indexOfFirst { passage ->
-            passage.sequence == targetSequence
-        }
+        val targetIndex = uiState.passages.indexOfSequence(targetSequence)
         if (targetIndex >= 0) {
             listState.scrollToItem(targetIndex)
-            currentOnProgressSeekCompleted(uiState.passages[targetIndex])
+            uiState.passages.getOrNull(targetIndex)?.let(onTargetPassageReached)
         }
     }
 
@@ -132,9 +129,7 @@ fun ReaderScreen(
     LaunchedEffect(uiState.fontSize) {
         val passagePosition = fontSizePassagePosition
         if (passagePosition != null) {
-            val passageIndex = uiState.passages.indexOfFirst { passage ->
-                passage.passageId == passagePosition.passageId
-            }
+            val passageIndex = uiState.passages.indexOfPassageId(passagePosition.passageId)
             if (passageIndex >= 0) {
                 // 먼저 항목을 화면에 배치해야 변경된 글자 크기의 실제 높이를 알 수 있다.
                 listState.scrollToItem(passageIndex)
@@ -201,13 +196,11 @@ fun ReaderScreen(
     // passageId를 새 목록에서 다시 찾아 같은 내용과 오프셋이 보이도록 복원한다.
     LaunchedEffect(
         uiState.isLoadingPrevious,
-        uiState.passages.firstOrNull()?.passageId,
+        uiState.passages.firstPassageId,
     ) {
         val passagePosition = previousLoadPassagePosition
         if (passagePosition != null && !uiState.isLoadingPrevious) {
-            val passageIndex = uiState.passages.indexOfFirst { passage ->
-                passage.passageId == passagePosition.passageId
-            }
+            val passageIndex = uiState.passages.indexOfPassageId(passagePosition.passageId)
             if (passageIndex >= 0) {
                 listState.scrollToItem(
                     index = passageIndex,
@@ -248,7 +241,7 @@ fun ReaderScreen(
             if (
                 isNearStart &&
                 !state.isLoadingPrevious &&
-                state.passages.firstOrNull()?.sequence != FIRST_PASSAGE_SEQUENCE &&
+                state.passages.firstSequence != FIRST_PASSAGE_SEQUENCE &&
                 previousLoadPassagePosition == null
             ) {
                 val firstVisibleItem = listState.layoutInfo.visibleItemsInfo.firstOrNull()
@@ -271,7 +264,7 @@ fun ReaderScreen(
             if (
                 isNearEnd &&
                 !state.isLoadingNext &&
-                state.passages.lastOrNull()?.sequence != state.totalPassageCount
+                state.passages.lastSequence != state.totalPassageCount
             ) {
                 currentOnLoadNext()
             }
@@ -279,10 +272,7 @@ fun ReaderScreen(
     }
 
     val selectedSentence = commentSheet?.let { sheet ->
-        uiState.passages
-            .asSequence()
-            .flatMap { passage -> passage.sentences.asSequence() }
-            .firstOrNull { sentence -> sentence.sentenceId == sheet.sentenceId }
+        uiState.passages.findSentence(sheet.sentenceId)
     }
 
     val preservePositionAndChangeFontSize: (Int) -> Unit = { fontSize ->
@@ -339,7 +329,7 @@ fun ReaderScreen(
             )
 
             else -> ReaderContent(
-                passages = uiState.passages,
+                passages = uiState.passages.items,
                 fontSize = uiState.fontSize,
                 listState = listState,
                 onSentenceClick = onSentenceClick,
@@ -447,84 +437,86 @@ private fun ReaderScreenPreview() {
             uiState = ReaderUiState(
                 title = "데미안",
                 author = "헤르만 헤세",
-                passages = listOf(
-                    PassageUiModel(
-                        passageId = 1,
-                        sequence = 1,
-                        chapterId = 1,
-                        sentences = listOf(
-                            SentenceUiModel(
-                                sentenceId = 101,
-                                sequence = 1,
-                                content =
-                                    "종이를 만지작거리다 아무 생각 없이 폈는데 그 안에 몇 마디 " +
-                                        "말이 적혀 있는 것을 보았다.",
-                                commentCount = 0,
-                            ),
-                            SentenceUiModel(
-                                sentenceId = 102,
-                                sequence = 2,
-                                content =
-                                    "그 위로 시선을 한 번 던지고는 말 한마디에 사로잡혀 버렸다.",
-                                commentCount = 1,
-                            ),
-                        ),
-                    ),
-                    PassageUiModel(
-                        passageId = 2,
-                        sequence = 2,
-                        chapterId = 1,
-                        sentences = listOf(
-                            SentenceUiModel(201, 1, "\"새는 알에서 나오려고 투쟁한다.", 2),
-                            SentenceUiModel(202, 2, "알은 세계이다.", 0),
-                            SentenceUiModel(
-                                203,
-                                3,
-                                "태어나려는 자는 하나의 세계를 깨뜨려야 한다.\"",
-                                0,
+                passages = LoadedPassages(
+                    items = listOf(
+                        PassageUiModel(
+                            passageId = 1,
+                            sequence = 1,
+                            chapterId = 1,
+                            sentences = listOf(
+                                SentenceUiModel(
+                                    sentenceId = 101,
+                                    sequence = 1,
+                                    content =
+                                        "종이를 만지작거리다 아무 생각 없이 폈는데 그 안에 몇 마디 " +
+                                            "말이 적혀 있는 것을 보았다.",
+                                    commentCount = 0,
+                                ),
+                                SentenceUiModel(
+                                    sentenceId = 102,
+                                    sequence = 2,
+                                    content =
+                                        "그 위로 시선을 한 번 던지고는 말 한마디에 사로잡혀 버렸다.",
+                                    commentCount = 1,
+                                ),
                             ),
                         ),
-                    ),
-                    PassageUiModel(
-                        passageId = 3,
-                        sequence = 3,
-                        chapterId = 1,
-                        sentences = listOf(
-                            SentenceUiModel(
-                                301,
-                                1,
-                                "이 글줄을 몇 차례 읽은 뒤 나는 깊은 생각에 빠졌다.",
-                                1,
-                            ),
-                            SentenceUiModel(302, 2, "어떤 의심도 불가능했다.", 0),
-                        ),
-                    ),
-                    PassageUiModel(
-                        passageId = 4,
-                        sequence = 4,
-                        chapterId = 1,
-                        sentences = listOf(
-                            SentenceUiModel(401, 1, "내 그림을 그가 받은 것이다.", 0),
-                            SentenceUiModel(
-                                402,
-                                2,
-                                "그는 이해하였고 내가 해석하는 것을 도운 것이다.",
-                                0,
+                        PassageUiModel(
+                            passageId = 2,
+                            sequence = 2,
+                            chapterId = 1,
+                            sentences = listOf(
+                                SentenceUiModel(201, 1, "\"새는 알에서 나오려고 투쟁한다.", 2),
+                                SentenceUiModel(202, 2, "알은 세계이다.", 0),
+                                SentenceUiModel(
+                                    203,
+                                    3,
+                                    "태어나려는 자는 하나의 세계를 깨뜨려야 한다.\"",
+                                    0,
+                                ),
                             ),
                         ),
-                    ),
-                    PassageUiModel(
-                        passageId = 5,
-                        sequence = 5,
-                        chapterId = 1,
-                        sentences = listOf(
-                            SentenceUiModel(
-                                501,
-                                1,
-                                "수업을 조금도 듣지 못한 채 그 시간이 갔다.",
-                                3,
+                        PassageUiModel(
+                            passageId = 3,
+                            sequence = 3,
+                            chapterId = 1,
+                            sentences = listOf(
+                                SentenceUiModel(
+                                    301,
+                                    1,
+                                    "이 글줄을 몇 차례 읽은 뒤 나는 깊은 생각에 빠졌다.",
+                                    1,
+                                ),
+                                SentenceUiModel(302, 2, "어떤 의심도 불가능했다.", 0),
                             ),
-                            SentenceUiModel(502, 2, "다음 시간이 시작되었다.", 0),
+                        ),
+                        PassageUiModel(
+                            passageId = 4,
+                            sequence = 4,
+                            chapterId = 1,
+                            sentences = listOf(
+                                SentenceUiModel(401, 1, "내 그림을 그가 받은 것이다.", 0),
+                                SentenceUiModel(
+                                    402,
+                                    2,
+                                    "그는 이해하였고 내가 해석하는 것을 도운 것이다.",
+                                    0,
+                                ),
+                            ),
+                        ),
+                        PassageUiModel(
+                            passageId = 5,
+                            sequence = 5,
+                            chapterId = 1,
+                            sentences = listOf(
+                                SentenceUiModel(
+                                    501,
+                                    1,
+                                    "수업을 조금도 듣지 못한 채 그 시간이 갔다.",
+                                    3,
+                                ),
+                                SentenceUiModel(502, 2, "다음 시간이 시작되었다.", 0),
+                            ),
                         ),
                     ),
                 ),

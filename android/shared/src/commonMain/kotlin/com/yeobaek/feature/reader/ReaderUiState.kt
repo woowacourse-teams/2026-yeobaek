@@ -1,14 +1,14 @@
 package com.yeobaek.feature.reader
 
 import com.yeobaek.feature.reader.model.ChapterUiModel
-import com.yeobaek.feature.reader.model.PassageUiModel
+import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.ReaderFontSize
 
 data class ReaderUiState(
     val title: String = "",
     val author: String = "",
     val chapters: List<ChapterUiModel> = emptyList(),
-    val passages: List<PassageUiModel> = emptyList(),
+    val passages: LoadedPassages = LoadedPassages(),
     val currentSequence: Int = 0,
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,

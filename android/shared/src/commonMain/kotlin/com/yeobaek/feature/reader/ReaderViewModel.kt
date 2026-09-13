@@ -19,6 +19,7 @@ import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import com.yeobaek.feature.reader.model.SentenceUiModel
@@ -98,7 +99,7 @@ class ReaderViewModel(
                     title = groupDetail.book.title,
                     author = groupDetail.book.authors.joinToString(", "),
                     chapters = bookDetail.chapters.map { chapter -> chapter.toUiModel() },
-                    passages = passageModels.map(PassageModel::toUiModel),
+                    passages = LoadedPassages(passageModels.map(PassageModel::toUiModel)),
                     currentSequence = currentSequence,
                     totalPassageCount = passageCount,
                     isLoading = false,
@@ -131,7 +132,7 @@ class ReaderViewModel(
     // 실제 요청을 시작하면 true를 반환한다.
     fun loadPreviousPassages(): Boolean {
         // 현재 화면에 불러와진 문단 리스트에서 첫 번째 문단의 번호
-        val firstSequence = uiState.passages.firstOrNull()?.sequence ?: return false
+        val firstSequence = uiState.passages.firstSequence ?: return false
 
         if (
             // 이전 passage를 가져오는 코루틴이 실행 중
@@ -168,9 +169,7 @@ class ReaderViewModel(
                 ).passages.map(PassageModel::toUiModel)
 
                 uiState = uiState.copy(
-                    passages = (previousPassages + uiState.passages)
-                        .distinctBy(PassageUiModel::sequence)
-                        .sortedBy(PassageUiModel::sequence),
+                    passages = uiState.passages.addPrevious(previousPassages),
                     isLoadingPrevious = false,
                 )
             } catch (exception: CancellationException) {
@@ -191,7 +190,7 @@ class ReaderViewModel(
     }
 
     fun loadNextPassages() {
-        val lastSequence = uiState.passages.lastOrNull()?.sequence ?: return
+        val lastSequence = uiState.passages.lastSequence ?: return
 
         if (
             uiState.isLoadingNext ||
@@ -224,9 +223,7 @@ class ReaderViewModel(
                 ).passages.map(PassageModel::toUiModel)
 
                 uiState = uiState.copy(
-                    passages = (uiState.passages + nextPassages)
-                        .distinctBy(PassageUiModel::sequence)
-                        .sortedBy(PassageUiModel::sequence),
+                    passages = uiState.passages.addNext(nextPassages),
                     isLoadingNext = false,
                 )
             } catch (exception: CancellationException) {
@@ -274,9 +271,7 @@ class ReaderViewModel(
         }
 
         // 현재 문단을 찾는다.
-        val currentPassage = uiState.passages.firstOrNull { passage ->
-            passage.sequence == uiState.currentSequence
-        }
+        val currentPassage = uiState.passages.findBySequence(uiState.currentSequence)
         if (currentPassage == null) {
             crashReporter.track(
                 level = CrashLogLevel.WARN,
@@ -393,9 +388,7 @@ class ReaderViewModel(
         cancelPaginationLoads()
 
         // 이미 불러온 passage라면 네트워크 요청 없이 UI가 target 문단으로 스크롤
-        val isTargetLoaded = uiState.passages.any { passage ->
-            passage.sequence == targetSequence
-        }
+        val isTargetLoaded = uiState.passages.containsSequence(targetSequence)
         uiState = uiState.copy(
             scrollTargetSequence = targetSequence.takeIf { isTargetLoaded },
             isProgressDragging = false,
@@ -432,7 +425,7 @@ class ReaderViewModel(
                     )
                 } else {
                     uiState.copy(
-                        passages = passages,
+                        passages = uiState.passages.replaceAll(passages),
                         scrollTargetSequence = loadedTargetSequence,
                     )
                 }
@@ -495,7 +488,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_SHEET_OPENED,
-                passageSequence = passageSequenceForSentence(sentence.sentenceId),
+                passageSequence = findPassageSequenceBySentenceId(sentence.sentenceId),
                 itemCount = sentence.commentCount,
             ),
         )
@@ -525,7 +518,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENTS_LOADED,
-                        passageSequence = passageSequenceForSentence(sentence.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(sentence.sentenceId),
                         itemCount = comments.size,
                     ),
                 )
@@ -536,7 +529,7 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENTS_LOAD_FAILED,
-                        passageSequence = passageSequenceForSentence(sentence.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(sentence.sentenceId),
                     ),
                 )
                 updateCommentSheet(sentence.sentenceId) { commentSheet ->
@@ -576,7 +569,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_EDIT_STARTED,
-                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
             ),
         )
 
@@ -651,7 +644,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_DELETE_STARTED,
-                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                 itemCount = commentSheet.comments.size,
             ),
         )
@@ -668,7 +661,7 @@ class ReaderViewModel(
                     comment.commentId == commentId
                 }
                 uiState = uiState.copy(
-                    passages = uiState.passages.withSentenceCommentCount(
+                    passages = uiState.passages.updateCommentCount(
                         sentenceId = currentSheet.sentenceId,
                         commentCount = updatedComments.size,
                     ),
@@ -692,7 +685,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
-                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                         itemCount = updatedComments.size,
                     ),
                 )
@@ -703,7 +696,7 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_DELETE_FAILED,
-                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                     ),
                 )
                 updateCommentSheet(commentSheet.sentenceId) { currentSheet ->
@@ -738,7 +731,7 @@ class ReaderViewModel(
             level = CrashLogLevel.INFO,
             context = readerContext(
                 operation = CrashOperation.COMMENT_SAVE_STARTED,
-                passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                 itemCount = commentSheet.comments.size,
             ),
         )
@@ -773,7 +766,7 @@ class ReaderViewModel(
                     }
                 }
                 uiState = uiState.copy(
-                    passages = uiState.passages.withSentenceCommentCount(
+                    passages = uiState.passages.updateCommentCount(
                         sentenceId = currentSheet.sentenceId,
                         commentCount = updatedComments.size,
                     ),
@@ -789,7 +782,7 @@ class ReaderViewModel(
                     level = CrashLogLevel.INFO,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
-                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                         itemCount = updatedComments.size,
                     ),
                 )
@@ -800,7 +793,7 @@ class ReaderViewModel(
                     throwable = exception,
                     context = readerContext(
                         operation = CrashOperation.COMMENT_SAVE_FAILED,
-                        passageSequence = passageSequenceForSentence(commentSheet.sentenceId),
+                        passageSequence = findPassageSequenceBySentenceId(commentSheet.sentenceId),
                     ),
                 )
                 updateCommentSheet(commentSheet.sentenceId) { currentSheet ->
@@ -863,11 +856,8 @@ class ReaderViewModel(
         )
     }
 
-    private fun passageSequenceForSentence(sentenceId: Long): Int? = uiState.passages
-        .firstOrNull { passage ->
-            passage.sentences.any { sentence -> sentence.sentenceId == sentenceId }
-        }
-        ?.sequence
+    private fun findPassageSequenceBySentenceId(sentenceId: Long): Int? =
+        uiState.passages.findPassageSequenceBySentenceId(sentenceId)
 
     private fun chapterSequenceFor(passageSequence: Int?): Int? = passageSequence?.let { sequence ->
         uiState.chapters.firstOrNull { chapter ->
@@ -888,25 +878,6 @@ class ReaderViewModel(
         passageSequence = passageSequence,
         itemCount = itemCount,
     )
-}
-
-private fun List<PassageUiModel>.withSentenceCommentCount(
-    sentenceId: Long,
-    commentCount: Int,
-): List<PassageUiModel> = map { passage ->
-    if (passage.sentences.none { sentence -> sentence.sentenceId == sentenceId }) {
-        passage
-    } else {
-        passage.copy(
-            sentences = passage.sentences.map { sentence ->
-                if (sentence.sentenceId == sentenceId) {
-                    sentence.copy(commentCount = commentCount)
-                } else {
-                    sentence
-                }
-            },
-        )
-    }
 }
 
 class ReaderViewModelFactory(
