@@ -25,7 +25,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.comment.CommentSheetActions
 import com.yeobaek.feature.reader.comment.CommentSheetUiState
-import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
+import com.yeobaek.feature.reader.component.CommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
@@ -109,19 +109,19 @@ fun ReaderScreen(
     }
 
     if (commentSheet != null && selectedSentence != null) {
-        PassageCommentBottomSheet(
+        CommentBottomSheet(
             sentence = selectedSentence,
             uiState = commentSheet,
             onDismissRequest = commentSheetActions.onDismiss,
             onInputChange = commentSheetActions.onInputChange,
             onSubmit = commentSheetActions.onSubmit,
-            onEditComment = commentSheetActions.onEdit,
-            onCancelEdit = commentSheetActions.onEditCancel,
-            onCommentReport = commentSheetActions.onReport,
-            onCommentReportResultConsumed = commentSheetActions.onReportResultConsumed,
-            onDeleteComment = commentSheetActions.onDelete,
-            onCancelDelete = commentSheetActions.onDeleteCancel,
-            onConfirmDelete = commentSheetActions.onDeleteConfirm,
+            onEdit = commentSheetActions.onEdit,
+            onEditCancel = commentSheetActions.onEditCancel,
+            onReport = commentSheetActions.onReport,
+            onReportResultConsumed = commentSheetActions.onReportResultConsumed,
+            onDelete = commentSheetActions.onDelete,
+            onDeleteCancel = commentSheetActions.onDeleteCancel,
+            onDeleteConfirm = commentSheetActions.onDeleteConfirm,
         )
     }
 

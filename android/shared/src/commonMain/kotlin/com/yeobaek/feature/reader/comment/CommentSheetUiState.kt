@@ -1,10 +1,10 @@
 package com.yeobaek.feature.reader.comment
 
-import com.yeobaek.feature.reader.model.PassageCommentUiModel
+import com.yeobaek.feature.reader.model.CommentUiModel
 
 data class CommentSheetUiState(
     val sentenceId: Long,
-    val comments: List<PassageCommentUiModel> = emptyList(),
+    val comments: List<CommentUiModel> = emptyList(),
     val input: String = "",
     val editingCommentId: Long? = null,
     val deletingCommentId: Long? = null,

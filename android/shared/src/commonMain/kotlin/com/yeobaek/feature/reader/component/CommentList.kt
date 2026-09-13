@@ -16,14 +16,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.comment.CommentSheetUiState
-import com.yeobaek.feature.reader.model.PassageCommentUiModel
+import com.yeobaek.feature.reader.model.CommentUiModel
 
 @Composable
 fun CommentList(
     uiState: CommentSheetUiState,
-    onEditComment: (Long) -> Unit,
-    onDeleteComment: (Long) -> Unit,
-    onCommentReport: (Long) -> Unit,
+    onEdit: (Long) -> Unit,
+    onDelete: (Long) -> Unit,
+    onReport: (Long) -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
@@ -84,9 +84,9 @@ fun CommentList(
                 ) { comment ->
                     CommentItem(
                         comment = comment,
-                        onEdit = { onEditComment(comment.commentId) },
-                        onDelete = { onDeleteComment(comment.commentId) },
-                        onReport = { onCommentReport(comment.commentId) },
+                        onEdit = { onEdit(comment.commentId) },
+                        onDelete = { onDelete(comment.commentId) },
+                        onReport = { onReport(comment.commentId) },
                     )
                 }
             }
@@ -102,38 +102,38 @@ private fun CommentListPreview() {
             uiState = CommentSheetUiState(
                 sentenceId = 501,
                 comments = listOf(
-                    PassageCommentUiModel(
+                    CommentUiModel(
                         commentId = 10,
                         memberId = 5,
                         nickname = "하윤",
                         content = "젊은 선생님을 바라보는 시선이 재미있어요.",
                         createdAt = "2026-08-08T08:45:00",
                         updatedAt = null,
-                        mine = false,
+                        isMine = false,
                     ),
-                    PassageCommentUiModel(
+                    CommentUiModel(
                         commentId = 11,
                         memberId = 6,
                         nickname = "도윤",
                         content = "거짓 품위를 보이지 않았다는 말에 공감했어요.",
                         createdAt = "2026-08-08T18:20:00",
                         updatedAt = null,
-                        mine = false,
+                        isMine = false,
                     ),
-                    PassageCommentUiModel(
+                    CommentUiModel(
                         commentId = 12,
                         memberId = 1,
                         nickname = "나",
                         content = "호감의 이유가 아주 선명하게 드러나는 문단 같아요.",
                         createdAt = "2026-08-09T13:10:00",
                         updatedAt = null,
-                        mine = true,
+                        isMine = true,
                     ),
                 ),
             ),
-            onEditComment = {},
-            onDeleteComment = {},
-            onCommentReport = {},
+            onEdit = {},
+            onDelete = {},
+            onReport = {},
         )
     }
 }

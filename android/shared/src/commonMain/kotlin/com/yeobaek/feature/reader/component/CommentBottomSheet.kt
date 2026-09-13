@@ -40,19 +40,19 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PassageCommentBottomSheet(
+fun CommentBottomSheet(
     sentence: SentenceUiModel,
     uiState: CommentSheetUiState,
     onDismissRequest: () -> Unit,
     onInputChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    onEditComment: (Long) -> Unit,
-    onCancelEdit: () -> Unit,
-    onDeleteComment: (Long) -> Unit,
-    onCommentReport: (Long) -> Unit,
-    onCommentReportResultConsumed: () -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: () -> Unit,
+    onEdit: (Long) -> Unit,
+    onEditCancel: () -> Unit,
+    onDelete: (Long) -> Unit,
+    onReport: (Long) -> Unit,
+    onReportResultConsumed: () -> Unit,
+    onDeleteCancel: () -> Unit,
+    onDeleteConfirm: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -75,7 +75,7 @@ fun PassageCommentBottomSheet(
                 duration = SnackbarDuration.Short,
             )
         }
-        onCommentReportResultConsumed()
+        onReportResultConsumed()
     }
 
     LaunchedEffect(uiState.sentenceId, uiState.isLoading, uiState.comments.size) {
@@ -137,22 +137,22 @@ fun PassageCommentBottomSheet(
                         )
                     },
             ) {
-                PassageQuote(
+                SentenceQuote(
                     content = sentence.content,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
                 Spacer(modifier = Modifier.height(22.dp))
                 CommentList(
                     uiState = uiState,
-                    onEditComment = onEditComment,
-                    onDeleteComment = onDeleteComment,
-                    onCommentReport = onCommentReport,
+                    onEdit = onEdit,
+                    onDelete = onDelete,
+                    onReport = onReport,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     listState = commentListState,
                 )
-                PassageCommentInput(
+                CommentInput(
                     value = uiState.input,
                     enabled = !uiState.isSubmitting,
                     isEditing = uiState.editingCommentId != null,
@@ -161,8 +161,8 @@ fun PassageCommentBottomSheet(
                         onSubmit()
                         focusManager.clearFocus()
                     },
-                    onCancelEdit = {
-                        onCancelEdit()
+                    onEditCancel = {
+                        onEditCancel()
                         focusManager.clearFocus()
                     },
                 )
@@ -179,8 +179,8 @@ fun PassageCommentBottomSheet(
 
     if (uiState.deletingCommentId != null) {
         DeleteCommentDialog(
-            onDismissRequest = onCancelDelete,
-            onConfirm = onConfirmDelete,
+            onDismissRequest = onDeleteCancel,
+            onConfirm = onDeleteConfirm,
         )
     }
 }

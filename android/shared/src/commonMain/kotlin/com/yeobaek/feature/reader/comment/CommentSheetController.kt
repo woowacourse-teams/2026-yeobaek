@@ -9,7 +9,7 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.repository.CommentRepository
-import com.yeobaek.feature.reader.model.PassageCommentUiModel
+import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
@@ -376,8 +376,8 @@ class CommentSheetController(
 }
 
 // 내가 쓴 댓글만 수정하거나 삭제할 수 있다.
-private fun CommentSheetUiState.findMyComment(commentId: Long): PassageCommentUiModel? =
-    comments.firstOrNull { comment -> comment.commentId == commentId && comment.mine }
+private fun CommentSheetUiState.findMyComment(commentId: Long): CommentUiModel? =
+    comments.firstOrNull { comment -> comment.commentId == commentId && comment.isMine }
 
 // 댓글 삭제가 끝난 뒤의 시트. 삭제한 댓글을 수정하던 중이었다면 수정 상태도 함께 해제한다.
 private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentSheetUiState {
@@ -396,7 +396,7 @@ private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentShee
 
 // 댓글 저장이 끝난 뒤의 시트. 새 댓글은 목록 끝에 붙이고, 수정한 댓글은 제자리에서 바꾼다.
 private fun CommentSheetUiState.withCommentSaved(
-    savedComment: PassageCommentUiModel,
+    savedComment: CommentUiModel,
     editedCommentId: Long?,
 ): CommentSheetUiState = copy(
     comments = if (editedCommentId == null) {

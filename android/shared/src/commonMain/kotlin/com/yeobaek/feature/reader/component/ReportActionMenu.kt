@@ -28,7 +28,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 fun ReportActionMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    onDelete: () -> Unit,
+    onReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -52,7 +52,7 @@ fun ReportActionMenu(
                             ReportActionMenuItem(
                                 text = "신고",
                                 color = YeobaekError,
-                                onClick = onDelete,
+                                onClick = onReport,
                             )
                         }
                     }
@@ -99,7 +99,7 @@ private fun ReportActionMenuPreview() {
         ReportActionMenu(
             expanded = true,
             onDismissRequest = {},
-            onDelete = {},
+            onReport = {},
         )
     }
 }
