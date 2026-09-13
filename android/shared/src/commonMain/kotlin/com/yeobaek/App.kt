@@ -252,7 +252,6 @@ fun App(
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
                     commentSheet = commentSheet.uiState,
-                    reportState = commentSheet.reportState,
                     onSentenceClick = readerViewModel::openSentenceComments,
                     onBackClick = {
                         readerViewModel.saveCurrentPassage(

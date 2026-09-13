@@ -43,7 +43,6 @@ import kotlinx.coroutines.launch
 fun PassageCommentBottomSheet(
     sentence: SentenceUiModel,
     uiState: CommentSheetUiState,
-    reportState: ReportState,
     onDismissRequest: () -> Unit,
     onInputChange: (String) -> Unit,
     onSubmit: () -> Unit,
@@ -62,8 +61,8 @@ fun PassageCommentBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     var previousCommentCount by remember(uiState.sentenceId) { mutableIntStateOf(-1) }
 
-    LaunchedEffect(reportState) {
-        val message = when (reportState) {
+    LaunchedEffect(uiState.reportState) {
+        val message = when (val reportState = uiState.reportState) {
             is ReportState.Success -> "댓글을 신고했습니다."
             is ReportState.Failure -> reportState.message
             is ReportState.Idle, ReportState.Loading -> null

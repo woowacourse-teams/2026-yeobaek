@@ -32,7 +32,6 @@ import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.comment.CommentSheetUiState
-import com.yeobaek.feature.reader.comment.ReportState
 import com.yeobaek.feature.reader.component.PassageCommentBottomSheet
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
@@ -48,7 +47,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun ReaderScreen(
     uiState: ReaderUiState,
     commentSheet: CommentSheetUiState?,
-    reportState: ReportState,
     onSentenceClick: (SentenceUiModel) -> Unit,
     onBackClick: () -> Unit,
     onTableOfContentsClick: () -> Unit,
@@ -348,7 +346,6 @@ fun ReaderScreen(
         PassageCommentBottomSheet(
             sentence = selectedSentence,
             uiState = commentSheet,
-            reportState = reportState,
             onDismissRequest = onCommentSheetDismiss,
             onInputChange = onCommentInputChange,
             onSubmit = onCommentSubmit,
@@ -529,7 +526,6 @@ private fun ReaderScreenPreview() {
                 totalPassageCount = 5,
             ),
             commentSheet = null,
-            reportState = ReportState.Idle,
             onSentenceClick = {},
             onBackClick = {},
             onTableOfContentsClick = {},

@@ -34,10 +34,6 @@ class CommentSheetController(
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
         private set
 
-    // 댓글 신고 결과. 화면이 결과를 보여준 뒤 consumeReportResult로 비운다.
-    var reportState by mutableStateOf<ReportState>(ReportState.Idle)
-        private set
-
     private var loadJob: Job? = null
 
     fun open(sentence: SentenceUiModel) {
@@ -175,12 +171,16 @@ class CommentSheetController(
 
                 val updatedSheet = updateSheet(sheet.sentenceId) { currentSheet ->
                     currentSheet.withCommentDeleted(commentId)
-                } ?: return@launch
-                onCommentCountChanged(sheet.sentenceId, updatedSheet.comments.size)
+                }
+                // 응답 전에 시트가 닫혔더라도 서버에서는 삭제됐으므로 본문의 댓글 수는 갱신한다.
+                // 그때는 요청을 보낸 시점의 댓글 목록을 기준으로 계산한다.
+                val sheetAfterDelete = updatedSheet ?: sheet.withCommentDeleted(commentId)
+                val commentCount = sheetAfterDelete.comments.size
+                onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
                     sentenceId = sheet.sentenceId,
-                    itemCount = updatedSheet.comments.size,
+                    itemCount = commentCount,
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -244,12 +244,19 @@ class CommentSheetController(
                         savedComment = savedComment,
                         editedCommentId = editingCommentId,
                     )
-                } ?: return@launch
-                onCommentCountChanged(sheet.sentenceId, updatedSheet.comments.size)
+                }
+                // 응답 전에 시트가 닫혔더라도 서버에는 저장됐으므로 본문의 댓글 수는 갱신한다.
+                // 그때는 요청을 보낸 시점의 댓글 목록을 기준으로 계산한다.
+                val sheetAfterSave = updatedSheet ?: sheet.withCommentSaved(
+                    savedComment = savedComment,
+                    editedCommentId = editingCommentId,
+                )
+                val commentCount = sheetAfterSave.comments.size
+                onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
                     sentenceId = sheet.sentenceId,
-                    itemCount = updatedSheet.comments.size,
+                    itemCount = commentCount,
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -270,25 +277,37 @@ class CommentSheetController(
     }
 
     fun report(commentId: Long) {
-        if (reportState is ReportState.Loading) return
+        val sheet = uiState ?: return
+        if (sheet.reportState is ReportState.Loading) return
 
-        reportState = ReportState.Loading
+        uiState = sheet.copy(reportState = ReportState.Loading)
 
+        // 신고 결과는 신고한 문장의 시트가 아직 열려 있을 때만 보여준다.
+        // 응답 전에 시트를 닫았다면 신고는 그대로 접수되고, 결과만 표시하지 않는다.
         scope.launch {
             try {
                 commentRepository.reportComment(commentId)
-                reportState = ReportState.Success
+                updateSheet(sheet.sentenceId) { currentSheet ->
+                    currentSheet.copy(reportState = ReportState.Success)
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                reportState = ReportState.Failure("댓글 신고를 실패했습니다.")
+                updateSheet(sheet.sentenceId) { currentSheet ->
+                    currentSheet.copy(
+                        reportState = ReportState.Failure("댓글 신고를 실패했습니다."),
+                    )
+                }
             }
         }
     }
 
+    // 화면이 신고 결과를 보여준 뒤 호출해 결과를 비운다.
     fun consumeReportResult() {
-        if (reportState is ReportState.Loading) return
-        reportState = ReportState.Idle
+        val sheet = uiState ?: return
+        if (sheet.reportState is ReportState.Loading) return
+
+        uiState = sheet.copy(reportState = ReportState.Idle)
     }
 
     // sentenceId의 시트가 아직 열려 있을 때만 갱신하고, 갱신한 시트를 반환한다.

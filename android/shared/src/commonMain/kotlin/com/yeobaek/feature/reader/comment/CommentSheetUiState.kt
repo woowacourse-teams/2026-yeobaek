@@ -14,6 +14,7 @@ data class CommentSheetUiState(
     val loadErrorMessage: String? = null,
     val submitErrorMessage: String? = null,
     val deleteErrorMessage: String? = null,
+    val reportState: ReportState = ReportState.Idle,
 )
 
 sealed class ReportState {
