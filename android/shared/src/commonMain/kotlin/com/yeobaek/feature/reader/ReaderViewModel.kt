@@ -325,7 +325,7 @@ class ReaderViewModel(
     }
 
     private fun moveToPassage(targetSequence: Int) {
-        if (targetSequence < FIRST_PASSAGE_SEQUENCE) {
+        if (targetSequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount) {
             uiState = uiState.copy(mode = ReaderMode.Idle)
             return
         }
