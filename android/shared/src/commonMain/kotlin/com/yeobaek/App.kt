@@ -265,13 +265,13 @@ fun App(
                         onTextSettingClick = readerViewModel::toggleTextSettingMenu,
                         onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
                         onFontSizeChange = readerViewModel::updateFontSize,
-                        onProgressChange = readerViewModel::updateProgressDrag,
+                        onProgressChange = readerViewModel::selectProgress,
                         onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
                         onLoadPrevious = readerViewModel::loadPreviousPassages,
                         onLoadNext = readerViewModel::loadNextPassages,
                         onVisiblePassageChange = readerViewModel::updateReadingPassage,
-                        onTargetPassageReached = readerViewModel::completeProgressSeek,
-                        onTargetPassageNotFound = readerViewModel::recoverFromMissingTargetPassage,
+                        onTargetPassageReached = readerViewModel::completeMoveToPassage,
+                        onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
                     )
                 }
                 val commentSheetActions = remember(commentSheet) {

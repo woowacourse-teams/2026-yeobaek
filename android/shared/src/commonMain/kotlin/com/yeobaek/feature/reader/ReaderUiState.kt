@@ -64,6 +64,6 @@ sealed interface ReaderMode {
 
     data class MovingTo(
         val targetSequence: Int,
-        val isTargetReady: Boolean,
+        val isTargetLoaded: Boolean,
     ) : ReaderMode
 }

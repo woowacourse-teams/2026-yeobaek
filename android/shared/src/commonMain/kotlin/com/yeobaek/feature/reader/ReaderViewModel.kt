@@ -275,8 +275,8 @@ class ReaderViewModel(
         }
     }
 
-    // 진행률 바를 드래그하는 동안 값을 업데이트한다.
-    fun updateProgressDrag(progress: Float) {
+    // 진행률 바를 드래그하는 동안 선택한 진행률을 갱신한다.
+    fun selectProgress(progress: Float) {
         // 드래그가 막 시작됐다면 이전 위치 이동과 페이지 로딩을 취소한다.
         if (uiState.mode !is ReaderMode.SelectingProgress) {
             moveToPassageJob?.cancel()
@@ -339,7 +339,7 @@ class ReaderViewModel(
         uiState = uiState.copy(
             mode = ReaderMode.MovingTo(
                 targetSequence = targetSequence,
-                isTargetReady = isTargetLoaded,
+                isTargetLoaded = isTargetLoaded,
             ),
         )
         if (isTargetLoaded) return
@@ -373,7 +373,7 @@ class ReaderViewModel(
                         passages = uiState.passages.replaceAll(passages),
                         mode = ReaderMode.MovingTo(
                             targetSequence = loadedTargetSequence,
-                            isTargetReady = true,
+                            isTargetLoaded = true,
                         ),
                     )
                 }
@@ -388,11 +388,11 @@ class ReaderViewModel(
         }
     }
 
-    // UI가 target 문단까지 스크롤했음을 ViewModel에 알리기 위한 함수
-    fun completeProgressSeek(passage: PassageUiModel) {
+    // 화면이 목표 문단까지 스크롤을 마치면 호출해 이동을 끝낸다.
+    fun completeMoveToPassage(passage: PassageUiModel) {
         // 과거 이동 요청의 콜백이 늦게 도착한 경우 현재 이동 상태를 건드리지 않는다.
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
-        if (!movingTo.isTargetReady || passage.sequence != movingTo.targetSequence) return
+        if (!movingTo.isTargetLoaded || passage.sequence != movingTo.targetSequence) return
 
         moveToPassageJob = null
         uiState = uiState.copy(
@@ -401,9 +401,10 @@ class ReaderViewModel(
         )
     }
 
-    fun recoverFromMissingTargetPassage(targetSequence: Int) {
+    // 화면이 목록에서 목표 문단을 찾지 못하면 호출해 이동을 취소한다.
+    fun cancelMoveToPassage(targetSequence: Int) {
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
-        if (!movingTo.isTargetReady || targetSequence != movingTo.targetSequence) return
+        if (!movingTo.isTargetLoaded || targetSequence != movingTo.targetSequence) return
 
         track(CrashOperation.READER_SEEK_TARGET_MISSING, CrashLogLevel.WARN, passageSequence = targetSequence)
         moveToPassageJob = null

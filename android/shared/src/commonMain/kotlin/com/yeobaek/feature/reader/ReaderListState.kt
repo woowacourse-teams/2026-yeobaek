@@ -120,7 +120,7 @@ private fun ScrollToInitialPassageEffect(
     }
 }
 
-// 진행률 바나 목차에서 정한 목표 문단이 목록에 준비되면 그 문단으로 스크롤한다.
+// 진행률 바나 목차에서 정한 목표 문단이 목록에 불러와지면 그 문단으로 스크롤한다.
 // 스크롤을 마치면 ViewModel이 이동 상태를 끝낼 수 있도록 알린다.
 @Composable
 private fun ScrollToTargetPassageEffect(
@@ -131,15 +131,15 @@ private fun ScrollToTargetPassageEffect(
 ) {
     val currentOnTargetPassageReached by rememberUpdatedState(onTargetPassageReached)
     val currentOnTargetPassageNotFound by rememberUpdatedState(onTargetPassageNotFound)
-    val readyTargetSequence = (uiState.mode as? ReaderMode.MovingTo)
-        ?.takeIf { movingTo -> movingTo.isTargetReady }
+    val loadedTargetSequence = (uiState.mode as? ReaderMode.MovingTo)
+        ?.takeIf { movingTo -> movingTo.isTargetLoaded }
         ?.targetSequence
 
     LaunchedEffect(
-        readyTargetSequence,
+        loadedTargetSequence,
         uiState.passages,
     ) {
-        val targetSequence = readyTargetSequence ?: return@LaunchedEffect
+        val targetSequence = loadedTargetSequence ?: return@LaunchedEffect
         val targetIndex = uiState.passages.indexOfSequence(targetSequence)
         if (targetIndex < 0) {
             currentOnTargetPassageNotFound(targetSequence)
