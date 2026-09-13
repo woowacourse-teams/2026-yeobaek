@@ -179,7 +179,7 @@ fun ReaderScreen(
             // 코드가 위치를 복원하거나 다른 위치로 이동시키는 동안 발생한 스크롤 이벤트는
             // 사용자의 실제 독서 위치가 아니므로 ViewModel에 전달하지 않는다.
             passage to (
-                state.isLoadingPrevious ||
+                state.pagingState == PagingState.LoadingPrevious ||
                     previousLoadPassagePosition != null ||
                     fontSizePassagePosition != null ||
                     state.isProgressDragging ||
@@ -195,11 +195,11 @@ fun ReaderScreen(
     // 이전 passage를 목록 앞에 추가하면 기존 항목의 인덱스가 뒤로 밀린다. 요청 전에 저장한
     // passageId를 새 목록에서 다시 찾아 같은 내용과 오프셋이 보이도록 복원한다.
     LaunchedEffect(
-        uiState.isLoadingPrevious,
+        uiState.pagingState,
         uiState.passages.firstPassageId,
     ) {
         val passagePosition = previousLoadPassagePosition
-        if (passagePosition != null && !uiState.isLoadingPrevious) {
+        if (passagePosition != null && uiState.pagingState == PagingState.Idle) {
             val passageIndex = uiState.passages.indexOfPassageId(passagePosition.passageId)
             if (passageIndex >= 0) {
                 listState.scrollToItem(
@@ -231,6 +231,7 @@ fun ReaderScreen(
             if (
                 !hasPositionedInitialPassage ||
                 state.isLoading ||
+                state.pagingState != PagingState.Idle ||
                 state.isProgressDragging ||
                 state.isMovingToPassage ||
                 state.loadErrorMessage != null
@@ -240,7 +241,6 @@ fun ReaderScreen(
 
             if (
                 isNearStart &&
-                !state.isLoadingPrevious &&
                 state.passages.firstSequence != FIRST_PASSAGE_SEQUENCE &&
                 previousLoadPassagePosition == null
             ) {
@@ -263,7 +263,6 @@ fun ReaderScreen(
 
             if (
                 isNearEnd &&
-                !state.isLoadingNext &&
                 state.passages.lastSequence != state.totalPassageCount
             ) {
                 currentOnLoadNext()

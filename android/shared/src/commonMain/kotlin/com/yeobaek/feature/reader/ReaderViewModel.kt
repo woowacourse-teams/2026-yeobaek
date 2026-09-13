@@ -135,10 +135,7 @@ class ReaderViewModel(
         val firstSequence = uiState.passages.firstSequence ?: return false
 
         if (
-            // 이전 passage를 가져오는 코루틴이 실행 중
-            previousPassagesJob?.isActive == true ||
-            // 이전 목록 로딩 중
-            uiState.isLoadingPrevious ||
+            uiState.pagingState != PagingState.Idle ||
             // 진행률 바를 드래그하는 동안
             uiState.isProgressDragging ||
             // 특정 본문으로 이동 중
@@ -150,7 +147,7 @@ class ReaderViewModel(
         // 현재 첫 문단이 책의 첫 문단이면 더 불러올 것이 없다.
         val window = previousPassageRange(firstSequence) ?: return false
 
-        uiState = uiState.copy(isLoadingPrevious = true)
+        uiState = uiState.copy(pagingState = PagingState.LoadingPrevious)
 
         crashReporter.track(
             level = CrashLogLevel.DEBUG,
@@ -170,7 +167,7 @@ class ReaderViewModel(
 
                 uiState = uiState.copy(
                     passages = uiState.passages.addPrevious(previousPassages),
-                    isLoadingPrevious = false,
+                    pagingState = PagingState.Idle,
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -182,7 +179,7 @@ class ReaderViewModel(
                         passageSequence = window.first,
                     ),
                 )
-                uiState = uiState.copy(isLoadingPrevious = false)
+                uiState = uiState.copy(pagingState = PagingState.Idle)
             }
         }
 
@@ -193,7 +190,7 @@ class ReaderViewModel(
         val lastSequence = uiState.passages.lastSequence ?: return
 
         if (
-            uiState.isLoadingNext ||
+            uiState.pagingState != PagingState.Idle ||
             uiState.isProgressDragging ||
             uiState.isMovingToPassage
         ) {
@@ -206,7 +203,7 @@ class ReaderViewModel(
             totalPassageCount = uiState.totalPassageCount,
         ) ?: return
 
-        uiState = uiState.copy(isLoadingNext = true)
+        uiState = uiState.copy(pagingState = PagingState.LoadingNext)
         crashReporter.track(
             level = CrashLogLevel.DEBUG,
             context = readerContext(
@@ -224,7 +221,7 @@ class ReaderViewModel(
 
                 uiState = uiState.copy(
                     passages = uiState.passages.addNext(nextPassages),
-                    isLoadingNext = false,
+                    pagingState = PagingState.Idle,
                 )
             } catch (exception: CancellationException) {
                 throw exception
@@ -236,7 +233,7 @@ class ReaderViewModel(
                         passageSequence = window.first,
                     ),
                 )
-                uiState = uiState.copy(isLoadingNext = false)
+                uiState = uiState.copy(pagingState = PagingState.Idle)
             }
         }
     }
@@ -327,8 +324,6 @@ class ReaderViewModel(
             scrollTargetSequence = null,
             isProgressDragging = true,
             isMovingToPassage = false,
-            isLoadingPrevious = false,
-            isLoadingNext = false,
         )
     }
 
@@ -850,10 +845,7 @@ class ReaderViewModel(
         nextPassagesJob?.cancel()
         previousPassagesJob = null
         nextPassagesJob = null
-        uiState = uiState.copy(
-            isLoadingPrevious = false,
-            isLoadingNext = false,
-        )
+        uiState = uiState.copy(pagingState = PagingState.Idle)
     }
 
     private fun findPassageSequenceBySentenceId(sentenceId: Long): Int? =
