@@ -14,10 +14,7 @@ data class ReaderUiState(
     val fontSize: Int = ReaderFontSize.DEFAULT,
     val isLoading: Boolean = false,
     val pagingState: PagingState = PagingState.Idle,
-    val targetProgress: Float? = null,
-    val scrollTargetSequence: Int? = null,
-    val isProgressDragging: Boolean = false,
-    val isMovingToPassage: Boolean = false,
+    val mode: ReaderMode = ReaderMode.Idle,
     val loadErrorMessage: String? = null,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
@@ -31,5 +28,14 @@ data class ReaderUiState(
         )
 
     val displayProgress: Float
-        get() = targetProgress ?: progress
+        get() = when (val currentMode = mode) {
+            ReaderMode.Idle -> progress
+
+            is ReaderMode.SelectingProgress -> currentMode.progress
+
+            is ReaderMode.MovingTo -> sequenceToProgress(
+                sequence = currentMode.targetSequence,
+                totalPassageCount = totalPassageCount,
+            )
+        }
 }

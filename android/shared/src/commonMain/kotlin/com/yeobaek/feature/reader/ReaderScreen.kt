@@ -93,6 +93,9 @@ fun ReaderScreen(
     val currentOnVisiblePassageChange by rememberUpdatedState(onVisiblePassageChange)
     val onTargetPassageReached by rememberUpdatedState(onProgressSeekCompleted)
     val commentSheet = uiState.commentSheet
+    val readyTargetSequence = (uiState.mode as? ReaderMode.MovingTo)
+        ?.takeIf { movingTo -> movingTo.isTargetReady }
+        ?.targetSequence
 
     // 첫 로딩이 끝나면 서버에 저장된 마지막 독서 위치로 목록을 이동한다.
     LaunchedEffect(
@@ -111,12 +114,11 @@ fun ReaderScreen(
     }
 
     // 진행률 바나 목차에서 정한 목표가 목록에 준비되면 실제 LazyColumn을 이동한다.
-    // 이동 완료 콜백은 ViewModel이 isMovingToPassage 상태를 끝낼 수 있게 한다.
     LaunchedEffect(
-        uiState.scrollTargetSequence,
+        readyTargetSequence,
         uiState.passages,
     ) {
-        val targetSequence = uiState.scrollTargetSequence ?: return@LaunchedEffect
+        val targetSequence = readyTargetSequence ?: return@LaunchedEffect
         val targetIndex = uiState.passages.indexOfSequence(targetSequence)
         if (targetIndex >= 0) {
             listState.scrollToItem(targetIndex)
@@ -182,8 +184,7 @@ fun ReaderScreen(
                 state.pagingState == PagingState.LoadingPrevious ||
                     previousLoadPassagePosition != null ||
                     fontSizePassagePosition != null ||
-                    state.isProgressDragging ||
-                    state.isMovingToPassage
+                    state.mode != ReaderMode.Idle
                 )
         }.distinctUntilChanged().collect { (passage, isRestoringPosition) ->
             if (!isRestoringPosition && passage != null) {
@@ -232,8 +233,7 @@ fun ReaderScreen(
                 !hasPositionedInitialPassage ||
                 state.isLoading ||
                 state.pagingState != PagingState.Idle ||
-                state.isProgressDragging ||
-                state.isMovingToPassage ||
+                state.mode != ReaderMode.Idle ||
                 state.loadErrorMessage != null
             ) {
                 return@collect

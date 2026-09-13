@@ -136,10 +136,7 @@ class ReaderViewModel(
 
         if (
             uiState.pagingState != PagingState.Idle ||
-            // 진행률 바를 드래그하는 동안
-            uiState.isProgressDragging ||
-            // 특정 본문으로 이동 중
-            uiState.isMovingToPassage
+            uiState.mode != ReaderMode.Idle
         ) {
             return false
         }
@@ -191,8 +188,7 @@ class ReaderViewModel(
 
         if (
             uiState.pagingState != PagingState.Idle ||
-            uiState.isProgressDragging ||
-            uiState.isMovingToPassage
+            uiState.mode != ReaderMode.Idle
         ) {
             return
         }
@@ -242,8 +238,7 @@ class ReaderViewModel(
     fun updateCurrentPassage(passage: PassageUiModel) {
         // 드래그나 특정 위치 이동 중에는 스크롤 위치가 일시적으로 크게 바뀌므로 무시한다.
         if (
-            uiState.isProgressDragging ||
-            uiState.isMovingToPassage ||
+            uiState.mode != ReaderMode.Idle ||
             passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
             passage.sequence == uiState.currentSequence
         ) {
@@ -313,25 +308,23 @@ class ReaderViewModel(
     // 진행률 바를 드래그하는 동안 값을 업데이트한다.
     fun updateProgressDrag(progress: Float) {
         // 드래그가 막 시작됐다면 이전 위치 이동과 페이지 로딩을 취소한다.
-        if (!uiState.isProgressDragging) {
+        if (uiState.mode !is ReaderMode.SelectingProgress) {
             moveToPassageJob?.cancel()
             cancelPaginationLoads()
         }
 
-        // 드래그 중에는 아직 최종 목적지가 정해지지 않았으므로 scrollTargetSequence를 비운다.
         uiState = uiState.copy(
-            targetProgress = progress.coerceIn(0f, 100f),
-            scrollTargetSequence = null,
-            isProgressDragging = true,
-            isMovingToPassage = false,
+            mode = ReaderMode.SelectingProgress(
+                progress = progress.coerceIn(0f, 100f),
+            ),
         )
     }
 
     // 진행률 바에서 선택한 지점으로 문단을 이동하는 함수
     fun moveToSelectedProgress() {
-        val progress = uiState.targetProgress ?: return
+        val selectingProgress = uiState.mode as? ReaderMode.SelectingProgress ?: return
         val targetSequence = progressToSequence(
-            progress = progress,
+            progress = selectingProgress.progress,
             totalPassageCount = uiState.totalPassageCount,
         )
         moveToPassage(targetSequence)
@@ -360,21 +353,13 @@ class ReaderViewModel(
         )
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
-            targetProgress = sequenceToProgress(
-                sequence = targetSequence,
-                totalPassageCount = uiState.totalPassageCount,
-            ),
         )
         moveToPassage(targetSequence)
     }
 
     private fun moveToPassage(targetSequence: Int) {
         if (targetSequence < FIRST_PASSAGE_SEQUENCE) {
-            uiState = uiState.copy(
-                targetProgress = null,
-                isProgressDragging = false,
-                isMovingToPassage = false,
-            )
+            uiState = uiState.copy(mode = ReaderMode.Idle)
             return
         }
 
@@ -385,9 +370,10 @@ class ReaderViewModel(
         // 이미 불러온 passage라면 네트워크 요청 없이 UI가 target 문단으로 스크롤
         val isTargetLoaded = uiState.passages.containsSequence(targetSequence)
         uiState = uiState.copy(
-            scrollTargetSequence = targetSequence.takeIf { isTargetLoaded },
-            isProgressDragging = false,
-            isMovingToPassage = true,
+            mode = ReaderMode.MovingTo(
+                targetSequence = targetSequence,
+                isTargetReady = isTargetLoaded,
+            ),
         )
         if (isTargetLoaded) return
 
@@ -415,13 +401,15 @@ class ReaderViewModel(
                         ),
                     )
                     uiState.copy(
-                        targetProgress = null,
-                        isMovingToPassage = false,
+                        mode = ReaderMode.Idle,
                     )
                 } else {
                     uiState.copy(
                         passages = uiState.passages.replaceAll(passages),
-                        scrollTargetSequence = loadedTargetSequence,
+                        mode = ReaderMode.MovingTo(
+                            targetSequence = loadedTargetSequence,
+                            isTargetReady = true,
+                        ),
                     )
                 }
             } catch (exception: CancellationException) {
@@ -435,9 +423,7 @@ class ReaderViewModel(
                     ),
                 )
                 uiState = uiState.copy(
-                    targetProgress = null,
-                    scrollTargetSequence = null,
-                    isMovingToPassage = false,
+                    mode = ReaderMode.Idle,
                 )
             }
         }
@@ -446,14 +432,13 @@ class ReaderViewModel(
     // UI가 target 문단까지 스크롤했음을 ViewModel에 알리기 위한 함수
     fun completeProgressSeek(passage: PassageUiModel) {
         // 과거 이동 요청의 콜백이 늦게 도착한 경우 현재 이동 상태를 건드리지 않는다.
-        if (passage.sequence != uiState.scrollTargetSequence) return
+        val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
+        if (!movingTo.isTargetReady || passage.sequence != movingTo.targetSequence) return
 
         moveToPassageJob = null
         uiState = uiState.copy(
             currentSequence = passage.sequence,
-            targetProgress = null,
-            scrollTargetSequence = null,
-            isMovingToPassage = false,
+            mode = ReaderMode.Idle,
         )
     }
 
