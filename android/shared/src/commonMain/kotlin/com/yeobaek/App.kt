@@ -2,6 +2,7 @@ package com.yeobaek
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -40,9 +41,11 @@ import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.onboarding.OnboardingScreen
 import com.yeobaek.feature.onboarding.OnboardingViewModel
+import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
 import com.yeobaek.feature.reader.ReaderViewModelFactory
+import com.yeobaek.feature.reader.comment.CommentSheetActions
 
 @Composable
 fun App(
@@ -248,39 +251,49 @@ fun App(
                     ),
                 )
                 val commentSheet = readerViewModel.commentSheet
+                val actions = remember(readerViewModel, navController) {
+                    ReaderActions(
+                        onBackClick = {
+                            readerViewModel.saveCurrentPassage(
+                                onComplete = navController::popBackStack,
+                            )
+                        },
+                        onSentenceClick = readerViewModel::openSentenceComments,
+                        onTableOfContentsClick = readerViewModel::openTableOfContents,
+                        onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+                        onChapterClick = readerViewModel::selectChapter,
+                        onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+                        onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+                        onFontSizeChange = readerViewModel::updateFontSize,
+                        onProgressChange = readerViewModel::updateProgressDrag,
+                        onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
+                        onLoadPrevious = readerViewModel::loadPreviousPassages,
+                        onLoadNext = readerViewModel::loadNextPassages,
+                        onVisiblePassageChange = readerViewModel::updateCurrentPassage,
+                        onTargetPassageReached = readerViewModel::completeProgressSeek,
+                        onTargetPassageNotFound = readerViewModel::recoverFromMissingTargetPassage,
+                    )
+                }
+                val commentSheetActions = remember(commentSheet) {
+                    CommentSheetActions(
+                        onDismiss = commentSheet::dismiss,
+                        onInputChange = commentSheet::updateInput,
+                        onSubmit = commentSheet::submit,
+                        onEdit = commentSheet::startEditing,
+                        onEditCancel = commentSheet::cancelEditing,
+                        onDelete = commentSheet::requestDelete,
+                        onDeleteCancel = commentSheet::cancelDelete,
+                        onDeleteConfirm = commentSheet::confirmDelete,
+                        onReport = commentSheet::report,
+                        onReportResultConsumed = commentSheet::consumeReportResult,
+                    )
+                }
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
                     commentSheet = commentSheet.uiState,
-                    onSentenceClick = readerViewModel::openSentenceComments,
-                    onBackClick = {
-                        readerViewModel.saveCurrentPassage(
-                            onComplete = navController::popBackStack,
-                        )
-                    },
-                    onTableOfContentsClick = readerViewModel::openTableOfContents,
-                    onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
-                    onChapterClick = readerViewModel::selectChapter,
-                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
-                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
-                    onFontSizeChange = readerViewModel::updateFontSize,
-                    onCommentSheetDismiss = commentSheet::dismiss,
-                    onCommentInputChange = commentSheet::updateInput,
-                    onCommentSubmit = commentSheet::submit,
-                    onCommentEdit = commentSheet::startEditing,
-                    onCommentReport = commentSheet::report,
-                    onCommentReportResultConsumed = commentSheet::consumeReportResult,
-                    onCommentEditCancel = commentSheet::cancelEditing,
-                    onCommentDelete = commentSheet::requestDelete,
-                    onCommentDeleteCancel = commentSheet::cancelDelete,
-                    onCommentDeleteConfirm = commentSheet::confirmDelete,
-                    onLoadPrevious = readerViewModel::loadPreviousPassages,
-                    onLoadNext = readerViewModel::loadNextPassages,
-                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateProgressDrag,
-                    onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
-                    onTargetPassageReached = readerViewModel::completeProgressSeek,
-                    onTargetPassageNotFound = readerViewModel::recoverFromMissingTargetPassage,
+                    actions = actions,
+                    commentSheetActions = commentSheetActions,
                 )
             }
             composable<Join> {

@@ -23,3 +23,16 @@ sealed class ReportState {
     data object Success : ReportState()
     data class Failure(val message: String) : ReportState()
 }
+
+class CommentSheetActions(
+    val onDismiss: () -> Unit,
+    val onInputChange: (String) -> Unit,
+    val onSubmit: () -> Unit,
+    val onEdit: (commentId: Long) -> Unit,
+    val onEditCancel: () -> Unit,
+    val onDelete: (commentId: Long) -> Unit,
+    val onDeleteCancel: () -> Unit,
+    val onDeleteConfirm: () -> Unit,
+    val onReport: (commentId: Long) -> Unit,
+    val onReportResultConsumed: () -> Unit,
+)
