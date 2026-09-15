@@ -83,7 +83,7 @@ class PassageControllerTest extends ControllerTest {
 
         verify(passageService, times(1)).findPassages(1L, 7L, 42, 43);
         verify(analyticsTracker, times(1))
-                .track(1L, AnalyticsEvent.passagesViewed(7L, 42, 43, 2));
+                .track(1L, AnalyticsEvent.passagesView(7L, 42, 43, 2));
     }
 
     @Test

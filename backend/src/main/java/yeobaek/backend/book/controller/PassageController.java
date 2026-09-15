@@ -35,7 +35,7 @@ public class PassageController {
                                          @RequestParam int to) {
         PassagesResponse response = passageService.findPassages(memberId, clubId, from, to);
         analyticsTracker.track(memberId,
-                AnalyticsEvent.passagesViewed(clubId, from, to, response.passages().size()));
+                AnalyticsEvent.passagesView(clubId, from, to, response.passages().size()));
         return response;
     }
 }
