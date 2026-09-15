@@ -432,28 +432,6 @@ class ReaderViewModel(
         commentSheet.open(sentence)
     }
 
-    companion object {
-        fun readerViewModelFactory(
-            groupId: Long,
-            bookRepository: BookRepository,
-            groupRepository: GroupRepository,
-            readerRepository: ReaderRepository,
-            commentRepository: CommentRepository,
-            crashReporter: CrashReporter,
-        ): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                ReaderViewModel(
-                    groupId = groupId,
-                    bookRepository = bookRepository,
-                    groupRepository = groupRepository,
-                    readerRepository = readerRepository,
-                    commentRepository = commentRepository,
-                    crashReporter = crashReporter,
-                )
-            }
-        }
-    }
-
     // 특정 위치로 이동할 때 이전 문단이나 다음 문단 요청 결과가 목록을 덮어쓰지 않도록 취소한다.
     private fun cancelPaginationLoads() {
         pagingJob?.cancel()
@@ -516,4 +494,26 @@ class ReaderViewModel(
         passageSequence = passageSequence,
         itemCount = itemCount,
     )
+
+    companion object {
+        fun readerViewModelFactory(
+            groupId: Long,
+            bookRepository: BookRepository,
+            groupRepository: GroupRepository,
+            readerRepository: ReaderRepository,
+            commentRepository: CommentRepository,
+            crashReporter: CrashReporter,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                ReaderViewModel(
+                    groupId = groupId,
+                    bookRepository = bookRepository,
+                    groupRepository = groupRepository,
+                    readerRepository = readerRepository,
+                    commentRepository = commentRepository,
+                    crashReporter = crashReporter,
+                )
+            }
+        }
+    }
 }
