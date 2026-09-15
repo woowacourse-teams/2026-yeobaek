@@ -1,0 +1,16 @@
+package yeobaek.backend.book.domain;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+
+@Embeddable
+public record Publisher(@Column(name = "value", length = MAX_LENGTH) String value) {
+
+    static final int MAX_LENGTH = 100;
+
+    public Publisher {
+        if (value == null || value.isBlank() || value.length() > MAX_LENGTH) {
+            throw new IllegalArgumentException("출판사는 공백이 아닌 1~" + MAX_LENGTH + "자여야 합니다.");
+        }
+    }
+}

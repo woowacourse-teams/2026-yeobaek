@@ -13,7 +13,7 @@ import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCodeGenerator;
+import yeobaek.backend.club.domain.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
@@ -43,7 +43,6 @@ public class ClubService {
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final MemberBlockRepository memberBlockRepository;
-    private final JoinCodeGenerator joinCodeGenerator;
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
@@ -137,10 +136,10 @@ public class ClubService {
         return new MyProgressResponse(sequence, clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
-    private String generateUniqueJoinCode() {
+    private JoinCode generateUniqueJoinCode() {
         for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
-            String code = joinCodeGenerator.generate();
-            if (!clubRepository.existsByJoinCode(code)) {
+            JoinCode code = JoinCode.generate();
+            if (!clubRepository.existsByJoinCode(code.value())) {
                 return code;
             }
         }

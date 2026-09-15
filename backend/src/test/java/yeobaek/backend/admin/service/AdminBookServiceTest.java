@@ -78,7 +78,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제 상태와 공동 작가 및 nullable 정보를 포함해 모든 도서를 ID 순으로 조회한다")
     void findBooks() {
-        Book first = bookRepository.save(new Book("표지 없는 책", null, null, 0));
+        Book first = bookRepository.save(new Book("표지 없는 책", null, null, 1));
         Book second = bookRepository.save(new Book(
                 "함께 쓴 책",
                 "여백 출판",
@@ -103,7 +103,7 @@ class AdminBookServiceTest extends IntegrationTest {
                         AdminBookResponse::coverImageUrl,
                         AdminBookResponse::status)
                 .containsExactly(
-                        tuple(first.getId(), "표지 없는 책", null, null, 0, null, BookStatus.ACTIVE),
+                        tuple(first.getId(), "표지 없는 책", null, null, 1, null, BookStatus.ACTIVE),
                         tuple(second.getId(), "함께 쓴 책", "여백 출판", 2026, 42,
                                 "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/" + COVER_KEY,
                                 BookStatus.DELETED));

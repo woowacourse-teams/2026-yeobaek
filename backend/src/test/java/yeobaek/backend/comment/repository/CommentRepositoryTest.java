@@ -2,6 +2,8 @@ package yeobaek.backend.comment.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,9 @@ class CommentRepositoryTest extends IntegrationTest {
     @Autowired
     private ClubMemberRepository clubMemberRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Test
     @DisplayName("댓글을 저장하면 작성일이 자동으로 기록되고 수정일은 비어 있다")
     void saveSetsCreatedAt() {
@@ -59,6 +64,26 @@ class CommentRepositoryTest extends IntegrationTest {
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNull();
         assertThat(saved.getClubMember().getMember().getNickname()).isEqualTo("민서");
+    }
+
+    @Test
+    @DisplayName("수정한 댓글 값 객체를 저장한 뒤 다시 조회한다")
+    void reloadsUpdatedCommentContent() {
+        Book book = bookRepository.save(new Book("댓글 수정 도서", null, null, 1));
+        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, "본문"));
+        Member member = memberRepository.save(new Member("수정자"));
+        Club club = clubRepository.save(new Club("수정 모임", book, "EDIT01"));
+        ClubMember clubMember = clubMemberRepository.save(new ClubMember(member, club));
+        Comment comment = commentRepository.saveAndFlush(
+                new Comment(clubMember, passage.getSentences().getFirst(), "수정 전"));
+
+        comment.updateContent("  수정 후  ");
+        commentRepository.saveAndFlush(comment);
+        entityManager.clear();
+
+        assertThat(commentRepository.findById(comment.getId()).orElseThrow().getContent())
+                .isEqualTo("  수정 후  ");
     }
 
     @Test

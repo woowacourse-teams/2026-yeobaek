@@ -1,6 +1,8 @@
 package yeobaek.backend.book.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -32,18 +34,19 @@ public class Passage {
     @JoinColumn(name = "chapter_id")
     private Chapter chapter;
 
-    @Column(nullable = false)
-    private int sequence;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "sequence", nullable = false))
+    private ContentSequence sequence;
 
     @OneToMany(mappedBy = "passage", fetch = FetchType.LAZY, cascade = jakarta.persistence.CascadeType.ALL,
             orphanRemoval = true)
-    @OrderBy("sequence ASC")
+    @OrderBy("sequence.value ASC")
     private List<Sentence> sentences = new ArrayList<>();
 
     public Passage(Chapter chapter, int sequence, List<String> sentenceContents) {
         validate(sentenceContents);
         this.chapter = chapter;
-        this.sequence = sequence;
+        this.sequence = new ContentSequence(sequence);
         for (int index = 0; index < sentenceContents.size(); index++) {
             sentences.add(new Sentence(this, index + 1, sentenceContents.get(index)));
         }
@@ -61,6 +64,10 @@ public class Passage {
 
     public List<Sentence> getSentences() {
         return List.copyOf(sentences);
+    }
+
+    public int getSequence() {
+        return sequence.value();
     }
 
     public boolean belongsTo(Book book) {

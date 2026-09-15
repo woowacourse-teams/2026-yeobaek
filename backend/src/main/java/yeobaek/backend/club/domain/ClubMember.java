@@ -80,7 +80,7 @@ public class ClubMember {
      * 진도율(0~100, 반올림) = 최근 열람 본문의 순서 ÷ 도서의 본문 개수 (PRD 3.4).
      */
     public int progressRate() {
-        return (int) Math.round(lastReadPassage.getSequence() * 100.0 / club.totalPassageCount());
+        return ProgressRate.calculate(lastReadPassage.getSequence(), club.totalPassageCount()).roundedPercentage();
     }
 
     public void ensureBookAvailable() {

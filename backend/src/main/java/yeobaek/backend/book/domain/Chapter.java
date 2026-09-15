@@ -1,6 +1,8 @@
 package yeobaek.backend.book.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -19,8 +21,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Chapter {
 
-    private static final int MAX_TITLE_LENGTH = 100;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,23 +29,26 @@ public class Chapter {
     @JoinColumn(name = "book_id")
     private Book book;
 
-    @Column(nullable = false, length = MAX_TITLE_LENGTH)
-    private String title;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "title", nullable = false, length = ChapterTitle.MAX_LENGTH))
+    private ChapterTitle title;
 
-    @Column(nullable = false)
-    private int sequence;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "sequence", nullable = false))
+    private ContentSequence sequence;
 
     public Chapter(Book book, String title, int sequence) {
-        validateTitle(title);
         this.book = book;
-        this.title = title;
-        this.sequence = sequence;
+        this.title = new ChapterTitle(title);
+        this.sequence = new ContentSequence(sequence);
     }
 
-    private static void validateTitle(String title) {
-        if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
-            throw new IllegalArgumentException("목차 제목은 공백이 아닌 1~" + MAX_TITLE_LENGTH + "자여야 합니다.");
-        }
+    public String getTitle() {
+        return title.value();
+    }
+
+    public int getSequence() {
+        return sequence.value();
     }
 
     public boolean belongsTo(Book other) {

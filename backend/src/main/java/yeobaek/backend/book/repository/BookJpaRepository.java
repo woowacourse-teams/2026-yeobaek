@@ -19,10 +19,10 @@ interface BookJpaRepository extends JpaRepository<Book, Long> {
     @Query("""
             select b from Book b
             where b.status = :status
-              and (b.title like concat('%', :keyword, '%')
+              and (b.title.value like concat('%', :keyword, '%')
                or exists (
                    select 1 from AuthorBook ab
-                   where ab.book = b and ab.author.name like concat('%', :keyword, '%')
+                   where ab.book = b and ab.author.name.value like concat('%', :keyword, '%')
                ))
             order by b.id
             """)
@@ -31,7 +31,8 @@ interface BookJpaRepository extends JpaRepository<Book, Long> {
             @Param("status") BookStatus status
     );
 
-    List<Book> findAllByTitleAndStatus(String title, BookStatus status);
+    @Query("select b from Book b where b.title.value = :title and b.status = :status")
+    List<Book> findAllByTitleAndStatus(@Param("title") String title, @Param("status") BookStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Book b where b.id = :bookId")

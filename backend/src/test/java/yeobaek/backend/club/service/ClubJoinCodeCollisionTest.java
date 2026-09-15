@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mockStatic;
 
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.AuthorBookRepository;
@@ -18,7 +20,7 @@ import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCodeGenerator;
+import yeobaek.backend.club.domain.JoinCode;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
@@ -47,9 +49,6 @@ class ClubJoinCodeCollisionTest {
     private MemberRepository memberRepository;
 
     @Mock
-    private JoinCodeGenerator joinCodeGenerator;
-
-    @Mock
     private BookCoverUrlResolver bookCoverUrlResolver;
 
     @Mock
@@ -68,7 +67,6 @@ class ClubJoinCodeCollisionTest {
         given(book.getId()).willReturn(BOOK_ID);
         given(book.getTitle()).willReturn("운수 좋은 날");
         given(book.getPassageCount()).willReturn(312);
-        given(joinCodeGenerator.generate()).willReturn("TAKEN1", "TAKEN1", "FRESH1");
         given(clubRepository.existsByJoinCode("TAKEN1")).willReturn(true);
         given(clubRepository.existsByJoinCode("FRESH1")).willReturn(false);
         given(clubRepository.save(any(Club.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -76,7 +74,12 @@ class ClubJoinCodeCollisionTest {
         given(clubMemberRepository.save(any(ClubMember.class))).willAnswer(invocation -> invocation.getArgument(0));
         given(authorBookRepository.findAllWithAuthorByBookIdIn(List.of(BOOK_ID))).willReturn(List.of());
 
-        ClubCreateResponse response = clubService.create(MEMBER_ID, "새 모임", BOOK_ID);
+        ClubCreateResponse response;
+        try (MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
+            mockedJoinCode.when(JoinCode::generate)
+                    .thenReturn(new JoinCode("TAKEN1"), new JoinCode("TAKEN1"), new JoinCode("FRESH1"));
+            response = clubService.create(MEMBER_ID, "새 모임", BOOK_ID);
+        }
 
         assertThat(response.joinCode()).isEqualTo("FRESH1");
     }
@@ -85,10 +88,13 @@ class ClubJoinCodeCollisionTest {
     @DisplayName("5회 연속 충돌하면 서버 에러로 처리한다")
     void failAfterFiveCollisions() {
         given(bookRepository.getById(BOOK_ID)).willReturn(book);
-        given(joinCodeGenerator.generate()).willReturn("TAKEN1");
         given(clubRepository.existsByJoinCode("TAKEN1")).willReturn(true);
 
-        assertThatThrownBy(() -> clubService.create(MEMBER_ID, "새 모임", BOOK_ID))
-                .isInstanceOf(IllegalStateException.class);
+        try (MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
+            mockedJoinCode.when(JoinCode::generate).thenReturn(new JoinCode("TAKEN1"));
+
+            assertThatThrownBy(() -> clubService.create(MEMBER_ID, "새 모임", BOOK_ID))
+                    .isInstanceOf(IllegalStateException.class);
+        }
     }
 }

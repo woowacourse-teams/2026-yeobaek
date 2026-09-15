@@ -1,6 +1,8 @@
 package yeobaek.backend.book.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -30,23 +32,26 @@ public class Sentence {
     @JoinColumn(name = "passage_id", nullable = false)
     private Passage passage;
 
-    @Column(nullable = false)
-    private int sequence;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "sequence", nullable = false))
+    private ContentSequence sequence;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String content;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "content", columnDefinition = "TEXT", nullable = false))
+    private SentenceContent content;
 
     Sentence(Passage passage, int sequence, String content) {
-        validate(content);
         this.passage = passage;
-        this.sequence = sequence;
-        this.content = content;
+        this.sequence = new ContentSequence(sequence);
+        this.content = new SentenceContent(content);
     }
 
-    private static void validate(String content) {
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("문장 내용은 공백이 아닌 텍스트여야 합니다.");
-        }
+    public String getContent() {
+        return content.value();
+    }
+
+    public int getSequence() {
+        return sequence.value();
     }
 
     public boolean belongsTo(Book book) {

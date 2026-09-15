@@ -1,6 +1,8 @@
 package yeobaek.backend.book.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -23,8 +25,6 @@ import yeobaek.backend.support.ErrorCode;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
-    private static final int MAX_TITLE_LENGTH = 100;
-    private static final int MAX_PUBLISHER_LENGTH = 100;
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_KEY_PATTERN = Pattern.compile(
             "^[^/]+(?:/[^/]+)*/book-covers/"
@@ -34,19 +34,22 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = MAX_TITLE_LENGTH)
-    private String title;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "title", nullable = false, length = BookTitle.MAX_LENGTH))
+    private BookTitle title;
 
-    @Column(length = MAX_PUBLISHER_LENGTH)
-    private String publisher;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "publisher", length = Publisher.MAX_LENGTH))
+    private Publisher publisher;
 
     private Integer publishedYear;
 
     @Column(length = MAX_COVER_IMAGE_KEY_LENGTH)
     private String coverImageKey;
 
-    @Column(nullable = false)
-    private int passageCount;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "passage_count", nullable = false))
+    private PassageCount passageCount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -58,13 +61,13 @@ public class Book {
     }
 
     public Book(String title, String publisher, Integer publishedYear, int passageCount, String coverImageKey) {
-        validateTitle(title);
-        validatePublisher(publisher);
         validateCoverImageKey(coverImageKey);
-        this.title = title;
-        this.publisher = publisher;
+        this.title = new BookTitle(title);
+        if (publisher != null) {
+            this.publisher = new Publisher(publisher);
+        }
         this.publishedYear = publishedYear;
-        this.passageCount = passageCount;
+        this.passageCount = new PassageCount(passageCount);
         this.coverImageKey = coverImageKey;
     }
 
@@ -73,8 +76,8 @@ public class Book {
     }
 
     public boolean hasSameBibliography(Book other) {
-        return title.equals(other.getTitle())
-                && Objects.equals(publisher, other.getPublisher())
+        return getTitle().equals(other.getTitle())
+                && Objects.equals(getPublisher(), other.getPublisher())
                 && Objects.equals(publishedYear, other.getPublishedYear());
     }
 
@@ -106,16 +109,16 @@ public class Book {
         this.coverImageKey = coverImageKey;
     }
 
-    private static void validateTitle(String title) {
-        if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
-            throw new IllegalArgumentException("도서 제목은 공백이 아닌 1~" + MAX_TITLE_LENGTH + "자여야 합니다.");
-        }
+    public String getTitle() {
+        return title.value();
     }
 
-    private static void validatePublisher(String publisher) {
-        if (publisher != null && (publisher.isBlank() || publisher.length() > MAX_PUBLISHER_LENGTH)) {
-            throw new IllegalArgumentException("출판사는 공백이 아닌 1~" + MAX_PUBLISHER_LENGTH + "자여야 합니다.");
-        }
+    public String getPublisher() {
+        return publisher == null ? null : publisher.value();
+    }
+
+    public int getPassageCount() {
+        return passageCount.value();
     }
 
     private static void validateCoverImageKey(String coverImageKey) {

@@ -15,6 +15,7 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
+import yeobaek.backend.book.domain.ContentSequence;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -62,6 +63,21 @@ class BookMappingTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("nullable 값 객체를 저장한 뒤 다시 조회한다")
+    void reloadsNullableValueObjects() {
+        Author author = authorRepository.save(new Author("작자 미상"));
+        Book book = bookRepository.save(new Book("출판사 미상", null, null, 1));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Author foundAuthor = authorRepository.findById(author.getId()).orElseThrow();
+            Book foundBook = bookRepository.findById(book.getId()).orElseThrow();
+
+            assertThat(foundAuthor.getIsni()).isNull();
+            assertThat(foundBook.getPublisher()).isNull();
+        });
+    }
+
+    @Test
     @DisplayName("본문 범위 조회는 문단과 문장을 순서대로 fetch join한다")
     void fetchesOrderedSentencesWithPassages() {
         Book book = bookRepository.save(new Book("범위 조회 도서", null, null, 2));
@@ -85,7 +101,7 @@ class BookMappingTest extends IntegrationTest {
         Book book = bookRepository.save(new Book("문장 순서 도서", null, null, 1));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         Passage passage = new Passage(chapter, 1, List.of("첫 문장.", "둘째 문장."));
-        ReflectionTestUtils.setField(passage.getSentences().get(1), "sequence", 1);
+        ReflectionTestUtils.setField(passage.getSentences().get(1), "sequence", new ContentSequence(1));
 
         assertThatThrownBy(() -> passageRepository.saveAndFlush(passage))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -113,7 +129,7 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("공저를 위해 하나의 도서에 여러 작가를 매핑할 수 있다")
     void coAuthorMapping() {
-        Book book = bookRepository.save(new Book("공저 도서", null, null, 0));
+        Book book = bookRepository.save(new Book("공저 도서", null, null, 1));
         Author first = authorRepository.save(new Author("작가1"));
         Author second = authorRepository.save(new Author("작가2"));
         authorBookRepository.save(new AuthorBook(first, book));

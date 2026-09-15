@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.PassageRange;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
 import yeobaek.backend.book.dto.SentenceResponse;
@@ -33,14 +34,16 @@ public class PassageService {
     private final CommentRepository commentRepository;
 
     public PassagesResponse findPassages(Long memberId, Long clubId, int from, int to) {
-        validateRange(from, to);
+        PassageRange range = new PassageRange(from, to);
+        validateRangeSize(range);
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
         if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
             throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
         }
         club.ensureBookAvailable();
-        List<Passage> passages = passageRepository.findRangeByBookId(club.getBook().getId(), from, to);
+        List<Passage> passages = passageRepository.findRangeByBookId(
+                club.getBook().getId(), range.from(), range.to());
         List<Long> sentenceIds = passages.stream()
                 .flatMap(passage -> passage.getSentences().stream())
                 .map(sentence -> sentence.getId())
@@ -64,11 +67,8 @@ public class PassageService {
                         SentenceCommentCount::getCommentCount));
     }
 
-    private void validateRange(int from, int to) {
-        if (from < 1 || to < from) {
-            throw new IllegalArgumentException("본문 범위가 올바르지 않습니다.");
-        }
-        if (to - from + 1 > MAX_RANGE_SIZE) {
+    private void validateRangeSize(PassageRange range) {
+        if (range.size() > MAX_RANGE_SIZE) {
             throw new IllegalArgumentException("본문은 한 번에 최대 " + MAX_RANGE_SIZE + "개까지 조회할 수 있습니다.");
         }
     }

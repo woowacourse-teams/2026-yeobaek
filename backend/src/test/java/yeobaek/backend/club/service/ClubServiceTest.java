@@ -144,6 +144,14 @@ class ClubServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("발급 형식이 아닌 참여 코드는 기존과 같이 존재하지 않는 코드로 처리한다")
+    void invalidJoinCodeRemainsNotFound() {
+        assertThatThrownBy(() -> clubService.join(creator.getId(), "invalid"))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.JOIN_CODE_NOT_FOUND));
+    }
+
+    @Test
     @DisplayName("이미 참여한 모임에 다시 참여해도 같은 응답을 반환한다 (멱등)")
     void joinIsIdempotent() {
         ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());

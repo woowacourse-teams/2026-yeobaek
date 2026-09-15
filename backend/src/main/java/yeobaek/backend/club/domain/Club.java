@@ -1,6 +1,8 @@
 package yeobaek.backend.club.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -25,33 +27,38 @@ import yeobaek.backend.book.domain.Sentence;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Club {
 
-    private static final int MAX_NAME_LENGTH = 20;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 20)
-    private String name;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "name", nullable = false, length = ClubName.MAX_LENGTH))
+    private ClubName name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "book_id", updatable = false)
     private Book book;
 
-    @Column(name = "join_code", nullable = false, length = 10)
-    private String joinCode;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "join_code", nullable = false, length = 10))
+    private JoinCode joinCode;
 
     public Club(String name, Book book, String joinCode) {
-        validate(name);
-        this.name = name;
+        this(name, book, new JoinCode(joinCode));
+    }
+
+    public Club(String name, Book book, JoinCode joinCode) {
+        this.name = new ClubName(name);
         this.book = book;
         this.joinCode = joinCode;
     }
 
-    private static void validate(String name) {
-        if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH) {
-            throw new IllegalArgumentException("모임 이름은 공백이 아닌 1~" + MAX_NAME_LENGTH + "자여야 합니다.");
-        }
+    public String getName() {
+        return name.value();
+    }
+
+    public String getJoinCode() {
+        return joinCode.value();
     }
 
     public boolean isReading(Passage passage) {

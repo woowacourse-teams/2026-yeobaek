@@ -20,6 +20,7 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.SentenceContent;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
@@ -91,11 +92,8 @@ public class BookIngestService {
     }
 
     private void validateSentence(SentenceUploadRequest sentence) {
-        String content = sentence.content();
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("문장 내용은 공백이 아니어야 합니다.");
-        }
-        if (content.getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
+        SentenceContent content = new SentenceContent(sentence.content());
+        if (content.value().getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
             throw new IllegalArgumentException("문장 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.");
         }
     }
