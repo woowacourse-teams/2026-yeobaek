@@ -102,8 +102,6 @@ fun PassageItem(
     )
 }
 
-// 댓글이 달린 문장 아래에 밑줄을 긋는다.
-// 문장이 여러 줄에 걸치면 줄마다 그 문장이 차지하는 구간에만 긋는다.
 private fun DrawScope.drawCommentUnderlines(
     layoutResult: TextLayoutResult,
     underlineTextRanges: List<TextRange>,

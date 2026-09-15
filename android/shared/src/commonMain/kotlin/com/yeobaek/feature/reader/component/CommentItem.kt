@@ -49,7 +49,6 @@ fun CommentItem(
         mutableStateOf(false)
     }
 
-    // 내 댓글은 수정·삭제하고, 다른 사람의 댓글은 신고할 수 있다.
     val menuItems = if (comment.isMine) {
         listOf(
             CommentMenuItem(text = "수정", onClick = onEdit),

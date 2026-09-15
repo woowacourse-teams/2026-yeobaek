@@ -17,11 +17,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-// 문장 댓글 시트의 상태와 동작(조회, 작성, 수정, 삭제, 신고)을 관리한다.
-//
-// 리더 화면과는 두 지점에서만 연결된다.
-// - onCommentCountChanged: 댓글 수가 바뀌면 알려서 본문 문장의 댓글 수를 갱신하게 한다.
-// - crashContext: 크래시 로그에 담을 책·문단 정보는 리더가 알고 있으므로 받아서 쓴다.
 class CommentSheetController(
     private val groupId: Long,
     private val commentRepository: CommentRepository,
@@ -30,7 +25,6 @@ class CommentSheetController(
     private val crashContext: (operation: CrashOperation, sentenceId: Long, itemCount: Int?) -> CrashContext,
     private val onCommentCountChanged: (sentenceId: Long, commentCount: Int) -> Unit,
 ) {
-    // 열려 있는 시트의 상태. 시트가 닫혀 있으면 null이다.
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
         private set
 
@@ -181,8 +175,6 @@ class CommentSheetController(
                 ) { currentSheet ->
                     currentSheet.withCommentDeleted(commentId)
                 }
-                // 시트가 닫혔거나 다시 열려 시트에 반영하지 못했더라도, 서버에서는 삭제됐으므로 본문의 댓글 수는 갱신한다.
-                // 삭제하는 동안에는 목록을 바꾸는 다른 동작이 막혀 있어 요청을 보낸 시점의 목록으로 계산하면 된다.
                 val commentCount = sheet.withCommentDeleted(commentId).comments.size
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
@@ -222,7 +214,6 @@ class CommentSheetController(
         ) {
             return
         }
-        // null이면 새 댓글 작성, 값이 있으면 그 댓글 수정
         val editingCommentId = sheet.editingCommentId
 
         uiState = sheet.copy(
@@ -259,8 +250,6 @@ class CommentSheetController(
                         editedCommentId = editingCommentId,
                     )
                 }
-                // 시트가 닫혔거나 다시 열려 시트에 반영하지 못했더라도, 서버에는 저장됐으므로 본문의 댓글 수는 갱신한다.
-                // 저장하는 동안에는 목록을 바꾸는 다른 동작이 막혀 있어 요청을 보낸 시점의 목록으로 계산하면 된다.
                 val commentCount = sheet.withCommentSaved(
                     savedComment = savedComment,
                     editedCommentId = editingCommentId,
@@ -298,8 +287,6 @@ class CommentSheetController(
 
         uiState = sheet.copy(reportState = ReportState.Loading)
 
-        // 신고 결과는 신고 응답을 기다리는 시트에만 보여준다.
-        // 응답 전에 시트를 닫았거나 다시 열었다면 신고는 그대로 접수되고, 결과만 표시하지 않는다.
         scope.launch {
             try {
                 commentRepository.reportComment(commentId)
@@ -324,7 +311,6 @@ class CommentSheetController(
         }
     }
 
-    // 화면이 신고 결과를 보여준 뒤 호출해 결과를 비운다.
     fun consumeReportResult() {
         val sheet = uiState ?: return
         if (sheet.reportState is ReportState.Loading) return
@@ -332,9 +318,6 @@ class CommentSheetController(
         uiState = sheet.copy(reportState = ReportState.Idle)
     }
 
-    // 요청의 응답을 시트에 반영한다. 요청을 보낸 문장의 시트가 열려 있고,
-    // 그 시트가 아직 이 응답을 기다리는 중(isWaiting)일 때만 반영한다.
-    // 응답 전에 시트를 닫았다가 다시 열었다면 새 시트는 기다리는 중이 아니므로 반영하지 않는다.
     private fun updateSheet(
         sentenceId: Long,
         isWaiting: (CommentSheetUiState) -> Boolean,
@@ -346,7 +329,6 @@ class CommentSheetController(
         uiState = transform(sheet)
     }
 
-    // 시트가 바뀌거나 닫힐 때 진행 중인 댓글 조회를 취소한다.
     private fun cancelLoad() {
         loadJob?.cancel()
         loadJob = null
@@ -375,11 +357,9 @@ class CommentSheetController(
     }
 }
 
-// 내가 쓴 댓글만 수정하거나 삭제할 수 있다.
 private fun CommentSheetUiState.findMyComment(commentId: Long): CommentUiModel? =
     comments.firstOrNull { comment -> comment.commentId == commentId && comment.isMine }
 
-// 댓글 삭제가 끝난 뒤의 시트. 삭제한 댓글을 수정하던 중이었다면 수정 상태도 함께 해제한다.
 private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentSheetUiState {
     val wasEditingDeletedComment = editingCommentId == commentId
 
@@ -394,7 +374,6 @@ private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentShee
     )
 }
 
-// 댓글 저장이 끝난 뒤의 시트. 새 댓글은 목록 끝에 붙이고, 수정한 댓글은 제자리에서 바꾼다.
 private fun CommentSheetUiState.withCommentSaved(
     savedComment: CommentUiModel,
     editedCommentId: Long?,

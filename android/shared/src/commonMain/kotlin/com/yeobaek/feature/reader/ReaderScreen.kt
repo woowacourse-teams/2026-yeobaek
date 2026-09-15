@@ -42,7 +42,6 @@ fun ReaderScreen(
 ) {
     PlatformBackHandler(onBack = actions.onBackClick)
 
-    // 본문 목록의 스크롤 상태. 초기 위치 이동, 목표 문단 이동, 위치 복원, 앞뒤 문단 요청을 맡는다.
     val readerListState = rememberReaderListState(
         uiState = uiState,
         actions = actions,
@@ -130,7 +129,6 @@ fun ReaderScreen(
     }
 }
 
-// 리더 화면에서 일어나는 사용자 동작과, 본문 목록(ReaderListState)이 ViewModel에 보내는 알림.
 class ReaderActions(
     val onBackClick: () -> Unit,
     val onSentenceClick: (SentenceUiModel) -> Unit,

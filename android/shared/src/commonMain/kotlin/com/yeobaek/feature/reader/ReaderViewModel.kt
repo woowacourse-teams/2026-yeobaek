@@ -39,7 +39,6 @@ class ReaderViewModel(
     var uiState by mutableStateOf(ReaderUiState())
         private set
 
-    // 문장 댓글 시트. 댓글 수가 바뀌면 본문 문장의 댓글 수에도 반영한다.
     val commentSheet = CommentSheetController(
         groupId = groupId,
         commentRepository = commentRepository,
@@ -62,11 +61,9 @@ class ReaderViewModel(
         },
     )
 
-    // Job은 코루틴의 상태(실행, 취소, 완료)를 추적하고 생명주기를 직접 제어할 수 있게 해주는 도구
-    // 진행 여부를 확인하거나 더 이상 필요 없는 요청을 취소해, 중복 요청과 늦게 도착한 응답을 막는다.
-    private var pagingJob: Job? = null // 앞뒤 문단 이어서 로딩
-    private var moveToPassageJob: Job? = null // 특정 문단으로 이동
-    private var saveReadingProgressJob: Job? = null // 읽고 있는 위치 저장
+    private var pagingJob: Job? = null
+    private var moveToPassageJob: Job? = null
+    private var saveReadingProgressJob: Job? = null
 
     private var currentBookId: Long? = null
 
@@ -88,9 +85,8 @@ class ReaderViewModel(
                 )
                 val passageCount = groupDetail.book.passageCount
 
-                // 사용자가 읽고 있는 문단 번호
                 val readingSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
-                    .coerceIn( // 값이 지정한 범위를 벗어나면 경계값으로 맞춰주고, 범위 안이면 원래 값을 그대로 반환
+                    .coerceIn(
                         minimumValue = 0,
                         maximumValue = passageCount,
                     )
@@ -134,9 +130,7 @@ class ReaderViewModel(
         }
     }
 
-    // 불러온 첫 문단보다 앞에 있는 문단들을 추가한다.
     fun loadPreviousPassages() {
-        // 현재 화면에 불러와진 문단 리스트에서 첫 번째 문단의 번호
         val firstSequence = uiState.passages.firstSequence ?: return
 
         if (
@@ -146,7 +140,6 @@ class ReaderViewModel(
             return
         }
 
-        // 현재 첫 문단이 책의 첫 문단이면 더 불러올 것이 없다.
         val window = previousPassageRange(firstSequence) ?: return
 
         uiState = uiState.copy(isLoadingMorePassages = true)
@@ -184,7 +177,6 @@ class ReaderViewModel(
             return
         }
 
-        // 현재 마지막 문단이 책의 마지막 문단이면 더 불러올 것이 없다.
         val window = nextPassageRange(
             lastLoadedSequence = lastSequence,
             totalPassageCount = uiState.totalPassageCount,
@@ -213,9 +205,7 @@ class ReaderViewModel(
         }
     }
 
-    // 스크롤 결과 실제로 화면에 보이는 문단을 읽고 있는 문단으로 반영한다.
     fun updateReadingPassage(passage: PassageUiModel) {
-        // 드래그나 특정 위치 이동 중에는 스크롤 위치가 일시적으로 크게 바뀌므로 무시한다.
         if (
             uiState.mode != ReaderMode.Idle ||
             passage.sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount ||
@@ -230,15 +220,12 @@ class ReaderViewModel(
         )
     }
 
-    // 현재 읽고 있는 문단을 저장한다.
     fun saveReadingProgress(onComplete: () -> Unit) {
-        // 이미 저장 중이라면 같은 요청을 다시 보내지 않는다.
         if (saveReadingProgressJob?.isActive == true) {
             onComplete()
             return
         }
 
-        // 읽고 있는 문단을 찾는다.
         val readingPassage = uiState.passages.findBySequence(uiState.readingSequence)
         if (readingPassage == null) {
             track(CrashOperation.READER_PROGRESS_SAVE_SKIPPED, CrashLogLevel.WARN)
@@ -265,14 +252,11 @@ class ReaderViewModel(
                 saveReadingProgressJob = null
             }
 
-            // 취소된 경우에는 화면이 이미 사라진 뒤이므로 호출하지 않는다.
             onComplete()
         }
     }
 
-    // 진행률 바를 드래그하는 동안 선택한 진행률을 갱신한다.
     fun selectProgress(progress: Float) {
-        // 드래그가 막 시작됐다면 이전 위치 이동과 페이지 로딩을 취소한다.
         if (uiState.mode !is ReaderMode.SelectingProgress) {
             moveToPassageJob?.cancel()
             cancelPaginationLoads()
@@ -285,7 +269,6 @@ class ReaderViewModel(
         )
     }
 
-    // 진행률 바에서 선택한 지점으로 문단을 이동하는 함수
     fun moveToSelectedProgress() {
         val selectingProgress = uiState.mode as? ReaderMode.SelectingProgress ?: return
         val targetSequence = progressToSequence(
@@ -325,11 +308,9 @@ class ReaderViewModel(
             return
         }
 
-        // 새 목적지가 생겼으므로 이전 목적지로 향하던 요청과 페이지네이션을 무효 처리
         moveToPassageJob?.cancel()
         cancelPaginationLoads()
 
-        // 이미 불러온 passage라면 네트워크 요청 없이 UI가 target 문단으로 스크롤
         val isTargetLoaded = uiState.passages.containsSequence(targetSequence)
         uiState = uiState.copy(
             mode = ReaderMode.MovingTo(
@@ -383,9 +364,7 @@ class ReaderViewModel(
         }
     }
 
-    // 화면이 목표 문단까지 스크롤을 마치면 호출해 이동을 끝낸다.
     fun completeMoveToPassage(passage: PassageUiModel) {
-        // 과거 이동 요청의 콜백이 늦게 도착한 경우 현재 이동 상태를 건드리지 않는다.
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
         if (!movingTo.isTargetLoaded || passage.sequence != movingTo.targetSequence) return
 
@@ -396,7 +375,6 @@ class ReaderViewModel(
         )
     }
 
-    // 화면이 목록에서 목표 문단을 찾지 못하면 호출해 이동을 취소한다.
     fun cancelMoveToPassage(targetSequence: Int) {
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
         if (!movingTo.isTargetLoaded || targetSequence != movingTo.targetSequence) return
@@ -426,13 +404,11 @@ class ReaderViewModel(
         )
     }
 
-    // 문장을 누르면 글자 설정 메뉴를 닫고 그 문장의 댓글 시트를 연다.
     fun openSentenceComments(sentence: SentenceUiModel) {
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.open(sentence)
     }
 
-    // 특정 위치로 이동할 때 이전 문단이나 다음 문단 요청 결과가 목록을 덮어쓰지 않도록 취소한다.
     private fun cancelPaginationLoads() {
         pagingJob?.cancel()
         pagingJob = null
@@ -477,10 +453,8 @@ class ReaderViewModel(
         )
     }
 
-    // 로그에 담을 현재 읽는 문단 번호. 아직 읽을 위치가 정해지지 않았으면(0) null이다.
     private fun readingSequenceOrNull(): Int? = uiState.readingSequence.takeIf { it > 0 }
 
-    // chapterSequence를 넘기지 않으면 passageSequence가 속한 챕터로 채운다.
     private fun readerContext(
         operation: CrashOperation,
         passageSequence: Int?,

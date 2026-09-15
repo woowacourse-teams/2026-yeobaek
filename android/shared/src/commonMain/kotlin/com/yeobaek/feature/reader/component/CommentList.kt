@@ -72,7 +72,6 @@ fun CommentList(
     }
 }
 
-// 댓글 목록 자리에 대신 보여주는 안내 문구 (로딩 중, 에러, 댓글 없음)
 @Composable
 private fun CommentListMessage(
     text: String,
