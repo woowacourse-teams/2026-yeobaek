@@ -116,7 +116,7 @@ class ReaderViewModel(
                     passages = LoadedPassages(passageModels.map(PassageModel::toUiModel)),
                     readingSequence = readingSequence,
                     totalPassageCount = passageCount,
-                    loadState = ReaderLoadState.Ready,
+                    loadState = ReaderLoadState.Success,
                 )
                 track(
                     operation = CrashOperation.READER_LOADED,

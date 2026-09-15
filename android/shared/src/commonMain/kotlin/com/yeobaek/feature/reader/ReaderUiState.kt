@@ -40,7 +40,7 @@ data class ReaderUiState(
 sealed interface ReaderLoadState {
     data object Loading : ReaderLoadState
 
-    data object Ready : ReaderLoadState
+    data object Success : ReaderLoadState
 
     data class Failed(
         val message: String,

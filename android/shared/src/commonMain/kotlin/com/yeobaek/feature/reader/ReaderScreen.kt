@@ -74,7 +74,7 @@ fun ReaderScreen(
             )
         },
         bottomBar = {
-            if (uiState.loadState == ReaderLoadState.Ready) {
+            if (uiState.loadState == ReaderLoadState.Success) {
                 ReaderProgressBar(
                     progress = uiState.displayProgress,
                     onProgressChange = actions.onProgressChange,
@@ -94,7 +94,7 @@ fun ReaderScreen(
                 modifier = Modifier.padding(innerPadding),
             )
 
-            ReaderLoadState.Ready -> ReaderContent(
+            ReaderLoadState.Success -> ReaderContent(
                 passages = uiState.passages.items,
                 fontSize = uiState.fontSize,
                 listState = readerListState.listState,
@@ -219,7 +219,7 @@ private fun ReaderScreenPreview() {
     YeobaekTheme {
         ReaderScreen(
             uiState = ReaderUiState(
-                loadState = ReaderLoadState.Ready,
+                loadState = ReaderLoadState.Success,
                 title = "데미안",
                 author = "헤르만 헤세",
                 passages = LoadedPassages(

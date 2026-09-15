@@ -102,7 +102,7 @@ private fun ScrollToInitialPassageEffect(
         uiState.readingSequence,
         uiState.loadState,
     ) {
-        if (!state.hasPositionedInitialPassage && uiState.loadState == ReaderLoadState.Ready) {
+        if (!state.hasPositionedInitialPassage && uiState.loadState == ReaderLoadState.Success) {
             val readingPassageIndex = uiState.passages.indexOfSequence(uiState.readingSequence)
             if (readingPassageIndex >= 0) {
                 state.listState.scrollToItem(readingPassageIndex)
