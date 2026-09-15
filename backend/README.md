@@ -128,4 +128,3 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 
 - [팀의 개발 방법](docs/온보딩_프로젝트_개발_방법.md)
 - 에이전트/개발 지침: `AGENTS.md`, `docs/지침/`
-- 개발 계획: `docs/개발계획.md`
