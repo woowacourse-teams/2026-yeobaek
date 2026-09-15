@@ -56,10 +56,6 @@ public class Book {
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
 
-    public Book(String title, String publisher, Integer publishedYear, int passageCount) {
-        this(title, publisher, publishedYear, passageCount, null);
-    }
-
     public Book(String title, String publisher, Integer publishedYear, int passageCount, String coverImageKey) {
         validateCoverImageKey(coverImageKey);
         this.title = new BookTitle(title);

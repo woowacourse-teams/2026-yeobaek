@@ -25,8 +25,8 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class BookIngestServiceTest extends IntegrationTest {
 
@@ -147,7 +147,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도·작가 구성이 동일한 도서는 DUPLICATE_BOOK으로 거부한다")
     void rejectDuplicateBook() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
@@ -163,7 +163,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("출판연도가 다르면 같은 제목·작가라도 업로드를 허용한다")
     void allowSameTitleWithDifferentYear() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1936, null,
@@ -177,7 +177,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("삭제된 도서와 같은 서지·작가 구성의 도서는 새 ID로 다시 등록할 수 있다")
     void canRegisterBibliographicTwinOfDeletedBook() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, deleted));
         bookRepository.delete(deleted.getId());
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,

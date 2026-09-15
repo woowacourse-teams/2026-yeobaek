@@ -14,6 +14,7 @@ import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
+import yeobaek.backend.club.domain.JoinCode;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.IntegrationTest;
@@ -39,13 +40,13 @@ class ClubMappingTest extends IntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private Book saveBook() {
-        return bookRepository.save(new Book("운수 좋은 날", null, 1924, 10));
+        return bookRepository.save(new Book("운수 좋은 날", null, 1924, 10, null));
     }
 
     @Test
     @DisplayName("모임을 저장하면 도서와 참여 코드가 함께 조회된다")
     void saveAndFind() {
-        Club saved = clubRepository.save(new Club("교환독서 1기", saveBook(), "A3F9KQ"));
+        Club saved = clubRepository.save(new Club("교환독서 1기", saveBook(), new JoinCode("A3F9KQ")));
 
         transactionTemplate.executeWithoutResult(status -> {
             Club found = clubRepository.findById(saved.getId()).orElseThrow();
@@ -59,9 +60,9 @@ class ClubMappingTest extends IntegrationTest {
     @DisplayName("참여 코드가 중복되면 저장에 실패한다")
     void duplicateJoinCodeRejected() {
         Book book = saveBook();
-        clubRepository.saveAndFlush(new Club("1기", book, "SAME01"));
+        clubRepository.saveAndFlush(new Club("1기", book, new JoinCode("SAME01")));
 
-        assertThatThrownBy(() -> clubRepository.saveAndFlush(new Club("2기", book, "SAME01")))
+        assertThatThrownBy(() -> clubRepository.saveAndFlush(new Club("2기", book, new JoinCode("SAME01"))))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -69,7 +70,7 @@ class ClubMappingTest extends IntegrationTest {
     @DisplayName("같은 회원이 같은 모임에 두 번 참여하면 저장에 실패한다")
     void duplicateParticipationRejected() {
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE01"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), new JoinCode("CODE01")));
         clubMemberRepository.saveAndFlush(new ClubMember(member, club));
 
         assertThatThrownBy(() -> clubMemberRepository.saveAndFlush(new ClubMember(member, club)))
@@ -80,7 +81,7 @@ class ClubMappingTest extends IntegrationTest {
     @DisplayName("모임 참여 직후에는 최근 열람 본문과 마지막 읽은 시간이 비어 있다")
     void progressStartsEmpty() {
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE02"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), new JoinCode("CODE02")));
 
         ClubMember saved = clubMemberRepository.save(new ClubMember(member, club));
 
@@ -92,7 +93,7 @@ class ClubMappingTest extends IntegrationTest {
     @DisplayName("모임을 탈퇴하면 탈퇴 상태가 저장되고 조회된다")
     void leaveStatusPersists() {
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE03"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), new JoinCode("CODE03")));
         ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
         membership.leave();
         clubMemberRepository.saveAndFlush(membership);
@@ -108,7 +109,7 @@ class ClubMappingTest extends IntegrationTest {
     @DisplayName("상태를 지정하지 않은 기존 참여 행은 DB 기본값으로 참여 중 상태가 된다")
     void statusDefaultsToJoined() {
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", saveBook(), "CODE04"));
+        Club club = clubRepository.save(new Club("1기", saveBook(), new JoinCode("CODE04")));
 
         jdbcTemplate.update("insert into club_members (member_id, club_id) values (?, ?)",
                 member.getId(), club.getId());

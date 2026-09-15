@@ -43,10 +43,6 @@ public class Club {
     @AttributeOverride(name = "value", column = @Column(name = "join_code", nullable = false, length = 10))
     private JoinCode joinCode;
 
-    public Club(String name, Book book, String joinCode) {
-        this(name, book, new JoinCode(joinCode));
-    }
-
     public Club(String name, Book book, JoinCode joinCode) {
         this.name = new ClubName(name);
         this.book = book;

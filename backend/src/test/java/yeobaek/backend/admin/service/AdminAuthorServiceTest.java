@@ -38,7 +38,7 @@ class AdminAuthorServiceTest extends IntegrationTest {
     void findAuthorsWithBooks() {
         Author first = authorRepository.save(new Author("현진건", "000000012345964X"));
         Author second = authorRepository.save(new Author("작자 미상"));
-        Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(first, book));
 
         AdminAuthorsResponse response = adminAuthorService.findAuthors();
@@ -62,7 +62,7 @@ class AdminAuthorServiceTest extends IntegrationTest {
     @DisplayName("삭제된 도서는 관리자 작품 목록에 DELETED 상태로 보존된다")
     void preservesDeletedBookInAdminCatalog() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, book));
         bookRepository.delete(book.getId());
 

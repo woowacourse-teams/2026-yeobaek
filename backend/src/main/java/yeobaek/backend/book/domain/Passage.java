@@ -14,7 +14,6 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -50,10 +49,6 @@ public class Passage {
         for (int index = 0; index < sentenceContents.size(); index++) {
             sentences.add(new Sentence(this, index + 1, sentenceContents.get(index)));
         }
-    }
-
-    public Passage(Chapter chapter, int sequence, String sentenceContent) {
-        this(chapter, sequence, Collections.singletonList(sentenceContent));
     }
 
     private static void validate(List<String> sentenceContents) {
