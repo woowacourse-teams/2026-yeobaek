@@ -3,9 +3,10 @@ package com.yeobaek.feature.guide
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.ViewModel
 import com.yeobaek.feature.guide.model.SentenceGuideUiModel
 
-class GuideStateHolder {
+class GuideViewModel : ViewModel() {
     var uiState by mutableStateOf(GuideUiState())
         private set
 

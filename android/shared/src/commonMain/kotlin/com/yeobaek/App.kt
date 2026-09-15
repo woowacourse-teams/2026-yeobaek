@@ -2,7 +2,6 @@ package com.yeobaek
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -27,7 +26,7 @@ import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.guide.GuideScreen
-import com.yeobaek.feature.guide.GuideStateHolder
+import com.yeobaek.feature.guide.GuideViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.mypage.MyPageScreen
@@ -100,9 +99,11 @@ fun App(
                     analyticsTracker = appContainer.analyticsTracker,
                     screen = TrackedScreen.GUIDE,
                 )
-                val guideStateHolder = remember { GuideStateHolder() }
+
+                val guideViewModel: GuideViewModel = viewModel()
+
                 GuideScreen(
-                    uiState = guideStateHolder.uiState,
+                    uiState = guideViewModel.uiState,
                     navigateToHome = {
                         val hasHome = navController.currentBackStack.value.any { entry ->
                             entry.destination.hasRoute<Home>()
@@ -120,16 +121,16 @@ fun App(
                         }
                     },
                     onCurrentPage = {
-                        guideStateHolder.onCurrentPage(it)
+                        guideViewModel.onCurrentPage(it)
                     },
-                    onSuccessGuide = guideStateHolder::onSuccessGuide,
-                    onClickPrevious = guideStateHolder::onClickPrevious,
-                    onClickNext = guideStateHolder::onClickNext,
-                    isLast = guideStateHolder.isLast(),
-                    currentPageText = guideStateHolder.currentPageText(),
-                    onClickCommentSentence = guideStateHolder::onClickCommentSentence,
-                    onClickUnCommentSentence = guideStateHolder::onClickUnCommentSentence,
-                    onCancel = guideStateHolder::onCancel,
+                    onSuccessGuide = guideViewModel::onSuccessGuide,
+                    onClickPrevious = guideViewModel::onClickPrevious,
+                    onClickNext = guideViewModel::onClickNext,
+                    isLast = guideViewModel.isLast(),
+                    currentPageText = guideViewModel.currentPageText(),
+                    onClickCommentSentence = guideViewModel::onClickCommentSentence,
+                    onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
+                    onCancel = guideViewModel::onCancel,
                 )
             }
             composable<Home> {
