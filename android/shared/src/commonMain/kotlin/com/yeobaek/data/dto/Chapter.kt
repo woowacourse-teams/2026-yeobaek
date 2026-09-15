@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Chapter(
-    val chapterId: Int,
+    val chapterId: Long,
     val endPassageSequence: Int,
     val sequence: Int,
     val startPassageSequence: Int,

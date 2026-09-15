@@ -2,6 +2,7 @@ package com.yeobaek
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -40,9 +41,10 @@ import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.onboarding.OnboardingScreen
 import com.yeobaek.feature.onboarding.OnboardingViewModel
+import com.yeobaek.feature.reader.CommentSheetActions
+import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
-import com.yeobaek.feature.reader.ReaderViewModelFactory
 
 @Composable
 fun App(
@@ -238,7 +240,7 @@ fun App(
                     screen = TrackedScreen.READER,
                 )
                 val readerViewModel = viewModel<ReaderViewModel>(
-                    factory = ReaderViewModelFactory(
+                    factory = ReaderViewModel.readerViewModelFactory(
                         groupId = route.groupId,
                         bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,
@@ -247,37 +249,50 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
+                val commentSheet = readerViewModel.commentSheet
+                val actions = remember(readerViewModel, navController) {
+                    ReaderActions(
+                        onBackClick = {
+                            readerViewModel.saveReadingProgress(
+                                onComplete = navController::popBackStack,
+                            )
+                        },
+                        onSentenceClick = readerViewModel::openSentenceComments,
+                        onTableOfContentsClick = readerViewModel::openTableOfContents,
+                        onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+                        onChapterClick = readerViewModel::selectChapter,
+                        onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+                        onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+                        onFontSizeChange = readerViewModel::updateFontSize,
+                        onProgressChange = readerViewModel::selectProgress,
+                        onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
+                        onLoadPrevious = readerViewModel::loadPreviousPassages,
+                        onLoadNext = readerViewModel::loadNextPassages,
+                        onVisiblePassageChange = readerViewModel::updateReadingPassage,
+                        onTargetPassageReached = readerViewModel::completeMoveToPassage,
+                        onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
+                    )
+                }
+                val commentSheetActions = remember(commentSheet) {
+                    CommentSheetActions(
+                        onDismiss = commentSheet::dismiss,
+                        onInputChange = commentSheet::updateInput,
+                        onSubmit = commentSheet::submit,
+                        onEdit = commentSheet::startEditing,
+                        onEditCancel = commentSheet::cancelEditing,
+                        onDelete = commentSheet::requestDelete,
+                        onDeleteCancel = commentSheet::cancelDelete,
+                        onDeleteConfirm = commentSheet::confirmDelete,
+                        onReport = commentSheet::report,
+                        onReportResultConsumed = commentSheet::consumeReportResult,
+                    )
+                }
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
-                    onSentenceClick = readerViewModel::openSentenceComments,
-                    onBackClick = {
-                        readerViewModel.saveCurrentPassage(
-                            onComplete = navController::popBackStack,
-                        )
-                    },
-                    onTableOfContentsClick = readerViewModel::openTableOfContents,
-                    onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
-                    onChapterClick = readerViewModel::selectChapter,
-                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
-                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
-                    onFontSizeChange = readerViewModel::updateFontSize,
-                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
-                    onCommentInputChange = readerViewModel::updateCommentInput,
-                    onCommentSubmit = readerViewModel::submitComment,
-                    onCommentEdit = readerViewModel::startEditingComment,
-                    onCommentReport = readerViewModel::reportComment,
-                    onCommentReportResultConsumed = readerViewModel::consumeReportResult,
-                    onCommentEditCancel = readerViewModel::cancelEditingComment,
-                    onCommentDelete = readerViewModel::requestDeleteComment,
-                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
-                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
-                    onLoadPrevious = readerViewModel::loadPreviousPassages,
-                    onLoadNext = readerViewModel::loadNextPassages,
-                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateProgressDrag,
-                    onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
-                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
+                    commentSheet = commentSheet.uiState,
+                    actions = actions,
+                    commentSheetActions = commentSheetActions,
                 )
             }
             composable<Join> {

@@ -15,19 +15,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.reader.model.ReaderFontSize
 import kotlin.math.roundToInt
 
 @Composable
 fun FontSizeController(
-    value: Float,
-    onValueChange: (Float) -> Unit,
+    fontSize: Int,
+    onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    fontSizes: List<Int> = listOf(14, 16, 18, 20, 22, 24, 26),
+    fontSizes: List<Int> = ReaderFontSize.options,
 ) {
+    val selectedIndex = fontSizes
+        .indexOf(fontSize)
+        .takeIf { it >= 0 }
+        ?: fontSizes.indexOf(ReaderFontSize.DEFAULT)
+
     Slider(
-        value = value,
-        onValueChange = { newValue ->
-            onValueChange(newValue.roundToInt().toFloat())
+        value = selectedIndex.toFloat(),
+        onValueChange = { value ->
+            val index = value
+                .roundToInt()
+                .coerceIn(fontSizes.indices)
+            onFontSizeChange(fontSizes[index])
         },
         valueRange = 0f..fontSizes.lastIndex.toFloat(),
         steps = fontSizes.size - 2,
@@ -63,8 +72,8 @@ fun FontSizeController(
 private fun FontSizeControllerPreview() {
     YeobaekTheme {
         FontSizeController(
-            value = 0f,
-            onValueChange = {},
+            fontSize = ReaderFontSize.options.first(),
+            onFontSizeChange = {},
         )
     }
 }
