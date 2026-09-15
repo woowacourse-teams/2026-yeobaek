@@ -124,9 +124,12 @@
 - 요청 회원의 계정
 - 요청 회원이 작성한 모든 댓글
 - 요청 회원의 모든 모임 참여 기록과 저장된 진도
+- 요청 회원에게 귀속된 모든 댓글 조회 상태
 - 요청 회원이 차단했거나 요청 회원을 차단한 모든 차단 관계
 
-삭제된 댓글은 모든 회원의 댓글 목록에서 사라지고 문장별 `commentCount`에서도 제외된다.
+삭제된 댓글은 이후 서버 조회의 댓글 목록과 문장별 `commentCount`에서 제외된다.
+다만 클라이언트가 이미 받은 댓글 문장 목록과 과거 집계는 현재 탐색 동안 유지할 수 있으며,
+새 목록 요청부터 삭제를 반영한다. 서버의 계정·댓글·조회 상태 삭제 시점은 변경하지 않는다.
 삭제된 모임 참여 기록은 모임 상세의 `members`와 내 모임 목록의 `memberCount`에서 제외된다.
 
 삭제 성공 후 클라이언트는 기기에 저장한 회원 ID를 제거하고 최초 회원 생성 화면으로 이동한다.
@@ -380,7 +383,8 @@
 }
 ```
 - 항상 마지막 열람 본문으로 덮어쓴다 (앞부분 재열람 시 진도율 후퇴 — PRD 3.4 트레이드오프).
-- 클라이언트는 문단이 화면에 노출되는 시점에 호출한다 (배치·디바운스는 클라이언트 재량).
+- 클라이언트는 일반 뷰어를 종료할 때 마지막으로 화면에 표시한 문단 ID로 호출한다. 본문을 읽는
+  동안에는 진도 갱신 호출을 늘리지 않고, 댓글 발견 API에 현재 문단 ID를 조회 경계로 전달한다.
 - 모임 도서가 삭제된 경우 저장된 진도를 변경하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 홈 — 마지막으로 읽던 책
@@ -402,13 +406,130 @@
 - 가장 최근 기록의 도서가 삭제됐더라도 해당 기록을 건너뛰지 않는다. 저장된 위치·진도와
   `book.status=DELETED`를 `200`으로 반환하며, Android는 이어 읽기 동작을 제공하지 않는다.
 
+### 댓글 문장에서 본문으로 이동
+
+댓글 바텀시트의 “보러 가기”는 별도 뷰어 모드를 만들지 않고 일반 뷰어의 해당 위치로 이동한다.
+댓글 문장 목록 응답의 `passageSequence`를 `from`·`to` 범위에 포함해 기존 본문 범위 조회 API로
+본문을 불러오고 `sentenceId`를 화면 이동 대상으로 사용한다.
+
+- 이동한 화면은 본문 이동·목차·글자 크기·문장별 댓글 조회와 작성, 진도 저장을 포함해 일반
+  뷰어의 모든 동작 규칙을 따른다.
+- 클라이언트는 이동 직전 일반 뷰어에서 읽던 문단을 화면 상태로 기억하고, 그 위치로 쉽게
+  돌아갈 수 있는 동작을 제공한다.
+- 돌아가기는 기억한 문단으로 일반 뷰어를 다시 이동하는 동작이다. 서버에 이전 진도를 보관하거나
+  복원하는 별도 API를 추가하지 않으며, 돌아간 뒤에도 일반 뷰어의 진도 저장 규칙을 적용한다.
+
 ## 5. 댓글
 
 댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
 (`SENTENCE_NOT_FOUND`)을 반환한다.
 
-### 문장의 댓글 목록
-`GET /api/clubs/{clubId}/sentences/{sentenceId}/comments`
+댓글은 요청 회원마다 다음 조회 상태를 갖는다.
+
+| `viewStatus` | 의미 | 전환 조건 |
+|---|---|---|
+| `NEW` | 댓글 상세를 직접 확인하지 않은 댓글 | 해당 회원·댓글의 확인 기록이 없음 |
+| `VIEWED` | 문장을 선택해 댓글 목록을 직접 확인한 댓글 | 문장의 댓글 상세 조회 성공 또는 본인이 댓글 작성 |
+
+- 서버는 회원·댓글별 확인 기록만 저장한다. 기록이 하나라도 있으면 `VIEWED`, 없으면 `NEW`다.
+  사전에 확인 기록을 조회해 없는 것만 저장하되, 동시 최초 조회로 생기는 중복 행은 허용한다.
+  조회·집계는 기록 존재 여부로 판단해 중복 행이 응답을 바꾸지 않게 한다.
+- 상태는 `NEW → VIEWED` 방향으로만 전환한다. 댓글 문장 목록 조회는 상태를 바꾸지 않는다.
+  댓글 수정도 상태를 바꾸지 않으며 정렬에 사용하는 `createdAt`을 그대로 유지한다.
+- 기능 도입 전에 존재한 댓글과 신규 참여 전에 작성된 댓글은 해당 회원에게 `NEW`로 시작한다.
+- 모임에서 탈퇴해도 조회 상태를 보존한다. 재가입하면 기존 상태를 복원하고, 탈퇴 기간에 작성된
+  댓글은 `NEW`로 추가한다.
+- 댓글 수·목록·상태 전환은 요청자가 차단하지 않은 작성자의 댓글만 대상으로 한다.
+- 댓글 발견 API에서 진도 안쪽은 댓글 문장이 속한 문단의 `sequence`가 요청의
+  `currentPassageId`가 가리키는 문단 `sequence` 이하인 범위다. 서버에 저장된 최근 열람 문단은
+  이 경계 계산에 사용하지 않으며, `currentPassageId`도 저장된 진도나 `lastReadAt`을 변경하지 않는다.
+
+### 탑바 새 댓글 개수
+`GET /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId}`
+
+- `currentPassageId`(필수): 댓글 발견 진도 경계로 사용할 일반 뷰어의 현재 문단 ID다. 이 문단까지를
+  진도 안쪽으로 계산한다. 값이 없거나 숫자가 아니거나, 해당 모임 도서에 속한 문단이 아니면 `400`
+  (`INVALID_REQUEST`)을 반환한다.
+
+응답 `200`:
+```json
+{ "newCommentCount": 3 }
+```
+
+- 현재 진도 안쪽에 있으면서 `NEW`인 보이는 댓글의 총개수다. 미래 진도의 `NEW` 댓글은 세지 않는다.
+- 기능 도입 후 본인이 작성한 댓글은 생성 즉시 `VIEWED`이므로 개수에 포함되지 않는다.
+  기능 도입 전에 작성한 본인 댓글은 확인 기록이 없으므로 `NEW`이며 다른 기존 댓글과 동일하게 처리한다.
+- 조회 상태를 변경하지 않는 부작용 없는 API다. 호출 시점과 주기는 클라이언트가 결정하며,
+  서버 푸시는 이 계약의 범위에 포함하지 않는다.
+- 모임 미소속 회원은 `403` (`NOT_CLUB_MEMBER`), 존재하지 않는 모임은 `400`
+  (`CLUB_NOT_FOUND`)을 반환한다. 모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 댓글 문장 목록 전체 조회
+`GET /api/clubs/{clubId}/commented-sentences?currentPassageId=1042`
+
+- `currentPassageId`(필수 쿼리 파라미터): 요청 시점의 일반 뷰어 현재 문단 ID다. 이 문단까지를
+  진도 안쪽으로 계산한다. 값이 없거나 숫자가 아니거나 해당 모임 도서의 문단이 아니면 `400`
+  (`INVALID_REQUEST`)을 반환한다.
+- 모임 책 전체에서 보이는 댓글이 있는 모든 문장을 한 번에 반환한다. 페이지 크기와 커서를
+  사용하지 않으며 서버에 탐색별 스냅샷을 저장하지 않는다.
+- 클라이언트는 받은 목록·순서·집계·가림 상태를 현재 탐색 동안 유지한다. 이후 댓글 작성·수정·삭제,
+  조회 상태 또는 차단 관계 변경과 작성자 계정 삭제가 발생해도 이미 받은 목록은 유지할 수 있다.
+  목록을 새로 요청하면 현재 데이터와 요청의 `currentPassageId`를 반영한다.
+- 댓글 상세 조회에는 현재 가시성·인가를 적용한다. 과거 목록에 있던 문장도 현재 댓글이 모두
+  삭제됐거나 차단됐다면 상세 응답의 댓글은 빈 배열일 수 있다.
+- 당장은 모임당 문장 데이터가 수천 개 미만일 것으로 예상해 전체 응답을 선택했다. 네트워크 비용이
+  문제가 되면 이 API의 하위호환을 유지하고 페이지네이션을 적용한 새 API를 제공한다.
+
+응답 `200`:
+```json
+{
+  "commentedSentences": [
+    {
+      "sentenceId": 5012,
+      "content": "새침하게 흐린 품이 눈이 올 듯하더니...",
+      "passageId": 1043,
+      "passageSequence": 43,
+      "sentenceSequence": 1,
+      "future": true,
+      "commentCount": 3,
+      "unreadCommentCount": 2,
+      "contentVisibility": "REVEAL_REQUIRED",
+      "latestCommentCreatedAt": "2026-08-05T14:30:00"
+    }
+  ]
+}
+```
+
+- `commentedSentences`에는 모임 책 전체에서 요청 회원에게 보이는 댓글이 하나라도 있는 문장을
+  담는다. 댓글 본문과 작성자 정보는 포함하지 않으며, 문장 선택 후 댓글 상세 조회 API를 사용한다.
+- `commentCount`는 해당 문장에서 요청 회원에게 보이는 전체 댓글 수다.
+  `unreadCommentCount`는 그중 상태가 `NEW`인 댓글 수이며 `0` 이상 `commentCount` 이하다.
+- 댓글 문장 목록 조회는 조회 상태를 변경하지 않는다. 같은 문장을 목록에서 여러 번 보더라도
+  `unreadCommentCount`는 줄어들지 않으며, 댓글 상세 조회가 성공한 뒤 목록을 새로 요청할 때 갱신된다.
+- `future`는 목록 요청의 `currentPassageId`를 기준으로 해당 문장이 진도 밖인지 나타낸다.
+- `contentVisibility`는 문장 내용을 최초에 바로 노출할 수 있는지 나타내는 서버의 권위 있는
+  정책 값이다.
+  - `VISIBLE`: 문장 내용을 바로 노출할 수 있다.
+  - `REVEAL_REQUIRED`: 사용자의 명시적인 해제 동작 전까지 문장 내용을 가려야 한다.
+- 서버는 `future=true`이면서 `unreadCommentCount>0`일 때만 `REVEAL_REQUIRED`를 반환하고, 그 외에는
+  `VISIBLE`을 반환한다. 클라이언트는 `future`와 `unreadCommentCount`를 조합해 노출 정책을 다시
+  계산하지 않고 `contentVisibility`를 따른다.
+- `REVEAL_REQUIRED`여도 응답의 `content`는 포함한다. 클라이언트는 블러·덮개 등 구체적인 표현과
+  사용자가 현재 화면에서 해제했는지를 관리한다. 해제만으로 서버 상태와 응답 필드는 변경되지 않는다.
+- 정렬 그룹은 다음 순서다. 같은 그룹에서는 `latestCommentCreatedAt` 내림차순, 값이 같으면
+  `sentenceId` 내림차순으로 정렬한다.
+  1. `future=false`이고 `unreadCommentCount>0`인 새 댓글 문장
+  2. `future=true`이고 `unreadCommentCount>0`인 미래 문장
+  3. 진도와 관계없이 `unreadCommentCount=0`인 확인한 문장
+- 응답 필드는 해당 목록 요청 시점의 값이다. 이후 변경은 목록을 새로 요청할 때 반영한다.
+- 결과가 비어 있으면 `commentedSentences`는 빈 배열이다.
+- 모임 미소속 회원은 `403` (`NOT_CLUB_MEMBER`), 존재하지 않는 모임은 `400`
+  (`CLUB_NOT_FOUND`)을 반환한다. 모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 문장의 댓글 상세 조회 + 직접 확인
+`POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
+
+요청 본문은 없다.
 
 응답 `200` — 작성일 오름차순:
 ```json
@@ -426,12 +547,28 @@
   ]
 }
 ```
+- 응답 생성과 함께 그 시점에 요청 회원에게 보이는 해당 문장의 댓글을 모두 `VIEWED`로
+  전환한다. 응답 생성과 상태 전환은 서버 트랜잭션 하나로 처리한다. 서버가 트랜잭션을 완료하지
+  못하면 상태를 변경하지 않지만, 커밋 후 네트워크에서 응답만 유실된 경우에는 상태 전환이 유지된다.
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
 - 요청자가 차단한 회원이 작성한 댓글은 결과에서 제외한다. 차단은 단방향이므로 차단된 회원의
   조회 결과에서는 차단자의 댓글이 계속 보인다.
 - 모임에서 탈퇴했지만 계정은 유지 중인 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반
   댓글과 동일하게 반환한다.
+- 존재하지 않는 모임은 `400` (`CLUB_NOT_FOUND`), 모임 미소속 회원은 `403`
+  (`NOT_CLUB_MEMBER`), 존재하지 않거나 모임 도서에 속하지 않는 문장은 `400`
+  (`SENTENCE_NOT_FOUND`)을 반환한다.
 - 모임 도서가 삭제된 경우 보존된 댓글을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 문장의 댓글 목록 — deprecated 호환 API
+`GET /api/clubs/{clubId}/sentences/{sentenceId}/comments`
+
+- 기존 Android 클라이언트와의 호환을 위해 일시적으로 유지한다. 신규 클라이언트는 위의
+  `POST .../comment-detail-views`를 사용한다.
+- 응답과 오류 계약은 신규 상세 조회 API와 같다. 구버전 클라이언트의 조회도 누락되지 않도록
+  보이는 댓글 전체를 `VIEWED`로 전환한다.
+- 이 `GET`의 상태 전환은 마이그레이션 기간에만 허용하는 호환성 예외다. Android가 신규
+  `POST`로 전환되고 배포까지 완료됐음을 확인한 뒤 별도 변경에서 이 API를 제거한다.
 
 ### 댓글 작성
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comments`
@@ -444,6 +581,7 @@
 
 응답 `201`: 댓글 목록의 원소와 동일 형태 (`mine: true`).
 
+- 작성자의 조회 상태는 생성 즉시 `VIEWED`다. 다른 회원에게는 `NEW`로 시작한다.
 - 모임 도서가 삭제된 경우 댓글을 저장하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 수정
@@ -456,6 +594,7 @@
 
 응답 `200`: 댓글 목록의 원소와 동일 형태. 본인 댓글이 아니거나 작성자가 해당 모임에서 탈퇴한 상태면 `403`.
 
+- 수정은 어떤 회원의 조회 상태도 변경하지 않으며 `createdAt`도 유지한다.
 - 댓글이 연결된 도서가 삭제된 경우 기존 내용을 변경하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 삭제
@@ -614,6 +753,36 @@
 - 성공 응답: `204 No Content`.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
+### 업로드된 도서 목록 조회
+`GET /api/admin/books`
+
+응답 `200` — 도서 ID 오름차순, 페이징·최대 건수 제한 없음:
+```json
+{
+  "books": [
+    {
+      "bookId": 3,
+      "title": "운수 좋은 날",
+      "authors": [
+        { "authorId": 12, "name": "현진건", "isni": "000000012345964X" }
+      ],
+      "publisher": "자체 제작",
+      "publishedYear": 1924,
+      "passageCount": 30,
+      "coverImageUrl": null,
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+- 업로드된 도서를 한 권당 한 항목으로 반환한다. 공저자는 같은 도서의 `authors`에 함께 반환한다.
+- 삭제된 도서도 포함하며 `status`는 `ACTIVE` 또는 `DELETED`다.
+- `publisher`, `publishedYear`, `coverImageUrl`, 작가의 `isni`는 없으면 `null`이다.
+- 도서가 없으면 `{ "books": [] }`를 반환한다.
+- 기존 `GET /api/admin/authors` 계약은 유지한다.
+- 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
+
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
 
@@ -644,7 +813,17 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 작가·작품 조회·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+
+- 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
+- CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
+- CSV 열은 `bookId,title,authorNames,authorIds,publisher,publishedYear,passageCount,status` 순서다.
+  공저자 이름과 ID는 각각 같은 순서로 ` | `로 연결하며, 없는 출판 정보는 빈 셀로 저장한다.
+- 파일명은 `book-upload-status.csv`다. UTF-8 BOM과 CRLF 행 구분을 사용하고, 텍스트 셀의
+  쉼표·따옴표·줄바꿈을 이스케이프한다. 수식으로 해석될 수 있는 텍스트에는 작은따옴표를 앞에 붙인다.
+  숫자 필드는 숫자로 보존한다. 조회 결과가 없으면 헤더만 저장한다.
+- 조회 전·재조회 중·조회 실패 시에는 CSV 저장을 비활성화한다. 토큰 변경과 도서 변경 시 이전
+  조회 결과를 무효화하고, 늦게 도착한 이전 조회 응답은 표시하지 않는다.
 
 - 활성 작품에는 삭제 버튼을 표시한다.
 - 표지가 있는 작품에는 표지 교체·제거를, 없는 작품에는 표지 추가를 제공한다.
@@ -662,8 +841,32 @@
 - 문장 `content`의 공백과 개행을 그대로 이어서 본문을 렌더링한다. 댓글이 달린 문장을 밑줄이나
   하이라이트로 표시할 때는 해당 문장 `content` 끝의 공백과 줄바꿈을 시각적 표시 범위에서 제외한다.
   표시 범위에서 제외하더라도 본문 자체의 공백과 개행은 제거하지 않는다.
-- 댓글 목록과 작성 요청의 대상 경로가 `/api/clubs/{clubId}/sentences/{sentenceId}/comments`로 변경된다. 댓글 수정·삭제 경로는 유지된다.
+- 댓글 작성 요청의 대상 경로는 `/api/clubs/{clubId}/sentences/{sentenceId}/comments`를 유지한다.
+- 댓글 바텀시트 조회는 상태 전환까지 원자적으로 처리하는
+  `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`를 사용한다.
+  기존 `GET .../comments`는 구버전 호환을 위해 deprecated 상태로 남아 있지만 신규 코드에서
+  사용하지 않는다.
 - 문장이 존재하지 않으면 `400` (`SENTENCE_NOT_FOUND`)으로 처리한다. 진도 갱신은 계속 문단 ID를 사용하며 `PASSAGE_NOT_FOUND` 계약도 유지된다.
+
+### 댓글 발견과 본문 이동 계약
+
+- 뷰어 탑바는 현재 읽는 문단 ID를 `currentPassageId`로 전달해
+  `GET /api/clubs/{clubId}/comments/new-count`의 `newCommentCount`를 이용한다. 강조·배지 등
+  표현 방식과 조회 주기는 클라이언트가 결정한다.
+- 댓글 문장 목록은 `GET /api/clubs/{clubId}/commented-sentences`에 `currentPassageId`를 전달해
+  전체 조회한다. 응답 순서와 집계·가림 상태는 현재 탐색 동안 유지하며, 새 요청부터 현재 상태를 반영한다.
+  커서·페이지 크기·다음 커서 필드는 없다.
+- 목록의 `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 아직 직접 열어보지 않은
+  댓글 수다. 목록 조회는 상태를 변경하지 않으므로 새 댓글 표시는 댓글 상세 조회 전까지 유지된다.
+- 문장 내용의 최초 노출 여부는 서버가 계산한 `contentVisibility`를 따른다. `REVEAL_REQUIRED`이면
+  사용자의 명시적인 해제 전까지 문장 내용을 가리되, 블러·덮개 등 표현 방식과 해제 여부는 현재
+  화면에서 관리한다. 해제만으로 조회 API나 상태 전환 API를 추가 호출하지 않는다.
+- 댓글 문장의 “보러 가기”를 선택하면 `passageSequence`와 `sentenceId`를 이용해 일반 뷰어의
+  해당 위치로 이동한다. 이동 전 읽던 문단은 클라이언트 화면 상태로 기억하고, 그 위치로 쉽게
+  돌아갈 수 있는 동작을 제공한다.
+- 댓글 위치로 이동한 뒤에는 일반 뷰어와 같은 진도 갱신 규칙을 적용하고, 댓글 발견 API에도
+  현재 화면에 표시한 문단 ID를 `currentPassageId`로 전달한다. 돌아가기를 선택한 경우에도
+  기억한 문단으로 실제 이동하며 같은 규칙을 적용한다. 별도 진도 복원 API는 추가하지 않는다.
 
 ### 응답 모델 변경
 
@@ -742,13 +945,17 @@
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
 | PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
-| GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 목록 |
+| GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
+| GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 |
+| POST | /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views | 댓글 상세 조회 + 직접 확인 |
+| GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 상세 조회 + 직접 확인 (deprecated 호환) |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
 | POST | /api/comments/{commentId}/reports | 댓글 신고 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
+| GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |

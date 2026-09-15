@@ -58,3 +58,6 @@ val YeobaekNeutralContainer = Color(0xFFEEEAE1)
 
 // 중립 버튼 위에 배치되는 텍스트
 val YeobaekOnNeutralContainer = Color(0xFF746B5E)
+
+// 댓글 달린 문장 밑줄
+val YeobaekUnderline = Color(0xFF8B7660)

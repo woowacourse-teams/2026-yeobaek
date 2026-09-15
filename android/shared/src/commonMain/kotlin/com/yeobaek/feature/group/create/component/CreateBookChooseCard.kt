@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.group.create.BookState
 import com.yeobaek.feature.group.create.model.CreateBookUiModel
 
 @Composable
@@ -21,9 +22,9 @@ fun CreateBookChooseCard(
     books: List<CreateBookUiModel>,
     subTitle: String,
     onClickBook: (Int) -> Unit,
+    bookState: BookState,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
-    isLoading: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -40,33 +41,77 @@ fun CreateBookChooseCard(
             ),
         )
         Spacer(modifier = Modifier.height(12.dp))
-        if (!isLoading) Text("책 로딩중...", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-        LazyColumn {
-            items(items = books, key = { it.id }) { book ->
-                CreateBookCard(
-                    uri = book.uri,
-                    title = book.title,
-                    author = book.authors,
-                    description = book.description,
-                    selected = book.selected,
-                    onClickBook = {
-                        onClickBook(books.indexOf(book))
-                    },
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+
+        when (bookState) {
+            is BookState.Success -> {
+                LazyColumn {
+                    items(items = books, key = { it.id }) { book ->
+                        CreateBookCard(
+                            uri = book.uri,
+                            title = book.title,
+                            author = book.authors,
+                            description = book.description,
+                            selected = book.selected,
+                            onClickBook = {
+                                onClickBook(books.indexOf(book))
+                            },
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
             }
+
+            is BookState.Failure -> Text(
+                bookState.message,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.error,
+            )
+
+            is BookState.Idle, BookState.Loading -> Text(
+                "책 로딩중...",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
 
-@Preview(showBackground = true, name = "책 선택 카드")
+@Preview(showBackground = true, name = "책 선택 로딩 카드")
 @Composable
-private fun CreateBookChooseCardPreview() {
+private fun LoadingCreateBookChooseCardPreview() {
     YeobaekTheme {
         CreateBookChooseCard(
             books = emptyList(),
             subTitle = "함께 읽을 책을 선택해주세요.",
             onClickBook = {},
+            bookState = BookState.Idle,
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "책 선택 실패 카드")
+@Composable
+private fun FailureCreateBookChooseCardPreview() {
+    YeobaekTheme {
+        CreateBookChooseCard(
+            books = emptyList(),
+            subTitle = "함께 읽을 책을 선택해주세요.",
+            onClickBook = {},
+            bookState = BookState.Failure("책 목록을 가져오는데 실패했습니다"),
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "책 선택 성공 카드")
+@Composable
+private fun SuccessCreateBookChooseCardPreview() {
+    YeobaekTheme {
+        CreateBookChooseCard(
+            books = emptyList(),
+            subTitle = "함께 읽을 책을 선택해주세요.",
+            onClickBook = {},
+            bookState = BookState.Success,
         )
     }
 }

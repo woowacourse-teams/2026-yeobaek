@@ -3,6 +3,7 @@ package com.yeobaek.data.api
 import com.yeobaek.data.dto.CommentRequest
 import com.yeobaek.data.dto.CommentResponse
 import com.yeobaek.data.dto.CommentsResponse
+import de.jensklingenberg.ktorfit.Response
 import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.DELETE
 import de.jensklingenberg.ktorfit.http.GET
@@ -37,4 +38,9 @@ interface CommentApi {
     suspend fun deleteComment(
         @Path("commentId") commentId: Long,
     )
+
+    @POST("api/comments/{commentId}/reports")
+    suspend fun reportComment(
+        @Path("commentId") commentId: Long,
+    ): Response<Unit>
 }

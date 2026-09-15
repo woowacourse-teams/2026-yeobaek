@@ -45,4 +45,10 @@ class CommentRepositoryImpl(
     override suspend fun deleteComment(commentId: Long) {
         commentApi.deleteComment(commentId = commentId)
     }
+
+    override suspend fun reportComment(commentId: Long) {
+        val response = commentApi.reportComment(commentId = commentId)
+
+        if (!response.isSuccessful) throw IllegalArgumentException("댓글 신고 실패 ${response.status}")
+    }
 }

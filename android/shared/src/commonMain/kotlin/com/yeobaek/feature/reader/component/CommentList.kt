@@ -23,6 +23,7 @@ fun CommentList(
     uiState: PassageCommentSheetUiState,
     onEditComment: (Long) -> Unit,
     onDeleteComment: (Long) -> Unit,
+    onCommentReport: (Long) -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
@@ -85,6 +86,7 @@ fun CommentList(
                         comment = comment,
                         onEdit = { onEditComment(comment.commentId) },
                         onDelete = { onDeleteComment(comment.commentId) },
+                        onReport = { onCommentReport(comment.commentId) },
                     )
                 }
             }
@@ -131,6 +133,7 @@ private fun CommentListPreview() {
             ),
             onEditComment = {},
             onDeleteComment = {},
+            onCommentReport = {},
         )
     }
 }

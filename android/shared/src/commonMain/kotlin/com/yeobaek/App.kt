@@ -266,6 +266,8 @@ fun App(
                     onCommentInputChange = readerViewModel::updateCommentInput,
                     onCommentSubmit = readerViewModel::submitComment,
                     onCommentEdit = readerViewModel::startEditingComment,
+                    onCommentReport = readerViewModel::reportComment,
+                    onCommentReportResultConsumed = readerViewModel::consumeReportResult,
                     onCommentEditCancel = readerViewModel::cancelEditingComment,
                     onCommentDelete = readerViewModel::requestDeleteComment,
                     onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
@@ -334,16 +336,19 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(true) {
-                    createViewModel.initInputValue()
-                }
-
-                LaunchedEffect(createViewModel.uiState.successBookLoading) {
-                    createViewModel.initBookList()
-                }
-
-                LaunchedEffect(createViewModel.uiState.successCreate) {
-                    if (createViewModel.uiState.successCreate) {
+                CreateScreen(
+                    uiState = createViewModel.uiState,
+                    updateGroupNameValue = createViewModel::updateGroupNameValue,
+                    selectBook = createViewModel::selectBook,
+                    onBackClick = {
+                        navController.popBackStack()
+                    },
+                    onCreateGroup = {
+                        if (!createViewModel.createConditionCheck()) {
+                            createViewModel.createGroup()
+                        }
+                    },
+                    navigateToHome = {
                         val popped = navController.popBackStack<Home>(
                             inclusive = false,
                         )
@@ -353,20 +358,6 @@ fun App(
                                     inclusive = true
                                 }
                             }
-                        }
-                    }
-                }
-
-                CreateScreen(
-                    uiState = createViewModel.uiState,
-                    updateGroupNameValue = createViewModel::updateGroupNameValue,
-                    selectBook = createViewModel::selectBook,
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-                    navigateToHome = {
-                        if (!createViewModel.createConditionCheck()) {
-                            createViewModel.createGroup()
                         }
                     },
                 )

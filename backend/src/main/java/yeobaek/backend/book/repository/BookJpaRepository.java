@@ -12,6 +12,8 @@ import yeobaek.backend.book.domain.BookStatus;
 
 interface BookJpaRepository extends JpaRepository<Book, Long> {
 
+    List<Book> findAllByOrderByIdAsc();
+
     List<Book> findAllByStatusOrderByIdAsc(BookStatus status);
 
     @Query("""
