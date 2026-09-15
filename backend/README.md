@@ -65,6 +65,10 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
+`local` 프로파일로 시작하면 Hibernate가 스키마를 생성한 뒤 `src/main/resources/local/data.sql`을 자동 실행합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 별도 시더 실행은 필요하지 않습니다. 기존 `ddl-auto=create` 설정에 따라 재시작할 때 DB를 재생성하고 같은 테스트 데이터를 다시 넣습니다.
+
+SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
+
 Compose의 로컬 MySQL 기본값은 데이터베이스 `yeobaek`, 사용자 `root`, 비밀번호 `yeobaek`, 호스트 포트 `13306`입니다. 이 값은 PC에 이미 설치된 MySQL의 기본 포트 `3306`과 충돌하지 않도록 분리되어 있으며, 로컬 개발 전용입니다.
 
 DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android 에뮬레이터와 실제 기기의 접속 설정은 [로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)을 참고합니다.
