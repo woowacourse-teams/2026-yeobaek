@@ -151,7 +151,9 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("이미 삭제된 도서의 삭제 요청은 이용 불가 오류를 반환한다")
     void rejectAlreadyDeletedBook() throws Exception {
-        willThrow(new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE))
+        willThrow(new BadRequestException(
+                ErrorCode.BOOK_NOT_AVAILABLE,
+                "더 이상 이용할 수 없는 도서입니다."))
                 .given(adminBookService).delete(3L);
 
         mockMvc.perform(delete("/api/admin/books/{bookId}", 3L)
@@ -266,7 +268,9 @@ class AdminBookControllerTest extends ControllerTest {
                 List.of(new ChapterUploadRequest(
                         "1장",
                         List.of(passage("본문")))));
-        var serviceException = new NotFoundException(ErrorCode.AUTHOR_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.AUTHOR_NOT_FOUND,
+                "authorId가 가리키는 작가가 존재하지 않습니다: authorId=99");
         given(bookIngestService.upload(request)).willThrow(serviceException);
 
         var result = mockMvc.perform(post("/api/admin/books")

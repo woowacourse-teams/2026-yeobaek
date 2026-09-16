@@ -37,9 +37,13 @@ public class PassageService {
         PassageRange range = new PassageRange(from, to);
         validateRangeSize(range);
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "본문을 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
         if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
-            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+            throw new ForbiddenException(
+                    ErrorCode.NOT_CLUB_MEMBER,
+                    "모임에 참여 중인 회원만 본문을 조회할 수 있습니다: clubId=" + clubId);
         }
         club.ensureBookAvailable();
         List<Passage> passages = passageRepository.findRangeByBookId(

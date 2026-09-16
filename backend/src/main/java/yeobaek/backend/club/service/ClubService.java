@@ -57,7 +57,9 @@ public class ClubService {
     @Transactional
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.JOIN_CODE_NOT_FOUND,
+                        "참여 코드에 해당하는 모임이 존재하지 않습니다."));
         club.ensureBookAvailable();
         clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
                 .ifPresentOrElse(ClubMember::rejoin,
@@ -70,9 +72,13 @@ public class ClubService {
     @Transactional
     public void leave(Long memberId, Long clubId) {
         clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "탈퇴할 모임이 존재하지 않습니다: clubId=" + clubId));
         ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "가입 이력이 있는 회원만 모임을 탈퇴할 수 있습니다: clubId=" + clubId));
         clubMember.leave();
     }
 
@@ -99,12 +105,16 @@ public class ClubService {
     @Transactional(readOnly = true)
     public ClubDetailResponse findDetail(Long memberId, Long clubId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "상세 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
         List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithMemberByClubId(clubId);
         ClubMember myMembership = clubMembers.stream()
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst()
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "모임에 참여 중인 회원만 상세 정보를 조회할 수 있습니다: clubId=" + clubId));
         Set<Long> blockedMemberIds = blockedMemberIds(memberId, clubMembers);
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),

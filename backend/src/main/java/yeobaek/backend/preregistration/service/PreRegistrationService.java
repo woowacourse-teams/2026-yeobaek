@@ -30,7 +30,10 @@ public class PreRegistrationService {
             preRegistrationRepository.saveAndFlush(preRegistration);
         } catch (DataIntegrityViolationException exception) {
             if (isEmailUniqueConstraintViolation(exception)) {
-                throw new ConflictException(ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS, exception);
+                throw new ConflictException(
+                        ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS,
+                        "이미 사전신청한 이메일입니다.",
+                        exception);
             }
             throw exception;
         }
@@ -65,6 +68,8 @@ public class PreRegistrationService {
     }
 
     private ConflictException duplicateEmail() {
-        return new ConflictException(ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS);
+        return new ConflictException(
+                ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS,
+                "이미 사전신청한 이메일입니다.");
     }
 }

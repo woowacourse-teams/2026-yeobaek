@@ -87,7 +87,9 @@ public class Book {
 
     public void ensureAvailable() {
         if (status != BookStatus.ACTIVE) {
-            throw new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE);
+            throw new BadRequestException(
+                    ErrorCode.BOOK_NOT_AVAILABLE,
+                    "더 이상 이용할 수 없는 도서입니다.");
         }
     }
 

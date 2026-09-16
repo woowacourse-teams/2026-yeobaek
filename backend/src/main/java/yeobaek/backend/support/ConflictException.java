@@ -7,13 +7,13 @@ public class ConflictException extends RuntimeException {
 
     private final ErrorCode code;
 
-    public ConflictException(ErrorCode code) {
-        super(code.getDefaultMessage());
+    public ConflictException(ErrorCode code, String message) {
+        super(message);
         this.code = code;
     }
 
-    public ConflictException(ErrorCode code, Throwable cause) {
-        super(code.getDefaultMessage(), cause);
+    public ConflictException(ErrorCode code, String message, Throwable cause) {
+        super(message, cause);
         this.code = code;
     }
 }

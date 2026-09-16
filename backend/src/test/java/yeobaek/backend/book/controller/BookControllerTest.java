@@ -145,7 +145,9 @@ class BookControllerTest extends ControllerTest {
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(5L);
-        var serviceException = new NotFoundException(ErrorCode.BOOK_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.BOOK_NOT_FOUND,
+                "도서가 존재하지 않습니다: bookId=999");
         given(bookService.findBook(999L)).willThrow(serviceException);
 
         var result = mockMvc.perform(get("/api/books/{bookId}", 999L)

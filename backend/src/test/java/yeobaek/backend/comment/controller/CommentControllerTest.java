@@ -326,7 +326,9 @@ class CommentControllerTest extends ControllerTest {
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(7L);
-        var serviceException = new NotFoundException(ErrorCode.COMMENT_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.COMMENT_NOT_FOUND,
+                "댓글이 존재하지 않습니다: commentId=1042");
         given(commentService.findComments(7L, 999L, 1042L)).willThrow(serviceException);
 
         var result = mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 999L, 1042L)

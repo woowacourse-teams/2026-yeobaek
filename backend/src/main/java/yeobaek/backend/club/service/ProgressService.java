@@ -35,11 +35,17 @@ public class ProgressService {
     @Transactional
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "진도를 갱신할 모임이 존재하지 않습니다: clubId=" + clubId));
         ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "모임에 참여 중인 회원만 진도를 갱신할 수 있습니다: clubId=" + clubId));
         Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.PASSAGE_NOT_FOUND,
+                        "진도를 갱신할 본문이 존재하지 않습니다: passageId=" + passageId));
         if (!club.isReading(passage)) {
             throw new IllegalArgumentException("모임의 도서에 속하지 않는 본문입니다.");
         }
