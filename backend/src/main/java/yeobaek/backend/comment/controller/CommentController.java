@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -92,7 +93,7 @@ public class CommentController {
     public CommentResponse create(@AuthMember Long memberId,
                                   @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                   @Parameter(description = "문장 ID") @PathVariable Long sentenceId,
-                                  @RequestBody CommentCreateRequest request) {
+                                  @Valid @RequestBody CommentCreateRequest request) {
         CommentResponse response = commentService.create(memberId, clubId, sentenceId, request.content());
         analyticsTracker.track(memberId,
                 AnalyticsEvent.commentCreate(clubId, sentenceId, response.commentId()));
@@ -103,7 +104,7 @@ public class CommentController {
     @PutMapping("/api/comments/{commentId}")
     public CommentResponse update(@AuthMember Long memberId,
                                   @Parameter(description = "댓글 ID") @PathVariable Long commentId,
-                                  @RequestBody CommentUpdateRequest request) {
+                                  @Valid @RequestBody CommentUpdateRequest request) {
         CommentResponse response = commentService.update(memberId, commentId, request.content());
         analyticsTracker.track(memberId, AnalyticsEvent.commentUpdate(response.commentId()));
         return response;

@@ -46,7 +46,7 @@ class BookCoverUploadServiceTest {
         stubSuccessfulPresign(expiration);
 
         BookCoverUploadUrlResponse response = service.issueUploadUrl(
-                new BookCoverUploadUrlRequest("image/webp", 1024));
+                new BookCoverUploadUrlRequest("image/webp", 1024L));
 
         assertThat(response.coverImageKey()).matches(
                 "^yeobaek/book-covers/"
@@ -64,7 +64,7 @@ class BookCoverUploadServiceTest {
         stubSuccessfulPresign(Instant.parse("2026-08-26T12:10:00Z"));
 
         BookCoverUploadUrlResponse response = service.issueUploadUrl(
-                new BookCoverUploadUrlRequest("image/webp", 1024));
+                new BookCoverUploadUrlRequest("image/webp", 1024L));
 
         ArgumentCaptor<PutObjectPresignRequest> captor = ArgumentCaptor.forClass(PutObjectPresignRequest.class);
         org.mockito.Mockito.verify(s3Presigner).presignPutObject(captor.capture());
@@ -103,11 +103,11 @@ class BookCoverUploadServiceTest {
     @Test
     @DisplayName("지원하지 않는 형식과 범위를 벗어난 크기는 URL 발급 전에 거부한다")
     void rejectInvalidFileMetadata() {
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/gif", 1024)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/gif", 1024L)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest(null, 1024)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest(null, 1024L)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 0)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 0L)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.issueUploadUrl(
                 new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH + 1)))
@@ -129,7 +129,7 @@ class BookCoverUploadServiceTest {
         given(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class)))
                 .willThrow(SdkClientException.builder().message("credential detail").build());
 
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/jpeg", 1024)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/jpeg", 1024L)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("표지 이미지 업로드 URL 발급에 실패했습니다.");
     }

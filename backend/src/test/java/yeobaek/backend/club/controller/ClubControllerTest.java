@@ -17,8 +17,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -254,6 +257,27 @@ class ClubControllerTest extends ControllerTest {
         verifyNoInteractions(analyticsTracker);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"bookId\":5}",
+            "{\"name\":null,\"bookId\":5}",
+            "{\"name\":\"교환독서 1기\"}",
+            "{\"name\":\"교환독서 1기\",\"bookId\":null}"
+    })
+    @DisplayName("모임 생성 필수 필드가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullCreateField(String content) throws Exception {
+        givenValidMember(5L);
+
+        mockMvc.perform(post("/api/clubs")
+                        .header("X-Member-Id", "5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService);
+    }
+
     @Test
     @DisplayName("모임 참여 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingJoinBody() throws Exception {
@@ -268,6 +292,22 @@ class ClubControllerTest extends ControllerTest {
 
         verifyNoInteractions(clubService);
         verifyNoInteractions(analyticsTracker);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"joinCode\":null}"})
+    @DisplayName("필수 참여 코드가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullJoinCode(String content) throws Exception {
+        givenValidMember(6L);
+
+        mockMvc.perform(post("/api/clubs/join")
+                        .header("X-Member-Id", "6")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService);
     }
 
     @Test

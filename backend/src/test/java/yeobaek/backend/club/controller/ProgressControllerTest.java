@@ -17,8 +17,11 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.book.domain.BookStatus;
@@ -128,6 +131,22 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(result -> assertInstanceOf(
                         HttpMessageNotReadableException.class,
                         result.getResolvedException()));
+
+        verifyNoInteractions(progressService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"passageId\":null}"})
+    @DisplayName("필수 본문 ID가 누락되거나 null이면 진도 서비스를 호출하지 않는다")
+    void rejectMissingOrNullPassageId(String content) throws Exception {
+        givenValidMember(4L);
+
+        mockMvc.perform(put("/api/clubs/{clubId}/progress", 7L)
+                        .header("X-Member-Id", "4")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
 
         verifyNoInteractions(progressService);
     }
