@@ -2,7 +2,9 @@ package com.yeobaek.data.api
 
 import com.yeobaek.data.dto.CommentRequest
 import com.yeobaek.data.dto.CommentResponse
+import com.yeobaek.data.dto.CommentedSentencesResponse
 import com.yeobaek.data.dto.CommentsResponse
+import com.yeobaek.data.dto.NewCommentCountResponse
 import de.jensklingenberg.ktorfit.Response
 import de.jensklingenberg.ktorfit.http.Body
 import de.jensklingenberg.ktorfit.http.DELETE
@@ -11,6 +13,7 @@ import de.jensklingenberg.ktorfit.http.Headers
 import de.jensklingenberg.ktorfit.http.POST
 import de.jensklingenberg.ktorfit.http.PUT
 import de.jensklingenberg.ktorfit.http.Path
+import de.jensklingenberg.ktorfit.http.Query
 
 interface CommentApi {
     @POST("api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views")
@@ -43,4 +46,16 @@ interface CommentApi {
     suspend fun reportComment(
         @Path("commentId") commentId: Long,
     ): Response<Unit>
+
+    @GET("api/clubs/{clubId}/comments/new-count")
+    suspend fun getNewCommentCount(
+        @Path("clubId") clubId: Long,
+        @Query("currentPassageId") currentPassageId: Long,
+    ): Response<NewCommentCountResponse>
+
+    @GET("api/clubs/{clubId}/commented-sentences")
+    suspend fun getCommentedSentences(
+        @Path("clubId") clubId: Long,
+        @Query("currentPassageId") currentPassageId: Long,
+    ): Response<CommentedSentencesResponse>
 }
