@@ -3,6 +3,8 @@ package com.yeobaek
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
@@ -300,12 +302,20 @@ fun App(
                         readerRepository = appContainer.readerRepository,
                         commentRepository = appContainer.commentRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
+                LifecycleEventEffect(Lifecycle.Event.ON_START) {
+                    readerViewModel.onScreenStarted()
+                }
+                LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+                    readerViewModel.onScreenStopped()
+                }
                 val commentSheet = readerViewModel.commentSheet
                 val actions = remember(readerViewModel, navController) {
                     ReaderActions(
                         onBackClick = {
+                            readerViewModel.finishReadingSession()
                             readerViewModel.saveReadingProgress(
                                 onComplete = navController::popBackStack,
                             )
