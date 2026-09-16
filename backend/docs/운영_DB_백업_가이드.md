@@ -1,6 +1,6 @@
 # 여백 DB 백업 운영 가이드
 
-EC2의 Docker MySQL에 있는 `yeobaek` DB를 매일 자동으로 백업하고 7일치를 보관합니다. 이 문서는 왜 이렇게 구성했는지, 백업이 정상인지 확인하는 법, 문제가 생겼을 때 복원하는 법을 정리합니다.
+EC2의 Docker MySQL에 있는 `yeobaek` DB를 매일 자동으로 백업하고 30일치를 보관합니다. 이 문서는 왜 이렇게 구성했는지, 백업이 정상인지 확인하는 법, 문제가 생겼을 때 복원하는 법을 정리합니다.
 
 | 항목 | 내용 |
 |---|---|
@@ -45,10 +45,10 @@ INSERT INTO `members` VALUES (1, ...), (2, ...);
 | 대상 | `yeobaek` DB만 백업합니다. `mysql`, `sys`, `information_schema`, `performance_schema`는 시스템 스키마라서 제외합니다. |
 | 방식 | 논리 백업 (`mysqldump --single-transaction`). 테이블 락 없이 한 시점 기준으로 뜨기 때문에 서비스 중에도 실행할 수 있습니다. |
 | 주기 | 매일 00:00 (KST) |
-| 보관 | 최근 7일. 그보다 오래된 파일은 백업이 성공한 경우에만 자동으로 삭제합니다. |
+| 보관 | 최근 30일. 그보다 오래된 파일은 백업이 성공한 경우에만 자동으로 삭제합니다. |
 | 위치 | `/home/ubuntu/db-backup/files/` |
 | 파일명 | `yeobaek_YYYYMMDD_HHMM.sql.gz` |
-| 크기 | 1개 약 15MB, 7일치 약 105MB (2026-09-16 기준, DB 원본 데이터 약 52MB) |
+| 크기 | 1개 약 15MB, 30일치 약 450MB (2026-09-16 기준, DB 원본 데이터 약 52MB) |
 | 복구 가능 범위 | 최대 하루 전 상태로 되돌릴 수 있습니다. 마지막 백업 이후 들어온 데이터는 복구되지 않습니다. |
 
 ## 3. 동작 구조
@@ -57,7 +57,7 @@ INSERT INTO `members` VALUES (1, ...), (2, ...);
 cron (매일 00:00)
   → 덤프 + 압축   : 컨테이너 안 mysqldump 결과를 gzip으로 저장
   → 검증          : 마지막 줄에 "Dump completed"가 없으면 실패 처리
-  → 정리          : 성공한 경우에만 7일 초과 파일 삭제
+  → 정리          : 성공한 경우에만 30일 초과 파일 삭제
 ```
 
 실행 결과는 모두 `/home/ubuntu/db-backup/backup.log`에 쌓입니다.
@@ -66,7 +66,7 @@ cron (매일 00:00)
 /home/ubuntu/db-backup/
 ├── backup.sh      # 백업 스크립트
 ├── backup.log     # 실행 로그
-└── files/         # 백업 파일 (최근 7개)
+└── files/         # 백업 파일 (최근 30개)
     ├── yeobaek_20260916_0000.sql.gz
     └── ...
 ```
@@ -82,7 +82,7 @@ set -euo pipefail
 CONTAINER="yeobaek-mysql"
 DB="yeobaek"
 BACKUP_DIR="$HOME/db-backup/files"
-KEEP_DAYS=7
+KEEP_DAYS=30
 NOW=$(date +%Y%m%d_%H%M)
 FILE="$BACKUP_DIR/${DB}_${NOW}.sql.gz"
 
@@ -100,7 +100,7 @@ if ! zcat "$FILE" | tail -n 1 | grep -q "Dump completed"; then
   exit 1
 fi
 
-# 3) 7일 초과분 삭제 (백업 성공 시에만 도달)
+# 3) 30일 초과분 삭제 (백업 성공 시에만 도달)
 find "$BACKUP_DIR" -name "${DB}_*.sql.gz" -mtime +$((KEEP_DAYS - 1)) -delete
 
 echo "[$(date)] 백업 완료: $FILE ($(du -h "$FILE" | cut -f1))"
@@ -135,7 +135,7 @@ echo "[$(date)] 백업 완료: $FILE ($(du -h "$FILE" | cut -f1))"
 # 최근 실행 결과: "백업 완료"가 매일 찍혀 있는지
 tail -n 20 ~/db-backup/backup.log
 
-# 파일이 7개 안팎이고 크기가 비슷한지
+# 파일이 30개 안팎이고 크기가 비슷한지
 ls -lh ~/db-backup/files
 
 # 가장 최근 파일이 손상되지 않았는지
@@ -231,3 +231,4 @@ docker rm -f restore-test
 | 날짜 | 내용 |
 |---|---|
 | 2026-09-16 | 최초 작성 (매일 00:00 백업, 7일 보관 적용) |
+| 2026-09-16 | 백업 보관 기간을 30일로 변경 |
