@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCodeGenerator;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
@@ -43,7 +43,6 @@ public class ClubService {
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final MemberBlockRepository memberBlockRepository;
-    private final JoinCodeGenerator joinCodeGenerator;
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
@@ -143,14 +142,14 @@ public class ClubService {
         if (clubMember.getLastReadPassage() == null) {
             return null;
         }
-        int sequence = clubMember.getLastReadPassage().getSequence();
+        int sequence = clubMember.getLastReadPassage().getSequence().value();
         return new MyProgressResponse(sequence, clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
-    private String generateUniqueJoinCode() {
+    private JoinCode generateUniqueJoinCode() {
         for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
-            String code = joinCodeGenerator.generate();
-            if (!clubRepository.existsByJoinCode(code)) {
+            JoinCode code = JoinCode.generate();
+            if (!clubRepository.existsByJoinCode(code.value())) {
                 return code;
             }
         }
@@ -159,14 +158,14 @@ public class ClubService {
 
     private List<String> authorNames(Book book) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getName())
+                .map(authorBook -> authorBook.getAuthor().getName().value())
                 .collect(Collectors.toList());
     }
 
     private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName().value(), Collectors.toList())));
     }
 
     private ClubBookResponse toBookResponse(Book book, List<String> authors) {

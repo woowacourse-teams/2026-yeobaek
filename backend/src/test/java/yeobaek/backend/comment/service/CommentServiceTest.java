@@ -3,6 +3,7 @@ package yeobaek.backend.comment.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +18,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
@@ -82,14 +84,14 @@ class CommentServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2));
+        book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 2, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        passage = passageRepository.save(new Passage(chapter, 1, "본문 1"));
+        passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("본문 1")));
         sentence = passage.getSentences().getFirst();
         writer = memberRepository.save(new Member("민서"));
         other = memberRepository.save(new Member("지수"));
-        club = clubRepository.save(new Club("1기", book, "CODE01"));
-        otherClub = clubRepository.save(new Club("2기", book, "CODE02"));
+        club = clubRepository.save(new Club("1기", book, new JoinCode("CODE01")));
+        otherClub = clubRepository.save(new Club("2기", book, new JoinCode("CODE02")));
         clubMemberRepository.save(new ClubMember(writer, club));
         clubMemberRepository.save(new ClubMember(other, club));
     }
@@ -172,8 +174,8 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("댓글 문장은 현재 미확인, 미래 미확인, 모두 확인 그룹 순서로 정렬된다")
     void sortCommentedSentencesByDiscoveryGroups() {
         Chapter chapter = chapterRepository.save(new Chapter(book, "2장", 2));
-        Passage futurePassage = passageRepository.save(new Passage(chapter, 2, "미래 문장"));
-        Passage viewedPassage = passageRepository.save(new Passage(chapter, 3, "확인한 문장"));
+        Passage futurePassage = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("미래 문장")));
+        Passage viewedPassage = passageRepository.save(new Passage(chapter, 3, Collections.singletonList("확인한 문장")));
         commentService.create(other.getId(), club.getId(), sentence.getId(), "현재 새 댓글");
         commentService.create(other.getId(), club.getId(), futurePassage.getSentences().getFirst().getId(), "미래 새 댓글");
         commentService.create(writer.getId(), club.getId(), viewedPassage.getSentences().getFirst().getId(), "확인한 댓글");
@@ -406,9 +408,9 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않는 문장에는 댓글을 달 수 없다")
     void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book("다른 책", null, null, 1));
+        Book otherBook = bookRepository.save(new Book("다른 책", null, null, 1, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, "1장", 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, "다른 본문"));
+        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList("다른 본문")));
 
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(),
                 otherPassage.getSentences().getFirst().getId(), "댓글"))
@@ -494,7 +496,7 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("요청 진도 경계와 차단을 적용하고 차단 해제 뒤 새 조회에서 갱신한다")
     void countWithinRequestedProgressAndVisibility() {
         Chapter chapter = chapterRepository.save(new Chapter(book, "미래 장", 2));
-        Passage future = passageRepository.save(new Passage(chapter, 2, "미래 본문"));
+        Passage future = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("미래 본문")));
         commentService.create(other.getId(), club.getId(), sentence.getId(), "현재");
         commentService.create(other.getId(), club.getId(), future.getSentences().getFirst().getId(), "미래");
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
@@ -560,7 +562,7 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("같은 그룹은 최신 댓글 시각으로 정렬하고 동점은 문장 ID 내림차순이다")
     void sortLatestCommentAndSentenceTie() {
         Chapter chapter = chapterRepository.save(new Chapter(book, "정렬 장", 2));
-        Passage otherPassage = passageRepository.save(new Passage(chapter, 1, "다른 문장"));
+        Passage otherPassage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("다른 문장")));
         Long secondSentenceId = otherPassage.getSentences().getFirst().getId();
         CommentResponse first = commentService.create(other.getId(), club.getId(), sentence.getId(), "첫 문장");
         commentService.create(other.getId(), club.getId(), secondSentenceId, "둘째 문장");
@@ -592,9 +594,9 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않거나 다른 책의 현재 문단은 INVALID_REQUEST다")
     void rejectInvalidDiscoveryPassage() {
-        Book anotherBook = bookRepository.save(new Book("새 책", null, null, 1));
+        Book anotherBook = bookRepository.save(new Book("새 책", null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(anotherBook, "새 장", 1));
-        Passage foreign = passageRepository.save(new Passage(chapter, 1, "다른 책 본문"));
+        Passage foreign = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("다른 책 본문")));
         for (Long passageId : java.util.List.of(Long.MAX_VALUE, foreign.getId())) {
             assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), club.getId(), passageId))
                     .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);

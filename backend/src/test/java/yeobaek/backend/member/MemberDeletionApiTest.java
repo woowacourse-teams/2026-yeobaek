@@ -20,6 +20,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
@@ -67,13 +68,13 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
-        Book book = bookRepository.save(new Book("회원 탈퇴 테스트 도서", null, null, 1));
+        Book book = bookRepository.save(new Book("회원 탈퇴 테스트 도서", null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, List.of("첫 문장.")));
         Member targetMember = memberRepository.save(new Member("탈퇴 회원"));
         Member remainingMember = memberRepository.save(new Member("잔여 회원"));
-        Club sharedClub = clubRepository.save(new Club("공유 모임", book, "DELETE"));
-        Club leftClub = clubRepository.save(new Club("탈퇴한 모임", book, "LEFT01"));
+        Club sharedClub = clubRepository.save(new Club("공유 모임", book, new JoinCode("DELETE")));
+        Club leftClub = clubRepository.save(new Club("탈퇴한 모임", book, new JoinCode("LEFT01")));
 
         ClubMember progressedMembership = new ClubMember(targetMember, sharedClub);
         progressedMembership.updateProgress(passage, LocalDateTime.of(2026, 9, 3, 10, 0));

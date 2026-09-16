@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
 
@@ -31,7 +32,7 @@ public class ActiveBookRepository {
         return bookJpaRepository.searchActiveByTitleOrAuthorName(keyword, BookStatus.ACTIVE);
     }
 
-    public List<Book> findAllByTitle(String title) {
-        return bookJpaRepository.findAllByTitleAndStatus(title, BookStatus.ACTIVE);
+    public List<Book> findAllByTitle(BookTitle title) {
+        return bookJpaRepository.findAllByTitleAndStatus(title.value(), BookStatus.ACTIVE);
     }
 }

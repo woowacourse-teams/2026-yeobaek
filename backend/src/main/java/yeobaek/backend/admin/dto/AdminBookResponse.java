@@ -27,11 +27,11 @@ public record AdminBookResponse(
     ) {
         return new AdminBookResponse(
                 book.getId(),
-                book.getTitle(),
+                book.getTitle().value(),
                 authors,
-                book.getPublisher(),
+                book.getPublisher() == null ? null : book.getPublisher().value(),
                 book.getPublishedYear(),
-                book.getPassageCount(),
+                book.getPassageCount().value(),
                 coverImageUrl,
                 book.getStatus());
     }

@@ -12,6 +12,6 @@ public record AdminAuthorBookResponse(
 ) {
 
     public static AdminAuthorBookResponse of(Book book, String coverImageUrl) {
-        return new AdminAuthorBookResponse(book.getId(), book.getTitle(), coverImageUrl, book.getStatus());
+        return new AdminAuthorBookResponse(book.getId(), book.getTitle().value(), coverImageUrl, book.getStatus());
     }
 }

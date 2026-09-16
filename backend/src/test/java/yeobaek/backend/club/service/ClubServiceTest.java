@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -80,7 +81,7 @@ class ClubServiceTest extends IntegrationTest {
     @BeforeEach
     void setUp() {
         creator = memberRepository.save(new Member("민서"));
-        book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 312));
+        book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 312, null));
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, book));
     }
@@ -144,6 +145,14 @@ class ClubServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("발급 형식이 아닌 참여 코드는 기존과 같이 존재하지 않는 코드로 처리한다")
+    void invalidJoinCodeRemainsNotFound() {
+        assertThatThrownBy(() -> clubService.join(creator.getId(), "invalid"))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.JOIN_CODE_NOT_FOUND));
+    }
+
+    @Test
     @DisplayName("이미 참여한 모임에 다시 참여해도 같은 응답을 반환한다 (멱등)")
     void joinIsIdempotent() {
         ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
@@ -192,7 +201,7 @@ class ClubServiceTest extends IntegrationTest {
     @DisplayName("탈퇴 후 재가입하면 기존 참여 정보와 진도를 복구한다")
     void rejoinRestoresMembershipAndProgress() {
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 42, "본문"));
+        Passage passage = passageRepository.save(new Passage(chapter, 42, Collections.singletonList("본문")));
         ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
@@ -235,9 +244,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("내 모임 목록에 회원 수와 진도가 함께 조회된다")
     void findMyClubsWithProgress() {
-        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
+        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
+        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("본문 2")));
         ClubCreateResponse first = clubService.create(creator.getId(), "1기", book.getId());
         ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));
@@ -280,9 +289,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임 상세에 참여 코드·참여 순서의 회원 목록·내 진도가 함께 조회된다")
     void findDetailWithMembersAndProgress() {
-        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3));
+        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, "본문 2"));
+        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("본문 2")));
         ClubCreateResponse created = clubService.create(creator.getId(), "1기", smallBook.getId());
         Member joiner = memberRepository.save(new Member("지수"));
         clubService.join(joiner.getId(), created.joinCode());
