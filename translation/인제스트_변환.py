@@ -129,6 +129,17 @@ def _period_is_internal(text, index):
         return bool(next_nonspace)
     if lowered == "no.":
         return bool(next_nonspace and next_nonspace[0].isdigit())
+    if token == "SS.":
+        tail = text[index + 1:]
+        quoted_with_particle = re.match(r"[\"'’”](?:으)?로(?=\s|[가-힣])", tail)
+        ship_name_with_port = re.match(
+            r"\s+[^\n.!?。？！…,，]{1,36}호(?=\s*[,，])",
+            tail,
+        )
+        # 대문자 SS.만으로는 선박 접두어라고 단정하지 않는다. 인용된 표기가
+        # 조사로 이어지거나, 바로 뒤 선명이 '호'로 끝나고 등록항 표기가 따를
+        # 때처럼 문장 내부라는 근거가 있는 경우에만 마침표를 보존한다.
+        return bool(quoted_with_particle or ship_name_with_port)
     if lowered in CERTAIN_INLINE_ABBREVIATIONS:
         return True
     if lowered in AMBIGUOUS_ABBREVIATIONS:
