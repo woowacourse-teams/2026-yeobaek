@@ -4,6 +4,33 @@
 
 > 팀에 새로 합류한 개발자는 [온보딩 문서](docs/온보딩_프로젝트_개발_방법.md)부터 읽어야 합니다.
 
+## 디렉터리 구성
+
+| 경로 | 용도 |
+|---|---|
+| `src/main/`, `src/test/` | 애플리케이션 코드·리소스와 테스트 |
+| `scripts/` | 로컬 실행 도구 (`local-env.sh`, `local-env.ps1`) |
+| `deploy/` | 컨테이너 이미지, 환경별 Compose, S3 배포 설정 |
+| `config/` | PMD·SpotBugs 정적 분석 설정 |
+| `gradle/` | Gradle Wrapper와 동시 실행 잠금 도구·검증 |
+| `docs/` | 온보딩·배포 문서, ADR, 개발 지침과 템플릿 |
+
+루트에는 Gradle 빌드 파일과 Wrapper 진입점, README·에이전트 지침, Git 설정을 둡니다.
+개인 로컬 설정은 기존처럼 루트의 `.env.local`을 사용하며 `.env.local.example`에서 복사합니다.
+`build/`, `.gradle/`, IDE 설정은 Git에서 제외되는 생성물입니다.
+
+로컬 Compose는 `deploy/docker-compose.local.yml`, 운영 Compose는 `deploy/docker-compose.prod.yml`입니다.
+로컬 환경은 아래 `scripts/local-env.*` 명령으로 실행합니다. 스크립트는 실행 위치와 관계없이
+`backend/`를 기준으로 Compose 설정과 Gradle을 찾습니다. 기존 루트의 `local-env.*` 명령을
+사용했다면 `scripts/` 경로를 추가하세요.
+
+Docker 이미지는 `backend/`를 빌드 컨텍스트로 유지합니다.
+
+```bash
+./gradlew bootJar
+docker build -f deploy/Dockerfile -t yeobaek-backend .
+```
+
 ## Android/API 로컬 테스트
 
 Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 JDK는 필요하지 않습니다.
@@ -16,15 +43,15 @@ Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 J
 
 ```powershell
 # Windows: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-pwsh -NoProfile -File .\local-env.ps1 dev
+pwsh -NoProfile -File .\scripts\local-env.ps1 dev
 ```
 
 ```bash
 # macOS/Linux: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-sh ./local-env.sh dev
+sh ./scripts/local-env.sh dev
 ```
 
-로컬 서버는 `local` 프로파일로 실행됩니다. `dev`는 기존 API 컨테이너가 실행 중이면 먼저 중지해 8080 포트 충돌을 막습니다. Windows 명령은 PowerShell 7.2 이상(`pwsh`)을 기준으로 합니다. IDE에서 서버를 실행할 때는 `pwsh -NoProfile -File .\local-env.ps1 db`(Windows) 또는 `sh ./local-env.sh db`(macOS/Linux)로 DB만 실행하고, 작업 후 공통 `down` 명령으로 종료합니다.
+로컬 서버는 `local` 프로파일로 실행됩니다. `dev`는 기존 API 컨테이너가 실행 중이면 먼저 중지해 8080 포트 충돌을 막습니다. Windows 명령은 PowerShell 7.2 이상(`pwsh`)을 기준으로 합니다. IDE에서 서버를 실행할 때는 `pwsh -NoProfile -File .\scripts\local-env.ps1 db`(Windows) 또는 `sh ./scripts/local-env.sh db`(macOS/Linux)로 DB만 실행하고, 작업 후 공통 `down` 명령으로 종료합니다.
 
 스크립트는 체크아웃 경로별 Compose 프로젝트명을 사용하므로 다른 clone이나 worktree의 컨테이너를 `down`하지 않습니다. 필요하면 `COMPOSE_PROJECT_NAME`으로 명시적으로 덮어쓸 수 있습니다.
 
@@ -83,7 +110,7 @@ PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝�
 export POSTHOG_ENABLED=true
 export POSTHOG_API_KEY='<US Cloud project API key>'
 export POSTHOG_HOST='https://us.i.posthog.com'
-sh ./local-env.sh dev
+sh ./scripts/local-env.sh dev
 ```
 
 Windows의 PowerShell 7.2 이상에서는 같은 터미널에 환경변수를 설정한 뒤 실행합니다.
@@ -92,7 +119,7 @@ Windows의 PowerShell 7.2 이상에서는 같은 터미널에 환경변수를 �
 $env:POSTHOG_ENABLED='true'
 $env:POSTHOG_API_KEY='<US Cloud project API key>'
 $env:POSTHOG_HOST='https://us.i.posthog.com'
-pwsh -NoProfile -File .\local-env.ps1 dev
+pwsh -NoProfile -File .\scripts\local-env.ps1 dev
 ```
 
 서버가 정상 기동하면 Spring의 조건부 설정과 PostHog SDK 초기화가 완료된 것입니다. 실제 US Cloud 수신은 애플리케이션에 테스트 전용 이벤트 코드를 남기지 않고 아래 일회성 요청으로 별도 확인합니다. `distinct_id`는 실제 회원 식별자가 아니며, `$process_person_profile=false`로 인물 프로필을 생성하지 않습니다.

@@ -414,14 +414,14 @@ public final class WorktreeGradleLockVerification {
                     "-NoLogo",
                     "-NoProfile",
                     "-File",
-                    appHome.resolve("local-env.ps1").toString(),
+                    appHome.resolve("scripts/local-env.ps1").toString(),
                     "dev"
             );
         } else {
             Path fakeDocker = fakeBinaryDirectory.resolve("docker");
             Files.writeString(fakeDocker, "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$YEOBAEK_FAKE_DOCKER_LOG\"\n");
             require(fakeDocker.toFile().setExecutable(true), "The fake Docker command must be executable.");
-            command = List.of("sh", appHome.resolve("local-env.sh").toString(), "dev");
+            command = List.of("sh", appHome.resolve("scripts/local-env.sh").toString(), "dev");
         }
 
         Path standardOutput = temporaryDirectory.resolve("local-env.out");
