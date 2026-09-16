@@ -9,15 +9,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.AccountDeleteRequested
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.GroupCreateInitiated
+import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.GroupDetailOpened
 import com.yeobaek.core.analytics.GroupJoinInitiated
+import com.yeobaek.core.analytics.GroupJoinSubmitted
 import com.yeobaek.core.analytics.GuideCompleted
 import com.yeobaek.core.analytics.GuideDismissed
 import com.yeobaek.core.analytics.GuideEntryPoint
 import com.yeobaek.core.analytics.GuideStarted
+import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.InviteCodeCopied
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
@@ -76,6 +82,7 @@ fun App(
                     factory = NicknameViewModel.nicknameViewModelFactory(
                         userRepository = appContainer.userRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -174,12 +181,12 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
                 LaunchedEffect(true) {
-                    homeViewModel.initCurrentlyBook()
-                    homeViewModel.initGroups()
+                    homeViewModel.loadHome()
                 }
 
                 HomeScreen(
@@ -226,6 +233,7 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
                 LaunchedEffect(
@@ -248,6 +256,9 @@ fun App(
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
+                    onInviteCodeCopy = {
+                        appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
+                    },
                     onBlockUser = { otherUserId ->
                         detailViewModel.blockUser(otherUserId)
                     },
@@ -348,6 +359,7 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -373,7 +385,14 @@ fun App(
                     },
                     navigateToHome = {
                         joinViewModel.checkCodeBlank()
-                        if (!joinViewModel.uiState.codeState) {
+                        if (joinViewModel.uiState.codeState) {
+                            appContainer.analyticsTracker.track(
+                                GroupJoinSubmitted(
+                                    result = EventResult.INVALID,
+                                    reason = InvalidReason.CODE_BLANK,
+                                ),
+                            )
+                        } else {
                             joinViewModel.joinGroup()
                         }
                     },
@@ -390,6 +409,7 @@ fun App(
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -401,7 +421,16 @@ fun App(
                         navController.popBackStack()
                     },
                     onCreateGroup = {
-                        if (!createViewModel.createConditionCheck()) {
+                        if (createViewModel.createConditionCheck()) {
+                            val reason = if (createViewModel.uiState.groupNameCondition) {
+                                InvalidReason.NAME_BLANK
+                            } else {
+                                InvalidReason.BOOK_NOT_SELECTED
+                            }
+                            appContainer.analyticsTracker.track(
+                                GroupCreateSubmitted(result = EventResult.INVALID, reason = reason),
+                            )
+                        } else {
                             createViewModel.createGroup()
                         }
                     },
@@ -423,12 +452,16 @@ fun App(
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
                 MyPageScreen(
                     uiState = myPageViewModel.uiState,
                     appVersion = appContainer.appVersion,
+                    onDeleteAccountClick = {
+                        appContainer.analyticsTracker.track(AccountDeleteRequested)
+                    },
                     deleteAccount = myPageViewModel::deleteAccount,
                     navigateToNickname = {
                         navController.navigate(Nickname) {

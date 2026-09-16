@@ -46,6 +46,7 @@ import com.yeobaek.feature.mypage.component.MyPageFeatureCard
 fun MyPageScreen(
     uiState: MyPageUiState,
     appVersion: String,
+    onDeleteAccountClick: () -> Unit,
     deleteAccount: () -> Unit,
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
@@ -122,6 +123,7 @@ fun MyPageScreen(
                 text = "회원 탈퇴",
                 icon = Res.drawable.ic_user_delete,
                 onClick = {
+                    onDeleteAccountClick()
                     showDeleteDialog = true
                 },
             )
@@ -155,6 +157,7 @@ private fun MyPageScreenPreview() {
                 name = "하로",
             ),
             appVersion = "1.0.0",
+            onDeleteAccountClick = {},
             deleteAccount = {},
             navigateToNickname = {},
             navigateToGuide = {},
