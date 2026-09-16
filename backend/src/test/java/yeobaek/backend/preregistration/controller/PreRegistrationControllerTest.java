@@ -128,14 +128,14 @@ class PreRegistrationControllerTest extends ControllerTest {
         verify(preRegistrationService, times(5)).create("reader@example.com");
     }
 
-    private static RequestPostProcessor remoteAddress(String address) {
+    private RequestPostProcessor remoteAddress(String address) {
         return request -> {
             request.setRemoteAddr(address);
             return request;
         };
     }
 
-    private static String testIpv4(int host) {
+    private String testIpv4(int host) {
         return "198.51.100." + host;
     }
 }

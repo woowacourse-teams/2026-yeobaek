@@ -122,7 +122,7 @@ public class Book {
         return passageCount;
     }
 
-    private static void validateCoverImageKey(String coverImageKey) {
+    private void validateCoverImageKey(String coverImageKey) {
         if (coverImageKey != null
                 && (coverImageKey.length() > MAX_COVER_IMAGE_KEY_LENGTH
                 || !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches())) {

@@ -52,7 +52,7 @@ public class Passage {
         }
     }
 
-    private static void validate(List<String> sentenceContents) {
+    private void validate(List<String> sentenceContents) {
         if (sentenceContents == null || sentenceContents.isEmpty()) {
             throw new IllegalArgumentException("문단에는 최소 1개의 문장이 있어야 합니다.");
         }
