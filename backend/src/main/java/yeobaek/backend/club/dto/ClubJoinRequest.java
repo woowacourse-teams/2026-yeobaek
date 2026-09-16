@@ -1,8 +1,14 @@
 package yeobaek.backend.club.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import io.swagger.v3.oas.annotations.media.Schema;
+import yeobaek.backend.club.domain.vo.JoinCode;
 
 public record ClubJoinRequest(
-        @Schema(description = "참여 코드") String joinCode
+        @JsonProperty(required = true)
+        @JsonSetter(nulls = Nulls.FAIL)
+        @Schema(type = "string", description = "참여 코드") JoinCode joinCode
 ) {
 }

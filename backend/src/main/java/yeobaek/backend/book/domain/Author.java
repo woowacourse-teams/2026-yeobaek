@@ -32,12 +32,15 @@ public class Author {
     @AttributeOverride(name = "value", column = @Column(name = "isni", unique = true, length = Isni.LENGTH))
     private Isni isni;
 
-    public Author(String name) {
+    public Author(AuthorName name) {
         this(name, null);
     }
 
-    public Author(String name, Isni isni) {
-        this.name = new AuthorName(name);
+    public Author(AuthorName name, Isni isni) {
+        if (name == null) {
+            throw new IllegalArgumentException("작가 이름은 필수입니다.");
+        }
+        this.name = name;
         this.isni = isni;
     }
 

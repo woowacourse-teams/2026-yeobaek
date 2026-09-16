@@ -27,8 +27,11 @@ public class Member {
     @AttributeOverride(name = "value", column = @Column(name = "nickname", nullable = false, length = Nickname.MAX_LENGTH))
     private Nickname nickname;
 
-    public Member(String nickname) {
-        this.nickname = new Nickname(nickname);
+    public Member(Nickname nickname) {
+        if (nickname == null) {
+            throw new IllegalArgumentException("닉네임은 필수입니다.");
+        }
+        this.nickname = nickname;
     }
 
     public String getNickname() {

@@ -15,20 +15,26 @@ import org.springframework.test.web.servlet.MockMvc;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
+import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.IntegrationTest;
@@ -68,13 +74,13 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
-        Book book = bookRepository.save(new Book("회원 탈퇴 테스트 도서", null, null, 1, null));
-        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, List.of("첫 문장.")));
-        Member targetMember = memberRepository.save(new Member("탈퇴 회원"));
-        Member remainingMember = memberRepository.save(new Member("잔여 회원"));
-        Club sharedClub = clubRepository.save(new Club("공유 모임", book, new JoinCode("DELETE")));
-        Club leftClub = clubRepository.save(new Club("탈퇴한 모임", book, new JoinCode("LEFT01")));
+        Book book = bookRepository.save(new Book(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("첫 문장."))));
+        Member targetMember = memberRepository.save(new Member(new Nickname("탈퇴 회원")));
+        Member remainingMember = memberRepository.save(new Member(new Nickname("잔여 회원")));
+        Club sharedClub = clubRepository.save(new Club(new ClubName("공유 모임"), book, new JoinCode("DELETE")));
+        Club leftClub = clubRepository.save(new Club(new ClubName("탈퇴한 모임"), book, new JoinCode("LEFT01")));
 
         ClubMember progressedMembership = new ClubMember(targetMember, sharedClub);
         progressedMembership.updateProgress(passage, LocalDateTime.of(2026, 9, 3, 10, 0));
@@ -88,11 +94,11 @@ class MemberDeletionApiTest extends IntegrationTest {
                 new MemberBlock(remainingMember, targetMember)));
 
         Comment targetComment = commentRepository.save(
-                new Comment(progressedMembership, passage.getSentences().getFirst(), "삭제될 댓글"));
+                new Comment(progressedMembership, passage.getSentences().getFirst(), new CommentContent("삭제될 댓글")));
         Comment leftTargetComment = commentRepository.save(
-                new Comment(leftMembership, passage.getSentences().getFirst(), "탈퇴 모임의 삭제될 댓글"));
+                new Comment(leftMembership, passage.getSentences().getFirst(), new CommentContent("탈퇴 모임의 삭제될 댓글")));
         Comment remainingComment = commentRepository.save(
-                new Comment(remainingMembership, passage.getSentences().getFirst(), "남을 댓글"));
+                new Comment(remainingMembership, passage.getSentences().getFirst(), new CommentContent("남을 댓글")));
         commentReportRepository.saveAllAndFlush(List.of(
                 new CommentReport(remainingMember, targetComment),
                 new CommentReport(targetMember, remainingComment)));

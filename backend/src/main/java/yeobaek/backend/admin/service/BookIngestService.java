@@ -96,7 +96,7 @@ public class BookIngestService {
     }
 
     private void validateSentence(SentenceUploadRequest sentence) {
-        SentenceContent content = new SentenceContent(sentence.content());
+        SentenceContent content = sentence.content();
         if (content.value().getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
             throw new IllegalArgumentException("문장 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.");
         }
@@ -131,21 +131,13 @@ public class BookIngestService {
         if (entry.isni() == null) {
             return new Author(entry.name());
         }
-        Isni isni = new Isni(entry.isni());
+        Isni isni = entry.isni();
         return authorRepository.findByIsni(isni.value())
                 .map(existing -> requireSameName(existing, entry.name()))
                 .orElseGet(() -> new Author(entry.name(), isni));
     }
 
-    private Author requireSameName(Author existing, String name) {
-        AuthorName requestedName;
-        try {
-            requestedName = new AuthorName(name);
-        } catch (IllegalArgumentException exception) {
-            BadRequestException mismatch = authorNameMismatch();
-            mismatch.initCause(exception);
-            throw mismatch;
-        }
+    private Author requireSameName(Author existing, AuthorName requestedName) {
         if (!existing.hasSameName(requestedName)) {
             throw authorNameMismatch();
         }
