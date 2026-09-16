@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 final class PostHogAnalyticsTracker implements AnalyticsTracker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PostHogAnalyticsTracker.class);
-    private static final int EVENT_SCHEMA_VERSION = 1;
+    private static final int EVENT_SCHEMA_VERSION = 2;
 
     private final PostHogInterface postHog;
     private final String environment;

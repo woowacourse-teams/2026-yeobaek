@@ -39,7 +39,7 @@ public class ClubController {
     @ResponseStatus(HttpStatus.CREATED)
     public ClubCreateResponse create(@AuthMember Long memberId, @RequestBody ClubCreateRequest request) {
         ClubCreateResponse response = clubService.create(memberId, request.name(), request.bookId());
-        analyticsTracker.track(memberId, AnalyticsEvent.clubCreated(response.clubId(), response.book().bookId()));
+        analyticsTracker.track(memberId, AnalyticsEvent.clubCreate(response.clubId(), response.book().bookId()));
         return response;
     }
 
@@ -48,7 +48,7 @@ public class ClubController {
     @PostMapping("/api/clubs/join")
     public ClubJoinResponse join(@AuthMember Long memberId, @RequestBody ClubJoinRequest request) {
         ClubJoinResponse response = clubService.join(memberId, request.joinCode());
-        analyticsTracker.track(memberId, AnalyticsEvent.clubJoined(response.clubId(), response.book().bookId()));
+        analyticsTracker.track(memberId, AnalyticsEvent.clubJoin(response.clubId(), response.book().bookId()));
         return response;
     }
 
@@ -58,18 +58,26 @@ public class ClubController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leave(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
         clubService.leave(memberId, clubId);
+        analyticsTracker.track(memberId, AnalyticsEvent.clubLeave(clubId));
     }
 
     @Operation(summary = "내 모임 목록 조회")
     @GetMapping("/api/clubs")
     public MyClubsResponse findMyClubs(@AuthMember Long memberId) {
-        return clubService.findMyClubs(memberId);
+        MyClubsResponse response = clubService.findMyClubs(memberId);
+        analyticsTracker.track(memberId, AnalyticsEvent.clubsView(response.clubs().size()));
+        return response;
     }
 
     @Operation(summary = "모임 상세 조회",
             description = "모임 상세 화면용: 초대 코드, 참여자 목록(참여 시각 오름차순), 내 진도. 모임 미소속은 403(NOT_CLUB_MEMBER).")
     @GetMapping("/api/clubs/{clubId}")
     public ClubDetailResponse findDetail(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
-        return clubService.findDetail(memberId, clubId);
+        ClubDetailResponse response = clubService.findDetail(memberId, clubId);
+        Integer progressRate = response.myProgress() == null ? null : response.myProgress().progressRate();
+        analyticsTracker.track(memberId, AnalyticsEvent.clubView(
+                response.clubId(), response.book().bookId(), response.members().size(),
+                progressRate, response.book().status().name()));
+        return response;
     }
 }

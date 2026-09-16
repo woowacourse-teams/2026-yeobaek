@@ -59,7 +59,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.nickname").value("민서"));
 
         verify(memberService, times(1)).create("민서");
-        verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreated());
+        verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreate());
     }
 
     @Test
@@ -82,6 +82,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.blockedMembers[1].nickname").value("지수"));
 
         verify(memberBlockService).findBlockedMembers(1L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.blockedMembersView(2));
     }
 
     @Test
@@ -95,6 +96,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberBlockService).block(1L, 2L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.memberBlock());
     }
 
     @Test
@@ -108,6 +110,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberBlockService).unblock(1L, 2L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.memberUnblock());
     }
 
     @Test
@@ -121,6 +124,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberService, times(1)).delete(7L);
+        verify(analyticsTracker).track(7L, AnalyticsEvent.memberDelete());
     }
 
     @Test

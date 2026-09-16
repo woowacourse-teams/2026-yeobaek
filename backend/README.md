@@ -77,7 +77,7 @@ DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android �
 
 ### PostHog 로컬 확인
 
-PostHog는 기본적으로 비활성화되어 있으며 사용자 행동 이벤트는 아직 정의하지 않았습니다. US Cloud 프로젝트를 연결해 SDK 초기화만 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
+PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝트에서 사용자 API 행동 이벤트를 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
 
 ```bash
 export POSTHOG_ENABLED=true
@@ -103,7 +103,7 @@ curl --request POST 'https://us.i.posthog.com/batch' \
   --data "{\"api_key\":\"${POSTHOG_API_KEY}\",\"batch\":[{\"event\":\"backend_local_smoke_test\",\"properties\":{\"distinct_id\":\"backend-local-smoke\",\"environment\":\"local\",\"\$process_person_profile\":false}}]}"
 ```
 
-PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 시험 이벤트와 구분합니다.
+PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 사용자 API 이벤트와 구분합니다.
 
 확인이 끝나면 현재 셸에서 값을 제거합니다.
 
@@ -111,22 +111,38 @@ PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테
 unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 ```
 
-### PostHog 백엔드 시험 이벤트
+### PostHog 백엔드 사용자 API 이벤트
 
-다음 이벤트는 최종 퍼널을 확정하기 전 백엔드 API 성공 수집을 검증하기 위한 시험 이벤트입니다.
+다음 이벤트는 서비스가 정상 반환한 사용자 API 호출에서 기록합니다. 관리자 API와 공개 사전신청 API는 수집하지 않습니다.
 
-| 이벤트 | 기록 시점 | 개별 속성 |
+| 이벤트 | API | 개별 속성 |
 |---|---|---|
-| `backend_member_created` | 회원 생성 성공 | 없음 |
-| `backend_club_created` | 모임 생성 성공 | `club_id`, `book_id` |
-| `backend_club_joined` | 모임 참여 성공 | `club_id`, `book_id` |
-| `backend_passages_viewed` | 본문 범위 조회 성공 | `club_id`, `from`, `to`, `passage_count` |
-| `backend_comments_viewed` | 댓글이 1개 이상인 목록 조회 성공 | `club_id`, `sentence_id`, `comment_count` |
-| `backend_comment_created` | 댓글 작성 성공 | `club_id`, `sentence_id`, `comment_id` |
+| `backend_member_create` | `POST /api/members` | 없음 |
+| `backend_member_delete` | `DELETE /api/members/me` | 없음 |
+| `backend_blocked_members_view` | `GET /api/members/me/blocks` | `blocked_member_count` |
+| `backend_member_block` | `PUT /api/members/me/blocks/{memberId}` | 없음 |
+| `backend_member_unblock` | `DELETE /api/members/me/blocks/{memberId}` | 없음 |
+| `backend_books_view` | `GET /api/books` | `search_used`, `result_count` |
+| `backend_book_view` | `GET /api/books/{bookId}` | `book_id`, `passage_count`, `chapter_count` |
+| `backend_club_create` | `POST /api/clubs` | `club_id`, `book_id` |
+| `backend_club_join` | `POST /api/clubs/join` | `club_id`, `book_id` |
+| `backend_club_leave` | `DELETE /api/clubs/{clubId}/members/me` | `club_id` |
+| `backend_clubs_view` | `GET /api/clubs` | `club_count` |
+| `backend_club_view` | `GET /api/clubs/{clubId}` | `club_id`, `book_id`, `member_count`, `has_progress`, `progress_rate`(진도가 있을 때), `book_status` |
+| `backend_passages_view` | `GET /api/clubs/{clubId}/passages` | `club_id`, `from`, `to`, `passage_count` |
+| `backend_progress_update` | `PUT /api/clubs/{clubId}/progress` | `club_id`, `passage_id`, `last_read_passage_sequence`, `progress_rate` |
+| `backend_last_reading_view` | `GET /api/members/me/last-reading` | `has_last_reading`, 기록이 있을 때 `club_id`, `book_id`, `last_read_passage_sequence`, `progress_rate` |
+| `backend_new_comment_count_view` | `GET /api/clubs/{clubId}/comments/new-count` | `club_id`, `current_passage_id`, `new_comment_count` |
+| `backend_commented_sentences_view` | `GET /api/clubs/{clubId}/commented-sentences` | `club_id`, `current_passage_id`, `commented_sentence_count` |
+| `backend_comments_view` | 댓글 상세 조회 POST와 deprecated GET | `club_id`, `sentence_id`, `comment_count`, `api_variant` (`explicit_post` 또는 `deprecated_get`) |
+| `backend_comment_create` | `POST /api/clubs/{clubId}/sentences/{sentenceId}/comments` | `club_id`, `sentence_id`, `comment_id` |
+| `backend_comment_update` | `PUT /api/comments/{commentId}` | `comment_id` |
+| `backend_comment_delete` | `DELETE /api/comments/{commentId}` | `comment_id` |
+| `backend_comment_report` | `POST /api/comments/{commentId}/reports` | `comment_id` |
 
-모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=1`, `$process_person_profile=false`가 붙습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용하며 닉네임, 모임 이름, 참여 코드, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
+모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=2`, `$process_person_profile=false`가 붙습니다. `outcome`, 오류 코드, HTTP 상태, 지연 시간은 전송하지 않습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용합니다. 닉네임, 차단 대상 회원 ID, 모임 이름, 참여 코드, 검색어 원문, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
 
-현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다.
+현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다. 회원 로그인 도입 시에는 프론트엔드와 백엔드가 같은 `distinct_id`를 사용하도록 식별 정책을 함께 정합니다.
 
 ## 더 알아보기
 
