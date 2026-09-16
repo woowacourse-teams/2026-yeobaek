@@ -7,11 +7,11 @@ interface AnalyticsClient {
         isDebug: Boolean,
     )
 
-    fun register(properties: Map<String, String>)
+    fun register(properties: Map<String, Any>)
 
     fun capture(
         eventName: String,
-        properties: Map<String, String>,
+        properties: Map<String, Any>,
     )
 
     fun screen(screenName: String)
@@ -26,11 +26,11 @@ object NoOpAnalyticsClient : AnalyticsClient {
         isDebug: Boolean,
     ) = Unit
 
-    override fun register(properties: Map<String, String>) = Unit
+    override fun register(properties: Map<String, Any>) = Unit
 
     override fun capture(
         eventName: String,
-        properties: Map<String, String>,
+        properties: Map<String, Any>,
     ) = Unit
 
     override fun screen(screenName: String) = Unit

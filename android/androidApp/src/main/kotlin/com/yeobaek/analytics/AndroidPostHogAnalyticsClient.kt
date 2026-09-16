@@ -33,7 +33,7 @@ class AndroidPostHogAnalyticsClient(
         }
     }
 
-    override fun register(properties: Map<String, String>) {
+    override fun register(properties: Map<String, Any>) {
         if (!isEnabled) return
 
         properties.forEach { (key, value) ->
@@ -46,7 +46,7 @@ class AndroidPostHogAnalyticsClient(
 
     override fun capture(
         eventName: String,
-        properties: Map<String, String>,
+        properties: Map<String, Any>,
     ) {
         if (!isEnabled) return
 
