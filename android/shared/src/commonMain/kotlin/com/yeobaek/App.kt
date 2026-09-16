@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -25,22 +26,22 @@ import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
+import com.yeobaek.feature.guide.GuideScreen
+import com.yeobaek.feature.guide.GuideViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.mypage.MyPageScreen
 import com.yeobaek.feature.mypage.MyPageViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
+import com.yeobaek.feature.navigation.Guide
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
-import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
-import com.yeobaek.feature.onboarding.OnboardingScreen
-import com.yeobaek.feature.onboarding.OnboardingViewModel
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
@@ -76,7 +77,7 @@ fun App(
                             appContainer.analyticsTracker.identify(userId)
                         }
                         appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
-                        navController.navigate(Onboarding) {
+                        navController.navigate(Guide) {
                             popUpTo<Nickname> {
                                 inclusive = true
                             }
@@ -93,49 +94,44 @@ fun App(
                     },
                 )
             }
-            composable<Onboarding> {
+            composable<Guide> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = TrackedScreen.ONBOARDING,
-                )
-                val onboardingViewModel: OnboardingViewModel = viewModel(
-                    factory = OnboardingViewModel.onboardingViewModelFactory(
-                        groupRepository = appContainer.groupRepository,
-                        crashReporter = appContainer.crashReporter,
-                    ),
+                    screen = TrackedScreen.GUIDE,
                 )
 
-                LaunchedEffect(onboardingViewModel.uiState.successJoin) {
-                    if (onboardingViewModel.uiState.successJoin && !onboardingViewModel.uiState.codeState) {
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
-                            }
-                        }
-                    }
-                }
+                val guideViewModel: GuideViewModel = viewModel()
 
-                OnboardingScreen(
-                    appName = appContainer.appName,
-                    uiState = onboardingViewModel.uiState,
-                    onCodeValueChange = onboardingViewModel::onCodeValueChange,
-                    navigateToCreate = {
-                        navController.navigate(Create)
-                    },
+                GuideScreen(
+                    uiState = guideViewModel.uiState,
                     navigateToHome = {
-                        onboardingViewModel.checkCodeBlank()
-                        if (!onboardingViewModel.uiState.codeState) {
-                            onboardingViewModel.joinGroup()
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
                         }
-                    },
-                    navigateToAroundHome = {
                         navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Guide> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },
+                    onCurrentPage = {
+                        guideViewModel.onCurrentPage(it)
+                    },
+                    onSuccessGuide = guideViewModel::onSuccessGuide,
+                    onClickPrevious = guideViewModel::onClickPrevious,
+                    onClickNext = guideViewModel::onClickNext,
+                    isLast = guideViewModel.isLast(),
+                    currentPageText = guideViewModel.currentPageText(),
+                    onClickCommentSentence = guideViewModel::onClickCommentSentence,
+                    onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
+                    onCancel = guideViewModel::onCancel,
                 )
             }
             composable<Home> {
@@ -364,20 +360,20 @@ fun App(
                         }
                     },
                     navigateToHome = {
-                        val popped = navController.popBackStack<Home>(
-                            inclusive = false,
-                        )
-                        if (!popped) {
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
+                        navController.navigate(Home) {
+                            popUpTo<Home> {
+                                inclusive = true
                             }
                         }
                     },
                 )
             }
             composable<MyPage> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.MY_PAGE,
+                )
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
@@ -392,6 +388,13 @@ fun App(
                         navController.navigate(Nickname) {
                             popUpTo<Home> {
                                 inclusive = true
+                            }
+                        }
+                    },
+                    navigateToGuide = {
+                        navController.navigate(Guide) {
+                            popUpTo<MyPage> {
+                                inclusive = false
                             }
                         }
                     },
