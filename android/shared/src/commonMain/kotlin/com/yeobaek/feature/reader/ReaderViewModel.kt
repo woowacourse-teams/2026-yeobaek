@@ -396,6 +396,18 @@ class ReaderViewModel(
         )
     }
 
+    fun openCommentCollections() {
+        uiState = uiState.copy(
+            isCommentCollectionsVisible = true,
+        )
+    }
+
+    fun dismissCommentCollections() {
+        uiState = uiState.copy(
+            isCommentCollectionsVisible = false,
+        )
+    }
+
     fun updateFontSize(fontSize: Int) {
         if (fontSize !in ReaderFontSize.options) return
 

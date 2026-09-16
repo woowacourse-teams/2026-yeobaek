@@ -267,6 +267,8 @@ fun App(
                         onVisiblePassageChange = readerViewModel::updateReadingPassage,
                         onTargetPassageReached = readerViewModel::completeMoveToPassage,
                         onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
+                        onCommentCollectionsClick = readerViewModel::openCommentCollections,
+                        onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
                     )
                 }
                 val commentSheetActions = remember(commentSheet) {

@@ -23,6 +23,7 @@ import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.component.CommentBottomSheet
+import com.yeobaek.feature.reader.component.CommentCollectionContents
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
@@ -62,6 +63,7 @@ fun ReaderScreen(
                 onTableOfContentsClick = actions.onTableOfContentsClick,
                 onTextSettingClick = actions.onTextSettingClick,
                 onTextSettingDismiss = actions.onTextSettingDismiss,
+                onCommentCollectionsClick = actions.onCommentCollectionsClick,
                 onFontSizeChange = { fontSize ->
                     if (fontSize != uiState.fontSize) {
                         readerListState.savePositionBeforeFontSizeChange(uiState.passages)
@@ -127,6 +129,14 @@ fun ReaderScreen(
             onChapterClick = actions.onChapterClick,
         )
     }
+
+    if (uiState.isCommentCollectionsVisible) {
+        CommentCollectionContents(
+            onDismissRequest = {
+                actions.onCommentCollectionsDismiss()
+            },
+        )
+    }
 }
 
 class ReaderActions(
@@ -145,6 +155,8 @@ class ReaderActions(
     val onVisiblePassageChange: (PassageUiModel) -> Unit,
     val onTargetPassageReached: (PassageUiModel) -> Unit,
     val onTargetPassageNotFound: (Int) -> Unit,
+    val onCommentCollectionsClick: () -> Unit,
+    val onCommentCollectionsDismiss: () -> Unit,
 )
 
 @Composable
@@ -320,6 +332,8 @@ private fun ReaderScreenPreview() {
                 onVisiblePassageChange = {},
                 onTargetPassageReached = {},
                 onTargetPassageNotFound = {},
+                onCommentCollectionsClick = {},
+                onCommentCollectionsDismiss = {},
             ),
             commentSheetActions = CommentSheetActions(
                 onDismiss = {},

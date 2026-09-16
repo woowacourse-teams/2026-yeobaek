@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
+import android.shared.generated.resources.ic_comment
 import android.shared.generated.resources.ic_table_of_contents
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,7 @@ fun ReaderTopBar(
     onTableOfContentsClick: () -> Unit,
     onTextSettingClick: () -> Unit,
     onTextSettingDismiss: () -> Unit,
+    onCommentCollectionsClick: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -94,6 +96,17 @@ fun ReaderTopBar(
                     Icon(
                         painter = painterResource(Res.drawable.ic_table_of_contents),
                         contentDescription = "목차 열기",
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                IconButton(
+                    onClick = onCommentCollectionsClick,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_comment),
+                        contentDescription = "댓글 모아보기 열기",
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -156,6 +169,7 @@ private fun ReaderTopBarPreview() {
             onTableOfContentsClick = {},
             onTextSettingClick = {},
             onTextSettingDismiss = {},
+            onCommentCollectionsClick = {},
             onFontSizeChange = {},
         )
     }
