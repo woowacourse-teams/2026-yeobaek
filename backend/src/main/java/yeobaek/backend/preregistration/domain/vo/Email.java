@@ -23,7 +23,7 @@ public record Email(@Column(name = "value", nullable = false, length = MAX_LENGT
         }
     }
 
-    private static String normalize(String email) {
+    private String normalize(String email) {
         if (email == null) {
             return null;
         }

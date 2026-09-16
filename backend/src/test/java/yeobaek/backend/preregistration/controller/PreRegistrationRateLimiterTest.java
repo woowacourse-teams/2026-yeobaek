@@ -71,7 +71,7 @@ class PreRegistrationRateLimiterTest {
         assertThat(rateLimiter.trackedClientCount()).isEqualTo(1);
     }
 
-    private static String testIpv4(int host) {
+    private String testIpv4(int host) {
         return "198.51.100." + host;
     }
 }

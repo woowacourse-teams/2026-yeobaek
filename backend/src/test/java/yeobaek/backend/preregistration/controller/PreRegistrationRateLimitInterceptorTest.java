@@ -98,15 +98,15 @@ class PreRegistrationRateLimitInterceptorTest {
         return request;
     }
 
-    private static String dockerBridgeIp() {
+    private String dockerBridgeIp() {
         return "172.18.0." + 1;
     }
 
-    private static String testIpv4(int host) {
+    private String testIpv4(int host) {
         return "198.51.100." + host;
     }
 
-    private static String testIpv6() {
+    private String testIpv6() {
         return "2001:db8" + "::" + "8a2e:370:7334";
     }
 }
