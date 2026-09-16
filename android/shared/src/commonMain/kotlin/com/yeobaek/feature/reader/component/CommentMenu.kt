@@ -25,12 +25,17 @@ import com.yeobaek.core.designsystem.component.noRippleClickable
 import com.yeobaek.core.designsystem.theme.YeobaekError
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
+data class CommentMenuItem(
+    val text: String,
+    val isWarning: Boolean = false,
+    val onClick: () -> Unit,
+)
+
 @Composable
-fun CommentActionMenu(
+fun CommentMenu(
     expanded: Boolean,
+    items: List<CommentMenuItem>,
     onDismissRequest: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
@@ -51,20 +56,26 @@ fun CommentActionMenu(
                         ),
                     ) {
                         Column {
-                            CommentActionMenuItem(
-                                text = "수정",
-                                color = MaterialTheme.colorScheme.onSurface,
-                                onClick = onEdit,
-                            )
-                            HorizontalDivider(
-                                thickness = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                            )
-                            CommentActionMenuItem(
-                                text = "삭제",
-                                color = YeobaekError,
-                                onClick = onDelete,
-                            )
+                            items.forEachIndexed { index, item ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                    )
+                                }
+                                CommentMenuRow(
+                                    text = item.text,
+                                    color = if (item.isWarning) {
+                                        YeobaekError
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    onClick = {
+                                        onDismissRequest()
+                                        item.onClick()
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -74,7 +85,7 @@ fun CommentActionMenu(
 }
 
 @Composable
-private fun CommentActionMenuItem(
+private fun CommentMenuRow(
     text: String,
     color: Color,
     onClick: () -> Unit,
@@ -103,15 +114,31 @@ private fun CommentActionMenuItem(
     }
 }
 
-@Preview(showBackground = true, name = "댓글 메뉴")
+@Preview(showBackground = true, name = "내 댓글 메뉴")
 @Composable
-private fun CommentActionMenuPreview() {
+private fun MyCommentMenuPreview() {
     YeobaekTheme {
-        CommentActionMenu(
+        CommentMenu(
             expanded = true,
+            items = listOf(
+                CommentMenuItem(text = "수정", onClick = {}),
+                CommentMenuItem(text = "삭제", isWarning = true, onClick = {}),
+            ),
             onDismissRequest = {},
-            onEdit = {},
-            onDelete = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "다른 사람 댓글 메뉴")
+@Composable
+private fun OtherCommentMenuPreview() {
+    YeobaekTheme {
+        CommentMenu(
+            expanded = true,
+            items = listOf(
+                CommentMenuItem(text = "신고", isWarning = true, onClick = {}),
+            ),
+            onDismissRequest = {},
         )
     }
 }

@@ -44,13 +44,13 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PassageCommentInput(
+fun CommentInput(
     value: String,
     enabled: Boolean,
     isEditing: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    onCancelEdit: () -> Unit,
+    onEditCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -106,7 +106,7 @@ fun PassageCommentInput(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.noRippleClickable {
-                        onCancelEdit()
+                        onEditCancel()
                     },
                 )
             }
@@ -127,7 +127,7 @@ fun PassageCommentInput(
             enabled = enabled,
             placeholder = {
                 Text(
-                    text = "이 문단에 당신의 여백을 남겨주세요",
+                    text = "문장의 여백에 당신의 이야기를 남겨주세요",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -173,15 +173,15 @@ fun PassageCommentInput(
 
 @Preview(showBackground = true, name = "댓글 입력창")
 @Composable
-private fun PassageCommentInputPreview() {
+private fun CommentInputPreview() {
     YeobaekTheme {
-        PassageCommentInput(
+        CommentInput(
             value = "",
             enabled = true,
             isEditing = true,
             onValueChange = {},
             onSubmit = {},
-            onCancelEdit = {},
+            onEditCancel = {},
         )
     }
 }

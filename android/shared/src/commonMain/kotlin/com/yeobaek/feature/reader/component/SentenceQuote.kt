@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 
 @Composable
-fun PassageQuote(
+fun SentenceQuote(
     content: String,
     modifier: Modifier = Modifier,
 ) {
@@ -63,8 +63,8 @@ private fun String.allowCharacterBreaks(): String =
 
 @Preview(showBackground = true, name = "인용문")
 @Composable
-private fun PassageQuotePreview() {
-    PassageQuote(
+private fun SentenceQuotePreview() {
+    SentenceQuote(
         content = "\"새는 알에서 나오려고 투쟁한다. 알은 세계이다. 태어나려는 자는 하나의 " +
             "세계를 깨뜨려야 한다. 새는 신에게로 날아간다. 신의 이름은 아브락사스.\"",
     )

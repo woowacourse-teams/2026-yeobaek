@@ -1,7 +1,7 @@
 package com.yeobaek.data.model
 
 data class ChapterModel(
-    val chapterId: Int,
+    val chapterId: Long,
     val endPassageSequence: Int,
     val sequence: Int,
     val startPassageSequence: Int,

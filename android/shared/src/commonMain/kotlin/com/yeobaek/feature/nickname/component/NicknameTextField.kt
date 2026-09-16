@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding.component
+package com.yeobaek.feature.nickname.component
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekTextField
 
 @Composable
-fun OnboardingYeobaekTextField(
+fun NicknameTextField(
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -40,13 +40,13 @@ fun OnboardingYeobaekTextField(
     }
 }
 
-@Preview(showBackground = true, name = "온보딩 화면 참여 코드 입력")
+@Preview(showBackground = true, name = "닉네임 입력 텍스트필드")
 @Composable
-private fun OnboardingYeobaekTextFieldPreview() {
-    OnboardingYeobaekTextField(
-        title = "참여 코드 입력",
+private fun NicknameTextFieldPreview() {
+    NicknameTextField(
+        title = "닉네임 입력 (필수)",
         value = "",
-        placeholder = "예: BOOK42",
+        placeholder = "예: 하로, 엘리",
         isError = false,
         onValueChange = {},
     )
