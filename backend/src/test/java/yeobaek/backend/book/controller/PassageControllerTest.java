@@ -110,7 +110,9 @@ class PassageControllerTest extends ControllerTest {
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(3L);
-        var serviceException = new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+        var serviceException = new ForbiddenException(
+                ErrorCode.NOT_CLUB_MEMBER,
+                "모임에 참여 중인 회원만 본문을 조회할 수 있습니다: clubId=7");
         given(passageService.findPassages(3L, 7L, 1, 20)).willThrow(serviceException);
 
         var result = mockMvc.perform(get("/api/clubs/{clubId}/passages", 7L)

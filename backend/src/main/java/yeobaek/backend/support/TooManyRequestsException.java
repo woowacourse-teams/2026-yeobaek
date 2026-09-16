@@ -7,8 +7,8 @@ public class TooManyRequestsException extends RuntimeException {
 
     private final ErrorCode code;
 
-    public TooManyRequestsException(ErrorCode code) {
-        super(code.getDefaultMessage());
+    public TooManyRequestsException(ErrorCode code, String message) {
+        super(message);
         this.code = code;
     }
 }

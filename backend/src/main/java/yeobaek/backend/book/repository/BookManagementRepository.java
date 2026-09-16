@@ -21,7 +21,9 @@ public class BookManagementRepository {
 
     public Book getById(Long bookId) {
         return bookJpaRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.BOOK_NOT_FOUND,
+                        "도서가 존재하지 않습니다: bookId=" + bookId));
     }
 
     public Optional<Book> findById(Long bookId) {
@@ -38,7 +40,9 @@ public class BookManagementRepository {
 
     public Book getByIdForUpdate(Long bookId) {
         return bookJpaRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.BOOK_NOT_FOUND,
+                        "도서가 존재하지 않습니다: bookId=" + bookId));
     }
 
     public long count() {

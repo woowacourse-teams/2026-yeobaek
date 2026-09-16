@@ -62,7 +62,9 @@ class PreRegistrationControllerTest extends ControllerTest {
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
-        var serviceException = new ConflictException(ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS);
+        var serviceException = new ConflictException(
+                ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS,
+                "이미 사전신청한 이메일입니다.");
         willThrow(serviceException).given(preRegistrationService).create("reader@example.com");
 
         var result = mockMvc.perform(post("/api/pre-registrations")

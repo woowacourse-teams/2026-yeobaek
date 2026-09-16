@@ -122,7 +122,9 @@ public class BookIngestService {
                 throw new IllegalArgumentException("작가 항목은 {name, isni?} 또는 {authorId} 중 한 형태여야 합니다.");
             }
             return authorRepository.findById(entry.authorId())
-                    .orElseThrow(() -> new NotFoundException(ErrorCode.AUTHOR_NOT_FOUND));
+                    .orElseThrow(() -> new NotFoundException(
+                            ErrorCode.AUTHOR_NOT_FOUND,
+                            "authorId가 가리키는 작가가 존재하지 않습니다: authorId=" + entry.authorId()));
         }
         if (entry.isni() == null) {
             return new Author(entry.name());
@@ -135,17 +137,23 @@ public class BookIngestService {
 
     private Author requireSameName(Author existing, String name) {
         if (!existing.hasSameName(name)) {
-            throw new BadRequestException(ErrorCode.AUTHOR_NAME_MISMATCH);
+            throw new BadRequestException(
+                    ErrorCode.AUTHOR_NAME_MISMATCH,
+                    "ISNI로 찾은 기존 작가와 요청한 작가 이름이 일치하지 않습니다.");
         }
         return existing;
     }
 
     private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<String> seenIsnis) {
         if (author.getId() != null && !seenAuthorIds.add(author.getId())) {
-            throw new BadRequestException(ErrorCode.DUPLICATE_AUTHOR);
+            throw new BadRequestException(
+                    ErrorCode.DUPLICATE_AUTHOR,
+                    "한 업로드 요청에 같은 작가가 중복 기재되었습니다: authorId=" + author.getId());
         }
         if (author.getIsni() != null && !seenIsnis.add(author.getIsni())) {
-            throw new BadRequestException(ErrorCode.DUPLICATE_AUTHOR);
+            throw new BadRequestException(
+                    ErrorCode.DUPLICATE_AUTHOR,
+                    "한 업로드 요청에 같은 작가가 중복 기재되었습니다: isni=" + author.getIsni());
         }
     }
 
@@ -158,7 +166,9 @@ public class BookIngestService {
                 .filter(candidate -> candidate.hasSameBibliography(book))
                 .anyMatch(candidate -> authorIdsOf(candidate).equals(authorIds));
         if (duplicate) {
-            throw new BadRequestException(ErrorCode.DUPLICATE_BOOK);
+            throw new BadRequestException(
+                    ErrorCode.DUPLICATE_BOOK,
+                    "동일한 서지 정보와 작가 구성의 활성 도서가 이미 존재합니다.");
         }
     }
 

@@ -70,7 +70,9 @@ public class Comment {
 
     public void ensureReportableBy(Long memberId) {
         if (isWrittenBy(memberId)) {
-            throw new BadRequestException(ErrorCode.CANNOT_REPORT_OWN_COMMENT);
+            throw new BadRequestException(
+                    ErrorCode.CANNOT_REPORT_OWN_COMMENT,
+                    "본인이 작성한 댓글은 신고할 수 없습니다.");
         }
     }
 

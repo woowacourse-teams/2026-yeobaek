@@ -16,7 +16,9 @@ public class ActiveBookRepository {
 
     public Book getById(Long bookId) {
         Book book = bookJpaRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.BOOK_NOT_FOUND,
+                        "이용할 도서가 존재하지 않습니다: bookId=" + bookId));
         book.ensureAvailable();
         return book;
     }
