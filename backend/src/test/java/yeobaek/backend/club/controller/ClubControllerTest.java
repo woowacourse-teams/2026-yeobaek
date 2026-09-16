@@ -80,7 +80,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).create(1L, "교환독서 1기", 5L);
-        verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreated(10L, 5L));
+        verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreate(10L, 5L));
     }
 
     @Test
@@ -116,7 +116,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).join(2L, "A3F9KQ");
-        verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoined(10L, 5L));
+        verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoin(10L, 5L));
     }
 
     @Test
@@ -130,6 +130,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(clubService, times(1)).leave(8L, 10L);
+        verify(analyticsTracker).track(8L, AnalyticsEvent.clubLeave(10L));
     }
 
     @Test
@@ -182,6 +183,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.clubs[1].myProgress").value((Object) null));
 
         verify(clubService, times(1)).findMyClubs(3L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.clubsView(2));
     }
 
     @Test
@@ -232,6 +234,8 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.members[1].blocked").value(true));
 
         verify(clubService, times(1)).findDetail(4L, 10L);
+        verify(analyticsTracker).track(4L,
+                AnalyticsEvent.clubView(10L, 5L, 2, 13, "ACTIVE"));
     }
 
     @Test

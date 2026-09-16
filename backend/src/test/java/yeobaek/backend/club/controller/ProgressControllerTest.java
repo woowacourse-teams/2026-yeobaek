@@ -29,12 +29,17 @@ import yeobaek.backend.club.service.ProgressService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(ProgressController.class)
 class ProgressControllerTest extends ControllerTest {
 
     @MockitoBean
     private ProgressService progressService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("진도 갱신 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
@@ -57,6 +62,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.lastReadAt").value("2026-08-05T14:30:00"));
 
         verify(progressService, times(1)).updateProgress(1L, 7L, 1042L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.progressUpdate(7L, 1042L, 42, 13));
     }
 
     @Test
@@ -93,6 +99,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.lastReadAt").value("2026-08-06T09:15:00"));
 
         verify(progressService, times(1)).findLastReading(2L);
+        verify(analyticsTracker).track(2L, AnalyticsEvent.lastReadingView(7L, 5L, 42, 13));
     }
 
     @Test
@@ -107,6 +114,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(progressService, times(1)).findLastReading(3L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.lastReadingView());
     }
 
     @Test

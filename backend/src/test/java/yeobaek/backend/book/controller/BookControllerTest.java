@@ -26,12 +26,17 @@ import yeobaek.backend.book.service.BookService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(BookController.class)
 class BookControllerTest extends ControllerTest {
 
     @MockitoBean
     private BookService bookService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("검색어가 없으면 null을 서비스에 전달하고 도서 목록 전체 계약을 반환한다")
@@ -68,6 +73,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[1].passageCount").value(20));
 
         verify(bookService, times(1)).findBooks(null);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.booksView(false, 2));
     }
 
     @Test
@@ -85,6 +91,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books.length()").value(0));
 
         verify(bookService, times(1)).findBooks("현진건");
+        verify(analyticsTracker).track(2L, AnalyticsEvent.booksView(true, 0));
     }
 
     @Test
@@ -125,6 +132,7 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.chapters[0].endPassageSequence").value(105));
 
         verify(bookService, times(1)).findBook(9L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.bookView(9L, 312, 1));
     }
 
     @Test
