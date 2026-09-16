@@ -18,6 +18,9 @@ import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -25,8 +28,8 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class BookIngestServiceTest extends IntegrationTest {
 
@@ -64,13 +67,15 @@ class BookIngestServiceTest extends IntegrationTest {
 
         assertThat(response.passageCount()).isEqualTo(3);
         Book book = bookRepository.findById(response.bookId()).orElseThrow();
-        assertThat(book.getPassageCount()).isEqualTo(3);
+        assertThat(book.getPassageCount()).isEqualTo(new PassageCount(3));
         assertThat(chapterRepository.findAllByBookIdOrderBySequenceAsc(book.getId())).hasSize(2);
         List<Passage> passages = passageRepository.findAll();
-        assertThat(passages).extracting(Passage::getSequence).containsExactlyInAnyOrder(1, 2, 3);
+        assertThat(passages).extracting(Passage::getSequence)
+                .containsExactlyInAnyOrder(new ContentSequence(1), new ContentSequence(2), new ContentSequence(3));
         Passage first = passageRepository.findRangeByBookId(book.getId(), 1, 1).getFirst();
         assertThat(first.getSentences()).extracting("sequence", "content")
-                .containsExactly(tuple(1, "첫 문장. "), tuple(2, "둘째 문장."));
+                .containsExactly(tuple(new ContentSequence(1), "첫 문장. "),
+                        tuple(new ContentSequence(2), "둘째 문장."));
     }
 
     @Test
@@ -89,7 +94,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("ISNI가 기존 작가와 일치하면 재사용한다")
     void reuseAuthorByIsni() {
-        Author existing = authorRepository.save(new Author("현진건", "000000012345964X"));
+        Author existing = authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         BookUploadResponse response = bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(null, "현진건", "0000-0001-2345-964X")));
@@ -123,7 +128,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("ISNI로 찾은 기존 작가와 이름이 다르면 AUTHOR_NAME_MISMATCH로 거부한다")
     void rejectNameMismatch() {
-        authorRepository.save(new Author("현진건", "000000012345964X"));
+        authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(null, "이효석", "000000012345964X"))))
@@ -134,7 +139,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("한 업로드 안에 같은 작가를 중복 기재하면 DUPLICATE_AUTHOR로 거부한다")
     void rejectDuplicateAuthorEntry() {
-        Author existing = authorRepository.save(new Author("현진건", "000000012345964X"));
+        Author existing = authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(existing.getId(), null, null),
@@ -147,7 +152,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도·작가 구성이 동일한 도서는 DUPLICATE_BOOK으로 거부한다")
     void rejectDuplicateBook() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
@@ -160,10 +165,59 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("공동 작가 순서가 달라도 구성이 같으면 DUPLICATE_BOOK으로 거부한다")
+    void rejectDuplicateBookWithReorderedAuthors() {
+        Author first = authorRepository.save(new Author("현진건"));
+        Author second = authorRepository.save(new Author("이효석"));
+        Book existing = bookRepository.save(new Book("공동 작품", null, null, 1, null));
+        authorBookRepository.save(new AuthorBook(first, existing));
+        authorBookRepository.save(new AuthorBook(second, existing));
+
+        BookUploadRequest request = new BookUploadRequest("공동 작품", null, null, null,
+                List.of(
+                        new AuthorEntryRequest(second.getId(), null, null),
+                        new AuthorEntryRequest(first.getId(), null, null)),
+                chaptersWithOnePassage());
+
+        assertThatThrownBy(() -> bookIngestService.upload(request))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_BOOK);
+    }
+
+    @Test
+    @DisplayName("제목·출판사·출판연도가 같아도 작가 구성이 다르면 업로드를 허용한다")
+    void allowUploadWithDifferentAuthors() {
+        Author existingAuthor = authorRepository.save(new Author("현진건"));
+        Author otherAuthor = authorRepository.save(new Author("이효석"));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
+        authorBookRepository.save(new AuthorBook(existingAuthor, existing));
+
+        BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
+                List.of(new AuthorEntryRequest(otherAuthor.getId(), null, null)),
+                chaptersWithOnePassage());
+
+        assertThat(bookIngestService.upload(request).bookId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("제목·출판사·출판연도가 같아도 새 작가가 포함되면 업로드를 허용한다")
+    void allowUploadWithNewAuthor() {
+        Author existingAuthor = authorRepository.save(new Author("현진건"));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
+        authorBookRepository.save(new AuthorBook(existingAuthor, existing));
+
+        BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
+                List.of(new AuthorEntryRequest(null, "새 작가", null)),
+                chaptersWithOnePassage());
+
+        assertThat(bookIngestService.upload(request).bookId()).isNotNull();
+    }
+
+    @Test
     @DisplayName("출판연도가 다르면 같은 제목·작가라도 업로드를 허용한다")
     void allowSameTitleWithDifferentYear() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1936, null,
@@ -177,7 +231,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("삭제된 도서와 같은 서지·작가 구성의 도서는 새 ID로 다시 등록할 수 있다")
     void canRegisterBibliographicTwinOfDeletedBook() {
         Author author = authorRepository.save(new Author("현진건"));
-        Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1));
+        Book deleted = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, deleted));
         bookRepository.delete(deleted.getId());
         BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +21,12 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.SentenceContent;
+import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
@@ -65,7 +69,7 @@ public class BookIngestService {
         }
         saveChapters(book, request.chapters());
         return new BookUploadResponse(book.getId(), book.getTitle(),
-                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount());
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount().value());
     }
 
     private void validateStructure(BookUploadRequest request) {
@@ -91,11 +95,8 @@ public class BookIngestService {
     }
 
     private void validateSentence(SentenceUploadRequest sentence) {
-        String content = sentence.content();
-        if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("문장 내용은 공백이 아니어야 합니다.");
-        }
-        if (content.getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
+        SentenceContent content = new SentenceContent(sentence.content());
+        if (content.value().getBytes(StandardCharsets.UTF_8).length > MAX_CONTENT_BYTES) {
             throw new IllegalArgumentException("문장 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.");
         }
     }
@@ -107,7 +108,7 @@ public class BookIngestService {
     private List<Author> resolveAuthors(List<AuthorEntryRequest> entries) {
         List<Author> resolved = new ArrayList<>();
         Set<Long> seenAuthorIds = new HashSet<>();
-        Set<String> seenIsnis = new HashSet<>();
+        Set<Isni> seenIsnis = new HashSet<>();
         for (AuthorEntryRequest entry : entries) {
             Author author = resolve(entry);
             rejectDuplicateEntry(author, seenAuthorIds, seenIsnis);
@@ -129,8 +130,8 @@ public class BookIngestService {
         if (entry.isni() == null) {
             return new Author(entry.name());
         }
-        String isni = Author.normalizeIsni(entry.isni());
-        return authorRepository.findByIsni(isni)
+        Isni isni = new Isni(entry.isni());
+        return authorRepository.findByIsni(isni.value())
                 .map(existing -> requireSameName(existing, entry.name()))
                 .orElseGet(() -> new Author(entry.name(), isni));
     }
@@ -144,7 +145,7 @@ public class BookIngestService {
         return existing;
     }
 
-    private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<String> seenIsnis) {
+    private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<Isni> seenIsnis) {
         if (author.getId() != null && !seenAuthorIds.add(author.getId())) {
             throw new BadRequestException(
                     ErrorCode.DUPLICATE_AUTHOR,
@@ -162,9 +163,13 @@ public class BookIngestService {
             return;
         }
         Set<Long> authorIds = authors.stream().map(Author::getId).collect(Collectors.toSet());
-        boolean duplicate = activeBookRepository.findAllByTitle(book.getTitle()).stream()
-                .filter(candidate -> candidate.hasSameBibliography(book))
-                .anyMatch(candidate -> authorIdsOf(candidate).equals(authorIds));
+        BookDuplicateCriteria criteria = book.duplicateCriteria(authorIds);
+        List<Book> candidates = activeBookRepository.findAllByTitle(book.getTitle());
+        Map<Long, Set<Long>> authorIdsByBookId = authorIdsByBookId(candidates);
+        boolean duplicate = candidates.stream()
+                .map(candidate -> candidate.duplicateCriteria(
+                        authorIdsByBookId.getOrDefault(candidate.getId(), Set.of())))
+                .anyMatch(criteria::isDuplicateOf);
         if (duplicate) {
             throw new BadRequestException(
                     ErrorCode.DUPLICATE_BOOK,
@@ -172,10 +177,15 @@ public class BookIngestService {
         }
     }
 
-    private Set<Long> authorIdsOf(Book book) {
-        return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getId())
-                .collect(Collectors.toSet());
+    private Map<Long, Set<Long>> authorIdsByBookId(List<Book> books) {
+        if (books.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> bookIds = books.stream().map(Book::getId).toList();
+        return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
+                .collect(Collectors.groupingBy(
+                        authorBook -> authorBook.getBook().getId(),
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getId(), Collectors.toSet())));
     }
 
     private void saveChapters(Book book, List<ChapterUploadRequest> chapters) {

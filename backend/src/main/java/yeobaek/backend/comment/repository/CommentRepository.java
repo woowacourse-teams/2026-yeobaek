@@ -67,10 +67,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     @Query("""
             select s.id as sentenceId,
-                   s.content as content,
+                   s.content.value as content,
                    p.id as passageId,
-                   p.sequence as passageSequence,
-                   s.sequence as sentenceSequence,
+                   p.sequence.value as passageSequence,
+                   s.sequence.value as sentenceSequence,
                    count(distinct c.id) as commentCount,
                    count(distinct case when cv.id is null then c.id else null end) as unreadCommentCount,
                    max(c.createdAt) as latestCommentCreatedAt
@@ -83,7 +83,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
               )
-            group by s.id, s.content, p.id, p.sequence, s.sequence
+            group by s.id, s.content.value, p.id, p.sequence.value, s.sequence.value
             """)
     List<CommentedSentenceSummary> findCommentedSentenceSummaries(@Param(MEMBER_ID) Long memberId,
                                                                   @Param(CLUB_ID) Long clubId);
@@ -91,7 +91,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("""
             select count(c) from Comment c
             where c.clubMember.club.id = :clubId
-              and c.sentence.passage.sequence <= :currentPassageSequence
+              and c.sentence.passage.sequence.value <= :currentPassageSequence
               and not exists (
                   select cv.id from CommentView cv
                   where cv.member.id = :memberId and cv.comment.id = c.id
