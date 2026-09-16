@@ -165,6 +165,55 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("공동 작가 순서가 달라도 구성이 같으면 DUPLICATE_BOOK으로 거부한다")
+    void rejectDuplicateBookWithReorderedAuthors() {
+        Author first = authorRepository.save(new Author("현진건"));
+        Author second = authorRepository.save(new Author("이효석"));
+        Book existing = bookRepository.save(new Book("공동 작품", null, null, 1, null));
+        authorBookRepository.save(new AuthorBook(first, existing));
+        authorBookRepository.save(new AuthorBook(second, existing));
+
+        BookUploadRequest request = new BookUploadRequest("공동 작품", null, null, null,
+                List.of(
+                        new AuthorEntryRequest(second.getId(), null, null),
+                        new AuthorEntryRequest(first.getId(), null, null)),
+                chaptersWithOnePassage());
+
+        assertThatThrownBy(() -> bookIngestService.upload(request))
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_BOOK);
+    }
+
+    @Test
+    @DisplayName("제목·출판사·출판연도가 같아도 작가 구성이 다르면 업로드를 허용한다")
+    void allowUploadWithDifferentAuthors() {
+        Author existingAuthor = authorRepository.save(new Author("현진건"));
+        Author otherAuthor = authorRepository.save(new Author("이효석"));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
+        authorBookRepository.save(new AuthorBook(existingAuthor, existing));
+
+        BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
+                List.of(new AuthorEntryRequest(otherAuthor.getId(), null, null)),
+                chaptersWithOnePassage());
+
+        assertThat(bookIngestService.upload(request).bookId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("제목·출판사·출판연도가 같아도 새 작가가 포함되면 업로드를 허용한다")
+    void allowUploadWithNewAuthor() {
+        Author existingAuthor = authorRepository.save(new Author("현진건"));
+        Book existing = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 1, null));
+        authorBookRepository.save(new AuthorBook(existingAuthor, existing));
+
+        BookUploadRequest request = new BookUploadRequest("운수 좋은 날", "자체 제작", 1924, null,
+                List.of(new AuthorEntryRequest(null, "새 작가", null)),
+                chaptersWithOnePassage());
+
+        assertThat(bookIngestService.upload(request).bookId()).isNotNull();
+    }
+
+    @Test
     @DisplayName("출판연도가 다르면 같은 제목·작가라도 업로드를 허용한다")
     void allowSameTitleWithDifferentYear() {
         Author author = authorRepository.save(new Author("현진건"));

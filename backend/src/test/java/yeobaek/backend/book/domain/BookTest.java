@@ -3,9 +3,13 @@ package yeobaek.backend.book.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -65,13 +69,14 @@ class BookTest {
     }
 
     @Test
-    @DisplayName("제목·출판사·출판연도가 모두 같으면 동일 서지로 판단한다")
-    void hasSameBibliography() {
+    @DisplayName("도서의 중복 판단 기준을 제목·출판사·출판연도·작가로 구성한다")
+    void duplicateCriteria() {
         Book book = new Book("운수 좋은 날", "자체 제작", 1924, 1, null);
 
-        assertThat(book.hasSameBibliography(new Book("운수 좋은 날", "자체 제작", 1924, 9, null))).isTrue();
-        assertThat(book.hasSameBibliography(new Book("운수 좋은 날", null, 1924, 1, null))).isFalse();
-        assertThat(book.hasSameBibliography(new Book("운수 좋은 날", "자체 제작", 1936, 1, null))).isFalse();
+        assertThat(book.duplicateCriteria(Set.of(1L, 2L)))
+                .isEqualTo(new BookDuplicateCriteria(
+                        new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924,
+                        Set.of(1L, 2L)));
     }
 
     @Test

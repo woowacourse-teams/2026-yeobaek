@@ -11,11 +11,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
@@ -74,10 +76,8 @@ public class Book {
         return Objects.equals(id, other.getId());
     }
 
-    public boolean hasSameBibliography(Book other) {
-        return getTitle().equals(other.getTitle())
-                && Objects.equals(getPublisher(), other.getPublisher())
-                && Objects.equals(publishedYear, other.getPublishedYear());
+    public BookDuplicateCriteria duplicateCriteria(Set<Long> authorIds) {
+        return new BookDuplicateCriteria(title, publisher, publishedYear, authorIds);
     }
 
     public void delete() {

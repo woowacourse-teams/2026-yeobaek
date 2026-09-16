@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 import yeobaek.backend.book.domain.vo.Isni;
 import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.ActiveBookRepository;
@@ -153,18 +155,27 @@ public class BookIngestService {
             return;
         }
         Set<Long> authorIds = authors.stream().map(Author::getId).collect(Collectors.toSet());
-        boolean duplicate = activeBookRepository.findAllByTitle(book.getTitle()).stream()
-                .filter(candidate -> candidate.hasSameBibliography(book))
-                .anyMatch(candidate -> authorIdsOf(candidate).equals(authorIds));
+        BookDuplicateCriteria criteria = book.duplicateCriteria(authorIds);
+        List<Book> candidates = activeBookRepository.findAllByTitle(book.getTitle());
+        Map<Long, Set<Long>> authorIdsByBookId = authorIdsByBookId(candidates);
+        boolean duplicate = candidates.stream()
+                .map(candidate -> candidate.duplicateCriteria(
+                        authorIdsByBookId.getOrDefault(candidate.getId(), Set.of())))
+                .anyMatch(criteria::isDuplicateOf);
         if (duplicate) {
             throw new BadRequestException(ErrorCode.DUPLICATE_BOOK);
         }
     }
 
-    private Set<Long> authorIdsOf(Book book) {
-        return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getId())
-                .collect(Collectors.toSet());
+    private Map<Long, Set<Long>> authorIdsByBookId(List<Book> books) {
+        if (books.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> bookIds = books.stream().map(Book::getId).toList();
+        return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
+                .collect(Collectors.groupingBy(
+                        authorBook -> authorBook.getBook().getId(),
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getId(), Collectors.toSet())));
     }
 
     private void saveChapters(Book book, List<ChapterUploadRequest> chapters) {
