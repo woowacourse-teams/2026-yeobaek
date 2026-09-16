@@ -26,6 +26,12 @@ final class IOSPostHogAnalyticsClient: NSObject, AnalyticsClient {
         PostHogSDK.shared.setup(config)
     }
 
+    func register(properties: [String: String]) {
+        guard isEnabled else { return }
+
+        PostHogSDK.shared.register(properties)
+    }
+
     func capture(
         eventName: String,
         properties: [String: String]

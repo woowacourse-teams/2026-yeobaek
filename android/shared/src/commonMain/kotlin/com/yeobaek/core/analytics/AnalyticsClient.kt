@@ -7,6 +7,8 @@ interface AnalyticsClient {
         isDebug: Boolean,
     )
 
+    fun register(properties: Map<String, String>)
+
     fun capture(
         eventName: String,
         properties: Map<String, String>,
@@ -23,6 +25,8 @@ object NoOpAnalyticsClient : AnalyticsClient {
         host: String,
         isDebug: Boolean,
     ) = Unit
+
+    override fun register(properties: Map<String, String>) = Unit
 
     override fun capture(
         eventName: String,

@@ -67,10 +67,19 @@ class AppContainer(
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )
+        analyticsClient.register(
+            mapOf(ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION),
+        )
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 
     fun close() {
         networkProvider.close()
+    }
+
+    companion object {
+        private const val ENVIRONMENT_PROPERTY = "environment"
+        private const val ENVIRONMENT_DEVELOPMENT = "development"
+        private const val ENVIRONMENT_PRODUCTION = "production"
     }
 }

@@ -33,6 +33,17 @@ class AndroidPostHogAnalyticsClient(
         }
     }
 
+    override fun register(properties: Map<String, String>) {
+        if (!isEnabled) return
+
+        properties.forEach { (key, value) ->
+            PostHog.register(
+                key = key,
+                value = value,
+            )
+        }
+    }
+
     override fun capture(
         eventName: String,
         properties: Map<String, String>,
