@@ -13,7 +13,7 @@ import de.jensklingenberg.ktorfit.http.PUT
 import de.jensklingenberg.ktorfit.http.Path
 
 interface CommentApi {
-    @GET("api/clubs/{clubId}/sentences/{sentenceId}/comments")
+    @POST("api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views")
     suspend fun getComments(
         @Path("clubId") clubId: Long,
         @Path("sentenceId") sentenceId: Long,
