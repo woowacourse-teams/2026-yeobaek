@@ -1,10 +1,12 @@
-package yeobaek.backend.book.domain;
+package yeobaek.backend.book.domain.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class BookValueObjectTest {
 
@@ -13,6 +15,14 @@ class BookValueObjectTest {
     void authorValuesHaveValueEquality() {
         assertThat(new AuthorName("현진건")).isEqualTo(new AuthorName("현진건"));
         assertThat(new Isni("0000 0001-2345 964X")).isEqualTo(new Isni("000000012345964X"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1234", "000000012345964Y", "0000000123459640X"})
+    @DisplayName("16자리(끝자리 X 허용) 형식이 아닌 ISNI는 거부한다")
+    void isniRejectsInvalidFormat(String invalidIsni) {
+        assertThatThrownBy(() -> new Isni(invalidIsni))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -1,4 +1,4 @@
-package yeobaek.backend.comment.domain;
+package yeobaek.backend.comment.domain.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

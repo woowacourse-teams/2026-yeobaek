@@ -20,10 +20,11 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.SentenceContent;
+import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.SentenceContent;
+import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
@@ -66,7 +67,7 @@ public class BookIngestService {
         }
         saveChapters(book, request.chapters());
         return new BookUploadResponse(book.getId(), book.getTitle(),
-                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount());
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount().value());
     }
 
     private void validateStructure(BookUploadRequest request) {
@@ -105,7 +106,7 @@ public class BookIngestService {
     private List<Author> resolveAuthors(List<AuthorEntryRequest> entries) {
         List<Author> resolved = new ArrayList<>();
         Set<Long> seenAuthorIds = new HashSet<>();
-        Set<String> seenIsnis = new HashSet<>();
+        Set<Isni> seenIsnis = new HashSet<>();
         for (AuthorEntryRequest entry : entries) {
             Author author = resolve(entry);
             rejectDuplicateEntry(author, seenAuthorIds, seenIsnis);
@@ -125,8 +126,8 @@ public class BookIngestService {
         if (entry.isni() == null) {
             return new Author(entry.name());
         }
-        String isni = Author.normalizeIsni(entry.isni());
-        return authorRepository.findByIsni(isni)
+        Isni isni = new Isni(entry.isni());
+        return authorRepository.findByIsni(isni.value())
                 .map(existing -> requireSameName(existing, entry.name()))
                 .orElseGet(() -> new Author(entry.name(), isni));
     }
@@ -138,7 +139,7 @@ public class BookIngestService {
         return existing;
     }
 
-    private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<String> seenIsnis) {
+    private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<Isni> seenIsnis) {
         if (author.getId() != null && !seenAuthorIds.add(author.getId())) {
             throw new BadRequestException(ErrorCode.DUPLICATE_AUTHOR);
         }

@@ -20,6 +20,6 @@ public record BookSummaryResponse(
 
     public static BookSummaryResponse of(Book book, List<String> authors, String coverImageUrl) {
         return new BookSummaryResponse(book.getId(), book.getTitle(), authors,
-                book.getPublisher(), book.getPublishedYear(), coverImageUrl, book.getPassageCount());
+                book.getPublisher(), book.getPublishedYear(), coverImageUrl, book.getPassageCount().value());
     }
 }

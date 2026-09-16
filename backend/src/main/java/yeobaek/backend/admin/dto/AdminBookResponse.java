@@ -31,7 +31,7 @@ public record AdminBookResponse(
                 authors,
                 book.getPublisher(),
                 book.getPublishedYear(),
-                book.getPassageCount(),
+                book.getPassageCount().value(),
                 coverImageUrl,
                 book.getStatus());
     }

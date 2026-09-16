@@ -1,4 +1,4 @@
-package yeobaek.backend.comment.domain;
+package yeobaek.backend.comment.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -6,7 +6,7 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public record CommentContent(@Column(name = "value", nullable = false, length = MAX_LENGTH) String value) {
 
-    static final int MAX_LENGTH = 1000;
+    public static final int MAX_LENGTH = 1000;
 
     public CommentContent {
         if (value == null || value.isBlank() || value.length() > MAX_LENGTH) {

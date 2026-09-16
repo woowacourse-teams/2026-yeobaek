@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.member.domain.vo.Nickname;
 
 @Entity
 @Table(name = "members")

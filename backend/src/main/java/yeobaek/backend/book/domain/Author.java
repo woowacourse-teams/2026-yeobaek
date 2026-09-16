@@ -11,6 +11,8 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.Isni;
 
 @Entity
 @Table(name = "authors")
@@ -34,18 +36,9 @@ public class Author {
         this(name, null);
     }
 
-    public Author(String name, String isni) {
+    public Author(String name, Isni isni) {
         this.name = new AuthorName(name);
-        if (isni != null) {
-            this.isni = new Isni(isni);
-        }
-    }
-
-    /**
-     * 공백·하이픈을 제거한 16자리(끝자리 X 허용) 형식으로 정규화한다. 체크섬은 검증하지 않는다 (API.md 6장).
-     */
-    public static String normalizeIsni(String rawIsni) {
-        return rawIsni == null ? null : new Isni(rawIsni).value();
+        this.isni = isni;
     }
 
     public boolean hasSameName(String otherName) {
@@ -56,7 +49,7 @@ public class Author {
         return name.value();
     }
 
-    public String getIsni() {
-        return isni == null ? null : isni.value();
+    public Isni getIsni() {
+        return isni;
     }
 }

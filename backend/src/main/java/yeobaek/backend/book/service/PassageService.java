@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.PassageRange;
+import yeobaek.backend.book.domain.vo.PassageRange;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
 import yeobaek.backend.book.dto.SentenceResponse;
@@ -50,9 +50,9 @@ public class PassageService {
                 .toList();
         Map<Long, Long> commentCounts = countComments(memberId, clubId, sentenceIds);
         return new PassagesResponse(passages.stream()
-                .map(passage -> new PassageResponse(passage.getId(), passage.getSequence(),
+                .map(passage -> new PassageResponse(passage.getId(), passage.getSequence().value(),
                         passage.getChapter().getId(), passage.getSentences().stream()
-                        .map(sentence -> new SentenceResponse(sentence.getId(), sentence.getSequence(),
+                        .map(sentence -> new SentenceResponse(sentence.getId(), sentence.getSequence().value(),
                                 sentence.getContent(), commentCounts.getOrDefault(sentence.getId(), 0L)))
                         .toList()))
                 .toList());

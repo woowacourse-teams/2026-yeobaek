@@ -69,14 +69,14 @@ public class CommentService {
     public NewCommentCountResponse countNewComments(Long memberId, Long clubId, Long currentPassageId) {
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
-                memberId, clubId, currentPassage.getSequence());
+                memberId, clubId, currentPassage.getSequence().value());
         return new NewCommentCountResponse(count);
     }
 
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findCommentedSentences(Long memberId, Long clubId, Long currentPassageId) {
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
-        int currentPassageSequence = currentPassage.getSequence();
+        int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
                 .findCommentedSentenceSummaries(memberId, clubId).stream()
                 .map(summary -> toResponse(summary, currentPassageSequence))

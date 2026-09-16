@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCode;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
@@ -132,7 +132,7 @@ public class ClubService {
         if (clubMember.getLastReadPassage() == null) {
             return null;
         }
-        int sequence = clubMember.getLastReadPassage().getSequence();
+        int sequence = clubMember.getLastReadPassage().getSequence().value();
         return new MyProgressResponse(sequence, clubMember.progressRate(), clubMember.getLastReadAt());
     }
 

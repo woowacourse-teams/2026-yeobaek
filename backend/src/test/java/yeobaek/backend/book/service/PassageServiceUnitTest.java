@@ -16,7 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.JoinCode;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.repository.CommentRepository;

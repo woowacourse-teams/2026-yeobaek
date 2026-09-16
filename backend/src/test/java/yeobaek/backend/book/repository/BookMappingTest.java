@@ -15,8 +15,8 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.ContentSequence;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.support.IntegrationTest;
 
 class BookMappingTest extends IntegrationTest {
@@ -53,8 +53,9 @@ class BookMappingTest extends IntegrationTest {
         transactionTemplate.executeWithoutResult(status -> {
             Passage found = passageRepository.findById(saved.getId()).orElseThrow();
 
-            assertThat(found.getSequence()).isEqualTo(1);
-            assertThat(found.getSentences()).extracting("sequence").containsExactly(1, 2);
+            assertThat(found.getSequence()).isEqualTo(new ContentSequence(1));
+            assertThat(found.getSentences()).extracting("sequence")
+                    .containsExactly(new ContentSequence(1), new ContentSequence(2));
             assertThat(found.getSentences()).extracting("content")
                     .containsExactly("새침하게 흐린 품이 ", "눈이 올 듯하더니...");
             assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
@@ -88,11 +89,12 @@ class BookMappingTest extends IntegrationTest {
         List<Passage> passages = transactionTemplate.execute(
                 status -> passageRepository.findRangeByBookId(book.getId(), 1, 2));
 
-        assertThat(passages).extracting(Passage::getSequence).containsExactly(1, 2);
+        assertThat(passages).extracting(Passage::getSequence)
+                .containsExactly(new ContentSequence(1), new ContentSequence(2));
         assertThat(passages.getFirst().getSentences()).extracting("sequence", "content")
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(1, "첫 문장. "),
-                        org.assertj.core.groups.Tuple.tuple(2, "둘째 문장."));
+                        org.assertj.core.groups.Tuple.tuple(new ContentSequence(1), "첫 문장. "),
+                        org.assertj.core.groups.Tuple.tuple(new ContentSequence(2), "둘째 문장."));
     }
 
     @Test

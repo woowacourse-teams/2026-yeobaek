@@ -17,6 +17,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.club.domain.vo.ProgressRate;
 import yeobaek.backend.member.domain.Member;
 
 @Entity

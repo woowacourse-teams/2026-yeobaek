@@ -14,7 +14,7 @@ import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
-import yeobaek.backend.club.domain.JoinCode;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.IntegrationTest;

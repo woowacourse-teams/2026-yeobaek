@@ -1,4 +1,4 @@
-package yeobaek.backend.book.domain;
+package yeobaek.backend.book.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -6,7 +6,7 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public record AuthorName(@Column(name = "value", nullable = false, length = MAX_LENGTH) String value) {
 
-    static final int MAX_LENGTH = 100;
+    public static final int MAX_LENGTH = 100;
 
     public AuthorName {
         if (value == null || value.isBlank() || value.length() > MAX_LENGTH) {

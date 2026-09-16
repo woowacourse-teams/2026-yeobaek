@@ -1,4 +1,4 @@
-package yeobaek.backend.club.domain;
+package yeobaek.backend.club.domain.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.PassageCount;
 
 class ClubValueObjectTest {
 
@@ -32,18 +34,21 @@ class ClubValueObjectTest {
     @Test
     @DisplayName("진도율은 최근 본문 순서를 전체 본문 수로 나누어 반올림한다")
     void progressRateRoundsReadingRatio() {
-        assertThat(ProgressRate.calculate(2, 3).roundedPercentage()).isEqualTo(67);
+        assertThat(ProgressRate.calculate(new ContentSequence(2), new PassageCount(3)).roundedPercentage())
+                .isEqualTo(67);
     }
 
     @Test
     @DisplayName("동일한 독서 비율은 같은 진도율 값이다")
     void equivalentRatiosHaveValueEquality() {
-        assertThat(ProgressRate.calculate(1, 2)).isEqualTo(ProgressRate.calculate(2, 4));
+        assertThat(ProgressRate.calculate(new ContentSequence(1), new PassageCount(2)))
+                .isEqualTo(ProgressRate.calculate(new ContentSequence(2), new PassageCount(4)));
     }
 
     @Test
     @DisplayName("진도율은 기존 계산 순서를 유지한 뒤 반올림한다")
     void preservesPercentageCalculationOrder() {
-        assertThat(ProgressRate.calculate(57, 200).roundedPercentage()).isEqualTo(29);
+        assertThat(ProgressRate.calculate(new ContentSequence(57), new PassageCount(200)).roundedPercentage())
+                .isEqualTo(29);
     }
 }

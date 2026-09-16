@@ -16,6 +16,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.PassageCount;
+import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -113,8 +116,8 @@ public class Book {
         return publisher == null ? null : publisher.value();
     }
 
-    public int getPassageCount() {
-        return passageCount.value();
+    public PassageCount getPassageCount() {
+        return passageCount;
     }
 
     private static void validateCoverImageKey(String coverImageKey) {

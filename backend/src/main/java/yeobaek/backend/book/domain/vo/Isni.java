@@ -1,4 +1,4 @@
-package yeobaek.backend.book.domain;
+package yeobaek.backend.book.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 @Embeddable
 public record Isni(@Column(name = "value", length = LENGTH) String value) {
 
-    static final int LENGTH = 16;
+    public static final int LENGTH = 16;
     private static final Pattern FORMAT = Pattern.compile("\\d{15}[\\dX]");
 
     public Isni {

@@ -18,6 +18,7 @@ import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.book.domain.vo.ContentSequence;
 
 @Entity
 @Table(name = "passages")
@@ -61,8 +62,8 @@ public class Passage {
         return List.copyOf(sentences);
     }
 
-    public int getSequence() {
-        return sequence.value();
+    public ContentSequence getSequence() {
+        return sequence;
     }
 
     public boolean belongsTo(Book book) {

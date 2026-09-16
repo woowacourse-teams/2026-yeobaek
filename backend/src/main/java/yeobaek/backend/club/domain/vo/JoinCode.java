@@ -1,4 +1,4 @@
-package yeobaek.backend.club.domain;
+package yeobaek.backend.club.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

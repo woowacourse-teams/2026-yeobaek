@@ -15,6 +15,8 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 
 @Entity
 @Table(name = "sentences", uniqueConstraints = {
@@ -50,8 +52,8 @@ public class Sentence {
         return content.value();
     }
 
-    public int getSequence() {
-        return sequence.value();
+    public ContentSequence getSequence() {
+        return sequence;
     }
 
     public boolean belongsTo(Book book) {

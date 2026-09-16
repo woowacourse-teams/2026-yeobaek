@@ -18,6 +18,9 @@ import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -64,13 +67,15 @@ class BookIngestServiceTest extends IntegrationTest {
 
         assertThat(response.passageCount()).isEqualTo(3);
         Book book = bookRepository.findById(response.bookId()).orElseThrow();
-        assertThat(book.getPassageCount()).isEqualTo(3);
+        assertThat(book.getPassageCount()).isEqualTo(new PassageCount(3));
         assertThat(chapterRepository.findAllByBookIdOrderBySequenceAsc(book.getId())).hasSize(2);
         List<Passage> passages = passageRepository.findAll();
-        assertThat(passages).extracting(Passage::getSequence).containsExactlyInAnyOrder(1, 2, 3);
+        assertThat(passages).extracting(Passage::getSequence)
+                .containsExactlyInAnyOrder(new ContentSequence(1), new ContentSequence(2), new ContentSequence(3));
         Passage first = passageRepository.findRangeByBookId(book.getId(), 1, 1).getFirst();
         assertThat(first.getSentences()).extracting("sequence", "content")
-                .containsExactly(tuple(1, "첫 문장. "), tuple(2, "둘째 문장."));
+                .containsExactly(tuple(new ContentSequence(1), "첫 문장. "),
+                        tuple(new ContentSequence(2), "둘째 문장."));
     }
 
     @Test
@@ -89,7 +94,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("ISNI가 기존 작가와 일치하면 재사용한다")
     void reuseAuthorByIsni() {
-        Author existing = authorRepository.save(new Author("현진건", "000000012345964X"));
+        Author existing = authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         BookUploadResponse response = bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(null, "현진건", "0000-0001-2345-964X")));
@@ -123,7 +128,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("ISNI로 찾은 기존 작가와 이름이 다르면 AUTHOR_NAME_MISMATCH로 거부한다")
     void rejectNameMismatch() {
-        authorRepository.save(new Author("현진건", "000000012345964X"));
+        authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(null, "이효석", "000000012345964X"))))
@@ -134,7 +139,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("한 업로드 안에 같은 작가를 중복 기재하면 DUPLICATE_AUTHOR로 거부한다")
     void rejectDuplicateAuthorEntry() {
-        Author existing = authorRepository.save(new Author("현진건", "000000012345964X"));
+        Author existing = authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
 
         assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(existing.getId(), null, null),

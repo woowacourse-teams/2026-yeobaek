@@ -1,4 +1,4 @@
-package yeobaek.backend.book.domain;
+package yeobaek.backend.book.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;

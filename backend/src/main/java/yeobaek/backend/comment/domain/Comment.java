@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 

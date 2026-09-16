@@ -19,7 +19,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCode;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.LastReadingResponse;
 import yeobaek.backend.club.dto.ProgressResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;

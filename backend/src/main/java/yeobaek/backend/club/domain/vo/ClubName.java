@@ -1,4 +1,4 @@
-package yeobaek.backend.club.domain;
+package yeobaek.backend.club.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -6,7 +6,7 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public record ClubName(@Column(name = "value", nullable = false, length = MAX_LENGTH) String value) {
 
-    static final int MAX_LENGTH = 20;
+    public static final int MAX_LENGTH = 20;
 
     public ClubName {
         if (value == null || value.isBlank() || value.length() > MAX_LENGTH) {

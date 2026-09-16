@@ -14,6 +14,8 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.book.domain.vo.ContentSequence;
 
 @Entity
 @Table(name = "chapters")
@@ -47,8 +49,8 @@ public class Chapter {
         return title.value();
     }
 
-    public int getSequence() {
-        return sequence.value();
+    public ContentSequence getSequence() {
+        return sequence;
     }
 
     public boolean belongsTo(Book other) {

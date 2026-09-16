@@ -10,6 +10,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.member.domain.Member;
 
 class ClubMemberTest {

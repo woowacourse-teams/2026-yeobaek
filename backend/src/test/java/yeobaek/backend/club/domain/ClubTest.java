@@ -14,6 +14,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.PassageCount;
+import yeobaek.backend.club.domain.vo.JoinCode;
 
 class ClubTest {
 
@@ -79,6 +81,6 @@ class ClubTest {
         Book book = new Book("제목", null, null, 7, null);
         Club club = new Club("1기", book, new JoinCode("CODE01"));
 
-        assertThat(club.totalPassageCount()).isEqualTo(7);
+        assertThat(club.totalPassageCount()).isEqualTo(new PassageCount(7));
     }
 }

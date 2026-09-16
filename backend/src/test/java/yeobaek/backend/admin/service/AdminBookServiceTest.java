@@ -24,6 +24,7 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.Isni;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -31,7 +32,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCode;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
@@ -87,7 +88,7 @@ class AdminBookServiceTest extends IntegrationTest {
                 2026,
                 42,
                 COVER_KEY));
-        Author firstAuthor = authorRepository.save(new Author("첫 작가", "000000012345964X"));
+        Author firstAuthor = authorRepository.save(new Author("첫 작가", new Isni("000000012345964X")));
         Author secondAuthor = authorRepository.save(new Author("둘째 작가"));
         authorBookRepository.save(new AuthorBook(firstAuthor, second));
         authorBookRepository.save(new AuthorBook(secondAuthor, second));

@@ -1,4 +1,4 @@
-package yeobaek.backend.preregistration.domain;
+package yeobaek.backend.preregistration.domain.vo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

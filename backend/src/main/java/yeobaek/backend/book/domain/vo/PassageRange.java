@@ -1,4 +1,4 @@
-package yeobaek.backend.book.domain;
+package yeobaek.backend.book.domain.vo;
 
 public record PassageRange(int from, int to) {
 

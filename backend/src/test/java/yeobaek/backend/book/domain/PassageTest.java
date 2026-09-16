@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.book.domain.vo.ContentSequence;
 
 class PassageTest {
 
@@ -44,7 +45,8 @@ class PassageTest {
 
         Passage passage = new Passage(chapter, 1, List.of("첫 문장.  ", "둘째 문장.\n"));
 
-        assertThat(passage.getSentences()).extracting(Sentence::getSequence).containsExactly(1, 2);
+        assertThat(passage.getSentences()).extracting(Sentence::getSequence)
+                .containsExactly(new ContentSequence(1), new ContentSequence(2));
         assertThat(passage.getSentences()).extracting(Sentence::getContent)
                 .containsExactly("첫 문장.  ", "둘째 문장.\n");
         assertThatThrownBy(() -> passage.getSentences().add(passage.getSentences().getFirst()))

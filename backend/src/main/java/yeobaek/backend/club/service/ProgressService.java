@@ -45,7 +45,7 @@ public class ProgressService {
         }
         club.ensureBookAvailable();
         clubMember.updateProgress(passage, LocalDateTime.now());
-        return new ProgressResponse(passage.getSequence(), clubMember.progressRate(), clubMember.getLastReadAt());
+        return new ProgressResponse(passage.getSequence().value(), clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
     @Transactional(readOnly = true)
@@ -62,6 +62,6 @@ public class ProgressService {
                 .toList();
         return Optional.of(new LastReadingResponse(club.getId(), club.getName(),
                 ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey())),
-                latest.getLastReadPassage().getSequence(), latest.progressRate(), latest.getLastReadAt()));
+                latest.getLastReadPassage().getSequence().value(), latest.progressRate(), latest.getLastReadAt()));
     }
 }

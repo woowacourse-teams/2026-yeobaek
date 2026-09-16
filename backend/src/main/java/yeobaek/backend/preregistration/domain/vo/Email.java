@@ -1,4 +1,4 @@
-package yeobaek.backend.preregistration.domain;
+package yeobaek.backend.preregistration.domain.vo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 @Embeddable
 public record Email(@Column(name = "value", nullable = false, length = MAX_LENGTH) String value) {
 
-    static final int MAX_LENGTH = 254;
+    public static final int MAX_LENGTH = 254;
     private static final String LOCAL_PART = "[A-Z0-9!#$%&'*+/=?^_`{|}~-]+";
     private static final Pattern FORMAT = Pattern.compile(
             "^" + LOCAL_PART + "(?:\\." + LOCAL_PART + ")*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?"

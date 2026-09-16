@@ -49,7 +49,7 @@ public class BookService {
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
         return new BookDetailResponse(book.getId(), book.getTitle(), authors,
                 book.getPublisher(), book.getPublishedYear(), bookCoverUrlResolver.resolve(book.getCoverImageKey()),
-                book.getPassageCount(), chapters(bookId));
+                book.getPassageCount().value(), chapters(bookId));
     }
 
     private List<ChapterResponse> chapters(Long bookId) {
@@ -58,7 +58,7 @@ public class BookService {
         return chapterRepository.findAllByBookIdOrderBySequenceAsc(bookId).stream()
                 .map(chapter -> {
                     ChapterPassageRange range = ranges.get(chapter.getId());
-                    return new ChapterResponse(chapter.getId(), chapter.getTitle(), chapter.getSequence(),
+                    return new ChapterResponse(chapter.getId(), chapter.getTitle(), chapter.getSequence().value(),
                             range == null ? 0 : range.getStartSequence(),
                             range == null ? 0 : range.getEndSequence());
                 })

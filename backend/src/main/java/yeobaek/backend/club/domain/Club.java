@@ -18,6 +18,9 @@ import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.domain.vo.PassageCount;
+import yeobaek.backend.club.domain.vo.ClubName;
+import yeobaek.backend.club.domain.vo.JoinCode;
 
 @Entity
 @Table(name = "clubs", uniqueConstraints = {
@@ -65,7 +68,7 @@ public class Club {
         return sentence.belongsTo(book);
     }
 
-    public int totalPassageCount() {
+    public PassageCount totalPassageCount() {
         return book.getPassageCount();
     }
 
