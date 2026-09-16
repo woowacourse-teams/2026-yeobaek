@@ -11,6 +11,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.GroupCreateInitiated
+import com.yeobaek.core.analytics.GroupDetailOpened
+import com.yeobaek.core.analytics.GroupJoinInitiated
+import com.yeobaek.core.analytics.GuideCompleted
+import com.yeobaek.core.analytics.GuideDismissed
+import com.yeobaek.core.analytics.GuideEntryPoint
+import com.yeobaek.core.analytics.GuideStarted
+import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -77,7 +85,7 @@ fun App(
                             appContainer.analyticsTracker.identify(userId)
                         }
                         appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
-                        navController.navigate(Guide) {
+                        navController.navigate(Guide(fromMyPage = false)) {
                             popUpTo<Nickname> {
                                 inclusive = true
                             }
@@ -94,12 +102,22 @@ fun App(
                     },
                 )
             }
-            composable<Guide> {
+            composable<Guide> { backStackEntry ->
+                val route = backStackEntry.toRoute<Guide>()
+                val entryPoint = if (route.fromMyPage) {
+                    GuideEntryPoint.MY_PAGE
+                } else {
+                    GuideEntryPoint.ONBOARDING
+                }
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
                     screen = TrackedScreen.GUIDE,
                 )
+
+                LaunchedEffect(entryPoint) {
+                    appContainer.analyticsTracker.track(GuideStarted(entryPoint = entryPoint))
+                }
 
                 val guideViewModel: GuideViewModel = viewModel()
 
@@ -124,14 +142,25 @@ fun App(
                     onCurrentPage = {
                         guideViewModel.onCurrentPage(it)
                     },
-                    onSuccessGuide = guideViewModel::onSuccessGuide,
+                    onSuccessGuide = {
+                        appContainer.analyticsTracker.track(GuideCompleted(entryPoint = entryPoint))
+                        guideViewModel.onSuccessGuide()
+                    },
                     onClickPrevious = guideViewModel::onClickPrevious,
                     onClickNext = guideViewModel::onClickNext,
                     isLast = guideViewModel.isLast(),
                     currentPageText = guideViewModel.currentPageText(),
                     onClickCommentSentence = guideViewModel::onClickCommentSentence,
                     onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
-                    onCancel = guideViewModel::onCancel,
+                    onCancel = {
+                        appContainer.analyticsTracker.track(
+                            GuideDismissed(
+                                entryPoint = entryPoint,
+                                page = guideViewModel.uiState.currentPage,
+                            ),
+                        )
+                        guideViewModel.onCancel()
+                    },
                 )
             }
             composable<Home> {
@@ -157,15 +186,26 @@ fun App(
                     appName = appContainer.appName,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
+                        appContainer.analyticsTracker.track(GroupJoinInitiated)
                         navController.navigate(Join)
                     },
                     navigateToDetail = { groupId ->
+                        appContainer.analyticsTracker.track(
+                            GroupDetailOpened(groupId = groupId),
+                        )
                         navController.navigate(Detail(groupId))
                     },
                     navigateToCreate = {
+                        appContainer.analyticsTracker.track(GroupCreateInitiated)
                         navController.navigate(Create)
                     },
                     navigateToReader = {
+                        appContainer.analyticsTracker.track(
+                            ReaderOpened(
+                                groupId = it,
+                                bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
+                            ),
+                        )
                         navController.navigate(Reader(groupId = it))
                     },
                     navigateToMyPage = {
@@ -218,6 +258,12 @@ fun App(
                         navController.popBackStack()
                     },
                     onReadClick = {
+                        appContainer.analyticsTracker.track(
+                            ReaderOpened(
+                                groupId = route.groupId,
+                                bookTitle = detailViewModel.uiState.bookUiModel.title,
+                            ),
+                        )
                         navController.navigate(Reader(groupId = route.groupId))
                     },
                     onExitClick = {
@@ -392,7 +438,7 @@ fun App(
                         }
                     },
                     navigateToGuide = {
-                        navController.navigate(Guide) {
+                        navController.navigate(Guide(fromMyPage = true)) {
                             popUpTo<MyPage> {
                                 inclusive = false
                             }
