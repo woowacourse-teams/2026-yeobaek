@@ -21,6 +21,7 @@ import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 import yeobaek.backend.book.domain.vo.Isni;
 import yeobaek.backend.book.domain.vo.SentenceContent;
@@ -68,7 +69,7 @@ public class BookIngestService {
             authorBookRepository.save(new AuthorBook(author, book));
         }
         saveChapters(book, request.chapters());
-        return new BookUploadResponse(book.getId(), book.getTitle(),
+        return new BookUploadResponse(book.getId(), book.getTitle().value(),
                 bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount().value());
     }
 
@@ -137,12 +138,24 @@ public class BookIngestService {
     }
 
     private Author requireSameName(Author existing, String name) {
-        if (!existing.hasSameName(name)) {
-            throw new BadRequestException(
-                    ErrorCode.AUTHOR_NAME_MISMATCH,
-                    "ISNI로 찾은 기존 작가와 요청한 작가 이름이 일치하지 않습니다.");
+        AuthorName requestedName;
+        try {
+            requestedName = new AuthorName(name);
+        } catch (IllegalArgumentException exception) {
+            BadRequestException mismatch = authorNameMismatch();
+            mismatch.initCause(exception);
+            throw mismatch;
+        }
+        if (!existing.hasSameName(requestedName)) {
+            throw authorNameMismatch();
         }
         return existing;
+    }
+
+    private BadRequestException authorNameMismatch() {
+        return new BadRequestException(
+                ErrorCode.AUTHOR_NAME_MISMATCH,
+                "ISNI로 찾은 기존 작가와 요청한 작가 이름이 일치하지 않습니다.");
     }
 
     private void rejectDuplicateEntry(Author author, Set<Long> seenAuthorIds, Set<Isni> seenIsnis) {
@@ -154,7 +167,7 @@ public class BookIngestService {
         if (author.getIsni() != null && !seenIsnis.add(author.getIsni())) {
             throw new BadRequestException(
                     ErrorCode.DUPLICATE_AUTHOR,
-                    "한 업로드 요청에 같은 작가가 중복 기재되었습니다: isni=" + author.getIsni());
+                    "한 업로드 요청에 같은 작가가 중복 기재되었습니다: isni=" + author.getIsni().value());
         }
     }
 

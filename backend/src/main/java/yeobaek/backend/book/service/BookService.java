@@ -47,8 +47,9 @@ public class BookService {
     public BookDetailResponse findBook(Long bookId) {
         Book book = bookRepository.getById(bookId);
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
-        return new BookDetailResponse(book.getId(), book.getTitle(), authors,
-                book.getPublisher(), book.getPublishedYear(), bookCoverUrlResolver.resolve(book.getCoverImageKey()),
+        return new BookDetailResponse(book.getId(), book.getTitle().value(), authors,
+                book.getPublisher() == null ? null : book.getPublisher().value(), book.getPublishedYear(),
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()),
                 book.getPassageCount().value(), chapters(bookId));
     }
 
@@ -68,6 +69,6 @@ public class BookService {
     private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName().value(), Collectors.toList())));
     }
 }

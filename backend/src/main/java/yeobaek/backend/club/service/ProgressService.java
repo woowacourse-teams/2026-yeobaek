@@ -64,7 +64,7 @@ public class ProgressService {
         Club club = latest.getClub();
         Book book = club.getBook();
         List<String> authors = authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getName())
+                .map(authorBook -> authorBook.getAuthor().getName().value())
                 .toList();
         return Optional.of(new LastReadingResponse(club.getId(), club.getName(),
                 ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey())),

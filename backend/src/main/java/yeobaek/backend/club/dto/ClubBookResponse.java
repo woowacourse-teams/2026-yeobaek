@@ -19,7 +19,7 @@ public record ClubBookResponse(
     }
 
     public static ClubBookResponse of(Book book, List<String> authors, String coverImageUrl) {
-        return new ClubBookResponse(book.getId(), book.getTitle(), authors, coverImageUrl,
+        return new ClubBookResponse(book.getId(), book.getTitle().value(), authors, coverImageUrl,
                 book.getPassageCount().value(), book.getStatus());
     }
 }

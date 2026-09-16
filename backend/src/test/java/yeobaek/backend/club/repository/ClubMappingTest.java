@@ -10,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
@@ -52,7 +53,7 @@ class ClubMappingTest extends IntegrationTest {
             Club found = clubRepository.findById(saved.getId()).orElseThrow();
 
             assertThat(found.getJoinCode()).isEqualTo("A3F9KQ");
-            assertThat(found.getBook().getTitle()).isEqualTo("운수 좋은 날");
+            assertThat(found.getBook().getTitle()).isEqualTo(new BookTitle("운수 좋은 날"));
         });
     }
 

@@ -16,6 +16,8 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -58,7 +60,7 @@ class BookMappingTest extends IntegrationTest {
                     .containsExactly(new ContentSequence(1), new ContentSequence(2));
             assertThat(found.getSentences()).extracting("content")
                     .containsExactly("새침하게 흐린 품이 ", "눈이 올 듯하더니...");
-            assertThat(found.getChapter().getBook().getTitle()).isEqualTo("운수 좋은 날");
+            assertThat(found.getChapter().getBook().getTitle()).isEqualTo(new BookTitle("운수 좋은 날"));
             assertThat(found.getSentences().getFirst().belongsTo(book)).isTrue();
         });
     }
@@ -140,7 +142,7 @@ class BookMappingTest extends IntegrationTest {
         transactionTemplate.executeWithoutResult(status ->
                 assertThat(authorBookRepository.findAll())
                         .extracting(mapping -> mapping.getAuthor().getName())
-                        .containsExactlyInAnyOrder("작가1", "작가2"));
+                        .containsExactlyInAnyOrder(new AuthorName("작가1"), new AuthorName("작가2")));
     }
 
     @Test

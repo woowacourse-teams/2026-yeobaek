@@ -41,12 +41,12 @@ public class Author {
         this.isni = isni;
     }
 
-    public boolean hasSameName(String otherName) {
-        return name.value().equals(otherName);
+    public boolean hasSameName(AuthorName otherName) {
+        return name.equals(otherName);
     }
 
-    public String getName() {
-        return name.value();
+    public AuthorName getName() {
+        return name;
     }
 
     public Isni getIsni() {

@@ -158,14 +158,14 @@ public class ClubService {
 
     private List<String> authorNames(Book book) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getName())
+                .map(authorBook -> authorBook.getAuthor().getName().value())
                 .collect(Collectors.toList());
     }
 
     private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName().value(), Collectors.toList())));
     }
 
     private ClubBookResponse toBookResponse(Book book, List<String> authors) {

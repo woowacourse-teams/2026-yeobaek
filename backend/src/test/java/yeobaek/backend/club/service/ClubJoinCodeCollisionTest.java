@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.AuthorBookRepository;
@@ -66,7 +67,7 @@ class ClubJoinCodeCollisionTest {
     void regenerateOnCollision() {
         given(bookRepository.getById(BOOK_ID)).willReturn(book);
         given(book.getId()).willReturn(BOOK_ID);
-        given(book.getTitle()).willReturn("운수 좋은 날");
+        given(book.getTitle()).willReturn(new BookTitle("운수 좋은 날"));
         given(book.getPassageCount()).willReturn(new PassageCount(312));
         given(clubRepository.existsByJoinCode("TAKEN1")).willReturn(true);
         given(clubRepository.existsByJoinCode("FRESH1")).willReturn(false);

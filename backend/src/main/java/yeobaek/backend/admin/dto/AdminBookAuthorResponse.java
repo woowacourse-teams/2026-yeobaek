@@ -10,7 +10,7 @@ public record AdminBookAuthorResponse(
 ) {
 
     public static AdminBookAuthorResponse from(Author author) {
-        return new AdminBookAuthorResponse(author.getId(), author.getName(),
+        return new AdminBookAuthorResponse(author.getId(), author.getName().value(),
                 author.getIsni() == null ? null : author.getIsni().value());
     }
 }

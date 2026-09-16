@@ -5,8 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.admin.dto.AuthorEntryRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
@@ -134,6 +137,23 @@ class BookIngestServiceTest extends IntegrationTest {
                 new AuthorEntryRequest(null, "이효석", "000000012345964X"))))
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.AUTHOR_NAME_MISMATCH);
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidAuthorNames")
+    @DisplayName("기존 ISNI와 함께 유효하지 않은 이름을 요청해도 AUTHOR_NAME_MISMATCH로 거부한다")
+    void rejectInvalidNameForExistingIsni(String invalidName) {
+        authorRepository.save(new Author("현진건", new Isni("000000012345964X")));
+
+        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
+                new AuthorEntryRequest(null, invalidName, "000000012345964X"))))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("ISNI로 찾은 기존 작가와 요청한 작가 이름이 일치하지 않습니다.")
+                .extracting("code").isEqualTo(ErrorCode.AUTHOR_NAME_MISMATCH);
+    }
+
+    private static Stream<String> invalidAuthorNames() {
+        return Stream.of(null, " ", "가".repeat(101));
     }
 
     @Test

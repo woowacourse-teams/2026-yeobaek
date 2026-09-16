@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.Isni;
 
 class AuthorTest {
@@ -40,7 +41,7 @@ class AuthorTest {
     void hasSameName() {
         Author author = new Author("현진건");
 
-        assertThat(author.hasSameName("현진건")).isTrue();
-        assertThat(author.hasSameName("이효석")).isFalse();
+        assertThat(author.hasSameName(new AuthorName("현진건"))).isTrue();
+        assertThat(author.hasSameName(new AuthorName("이효석"))).isFalse();
     }
 }

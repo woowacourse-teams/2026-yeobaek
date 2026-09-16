@@ -110,12 +110,12 @@ public class Book {
         this.coverImageKey = coverImageKey;
     }
 
-    public String getTitle() {
-        return title.value();
+    public BookTitle getTitle() {
+        return title;
     }
 
-    public String getPublisher() {
-        return publisher == null ? null : publisher.value();
+    public Publisher getPublisher() {
+        return publisher;
     }
 
     public PassageCount getPassageCount() {

@@ -16,7 +16,7 @@ public record AdminAuthorResponse(
     }
 
     public static AdminAuthorResponse of(Author author, List<AdminAuthorBookResponse> books) {
-        return new AdminAuthorResponse(author.getId(), author.getName(),
+        return new AdminAuthorResponse(author.getId(), author.getName().value(),
                 author.getIsni() == null ? null : author.getIsni().value(), books);
     }
 }
