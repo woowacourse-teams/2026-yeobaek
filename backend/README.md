@@ -113,7 +113,7 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 
 ### PostHog 백엔드 사용자 API 이벤트
 
-다음 이벤트는 서비스가 정상 반환한 사용자 API 호출에서 기록합니다. 관리자 API와 공개 사전신청 API는 수집하지 않습니다.
+다음 이벤트는 서비스가 정상 반환한 사용자 API 호출에서 기록합니다. 관리자 API는 수집하지 않습니다.
 
 | 이벤트 | API | 개별 속성 |
 |---|---|---|
@@ -148,4 +148,3 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 
 - [팀의 개발 방법](docs/온보딩_프로젝트_개발_방법.md)
 - 에이전트/개발 지침: `AGENTS.md`, `docs/지침/`
-- 개발 계획: `docs/개발계획.md`

@@ -73,7 +73,7 @@ public class BookCoverUploadService {
         return headers;
     }
 
-    private static String extensionOf(String contentType) {
+    private String extensionOf(String contentType) {
         if (contentType == null) {
             throw new IllegalArgumentException("표지 이미지 MIME 타입은 필수입니다.");
         }
@@ -84,7 +84,7 @@ public class BookCoverUploadService {
         return extension;
     }
 
-    private static void validateContentLength(long contentLength) {
+    private void validateContentLength(long contentLength) {
         if (contentLength < 1 || contentLength > MAX_CONTENT_LENGTH) {
             throw new IllegalArgumentException("표지 이미지 크기는 1바이트 이상 5 MiB 이하여야 합니다.");
         }

@@ -20,13 +20,13 @@ public record S3StorageProperties(
         requireValidPrefix(prefix);
     }
 
-    private static void requireNonBlank(String value, String propertyName) {
+    private void requireNonBlank(String value, String propertyName) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(propertyName + " 설정은 필수입니다.");
         }
     }
 
-    private static void requirePublicHttpUrl(String value) {
+    private void requirePublicHttpUrl(String value) {
         requireNonBlank(value, "storage.s3.public-base-url");
         URI uri;
         try {
@@ -42,7 +42,7 @@ public record S3StorageProperties(
         }
     }
 
-    private static void requireValidPrefix(String value) {
+    private void requireValidPrefix(String value) {
         requireNonBlank(value, "storage.s3.prefix");
         if (value.length() > MAX_PREFIX_LENGTH
                 || value.startsWith("/")
