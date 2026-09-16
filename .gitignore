@@ -8,4 +8,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local AI runtime state, generated assets, and linked worktrees.
+# Shared agent instructions and skills remain versioned.
 .omc/
+.omx/
+.codex-assets/
+.worktrees/
