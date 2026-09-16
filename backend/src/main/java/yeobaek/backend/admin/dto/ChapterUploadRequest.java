@@ -1,14 +1,26 @@
 package yeobaek.backend.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public record ChapterUploadRequest(
-        @Schema(description = "목차 제목 (1~100자)") String title,
-        @Schema(description = "본문 목록 (등장 순서로 전체 순서 부여)") List<PassageUploadRequest> passages
+        @Schema(description = "목차 제목 (1~100자)") @NotNull String title,
+        @Schema(description = "본문 목록 (등장 순서로 전체 순서 부여)")
+        @Valid @NotNull List<@NotNull PassageUploadRequest> passages
 ) {
 
     public ChapterUploadRequest {
-        passages = passages == null ? List.of() : List.copyOf(passages);
+        if (passages != null) {
+            passages = Collections.unmodifiableList(new ArrayList<>(passages));
+        }
+    }
+
+    @Override
+    public List<PassageUploadRequest> passages() {
+        return passages == null ? null : Collections.unmodifiableList(passages);
     }
 }

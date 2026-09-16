@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class ProgressController {
     @PutMapping("/api/clubs/{clubId}/progress")
     public ProgressResponse updateProgress(@AuthMember Long memberId,
                                            @Parameter(description = "모임 ID") @PathVariable Long clubId,
-                                           @RequestBody ProgressUpdateRequest request) {
+                                           @Valid @RequestBody ProgressUpdateRequest request) {
         ProgressResponse response = progressService.updateProgress(memberId, clubId, request.passageId());
         analyticsTracker.track(memberId, AnalyticsEvent.progressUpdate(
                 clubId, request.passageId(), response.lastReadPassageSequence(), response.progressRate()));

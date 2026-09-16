@@ -14,8 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -55,6 +58,23 @@ class PreRegistrationControllerTest extends ControllerTest {
                 .andExpect(result -> assertInstanceOf(
                         HttpMessageNotReadableException.class,
                         result.getResolvedException()));
+
+        verifyNoInteractions(preRegistrationService);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "{} | 13",
+            "{\"email\":null} | 14"
+    })
+    @DisplayName("필수 이메일이 누락되거나 null이면 사전신청 서비스를 호출하지 않는다")
+    void rejectMissingOrNullEmail(String content, int ipHost) throws Exception {
+        mockMvc.perform(post("/api/pre-registrations")
+                        .with(remoteAddress(testIpv4(ipHost)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
 
         verifyNoInteractions(preRegistrationService);
     }

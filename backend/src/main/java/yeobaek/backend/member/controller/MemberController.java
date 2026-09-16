@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,7 +38,7 @@ public class MemberController {
     @Operation(summary = "회원 생성", description = "닉네임 입력만으로 회원을 생성하고 ID를 발급한다. 헤더 불필요(최초 진입).")
     @PostMapping("/api/members")
     @ResponseStatus(HttpStatus.CREATED)
-    public MemberCreateResponse createMember(@RequestBody MemberCreateRequest request) {
+    public MemberCreateResponse createMember(@Valid @RequestBody MemberCreateRequest request) {
         MemberCreateResponse response = memberService.create(request.nickname());
         analyticsTracker.track(response.memberId(), AnalyticsEvent.memberCreate());
         return response;

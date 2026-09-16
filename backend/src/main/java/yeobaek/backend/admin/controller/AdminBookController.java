@@ -3,6 +3,7 @@ package yeobaek.backend.admin.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,7 +40,7 @@ public class AdminBookController {
             description = "본문 순서는 배열 등장 순서로 서버가 1..N을 부여한다. 앱은 사용하지 않는다.")
     @PostMapping("/api/admin/books")
     @ResponseStatus(HttpStatus.CREATED)
-    public BookUploadResponse upload(@RequestBody BookUploadRequest request) {
+    public BookUploadResponse upload(@Valid @RequestBody BookUploadRequest request) {
         return bookIngestService.upload(request);
     }
 
@@ -53,7 +54,7 @@ public class AdminBookController {
     @Operation(summary = "도서 표지 교체", description = "기존 S3 객체는 삭제하지 않고 새 객체 키로 교체한다.")
     @PutMapping("/api/admin/books/{bookId}/cover")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void replaceCoverImage(@PathVariable Long bookId, @RequestBody BookCoverUpdateRequest request) {
+    public void replaceCoverImage(@PathVariable Long bookId, @Valid @RequestBody BookCoverUpdateRequest request) {
         adminBookService.replaceCoverImage(bookId, request.coverImageKey());
     }
 

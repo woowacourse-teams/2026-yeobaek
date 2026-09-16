@@ -2,6 +2,7 @@ package yeobaek.backend.preregistration.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +22,7 @@ public class PreRegistrationController {
     @Operation(summary = "사전신청", description = "이메일을 등록하여 여백 출시 안내를 신청한다. 회원 헤더는 필요하지 않다.")
     @PostMapping("/api/pre-registrations")
     @ResponseStatus(HttpStatus.CREATED)
-    public void create(@RequestBody PreRegistrationCreateRequest request) {
+    public void create(@Valid @RequestBody PreRegistrationCreateRequest request) {
         preRegistrationService.create(request.email());
     }
 }
