@@ -30,10 +30,14 @@ public class MemberBlockService {
     @Transactional
     public void block(Long blockerId, Long blockedId) {
         if (blockerId.equals(blockedId)) {
-            throw new BadRequestException(ErrorCode.CANNOT_BLOCK_SELF);
+            throw new BadRequestException(
+                    ErrorCode.CANNOT_BLOCK_SELF,
+                    "자기 자신은 차단할 수 없습니다: memberId=" + blockerId);
         }
         Member blocked = memberRepository.findById(blockedId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.MEMBER_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.MEMBER_NOT_FOUND,
+                        "차단할 회원이 존재하지 않습니다: memberId=" + blockedId));
         if (!memberBlockRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId)) {
             memberBlockRepository.save(new MemberBlock(memberRepository.getReferenceById(blockerId), blocked));
         }
@@ -42,7 +46,9 @@ public class MemberBlockService {
     @Transactional
     public void unblock(Long blockerId, Long blockedId) {
         if (!memberRepository.existsById(blockedId)) {
-            throw new NotFoundException(ErrorCode.MEMBER_NOT_FOUND);
+            throw new NotFoundException(
+                    ErrorCode.MEMBER_NOT_FOUND,
+                    "차단 해제할 회원이 존재하지 않습니다: memberId=" + blockedId);
         }
         memberBlockRepository.deleteByBlockerIdAndBlockedId(blockerId, blockedId);
     }

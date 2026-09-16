@@ -32,7 +32,9 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("이용할 수 없는 도서 예외를 400과 개별 코드로 변환한다")
     void handleBookNotAvailable() {
-        var response = handler.handleBadRequest(new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE));
+        var response = handler.handleBadRequest(new BadRequestException(
+                ErrorCode.BOOK_NOT_AVAILABLE,
+                "더 이상 이용할 수 없는 도서입니다."));
         var body = response.getBody();
 
         assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
@@ -49,7 +51,9 @@ class GlobalExceptionHandlerTest {
     @DisplayName("중복 사전신청 예외를 409와 개별 코드로 변환한다")
     void handlePreRegistrationConflict() {
         var response = handler.handleConflict(
-                new ConflictException(ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS));
+                new ConflictException(
+                        ErrorCode.PRE_REGISTRATION_ALREADY_EXISTS,
+                        "이미 사전신청한 이메일입니다."));
         var body = response.getBody();
 
         assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
@@ -66,7 +70,9 @@ class GlobalExceptionHandlerTest {
     @DisplayName("사전신청 요청 제한 예외를 429와 개별 코드로 변환한다")
     void handleRateLimitExceeded() {
         var response = handler.handleTooManyRequests(
-                new TooManyRequestsException(ErrorCode.RATE_LIMIT_EXCEEDED));
+                new TooManyRequestsException(
+                        ErrorCode.RATE_LIMIT_EXCEEDED,
+                        "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."));
         var body = response.getBody();
 
         assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");

@@ -128,7 +128,9 @@ class ProgressControllerTest extends ControllerTest {
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(5L);
-        var serviceException = new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.PASSAGE_NOT_FOUND,
+                "진도를 갱신할 본문이 존재하지 않습니다: passageId=999");
         given(progressService.updateProgress(5L, 7L, 999L)).willThrow(serviceException);
 
         var result = mockMvc.perform(put("/api/clubs/{clubId}/progress", 7L)

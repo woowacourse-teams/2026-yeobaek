@@ -9,11 +9,6 @@ public class ForbiddenException extends RuntimeException {
 
     private final ErrorCode code;
 
-    public ForbiddenException(ErrorCode code) {
-        super(code.getDefaultMessage());
-        this.code = code;
-    }
-
     public ForbiddenException(ErrorCode code, String message) {
         super(message);
         this.code = code;
