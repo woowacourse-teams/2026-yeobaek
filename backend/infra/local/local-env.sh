@@ -2,9 +2,9 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-BACKEND_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
-COMPOSE_FILE="$BACKEND_DIR/deploy/docker-compose.local.yml"
-ENV_FILE="$BACKEND_DIR/.env.local"
+BACKEND_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.local.yml"
+ENV_FILE="$SCRIPT_DIR/.env.local"
 PROJECT_SUFFIX=$(printf '%s' "$BACKEND_DIR" | cksum | awk '{print $1}')
 PROJECT_NAME=${COMPOSE_PROJECT_NAME:-yeobaek-local-$PROJECT_SUFFIX}
 
@@ -53,7 +53,7 @@ cleanup_dev() {
 
 show_help() {
   cat <<'EOF'
-사용법: sh ./scripts/local-env.sh <command>
+사용법: sh ./infra/local/local-env.sh <command>
   up      사전 빌드된 백엔드 이미지와 MySQL을 실행하고 HTTP 준비를 기다림
   down    서버와 DB를 종료하고 로컬 DB 데이터도 정리
   status  컨테이너 상태 확인

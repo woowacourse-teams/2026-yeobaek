@@ -16,7 +16,7 @@ on:
       - 'backend/gradle.properties'
       - 'backend/gradle/**'
       - 'backend/gradlew'
-      - 'backend/deploy/Dockerfile'
+      - 'backend/infra/prod/Dockerfile'
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:
 
@@ -61,7 +61,7 @@ jobs:
         run: |
           IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend"
           docker buildx build --platform linux/amd64,linux/arm64 \
-            -f deploy/Dockerfile \
+            -f infra/prod/Dockerfile \
             -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" --push .
 
   deploy:

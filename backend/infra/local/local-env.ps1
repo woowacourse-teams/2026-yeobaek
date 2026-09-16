@@ -5,9 +5,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BackendDir = Split-Path -Parent $ScriptDir
-$ComposeFile = Join-Path $BackendDir 'deploy\docker-compose.local.yml'
-$EnvFile = Join-Path $BackendDir '.env.local'
+$BackendDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+$ComposeFile = Join-Path $ScriptDir 'docker-compose.local.yml'
+$EnvFile = Join-Path $ScriptDir '.env.local'
 $GradleWrapper = Join-Path $BackendDir 'gradlew.bat'
 $ComposeEnvArgs = if (Test-Path -LiteralPath $EnvFile) { @('--env-file', $EnvFile) } else { @() }
 $PathBytes = [System.Text.Encoding]::UTF8.GetBytes([System.IO.Path]::GetFullPath($BackendDir).ToLowerInvariant())
@@ -54,7 +54,7 @@ function Wait-Backend {
 
 function Show-Help {
     @'
-사용법: .\scripts\local-env.ps1 <command>
+사용법: .\infra\local\local-env.ps1 <command>
   up      사전 빌드된 백엔드 이미지와 MySQL을 실행하고 HTTP 준비를 기다림
   down    서버와 DB를 종료하고 로컬 DB 데이터도 정리
   status  컨테이너 상태 확인
