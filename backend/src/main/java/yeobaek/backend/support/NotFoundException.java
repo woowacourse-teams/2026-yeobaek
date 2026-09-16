@@ -8,8 +8,6 @@ import lombok.Getter;
 @Getter
 public class NotFoundException extends RuntimeException {
 
-    private static final long serialVersionUID = 1L;
-
     private final ErrorCode code;
 
     public NotFoundException(ErrorCode code) {

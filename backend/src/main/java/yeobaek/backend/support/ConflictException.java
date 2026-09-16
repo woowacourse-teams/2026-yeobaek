@@ -5,8 +5,6 @@ import lombok.Getter;
 @Getter
 public class ConflictException extends RuntimeException {
 
-    private static final long serialVersionUID = 1L;
-
     private final ErrorCode code;
 
     public ConflictException(ErrorCode code) {
