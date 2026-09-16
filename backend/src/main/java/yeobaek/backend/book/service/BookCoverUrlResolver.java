@@ -19,7 +19,7 @@ public class BookCoverUrlResolver {
         return publicBaseUrl + "/" + coverImageKey;
     }
 
-    private static String stripTrailingSlash(String url) {
+    private String stripTrailingSlash(String url) {
         int endIndex = url.length();
         while (endIndex > 0 && url.charAt(endIndex - 1) == '/') {
             endIndex--;
