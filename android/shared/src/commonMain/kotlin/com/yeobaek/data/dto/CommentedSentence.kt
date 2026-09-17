@@ -1,7 +1,9 @@
 package com.yeobaek.data.dto
 
 import com.yeobaek.data.model.CommentedSentenceModel
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class CommentedSentence(
     val commentCount: Int,
     val content: String,

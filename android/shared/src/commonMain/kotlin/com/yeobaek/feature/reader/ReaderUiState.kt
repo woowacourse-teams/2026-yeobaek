@@ -1,6 +1,7 @@
 package com.yeobaek.feature.reader
 
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.ReaderFontSize
 
@@ -18,6 +19,9 @@ data class ReaderUiState(
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
     val isCommentCollectionsVisible: Boolean = false,
+    val isNewComment: Boolean = false,
+    val commentedSentences: CommentedSentencesUiModel = CommentedSentencesUiModel(),
+    val commentedSentenceMode: CommentedSentenceMode = CommentedSentenceMode.None,
 ) {
     val readingProgress: Float
         get() = sequenceToProgress(
@@ -59,4 +63,9 @@ sealed interface ReaderMode {
         val targetSequence: Int,
         val isTargetLoaded: Boolean,
     ) : ReaderMode
+}
+
+sealed interface CommentedSentenceMode {
+    data object None : CommentedSentenceMode
+    data object Exists : CommentedSentenceMode
 }

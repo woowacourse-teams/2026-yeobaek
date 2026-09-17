@@ -20,12 +20,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
+import kotlin.math.roundToInt
 
 @Composable
 fun CommentCollectionContent(
+    commentedSentenceUiModel: CommentedSentenceUiModel,
     modifier: Modifier = Modifier,
-    isNewComment: Boolean = true,
 ) {
+    val isNewComment = commentedSentenceUiModel.isNewComment()
     Card(
         modifier = modifier.fillMaxWidth(),
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
@@ -37,7 +40,7 @@ fun CommentCollectionContent(
             modifier = Modifier.padding(10.dp).fillMaxWidth(),
         ) {
             Text(
-                "18%",
+                "${commentedSentenceUiModel.progress.roundToInt()}%",
                 color = MaterialTheme.colorScheme.secondary,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
@@ -45,14 +48,20 @@ fun CommentCollectionContent(
                 ),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("다시 읽으니 지나쳤던 문장이\n조금 다르게 다가왔다...")
+            Text(commentedSentenceUiModel.content)
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                CommentCard(text = "댓글", count = 3)
+                CommentCard(text = "댓글", count = commentedSentenceUiModel.commentCount)
                 Spacer(modifier = Modifier.width(8.dp))
-                if (isNewComment) CommentCard(text = "새 댓글", count = 1, isNewComment = isNewComment)
+                if (isNewComment) {
+                    CommentCard(
+                        text = "새 댓글",
+                        count = commentedSentenceUiModel.unreadCommentCount,
+                        isNewComment = isNewComment,
+                    )
+                }
             }
         }
     }
@@ -88,6 +97,17 @@ private fun CommentCard(
 @Composable
 private fun CommentCollectionContentPreview() {
     YeobaekTheme {
-        CommentCollectionContent()
+        CommentCollectionContent(
+            commentedSentenceUiModel = CommentedSentenceUiModel(
+                sentenceId = 1,
+                passageId = 1,
+                content = "이 글줄을 몇 차례 읽은 뒤 나는 깊은 생각에 빠졌다...",
+                progress = 18.0f,
+                isVisible = true,
+                commentCount = 3,
+                unreadCommentCount = 1,
+                passageSequence = 10,
+            ),
+        )
     }
 }

@@ -58,6 +58,7 @@ fun ReaderScreen(
                 title = uiState.title,
                 author = uiState.author,
                 fontSize = uiState.fontSize,
+                isNewComment = uiState.isNewComment,
                 isTextSettingMenuExpanded = uiState.isTextSettingMenuExpanded,
                 onBackClick = actions.onBackClick,
                 onTableOfContentsClick = actions.onTableOfContentsClick,
@@ -132,6 +133,8 @@ fun ReaderScreen(
 
     if (uiState.isCommentCollectionsVisible) {
         CommentCollectionContents(
+            commentedSentences = uiState.commentedSentences,
+            mode = uiState.commentedSentenceMode,
             onDismissRequest = {
                 actions.onCommentCollectionsDismiss()
             },

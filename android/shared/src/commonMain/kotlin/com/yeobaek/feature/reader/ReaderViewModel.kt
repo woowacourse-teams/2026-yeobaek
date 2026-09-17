@@ -14,6 +14,7 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.model.toUiModel
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
@@ -364,6 +365,42 @@ class ReaderViewModel(
         }
     }
 
+    fun getCommentCollections() {
+        viewModelScope.launch {
+            try {
+                val currentPassageId =
+                    uiState.passages.findBySequence(uiState.readingSequence)?.passageId
+                        ?: throw IllegalArgumentException("문단 아이디를 찾지 못했어요")
+                val comments = commentRepository.getCommentedSentences(
+                    clubId = groupId,
+                    currentPassageId = currentPassageId,
+                ).toUiModel()
+
+                uiState = uiState.copy(
+                    commentedSentences = comments.copy(
+                        sentences = comments.sentences.map { sentence ->
+                            sentence.copy(
+                                progress = sequenceToProgress(
+                                    sequence = sentence.passageSequence,
+                                    totalPassageCount = uiState.totalPassageCount,
+                                ),
+                            )
+                        },
+                    ),
+                    commentedSentenceMode = if (comments.sentences.isNotEmpty()) {
+                        CommentedSentenceMode.Exists
+                    } else {
+                        CommentedSentenceMode.None
+                    },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
     fun completeMoveToPassage(passage: PassageUiModel) {
         val movingTo = uiState.mode as? ReaderMode.MovingTo ?: return
         if (!movingTo.isTargetLoaded || passage.sequence != movingTo.targetSequence) return
@@ -400,6 +437,7 @@ class ReaderViewModel(
         uiState = uiState.copy(
             isCommentCollectionsVisible = true,
         )
+        getCommentCollections()
     }
 
     fun dismissCommentCollections() {
