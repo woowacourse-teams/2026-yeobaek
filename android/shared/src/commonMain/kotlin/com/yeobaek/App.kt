@@ -101,7 +101,7 @@ fun App(
                     screen = TrackedScreen.GUIDE,
                 )
 
-                val guideViewModel: GuideViewModel = viewModel()
+                val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
