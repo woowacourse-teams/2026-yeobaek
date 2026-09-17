@@ -269,11 +269,16 @@ fun App(
                         onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
                         onCommentCollectionsClick = readerViewModel::openCommentCollections,
                         onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
+                        onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+                        onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+                        onMoveToComment = readerViewModel::moveToSelectedComment,
+                        onReturnToReadingAnchor = readerViewModel::returnToReadingAnchor,
                     )
                 }
                 val commentSheetActions = remember(commentSheet) {
                     CommentSheetActions(
                         onDismiss = commentSheet::dismiss,
+                        onRetry = commentSheet::retryLoad,
                         onInputChange = commentSheet::updateInput,
                         onSubmit = commentSheet::submit,
                         onEdit = commentSheet::startEditing,

@@ -22,6 +22,7 @@ data class ReaderUiState(
     val isNewComment: Boolean = false,
     val commentedSentences: CommentedSentencesUiModel = CommentedSentencesUiModel(),
     val commentedSentenceMode: CommentedSentenceMode = CommentedSentenceMode.None,
+    val returnPassageSequence: Int? = null,
 ) {
     val readingProgress: Float
         get() = sequenceToProgress(
@@ -37,6 +38,14 @@ data class ReaderUiState(
 
             is ReaderMode.MovingTo -> sequenceToProgress(
                 sequence = currentMode.targetSequence,
+                totalPassageCount = totalPassageCount,
+            )
+        }
+
+    val returnProgress: Float?
+        get() = returnPassageSequence?.let { sequence ->
+            sequenceToProgress(
+                sequence = sequence,
                 totalPassageCount = totalPassageCount,
             )
         }
