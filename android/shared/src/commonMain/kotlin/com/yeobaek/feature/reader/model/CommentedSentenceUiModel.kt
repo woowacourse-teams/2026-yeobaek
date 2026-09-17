@@ -5,8 +5,10 @@ data class CommentedSentenceUiModel(
     val passageId: Long,
     val content: String,
     val passageSequence: Int,
+    val sentenceSequence: Int,
     val progress: Float,
-    val isVisible: Boolean,
+    val isFuture: Boolean,
+    val requiresReveal: Boolean,
     val commentCount: Int,
     val unreadCommentCount: Int,
 ) {

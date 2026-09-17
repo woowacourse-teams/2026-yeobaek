@@ -66,6 +66,10 @@ sealed interface ReaderMode {
 }
 
 sealed interface CommentedSentenceMode {
+    data object Loading : CommentedSentenceMode
     data object None : CommentedSentenceMode
     data object Exists : CommentedSentenceMode
+    data class Failed(
+        val message: String,
+    ) : CommentedSentenceMode
 }

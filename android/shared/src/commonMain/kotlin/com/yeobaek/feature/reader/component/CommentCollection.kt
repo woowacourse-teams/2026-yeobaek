@@ -12,9 +12,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,14 +29,29 @@ import kotlin.math.roundToInt
 @Composable
 fun CommentCollectionContent(
     commentedSentenceUiModel: CommentedSentenceUiModel,
+    isRevealed: Boolean,
+    onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
+    onReveal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isNewComment = commentedSentenceUiModel.isNewComment()
+    val isContentHidden = commentedSentenceUiModel.requiresReveal && !isRevealed
     Card(
+        onClick = {
+            if (isContentHidden) {
+                onReveal()
+            } else {
+                onCommentCardClick(commentedSentenceUiModel)
+            }
+        },
         modifier = modifier.fillMaxWidth(),
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors().copy(
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = if (isContentHidden) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
         ),
     ) {
         Column(
@@ -48,7 +66,17 @@ fun CommentCollectionContent(
                 ),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(commentedSentenceUiModel.content)
+            Text(
+                text = commentedSentenceUiModel.content,
+                modifier = if (isContentHidden) {
+                    Modifier
+                        .blur(4.dp)
+                        .clearAndSetSemantics { }
+                } else {
+                    Modifier
+                },
+                maxLines = 2,
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -61,6 +89,12 @@ fun CommentCollectionContent(
                         count = commentedSentenceUiModel.unreadCommentCount,
                         isNewComment = isNewComment,
                     )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (isContentHidden) {
+                    TextButton(onClick = onReveal) {
+                        Text("문장 보기")
+                    }
                 }
             }
         }
@@ -102,12 +136,17 @@ private fun CommentCollectionContentPreview() {
                 sentenceId = 1,
                 passageId = 1,
                 content = "이 글줄을 몇 차례 읽은 뒤 나는 깊은 생각에 빠졌다...",
+                sentenceSequence = 1,
                 progress = 18.0f,
-                isVisible = true,
+                isFuture = false,
+                requiresReveal = false,
                 commentCount = 3,
                 unreadCommentCount = 1,
                 passageSequence = 10,
             ),
+            isRevealed = false,
+            onCommentCardClick = {},
+            onReveal = {},
         )
     }
 }

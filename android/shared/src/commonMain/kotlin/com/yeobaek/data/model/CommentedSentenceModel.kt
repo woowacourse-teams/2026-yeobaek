@@ -20,8 +20,12 @@ fun CommentedSentenceModel.toUiModel() = CommentedSentenceUiModel(
     passageId = passageId,
     content = content,
     progress = 0.0f,
-    isVisible = future,
+    isFuture = future,
+    requiresReveal = contentVisibility == CONTENT_VISIBILITY_REVEAL_REQUIRED,
     commentCount = commentCount,
     unreadCommentCount = unreadCommentCount,
     passageSequence = passageSequence,
+    sentenceSequence = sentenceSequence,
 )
+
+private const val CONTENT_VISIBILITY_REVEAL_REQUIRED = "REVEAL_REQUIRED"
