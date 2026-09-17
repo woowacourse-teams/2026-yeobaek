@@ -9,8 +9,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.ChapterSelected
+import com.yeobaek.core.analytics.FontSizeChanged
 import com.yeobaek.core.analytics.ProgressSeeked
 import com.yeobaek.core.analytics.ReaderSessionEnd
+import com.yeobaek.core.analytics.TableOfContentsOpened
+import com.yeobaek.core.analytics.TextSettingOpened
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -304,6 +308,7 @@ class ReaderViewModel(
     }
 
     fun openTableOfContents() {
+        analyticsTracker.track(TableOfContentsOpened(bookId = currentBookId))
         uiState = uiState.copy(
             isTableOfContentsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -316,6 +321,12 @@ class ReaderViewModel(
 
     fun selectChapter(chapter: ChapterUiModel) {
         val targetSequence = chapter.startPassageSequence
+        analyticsTracker.track(
+            ChapterSelected(
+                bookId = currentBookId,
+                chapterSequence = chapter.sequence,
+            ),
+        )
         track(
             operation = CrashOperation.READER_CHAPTER_SELECTED,
             passageSequence = targetSequence,
@@ -417,6 +428,9 @@ class ReaderViewModel(
         uiState = uiState.copy(
             isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,
         )
+        if (uiState.isTextSettingMenuExpanded) {
+            analyticsTracker.track(TextSettingOpened)
+        }
     }
 
     fun dismissTextSettingMenu() {
@@ -426,7 +440,9 @@ class ReaderViewModel(
     }
 
     fun updateFontSize(fontSize: Int) {
-        if (fontSize !in ReaderFontSize.options) return
+        if (fontSize !in ReaderFontSize.options || fontSize == uiState.fontSize) return
+
+        analyticsTracker.track(FontSizeChanged(fontSize = fontSize))
 
         uiState = uiState.copy(
             fontSize = fontSize,

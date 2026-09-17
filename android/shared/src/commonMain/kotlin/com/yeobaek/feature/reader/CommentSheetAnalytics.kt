@@ -8,6 +8,7 @@ import com.yeobaek.core.analytics.CommentEditCanceled
 import com.yeobaek.core.analytics.CommentEditStarted
 import com.yeobaek.core.analytics.CommentMode
 import com.yeobaek.core.analytics.CommentReported
+import com.yeobaek.core.analytics.CommentSheetClosed
 import com.yeobaek.core.analytics.CommentSheetOpened
 import com.yeobaek.core.analytics.CommentSubmitted
 import com.yeobaek.core.analytics.EventResult
@@ -54,6 +55,18 @@ class CommentSheetAnalytics(
                 commentLength = commentLength,
                 bookId = bookId(),
                 passageSequence = passageSequenceOf(sentenceId),
+            ),
+        )
+    }
+
+    fun sheetClosed(
+        commentCount: Int,
+        didSubmit: Boolean,
+    ) {
+        analyticsTracker.track(
+            CommentSheetClosed(
+                commentCount = commentCount,
+                didSubmit = didSubmit,
             ),
         )
     }

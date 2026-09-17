@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.group.create.component.CreateBookChooseCard
 import com.yeobaek.feature.group.create.component.CreateGroupNameCard
 
@@ -33,6 +34,8 @@ fun CreateScreen(
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+
+    PlatformBackHandler(onBack = onBackClick)
 
     LaunchedEffect(uiState.createState) {
         when (uiState.createState) {

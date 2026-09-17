@@ -76,6 +76,40 @@ data class ProgressSeeked(
     )
 }
 
+data class TableOfContentsOpened(
+    val bookId: Long?,
+) : AnalyticsEvent {
+    override val name = "table_of_contents_opened"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+    }
+}
+
+data class ChapterSelected(
+    val bookId: Long?,
+    val chapterSequence: Int,
+) : AnalyticsEvent {
+    override val name = "chapter_selected"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_CHAPTER_SEQUENCE, chapterSequence)
+    }
+}
+
+data object TextSettingOpened : AnalyticsEvent {
+    override val name = "text_setting_opened"
+    override val properties = emptyMap<String, Any>()
+}
+
+data class FontSizeChanged(
+    val fontSize: Int,
+) : AnalyticsEvent {
+    override val name = "font_size_changed"
+    override val properties = mapOf(
+        KEY_FONT_SIZE to fontSize,
+    )
+}
+
 private const val KEY_GROUP_ID = "group_id"
 private const val KEY_BOOK_ID = "book_id"
 private const val KEY_BOOK_TITLE = "book_title"
@@ -89,3 +123,5 @@ private const val KEY_COMMENTS_WRITTEN = "comments_written"
 private const val KEY_COMMENT_SHEETS_OPENED = "comment_sheets_opened"
 private const val KEY_FROM_PROGRESS = "from_progress"
 private const val KEY_TO_PROGRESS = "to_progress"
+private const val KEY_CHAPTER_SEQUENCE = "chapter_sequence"
+private const val KEY_FONT_SIZE = "font_size"

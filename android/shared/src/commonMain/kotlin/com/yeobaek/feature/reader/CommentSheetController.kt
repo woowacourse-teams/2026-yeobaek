@@ -31,9 +31,11 @@ class CommentSheetController(
         private set
 
     private var loadJob: Job? = null
+    private var didSubmitInSheet = false
 
     fun open(sentence: SentenceUiModel) {
         cancelLoad()
+        didSubmitInSheet = false
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
             sentenceId = sentence.sentenceId,
@@ -93,6 +95,12 @@ class CommentSheetController(
 
     fun dismiss() {
         cancelLoad()
+        uiState?.let { sheet ->
+            analytics.sheetClosed(
+                commentCount = sheet.comments.size,
+                didSubmit = didSubmitInSheet,
+            )
+        }
         uiState = null
     }
 
@@ -276,6 +284,7 @@ class CommentSheetController(
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
+                didSubmitInSheet = true
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     isEditing = editingCommentId != null,

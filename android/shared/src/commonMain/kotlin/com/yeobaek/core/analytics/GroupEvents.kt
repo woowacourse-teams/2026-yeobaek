@@ -65,8 +65,73 @@ data class GroupExited(
     )
 }
 
+data class GroupCreateBookSelected(
+    val bookId: Long,
+    val bookTitle: String,
+) : AnalyticsEvent {
+    override val name = "group_create_book_selected"
+    override val properties = buildMap {
+        put(KEY_BOOK_ID, bookId)
+        bookTitle.takeIf(String::isNotBlank)?.let { put(KEY_BOOK_TITLE, it) }
+    }
+}
+
+data class GroupCreateAbandoned(
+    val hasName: Boolean,
+    val hasBook: Boolean,
+) : AnalyticsEvent {
+    override val name = "group_create_abandoned"
+    override val properties = mapOf(
+        KEY_HAS_NAME to hasName,
+        KEY_HAS_BOOK to hasBook,
+    )
+}
+
+data class GroupJoinAbandoned(
+    val hasCode: Boolean,
+) : AnalyticsEvent {
+    override val name = "group_join_abandoned"
+    override val properties = mapOf(
+        KEY_HAS_CODE to hasCode,
+    )
+}
+
+data class GroupExitRequested(
+    val groupId: Long,
+) : AnalyticsEvent {
+    override val name = "group_exit_requested"
+    override val properties = mapOf(
+        KEY_GROUP_ID to groupId,
+    )
+}
+
+data class MemberBlocked(
+    val groupId: Long,
+    val result: EventResult,
+) : AnalyticsEvent {
+    override val name = "member_blocked"
+    override val properties = mapOf(
+        KEY_GROUP_ID to groupId,
+        KEY_RESULT to result.value,
+    )
+}
+
+data class MemberUnblocked(
+    val groupId: Long,
+    val result: EventResult,
+) : AnalyticsEvent {
+    override val name = "member_unblocked"
+    override val properties = mapOf(
+        KEY_GROUP_ID to groupId,
+        KEY_RESULT to result.value,
+    )
+}
+
 private const val KEY_GROUP_ID = "group_id"
 private const val KEY_RESULT = "result"
 private const val KEY_REASON = "reason"
 private const val KEY_BOOK_ID = "book_id"
 private const val KEY_BOOK_TITLE = "book_title"
+private const val KEY_HAS_NAME = "has_name"
+private const val KEY_HAS_BOOK = "has_book"
+private const val KEY_HAS_CODE = "has_code"

@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupCreateBookSelected
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -96,6 +97,14 @@ class CreateViewModel(
             },
             selectedBookCondition = false,
         )
+        uiState.bookList.getOrNull(index)?.takeIf { it.selected }?.let { book ->
+            analyticsTracker.track(
+                GroupCreateBookSelected(
+                    bookId = book.id,
+                    bookTitle = book.title,
+                ),
+            )
+        }
     }
 
     fun createGroup() {

@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 fun DetailScreen(
     uiState: DetailUiState,
     onInviteCodeCopy: () -> Unit,
+    onExitRequest: () -> Unit,
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
     onExitClick: () -> Unit,
@@ -126,6 +127,7 @@ fun DetailScreen(
                 },
                 onBackClick = onBackClick,
                 onExitClick = {
+                    onExitRequest()
                     showDeleteDialog = true
                 },
             )
@@ -227,6 +229,7 @@ private fun DetailScreenPreview() {
             uiState = DetailUiState(),
             onBackClick = {},
             onInviteCodeCopy = {},
+            onExitRequest = {},
             onReadClick = {},
             onExitClick = {},
             onBlockUser = {},

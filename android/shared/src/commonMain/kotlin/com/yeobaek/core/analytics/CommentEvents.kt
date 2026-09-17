@@ -85,6 +85,17 @@ data class CommentReported(
     )
 }
 
+data class CommentSheetClosed(
+    val commentCount: Int,
+    val didSubmit: Boolean,
+) : AnalyticsEvent {
+    override val name = "comment_sheet_closed"
+    override val properties = mapOf(
+        KEY_COMMENT_COUNT to commentCount,
+        KEY_DID_SUBMIT to didSubmit,
+    )
+}
+
 private const val KEY_BOOK_ID = "book_id"
 private const val KEY_PASSAGE_SEQUENCE = "passage_sequence"
 private const val KEY_COMMENT_COUNT = "comment_count"
@@ -92,3 +103,4 @@ private const val KEY_COMMENT_ID = "comment_id"
 private const val KEY_COMMENT_LENGTH = "comment_length"
 private const val KEY_MODE = "mode"
 private const val KEY_RESULT = "result"
+private const val KEY_DID_SUBMIT = "did_submit"

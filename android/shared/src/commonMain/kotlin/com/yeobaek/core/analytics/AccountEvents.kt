@@ -25,5 +25,10 @@ data class AccountDeleted(
     )
 }
 
+data object MyPageOpened : AnalyticsEvent {
+    override val name = "my_page_opened"
+    override val properties = emptyMap<String, Any>()
+}
+
 private const val KEY_RESULT = "result"
 private const val KEY_REASON = "reason"

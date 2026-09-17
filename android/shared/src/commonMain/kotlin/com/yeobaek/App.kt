@@ -15,17 +15,24 @@ import com.yeobaek.core.analytics.AccountDeleteRequested
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupCreateAbandoned
 import com.yeobaek.core.analytics.GroupCreateInitiated
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.GroupDetailOpened
+import com.yeobaek.core.analytics.GroupExitRequested
+import com.yeobaek.core.analytics.GroupJoinAbandoned
 import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.GroupJoinSubmitted
 import com.yeobaek.core.analytics.GuideCompleted
+import com.yeobaek.core.analytics.GuideDirection
 import com.yeobaek.core.analytics.GuideDismissed
 import com.yeobaek.core.analytics.GuideEntryPoint
+import com.yeobaek.core.analytics.GuidePageMoved
+import com.yeobaek.core.analytics.GuideSentenceTapped
 import com.yeobaek.core.analytics.GuideStarted
 import com.yeobaek.core.analytics.InvalidReason
 import com.yeobaek.core.analytics.InviteCodeCopied
+import com.yeobaek.core.analytics.MyPageOpened
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
@@ -155,12 +162,34 @@ fun App(
                         appContainer.analyticsTracker.track(GuideCompleted(entryPoint = entryPoint))
                         guideViewModel.onSuccessGuide()
                     },
-                    onClickPrevious = guideViewModel::onClickPrevious,
-                    onClickNext = guideViewModel::onClickNext,
+                    onClickPrevious = {
+                        guideViewModel.onClickPrevious()
+                        appContainer.analyticsTracker.track(
+                            GuidePageMoved(
+                                page = guideViewModel.uiState.currentPage,
+                                direction = GuideDirection.PREVIOUS,
+                            ),
+                        )
+                    },
+                    onClickNext = {
+                        guideViewModel.onClickNext()
+                        appContainer.analyticsTracker.track(
+                            GuidePageMoved(
+                                page = guideViewModel.uiState.currentPage,
+                                direction = GuideDirection.NEXT,
+                            ),
+                        )
+                    },
                     isLast = guideViewModel.isLast(),
                     currentPageText = guideViewModel.currentPageText(),
-                    onClickCommentSentence = guideViewModel::onClickCommentSentence,
-                    onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
+                    onClickCommentSentence = {
+                        appContainer.analyticsTracker.track(GuideSentenceTapped(hasComment = true))
+                        guideViewModel.onClickCommentSentence()
+                    },
+                    onClickUnCommentSentence = {
+                        appContainer.analyticsTracker.track(GuideSentenceTapped(hasComment = false))
+                        guideViewModel.onClickUnCommentSentence()
+                    },
                     onCancel = {
                         appContainer.analyticsTracker.track(
                             GuideDismissed(
@@ -218,6 +247,7 @@ fun App(
                         navController.navigate(Reader(groupId = it))
                     },
                     navigateToMyPage = {
+                        appContainer.analyticsTracker.track(MyPageOpened)
                         navController.navigate(MyPage)
                     },
                 )
@@ -266,6 +296,9 @@ fun App(
                     },
                     onUnBlockUser = { otherUserId ->
                         detailViewModel.unBlockUser(otherUserId)
+                    },
+                    onExitRequest = {
+                        appContainer.analyticsTracker.track(GroupExitRequested(groupId = route.groupId))
                     },
                     onBackClick = {
                         navController.popBackStack()
@@ -391,6 +424,9 @@ fun App(
                     uiState = joinViewModel.uiState,
                     onCodeValueChange = joinViewModel::onCodeValueChange,
                     onBackClick = {
+                        appContainer.analyticsTracker.track(
+                            GroupJoinAbandoned(hasCode = joinViewModel.uiState.codeValue.isNotBlank()),
+                        )
                         navController.popBackStack()
                     },
                     navigateToHome = {
@@ -428,6 +464,12 @@ fun App(
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
                     onBackClick = {
+                        appContainer.analyticsTracker.track(
+                            GroupCreateAbandoned(
+                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
+                                hasBook = createViewModel.uiState.bookList.any { it.selected },
+                            ),
+                        )
                         navController.popBackStack()
                     },
                     onCreateGroup = {
