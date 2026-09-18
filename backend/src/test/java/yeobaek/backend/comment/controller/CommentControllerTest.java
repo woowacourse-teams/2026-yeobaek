@@ -319,6 +319,22 @@ class CommentControllerTest extends ControllerTest {
         verifyNoInteractions(analyticsTracker);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}"})
+    @DisplayName("댓글 작성 내용이 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullCreateContent(String content) throws Exception {
+        givenValidMember(5L);
+
+        mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
+                        .header("X-Member-Id", "5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(commentService);
+    }
+
     @Test
     @DisplayName("댓글 수정 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingUpdateBody() throws Exception {
@@ -330,6 +346,22 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(result -> assertInstanceOf(
                         HttpMessageNotReadableException.class,
                         result.getResolvedException()));
+
+        verifyNoInteractions(commentService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}"})
+    @DisplayName("댓글 수정 내용이 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullUpdateContent(String content) throws Exception {
+        givenValidMember(6L);
+
+        mockMvc.perform(put("/api/comments/{commentId}", 9L)
+                        .header("X-Member-Id", "6")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
 
         verifyNoInteractions(commentService);
     }

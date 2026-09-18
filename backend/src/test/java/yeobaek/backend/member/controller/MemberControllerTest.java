@@ -142,6 +142,19 @@ class MemberControllerTest extends ControllerTest {
         verifyNoInteractions(memberService);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"nickname\":null}"})
+    @DisplayName("필수 닉네임이 누락되거나 null이면 회원 서비스를 호출하지 않는다")
+    void rejectMissingOrNullNickname(String content) throws Exception {
+        mockMvc.perform(post("/api/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(memberService);
+    }
+
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {

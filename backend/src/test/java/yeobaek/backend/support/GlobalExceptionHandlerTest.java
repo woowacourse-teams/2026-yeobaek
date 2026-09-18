@@ -13,6 +13,19 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
+    @DisplayName("요청 DTO 검증 실패를 400과 INVALID_REQUEST로 변환한다")
+    void handleValidation() {
+        var response = handler.handleValidation();
+        var body = response.getBody();
+
+        assertNotNull(body, "검증 실패 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(), "검증 실패는 400이어야 한다"),
+                () -> assertEquals("INVALID_REQUEST", body.code(), "기존 잘못된 요청 코드를 반환해야 한다"),
+                () -> assertEquals("필수 요청 값이 누락되었습니다.", body.message(), "필수값 누락 안내를 반환해야 한다"));
+    }
+
+    @Test
     @DisplayName("잘못된 요청의 상태, 코드, 메시지를 변환한다")
     void handleIllegalArgument() {
         var exception = new IllegalArgumentException("요청 값 검증 실패 원문");

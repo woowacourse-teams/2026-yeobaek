@@ -1,6 +1,8 @@
 package yeobaek.backend.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.AssertTrue;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.Isni;
 
@@ -21,5 +23,12 @@ public record AuthorEntryRequest(
 
     public boolean referencesExisting() {
         return authorId != null;
+    }
+
+    @JsonIgnore
+    @Schema(hidden = true)
+    @AssertTrue
+    public boolean isNameProvidedWhenRequired() {
+        return authorId != null || name != null;
     }
 }
