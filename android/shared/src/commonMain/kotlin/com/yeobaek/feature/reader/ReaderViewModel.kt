@@ -54,6 +54,10 @@ class ReaderViewModel(
             )
         },
         onCommentCountChanged = { sentenceId, commentCount ->
+            val shouldReloadCommentCollections = commentCount > 0 &&
+                uiState.commentedSentences.sentences.none { sentence ->
+                    sentence.sentenceId == sentenceId
+                }
             val updatedCommentedSentences = uiState.commentedSentences.updateCommentCount(
                 sentenceId = sentenceId,
                 commentCount = commentCount,
@@ -72,6 +76,9 @@ class ReaderViewModel(
                     uiState.commentedSentenceMode
                 },
             )
+            if (shouldReloadCommentCollections) {
+                getCommentCollections()
+            }
         },
         onCommentsViewed = ::handleCommentsViewed,
     )
