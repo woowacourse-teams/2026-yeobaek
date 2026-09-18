@@ -4,6 +4,8 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 
 data class CommentSheetUiState(
     val sentenceId: Long,
+    val sentenceContent: String,
+    val targetPassageSequence: Int? = null,
     val comments: List<CommentUiModel> = emptyList(),
     val input: String = "",
     val editingCommentId: Long? = null,
@@ -26,6 +28,7 @@ sealed class ReportState {
 
 class CommentSheetActions(
     val onDismiss: () -> Unit,
+    val onRetry: () -> Unit,
     val onInputChange: (String) -> Unit,
     val onSubmit: () -> Unit,
     val onEdit: (commentId: Long) -> Unit,

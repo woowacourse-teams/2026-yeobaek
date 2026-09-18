@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,15 +37,15 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReportState
-import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentBottomSheet(
-    sentence: SentenceUiModel,
     uiState: CommentSheetUiState,
     onDismissRequest: () -> Unit,
+    onRetry: () -> Unit,
+    onGoToText: () -> Unit,
     onInputChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onEdit: (Long) -> Unit,
@@ -138,7 +140,7 @@ fun CommentBottomSheet(
                     },
             ) {
                 SentenceQuote(
-                    content = sentence.content,
+                    content = uiState.sentenceContent,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
                 Spacer(modifier = Modifier.height(22.dp))
@@ -147,11 +149,22 @@ fun CommentBottomSheet(
                     onEdit = onEdit,
                     onDelete = onDelete,
                     onReport = onReport,
+                    onRetry = onRetry,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     listState = commentListState,
                 )
+                if (uiState.targetPassageSequence != null) {
+                    Button(
+                        onClick = onGoToText,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                    ) {
+                        Text("본문으로 이동")
+                    }
+                }
                 CommentInput(
                     value = uiState.input,
                     enabled = !uiState.isSubmitting,

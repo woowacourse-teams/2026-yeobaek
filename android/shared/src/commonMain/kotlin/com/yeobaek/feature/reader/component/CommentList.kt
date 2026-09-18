@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +27,7 @@ fun CommentList(
     onEdit: (Long) -> Unit,
     onDelete: (Long) -> Unit,
     onReport: (Long) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
@@ -34,9 +37,9 @@ fun CommentList(
             modifier = modifier,
         )
 
-        uiState.loadErrorMessage != null -> CommentListMessage(
-            text = uiState.loadErrorMessage,
-            color = MaterialTheme.colorScheme.error,
+        uiState.loadErrorMessage != null -> CommentListError(
+            message = uiState.loadErrorMessage,
+            onRetry = onRetry,
             modifier = modifier,
         )
 
@@ -73,6 +76,28 @@ fun CommentList(
 }
 
 @Composable
+private fun CommentListError(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        TextButton(onClick = onRetry) {
+            Text("다시 시도")
+        }
+    }
+}
+
+@Composable
 private fun CommentListMessage(
     text: String,
     modifier: Modifier = Modifier,
@@ -97,6 +122,7 @@ private fun CommentListPreview() {
         CommentList(
             uiState = CommentSheetUiState(
                 sentenceId = 501,
+                sentenceContent = "거짓 품위를 보이지 않았다는 말에 공감했어요.",
                 comments = listOf(
                     CommentUiModel(
                         commentId = 10,
@@ -130,6 +156,7 @@ private fun CommentListPreview() {
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onRetry = {},
         )
     }
 }

@@ -14,11 +14,13 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.model.toUiModel
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
@@ -52,18 +54,40 @@ class ReaderViewModel(
             )
         },
         onCommentCountChanged = { sentenceId, commentCount ->
+            val shouldReloadCommentCollections = commentCount > 0 &&
+                uiState.commentedSentences.sentences.none { sentence ->
+                    sentence.sentenceId == sentenceId
+                }
+            val updatedCommentedSentences = uiState.commentedSentences.updateCommentCount(
+                sentenceId = sentenceId,
+                commentCount = commentCount,
+            )
             uiState = uiState.copy(
                 passages = uiState.passages.updateCommentCount(
                     sentenceId = sentenceId,
                     commentCount = commentCount,
                 ),
+                commentedSentences = updatedCommentedSentences,
+                commentedSentenceMode = if (
+                    uiState.isCommentCollectionsVisible && updatedCommentedSentences.sentences.isEmpty()
+                ) {
+                    CommentedSentenceMode.None
+                } else {
+                    uiState.commentedSentenceMode
+                },
             )
+            if (shouldReloadCommentCollections) {
+                getCommentCollections()
+            }
         },
+        onCommentsViewed = ::handleCommentsViewed,
     )
 
     private var pagingJob: Job? = null
     private var moveToPassageJob: Job? = null
     private var saveReadingProgressJob: Job? = null
+    private var commentCollectionsJob: Job? = null
+    private var newCommentCountJob: Job? = null
 
     private var currentBookId: Long? = null
 
@@ -119,6 +143,7 @@ class ReaderViewModel(
                     passageSequence = readingSequence.takeIf { it > 0 },
                     itemCount = passageModels.size,
                 )
+                refreshNewCommentStatus()
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -266,6 +291,7 @@ class ReaderViewModel(
             mode = ReaderMode.SelectingProgress(
                 progress = progress.coerceIn(0f, 100f),
             ),
+            returnPassageSequence = null,
         )
     }
 
@@ -298,13 +324,17 @@ class ReaderViewModel(
         )
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
+            returnPassageSequence = null,
         )
         moveToPassage(targetSequence)
     }
 
     private fun moveToPassage(targetSequence: Int) {
         if (targetSequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount) {
-            uiState = uiState.copy(mode = ReaderMode.Idle)
+            uiState = uiState.copy(
+                mode = ReaderMode.Idle,
+                returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
+            )
             return
         }
 
@@ -343,6 +373,7 @@ class ReaderViewModel(
                     )
                     uiState.copy(
                         mode = ReaderMode.Idle,
+                        returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
                     )
                 } else {
                     uiState.copy(
@@ -359,6 +390,50 @@ class ReaderViewModel(
                 recordFailure(exception, CrashOperation.READER_SEEK_FAILED, passageSequence = targetSequence)
                 uiState = uiState.copy(
                     mode = ReaderMode.Idle,
+                    returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
+                )
+            }
+        }
+    }
+
+    fun getCommentCollections() {
+        commentCollectionsJob?.cancel()
+        uiState = uiState.copy(commentedSentenceMode = CommentedSentenceMode.Loading)
+
+        commentCollectionsJob = viewModelScope.launch {
+            try {
+                val currentPassageId = currentPassageId()
+                    ?: throw IllegalArgumentException("문단 아이디를 찾지 못했어요")
+                val comments = commentRepository.getCommentedSentences(
+                    clubId = groupId,
+                    currentPassageId = currentPassageId,
+                ).toUiModel()
+
+                uiState = uiState.copy(
+                    commentedSentences = comments.copy(
+                        sentences = comments.sentences.map { sentence ->
+                            sentence.copy(
+                                progress = sequenceToProgress(
+                                    sequence = sentence.passageSequence,
+                                    totalPassageCount = uiState.totalPassageCount,
+                                ),
+                            )
+                        },
+                    ),
+                    commentedSentenceMode = if (comments.sentences.isNotEmpty()) {
+                        CommentedSentenceMode.Exists
+                    } else {
+                        CommentedSentenceMode.None
+                    },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                recordFailure(e, CrashOperation.COMMENTS_LOAD_FAILED)
+                uiState = uiState.copy(
+                    commentedSentenceMode = CommentedSentenceMode.Failed(
+                        message = "댓글을 불러오지 못했습니다.",
+                    ),
                 )
             }
         }
@@ -372,7 +447,10 @@ class ReaderViewModel(
         uiState = uiState.copy(
             readingSequence = passage.sequence,
             mode = ReaderMode.Idle,
+            returnPassageSequence = uiState.returnPassageSequence
+                ?.takeUnless { returnSequence -> returnSequence == passage.sequence },
         )
+        refreshNewCommentStatus()
     }
 
     fun cancelMoveToPassage(targetSequence: Int) {
@@ -381,7 +459,10 @@ class ReaderViewModel(
 
         track(CrashOperation.READER_SEEK_TARGET_MISSING, CrashLogLevel.WARN, passageSequence = targetSequence)
         moveToPassageJob = null
-        uiState = uiState.copy(mode = ReaderMode.Idle)
+        uiState = uiState.copy(
+            mode = ReaderMode.Idle,
+            returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
+        )
     }
 
     fun toggleTextSettingMenu() {
@@ -396,6 +477,22 @@ class ReaderViewModel(
         )
     }
 
+    fun openCommentCollections() {
+        uiState = uiState.copy(
+            isCommentCollectionsVisible = true,
+            isTextSettingMenuExpanded = false,
+        )
+        getCommentCollections()
+    }
+
+    fun dismissCommentCollections() {
+        commentCollectionsJob?.cancel()
+        commentCollectionsJob = null
+        uiState = uiState.copy(
+            isCommentCollectionsVisible = false,
+        )
+    }
+
     fun updateFontSize(fontSize: Int) {
         if (fontSize !in ReaderFontSize.options) return
 
@@ -407,6 +504,63 @@ class ReaderViewModel(
     fun openSentenceComments(sentence: SentenceUiModel) {
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.open(sentence)
+    }
+
+    fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
+        uiState = uiState.copy(isTextSettingMenuExpanded = false)
+        commentSheet.openFromCollection(sentence)
+    }
+
+    fun moveToSelectedComment() {
+        val targetSequence = commentSheet.uiState?.targetPassageSequence ?: return
+        val currentSequence = currentReadingSequence()
+        val returnSequence = uiState.returnPassageSequence
+            ?: currentSequence.takeIf { sequence ->
+                sequence in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount && sequence != targetSequence
+            }
+
+        commentSheet.dismiss()
+        uiState = uiState.copy(
+            isCommentCollectionsVisible = false,
+            returnPassageSequence = returnSequence,
+        )
+        moveToPassage(targetSequence)
+    }
+
+    fun returnToReadingAnchor() {
+        val targetSequence = uiState.returnPassageSequence ?: return
+        moveToPassage(targetSequence)
+    }
+
+    private fun returnAnchorAfterFailedMove(targetSequence: Int): Int? =
+        uiState.returnPassageSequence?.takeIf { returnSequence ->
+            returnSequence == targetSequence
+        }
+
+    private fun handleCommentsViewed(sentenceId: Long) {
+        uiState = uiState.copy(
+            commentedSentences = uiState.commentedSentences.markCommentsViewed(sentenceId),
+        )
+        refreshNewCommentStatus()
+    }
+
+    private fun refreshNewCommentStatus() {
+        val currentPassageId = currentPassageId() ?: return
+
+        newCommentCountJob?.cancel()
+        newCommentCountJob = viewModelScope.launch {
+            try {
+                val newCommentCount = commentRepository.getNewCommentCount(
+                    clubId = groupId,
+                    currentPassageId = currentPassageId,
+                ).newCommentCount
+                uiState = uiState.copy(isNewComment = newCommentCount > 0)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                // 새 댓글 강조 조회 실패가 본문 읽기를 막아서는 안 된다.
+            }
+        }
     }
 
     private fun cancelPaginationLoads() {
@@ -454,6 +608,15 @@ class ReaderViewModel(
     }
 
     private fun readingSequenceOrNull(): Int? = uiState.readingSequence.takeIf { it > 0 }
+
+    private fun currentReadingSequence(): Int = uiState.readingSequence
+        .takeIf { sequence -> sequence in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount }
+        ?: uiState.passages.firstSequence
+        ?: 0
+
+    private fun currentPassageId(): Long? = uiState.passages
+        .findBySequence(currentReadingSequence())
+        ?.passageId
 
     private fun readerContext(
         operation: CrashOperation,

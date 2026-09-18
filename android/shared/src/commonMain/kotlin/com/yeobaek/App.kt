@@ -101,7 +101,7 @@ fun App(
                     screen = TrackedScreen.GUIDE,
                 )
 
-                val guideViewModel: GuideViewModel = viewModel()
+                val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
@@ -267,11 +267,18 @@ fun App(
                         onVisiblePassageChange = readerViewModel::updateReadingPassage,
                         onTargetPassageReached = readerViewModel::completeMoveToPassage,
                         onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
+                        onCommentCollectionsClick = readerViewModel::openCommentCollections,
+                        onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
+                        onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+                        onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+                        onMoveToComment = readerViewModel::moveToSelectedComment,
+                        onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
                     )
                 }
                 val commentSheetActions = remember(commentSheet) {
                     CommentSheetActions(
                         onDismiss = commentSheet::dismiss,
+                        onRetry = commentSheet::retryLoad,
                         onInputChange = commentSheet::updateInput,
                         onSubmit = commentSheet::submit,
                         onEdit = commentSheet::startEditing,
