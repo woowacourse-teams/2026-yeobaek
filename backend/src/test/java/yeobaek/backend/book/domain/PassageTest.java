@@ -11,7 +11,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 
 class PassageTest {
 
@@ -20,18 +23,18 @@ class PassageTest {
     @ValueSource(strings = {"", " ", "   "})
     @DisplayName("문장 내용이 없거나 공백뿐이면 문단 생성에 실패한다")
     void rejectBlankContent(String content) {
-        Book book = new Book("제목", null, null, 1, null);
-        Chapter chapter = new Chapter(book, "1장", 1);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
 
-        assertThatThrownBy(() -> new Passage(chapter, 1, Collections.singletonList(content)))
+        assertThatThrownBy(() -> new Passage(chapter, 1, Collections.singletonList(new SentenceContent(content))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("문장이 없으면 문단 생성에 실패한다")
     void rejectEmptySentences() {
-        Book book = new Book("제목", null, null, 1, null);
-        Chapter chapter = new Chapter(book, "1장", 1);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
 
         assertThatThrownBy(() -> new Passage(chapter, 1, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -40,10 +43,10 @@ class PassageTest {
     @Test
     @DisplayName("문장은 배열 순서대로 dense sequence를 가지며 원문의 공백과 개행을 보존한다")
     void createSentencesInDenseOrderWithoutTrimming() {
-        Book book = new Book("제목", null, null, 1, null);
-        Chapter chapter = new Chapter(book, "1장", 1);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
 
-        Passage passage = new Passage(chapter, 1, List.of("첫 문장.  ", "둘째 문장.\n"));
+        Passage passage = new Passage(chapter, 1, List.of(new SentenceContent("첫 문장.  "), new SentenceContent("둘째 문장.\n")));
 
         assertThat(passage.getSentences()).extracting(Sentence::getSequence)
                 .containsExactly(new ContentSequence(1), new ContentSequence(2));
@@ -56,10 +59,10 @@ class PassageTest {
     @Test
     @DisplayName("본문이 속한 챕터의 도서와 같은 도서를 전달하면 참을 반환한다")
     void belongsToOwnBook() {
-        Book book = new Book("제목", null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
         ReflectionTestUtils.setField(book, "id", 1L);
-        Chapter chapter = new Chapter(book, "1장", 1);
-        Passage passage = new Passage(chapter, 1, Collections.singletonList("본문"));
+        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
+        Passage passage = new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문")));
 
         assertThat(passage.belongsTo(book)).isTrue();
     }
@@ -67,12 +70,12 @@ class PassageTest {
     @Test
     @DisplayName("본문이 속하지 않은 도서를 전달하면 거짓을 반환한다")
     void doesNotBelongToOtherBook() {
-        Book book = new Book("제목", null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
         ReflectionTestUtils.setField(book, "id", 1L);
-        Book otherBook = new Book("다른 제목", null, null, 1, null);
+        Book otherBook = new Book(new BookTitle("다른 제목"), null, null, 1, null);
         ReflectionTestUtils.setField(otherBook, "id", 2L);
-        Chapter chapter = new Chapter(book, "1장", 1);
-        Passage passage = new Passage(chapter, 1, Collections.singletonList("본문"));
+        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
+        Passage passage = new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문")));
 
         assertThat(passage.belongsTo(otherBook)).isFalse();
     }

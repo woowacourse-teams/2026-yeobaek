@@ -48,15 +48,21 @@ public class Comment {
 
     private LocalDateTime updatedAt;
 
-    public Comment(ClubMember clubMember, Sentence sentence, String content) {
+    public Comment(ClubMember clubMember, Sentence sentence, CommentContent content) {
         this.clubMember = clubMember;
         this.sentence = sentence;
-        this.content = new CommentContent(content);
+        if (content == null) {
+            throw new IllegalArgumentException("댓글 내용은 필수입니다.");
+        }
+        this.content = content;
         this.createdAt = LocalDateTime.now();
     }
 
-    public void updateContent(String content) {
-        this.content = new CommentContent(content);
+    public void updateContent(CommentContent content) {
+        if (content == null) {
+            throw new IllegalArgumentException("댓글 내용은 필수입니다.");
+        }
+        this.content = content;
         this.updatedAt = LocalDateTime.now();
     }
 

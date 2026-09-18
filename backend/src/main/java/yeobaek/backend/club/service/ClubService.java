@@ -13,6 +13,7 @@ import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
@@ -46,7 +47,7 @@ public class ClubService {
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
-    public ClubCreateResponse create(Long memberId, String name, Long bookId) {
+    public ClubCreateResponse create(Long memberId, ClubName name, Long bookId) {
         Book book = bookRepository.getById(bookId);
         Club club = clubRepository.save(new Club(name, book, generateUniqueJoinCode()));
         clubMemberRepository.save(new ClubMember(memberRepository.getReferenceById(memberId), club));
@@ -55,8 +56,8 @@ public class ClubService {
     }
 
     @Transactional
-    public ClubJoinResponse join(Long memberId, String joinCode) {
-        Club club = clubRepository.findByJoinCode(joinCode)
+    public ClubJoinResponse join(Long memberId, JoinCode joinCode) {
+        Club club = clubRepository.findByJoinCode(joinCode.value())
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.JOIN_CODE_NOT_FOUND,
                         "참여 코드에 해당하는 모임이 존재하지 않습니다."));

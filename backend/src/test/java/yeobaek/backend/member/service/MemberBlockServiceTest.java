@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -32,8 +33,8 @@ class MemberBlockServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        blocker = memberRepository.save(new Member("민서"));
-        blocked = memberRepository.save(new Member("지수"));
+        blocker = memberRepository.save(new Member(new Nickname("민서")));
+        blocked = memberRepository.save(new Member(new Nickname("지수")));
     }
 
     @Test

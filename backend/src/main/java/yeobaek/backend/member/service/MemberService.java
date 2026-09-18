@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 
@@ -18,7 +19,7 @@ public class MemberService {
     private final ClubMemberRepository clubMemberRepository;
 
     @Transactional
-    public MemberCreateResponse create(String nickname) {
+    public MemberCreateResponse create(Nickname nickname) {
         Member member = new Member(nickname);
         if (memberRepository.existsByNickname(member.getNickname())) {
             throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");

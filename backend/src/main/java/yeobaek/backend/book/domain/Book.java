@@ -61,12 +61,13 @@ public class Book {
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
 
-    public Book(String title, String publisher, Integer publishedYear, int passageCount, String coverImageKey) {
+    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey) {
         validateCoverImageKey(coverImageKey);
-        this.title = new BookTitle(title);
-        if (publisher != null) {
-            this.publisher = new Publisher(publisher);
+        if (title == null) {
+            throw new IllegalArgumentException("도서 제목은 필수입니다.");
         }
+        this.title = title;
+        this.publisher = publisher;
         this.publishedYear = publishedYear;
         this.passageCount = new PassageCount(passageCount);
         this.coverImageKey = coverImageKey;

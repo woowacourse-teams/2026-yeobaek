@@ -18,6 +18,11 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.book.domain.vo.Publisher;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -25,6 +30,8 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
+import yeobaek.backend.club.domain.vo.ClubName;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
 import yeobaek.backend.club.dto.ClubJoinResponse;
@@ -35,6 +42,7 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
@@ -80,9 +88,9 @@ class ClubServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        creator = memberRepository.save(new Member("민서"));
-        book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 312, null));
-        Author author = authorRepository.save(new Author("현진건"));
+        creator = memberRepository.save(new Member(new Nickname("민서")));
+        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 312, null));
+        Author author = authorRepository.save(new Author(new AuthorName("현진건")));
         authorBookRepository.save(new AuthorBook(author, book));
     }
 
@@ -95,7 +103,7 @@ class ClubServiceTest extends IntegrationTest {
         void cannotCreateClubForDeletedBook() {
             bookRepository.delete(book.getId());
 
-            assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", book.getId()))
+            assertThatThrownBy(() -> clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId()))
                     .isInstanceOf(BadRequestException.class)
                     .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
         }
@@ -103,11 +111,11 @@ class ClubServiceTest extends IntegrationTest {
         @Test
         @DisplayName("삭제된 도서를 읽는 기존 모임에는 새로 참여할 수 없다")
         void cannotJoinClubForDeletedBook() {
-            ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
-            Member joiner = memberRepository.save(new Member("지수"));
+            ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
+            Member joiner = memberRepository.save(new Member(new Nickname("지수")));
             bookRepository.delete(book.getId());
 
-            assertThatThrownBy(() -> clubService.join(joiner.getId(), created.joinCode()))
+            assertThatThrownBy(() -> clubService.join(joiner.getId(), new JoinCode(created.joinCode())))
                     .isInstanceOf(BadRequestException.class)
                     .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
             assertThat(clubMemberRepository.findByMemberIdAndClubId(joiner.getId(), created.clubId())).isEmpty();
@@ -117,7 +125,7 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임을 생성하면 참여 코드가 발급되고 생성자가 자동으로 참여한다")
     void createClub() {
-        ClubCreateResponse response = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+        ClubCreateResponse response = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
 
         assertThat(response.joinCode()).matches("^[A-Z0-9]{6}$");
         assertThat(response.book().authors()).containsExactly("현진건");
@@ -128,26 +136,26 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않는 도서로는 모임을 생성할 수 없다")
     void rejectUnknownBook() {
-        assertThatThrownBy(() -> clubService.create(creator.getId(), "교환독서 1기", 999L))
+        assertThatThrownBy(() -> clubService.create(creator.getId(), new ClubName("교환독서 1기"), 999L))
                 .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     @DisplayName("참여 코드로 모임에 참여한다")
     void joinByCode() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
+        Member joiner = memberRepository.save(new Member(new Nickname("지수")));
 
-        ClubJoinResponse response = clubService.join(joiner.getId(), created.joinCode());
+        ClubJoinResponse response = clubService.join(joiner.getId(), new JoinCode(created.joinCode()));
 
         assertThat(response.clubId()).isEqualTo(created.clubId());
         assertThat(clubMemberRepository.existsJoinedByMemberIdAndClubId(joiner.getId(), created.clubId())).isTrue();
     }
 
     @Test
-    @DisplayName("발급 형식이 아닌 참여 코드는 기존과 같이 존재하지 않는 코드로 처리한다")
-    void invalidJoinCodeRemainsNotFound() {
-        assertThatThrownBy(() -> clubService.join(creator.getId(), "invalid"))
+    @DisplayName("형식이 유효하지만 존재하지 않는 참여 코드는 JOIN_CODE_NOT_FOUND로 처리한다")
+    void unknownJoinCodeIsNotFound() {
+        assertThatThrownBy(() -> clubService.join(creator.getId(), new JoinCode("ABC123")))
                 .isInstanceOfSatisfying(NotFoundException.class,
                         exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.JOIN_CODE_NOT_FOUND));
     }
@@ -155,9 +163,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("이미 참여한 모임에 다시 참여해도 같은 응답을 반환한다 (멱등)")
     void joinIsIdempotent() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
 
-        ClubJoinResponse response = clubService.join(creator.getId(), created.joinCode());
+        ClubJoinResponse response = clubService.join(creator.getId(), new JoinCode(created.joinCode()));
 
         assertThat(response.clubId()).isEqualTo(created.clubId());
         assertThat(clubMemberRepository.countJoinedByClubIds(List.of(created.clubId())).getFirst().getMemberCount())
@@ -167,7 +175,7 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임을 탈퇴하면 참여 정보를 탈퇴 상태로 바꾸고 중복 요청도 성공한다")
     void leaveIsIdempotent() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
 
         clubService.leave(creator.getId(), created.clubId());
         clubService.leave(creator.getId(), created.clubId());
@@ -181,8 +189,8 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("가입 이력이 없는 회원은 모임을 탈퇴할 수 없다")
     void rejectLeaveWithoutHistory() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
-        Member outsider = memberRepository.save(new Member("외부인"));
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
+        Member outsider = memberRepository.save(new Member(new Nickname("외부인")));
 
         assertThatThrownBy(() -> clubService.leave(outsider.getId(), created.clubId()))
                 .isInstanceOfSatisfying(ForbiddenException.class,
@@ -200,9 +208,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("탈퇴 후 재가입하면 기존 참여 정보와 진도를 복구한다")
     void rejoinRestoresMembershipAndProgress() {
-        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 42, Collections.singletonList("본문")));
-        ClubCreateResponse created = clubService.create(creator.getId(), "교환독서 1기", book.getId());
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 42, Collections.singletonList(new SentenceContent("본문"))));
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
         LocalDateTime lastReadAt = LocalDateTime.of(2026, 8, 24, 12, 0);
@@ -210,7 +218,7 @@ class ClubServiceTest extends IntegrationTest {
         clubMemberRepository.saveAndFlush(membership);
 
         clubService.leave(creator.getId(), created.clubId());
-        clubService.join(creator.getId(), created.joinCode());
+        clubService.join(creator.getId(), new JoinCode(created.joinCode()));
 
         ClubMember restored = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
@@ -224,14 +232,14 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않는 참여 코드는 거부된다")
     void rejectUnknownJoinCode() {
-        assertThatThrownBy(() -> clubService.join(creator.getId(), "NOCODE"))
+        assertThatThrownBy(() -> clubService.join(creator.getId(), new JoinCode("NOCODE")))
                 .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     @DisplayName("삭제된 도서가 연결된 기존 모임은 목록과 상세에 DELETED 상태로 보존된다")
     void preservesClubOfDeletedBook() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
         bookRepository.delete(book.getId());
 
         MyClubsResponse clubs = clubService.findMyClubs(creator.getId());
@@ -244,13 +252,13 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("내 모임 목록에 회원 수와 진도가 함께 조회된다")
     void findMyClubsWithProgress() {
-        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3, null));
-        Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("본문 2")));
-        ClubCreateResponse first = clubService.create(creator.getId(), "1기", book.getId());
-        ClubCreateResponse secondClub = clubService.create(creator.getId(), "2기", smallBook.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
-        clubService.join(joiner.getId(), first.joinCode());
+        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
+        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
+        ClubCreateResponse first = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
+        ClubCreateResponse secondClub = clubService.create(creator.getId(), new ClubName("2기"), smallBook.getId());
+        Member joiner = memberRepository.save(new Member(new Nickname("지수")));
+        clubService.join(joiner.getId(), new JoinCode(first.joinCode()));
         ClubMember myMembership = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(creator.getId()).stream()
                 .filter(clubMember -> clubMember.getClub().getId().equals(secondClub.clubId()))
                 .findFirst().orElseThrow();
@@ -273,9 +281,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("탈퇴한 모임은 내 목록에서 제외되고 참여자 수에도 포함되지 않는다")
     void excludeLeftMembershipFromMyClubsAndCount() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
-        clubService.join(joiner.getId(), created.joinCode());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
+        Member joiner = memberRepository.save(new Member(new Nickname("지수")));
+        clubService.join(joiner.getId(), new JoinCode(created.joinCode()));
 
         clubService.leave(joiner.getId(), created.clubId());
 
@@ -289,12 +297,12 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임 상세에 참여 코드·참여 순서의 회원 목록·내 진도가 함께 조회된다")
     void findDetailWithMembersAndProgress() {
-        Book smallBook = bookRepository.save(new Book("작은 책", null, null, 3, null));
-        Chapter chapter = chapterRepository.save(new Chapter(smallBook, "1장", 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList("본문 2")));
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", smallBook.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
-        clubService.join(joiner.getId(), created.joinCode());
+        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
+        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), smallBook.getId());
+        Member joiner = memberRepository.save(new Member(new Nickname("지수")));
+        clubService.join(joiner.getId(), new JoinCode(created.joinCode()));
         memberBlockRepository.save(new MemberBlock(creator, joiner));
         ClubMember myMembership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
@@ -314,9 +322,9 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("탈퇴 회원은 모임 상세에서 제외되고 자신의 상세 조회도 거부된다")
     void excludeLeftMembershipFromDetail() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
-        Member joiner = memberRepository.save(new Member("지수"));
-        clubService.join(joiner.getId(), created.joinCode());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
+        Member joiner = memberRepository.save(new Member(new Nickname("지수")));
+        clubService.join(joiner.getId(), new JoinCode(created.joinCode()));
 
         clubService.leave(joiner.getId(), created.clubId());
 
@@ -329,7 +337,7 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("읽기 시작 전이면 모임 상세의 내 진도는 null이다")
     void findDetailWithoutProgress() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
 
         ClubDetailResponse response = clubService.findDetail(creator.getId(), created.clubId());
 
@@ -339,8 +347,8 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임에 참여하지 않은 회원의 상세 조회는 거부된다")
     void rejectDetailForOutsider() {
-        ClubCreateResponse created = clubService.create(creator.getId(), "1기", book.getId());
-        Member outsider = memberRepository.save(new Member("외부인"));
+        ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
+        Member outsider = memberRepository.save(new Member(new Nickname("외부인")));
 
         assertThatThrownBy(() -> clubService.findDetail(outsider.getId(), created.clubId()))
                 .isInstanceOf(ForbiddenException.class);

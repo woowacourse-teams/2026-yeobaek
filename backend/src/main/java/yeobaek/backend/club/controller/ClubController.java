@@ -45,7 +45,7 @@ public class ClubController {
     }
 
     @Operation(summary = "참여 코드로 모임 참여",
-            description = "존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
+            description = "형식이 잘못된 코드는 400(INVALID_REQUEST), 존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
     @PostMapping("/api/clubs/join")
     public ClubJoinResponse join(@AuthMember Long memberId, @Valid @RequestBody ClubJoinRequest request) {
         ClubJoinResponse response = clubService.join(memberId, request.joinCode());

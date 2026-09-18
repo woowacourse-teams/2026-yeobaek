@@ -39,9 +39,12 @@ public class Chapter {
     @AttributeOverride(name = "value", column = @Column(name = "sequence", nullable = false))
     private ContentSequence sequence;
 
-    public Chapter(Book book, String title, int sequence) {
+    public Chapter(Book book, ChapterTitle title, int sequence) {
         this.book = book;
-        this.title = new ChapterTitle(title);
+        if (title == null) {
+            throw new IllegalArgumentException("목차 제목은 필수입니다.");
+        }
+        this.title = title;
         this.sequence = new ContentSequence(sequence);
     }
 

@@ -22,16 +22,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import yeobaek.backend.comment.domain.ContentVisibility;
+import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
-import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -204,7 +204,7 @@ class CommentControllerTest extends ControllerTest {
         givenValidMember(2L);
         var createdAt = LocalDateTime.of(2026, 8, 6, 9, 15);
         var response = new CommentResponse(9L, 2L, "민서", "새 댓글", createdAt, null, true);
-        given(commentService.create(2L, 10L, 1042L, "새 댓글")).willReturn(response);
+        given(commentService.create(2L, 10L, 1042L, new CommentContent("새 댓글"))).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
                         .header("X-Member-Id", "2")
@@ -222,7 +222,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.updatedAt").value((Object) null))
                 .andExpect(jsonPath("$.mine").value(true));
 
-        verify(commentService, times(1)).create(2L, 10L, 1042L, "새 댓글");
+        verify(commentService, times(1)).create(2L, 10L, 1042L, new CommentContent("새 댓글"));
         verify(analyticsTracker, times(1))
                 .track(2L, AnalyticsEvent.commentCreate(10L, 1042L, 9L));
     }
@@ -253,7 +253,7 @@ class CommentControllerTest extends ControllerTest {
         var createdAt = LocalDateTime.of(2026, 8, 6, 9, 15);
         var updatedAt = LocalDateTime.of(2026, 8, 6, 10, 30);
         var response = new CommentResponse(9L, 3L, "민서", "수정된 내용", createdAt, updatedAt, true);
-        given(commentService.update(3L, 9L, "수정된 내용")).willReturn(response);
+        given(commentService.update(3L, 9L, new CommentContent("수정된 내용"))).willReturn(response);
 
         mockMvc.perform(put("/api/comments/{commentId}", 9L)
                         .header("X-Member-Id", "3")
@@ -271,7 +271,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.updatedAt").value("2026-08-06T10:30:00"))
                 .andExpect(jsonPath("$.mine").value(true));
 
-        verify(commentService, times(1)).update(3L, 9L, "수정된 내용");
+        verify(commentService, times(1)).update(3L, 9L, new CommentContent("수정된 내용"));
         verify(analyticsTracker).track(3L, AnalyticsEvent.commentUpdate(9L));
     }
 
@@ -330,7 +330,7 @@ class CommentControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
 
         verifyNoInteractions(commentService);
     }
@@ -361,7 +361,7 @@ class CommentControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
 
         verifyNoInteractions(commentService);
     }
@@ -421,5 +421,39 @@ class CommentControllerTest extends ControllerTest {
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker).track(1L,
                 AnalyticsEvent.commentsViewFromExplicitPost(10L, 1042L, 0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}", "{\"content\":\" \"}"})
+    @DisplayName("content VO를 만들 수 없는 요청은 서비스 호출 전에 거부한다")
+    void rejectInvalidContentOnPost(String body) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(post("/api/clubs/1/sentences/2/comments")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(commentService, analyticsTracker);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}", "{\"content\":\" \"}"})
+    @DisplayName("content VO를 만들 수 없는 요청은 서비스 호출 전에 거부한다")
+    void rejectInvalidContentOnPut(String body) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(put("/api/comments/3")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(commentService, analyticsTracker);
     }
 }

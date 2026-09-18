@@ -42,10 +42,13 @@ public class Sentence {
     @AttributeOverride(name = "value", column = @Column(name = "content", columnDefinition = "TEXT", nullable = false))
     private SentenceContent content;
 
-    Sentence(Passage passage, int sequence, String content) {
+    Sentence(Passage passage, int sequence, SentenceContent content) {
         this.passage = passage;
         this.sequence = new ContentSequence(sequence);
-        this.content = new SentenceContent(content);
+        if (content == null) {
+            throw new IllegalArgumentException("문장 내용은 필수입니다.");
+        }
+        this.content = content;
     }
 
     public String getContent() {

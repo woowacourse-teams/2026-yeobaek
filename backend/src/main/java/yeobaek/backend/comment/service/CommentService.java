@@ -18,9 +18,10 @@ import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.ContentVisibility;
+import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
-import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.repository.CommentReportRepository;
@@ -58,7 +59,7 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponse create(Long memberId, Long clubId, Long sentenceId, String content) {
+    public CommentResponse create(Long memberId, Long clubId, Long sentenceId, CommentContent content) {
         SentenceContext context = validateSentenceContext(memberId, clubId, sentenceId);
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
@@ -86,7 +87,7 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponse update(Long memberId, Long commentId, String content) {
+    public CommentResponse update(Long memberId, Long commentId, CommentContent content) {
         Comment comment = findOwnComment(memberId, commentId, "수정");
         comment.ensureBookAvailable();
         comment.updateContent(content);
