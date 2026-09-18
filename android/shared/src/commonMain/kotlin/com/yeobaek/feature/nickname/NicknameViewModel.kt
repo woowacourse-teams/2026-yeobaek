@@ -8,6 +8,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.NicknameSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -20,6 +24,7 @@ import kotlinx.coroutines.launch
 class NicknameViewModel(
     private val userRepository: UserRepository,
     private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState by mutableStateOf(NicknameUiState())
         private set
@@ -40,7 +45,15 @@ class NicknameViewModel(
 
     fun setNickname() {
         checkNickname()
-        if (!uiState.nicknameState) return
+        if (!uiState.nicknameState) {
+            analyticsTracker.track(
+                NicknameSubmitted(
+                    result = EventResult.INVALID,
+                    reason = InvalidReason.NICKNAME_BLANK,
+                ),
+            )
+            return
+        }
 
         uiState = uiState.copy(
             isEnabled = false,
@@ -61,6 +74,7 @@ class NicknameViewModel(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.NICKNAME_SUBMIT_SUCCEEDED),
                 )
+                analyticsTracker.track(NicknameSubmitted(result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -68,6 +82,7 @@ class NicknameViewModel(
                     throwable = e,
                     context = crashContext(CrashOperation.NICKNAME_SUBMIT_FAILED),
                 )
+                analyticsTracker.track(NicknameSubmitted(result = EventResult.FAILURE))
                 uiState = uiState.copy(
                     isEnabled = false,
                     nicknameState = false,
@@ -81,11 +96,13 @@ class NicknameViewModel(
         fun nicknameViewModelFactory(
             userRepository: UserRepository,
             crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 NicknameViewModel(
                     userRepository = userRepository,
                     crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }

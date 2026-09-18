@@ -38,6 +38,7 @@ fun CommentCollectionContents(
     commentedSentences: CommentedSentencesUiModel,
     mode: CommentedSentenceMode,
     onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
+    onSentenceReveal: () -> Unit,
     onRetry: () -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -115,6 +116,7 @@ fun CommentCollectionContents(
                                 onCommentCardClick = onCommentCardClick,
                                 onReveal = {
                                     revealedSentenceIds += sentence.sentenceId
+                                    onSentenceReveal()
                                 },
                             )
                         }

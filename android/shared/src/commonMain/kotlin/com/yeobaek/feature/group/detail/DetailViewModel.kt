@@ -8,6 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupExited
+import com.yeobaek.core.analytics.MemberBlocked
+import com.yeobaek.core.analytics.MemberUnblocked
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -26,6 +31,7 @@ class DetailViewModel(
     private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
@@ -104,6 +110,7 @@ class DetailViewModel(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.GROUP_EXIT_SUCCEEDED),
                 )
+                analyticsTracker.track(GroupExited(groupId = groupId, result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -111,6 +118,7 @@ class DetailViewModel(
                     throwable = e,
                     context = crashContext(CrashOperation.GROUP_EXIT_FAILED),
                 )
+                analyticsTracker.track(GroupExited(groupId = groupId, result = EventResult.FAILURE))
                 uiState = uiState.copy(
                     exitState = ExitState.Failure("모임 탈퇴에 실패했습니다."),
                 )
@@ -130,9 +138,15 @@ class DetailViewModel(
                 uiState = uiState.copy(
                     blockState = BlockState.Success,
                 )
+                analyticsTracker.track(
+                    MemberBlocked(groupId = uiState.groupUiModel.id, result = EventResult.SUCCESS),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                analyticsTracker.track(
+                    MemberBlocked(groupId = uiState.groupUiModel.id, result = EventResult.FAILURE),
+                )
                 uiState = uiState.copy(
                     blockState = BlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
                 )
@@ -153,9 +167,15 @@ class DetailViewModel(
                 uiState = uiState.copy(
                     unBlockState = UnBlockState.Success,
                 )
+                analyticsTracker.track(
+                    MemberUnblocked(groupId = uiState.groupUiModel.id, result = EventResult.SUCCESS),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                analyticsTracker.track(
+                    MemberUnblocked(groupId = uiState.groupUiModel.id, result = EventResult.FAILURE),
+                )
                 uiState = uiState.copy(
                     unBlockState = UnBlockState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
                 )
@@ -173,12 +193,14 @@ class DetailViewModel(
             userRepository: UserRepository,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
                     userRepository = userRepository,
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }

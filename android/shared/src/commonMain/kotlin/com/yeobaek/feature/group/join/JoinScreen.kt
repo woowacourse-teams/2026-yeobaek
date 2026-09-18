@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.group.join.component.JoinCodeTextField
 import com.yeobaek.feature.group.join.component.JoinCommonCard
 
@@ -28,6 +29,8 @@ fun JoinScreen(
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    PlatformBackHandler(onBack = onBackClick)
+
     Scaffold(
         modifier = modifier
             .fillMaxSize(),

@@ -3,14 +3,37 @@ package com.yeobaek
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.AccountDeleteRequested
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupCreateAbandoned
+import com.yeobaek.core.analytics.GroupCreateInitiated
+import com.yeobaek.core.analytics.GroupCreateSubmitted
+import com.yeobaek.core.analytics.GroupDetailOpened
+import com.yeobaek.core.analytics.GroupExitRequested
+import com.yeobaek.core.analytics.GroupJoinAbandoned
+import com.yeobaek.core.analytics.GroupJoinInitiated
+import com.yeobaek.core.analytics.GroupJoinSubmitted
+import com.yeobaek.core.analytics.GuideCompleted
+import com.yeobaek.core.analytics.GuideDirection
+import com.yeobaek.core.analytics.GuideDismissed
+import com.yeobaek.core.analytics.GuideEntryPoint
+import com.yeobaek.core.analytics.GuidePageMoved
+import com.yeobaek.core.analytics.GuideSentenceTapped
+import com.yeobaek.core.analytics.GuideStarted
+import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.InviteCodeCopied
+import com.yeobaek.core.analytics.MyPageOpened
+import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -68,6 +91,7 @@ fun App(
                     factory = NicknameViewModel.nicknameViewModelFactory(
                         userRepository = appContainer.userRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -77,7 +101,7 @@ fun App(
                             appContainer.analyticsTracker.identify(userId)
                         }
                         appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
-                        navController.navigate(Guide) {
+                        navController.navigate(Guide(fromMyPage = false)) {
                             popUpTo<Nickname> {
                                 inclusive = true
                             }
@@ -94,12 +118,22 @@ fun App(
                     },
                 )
             }
-            composable<Guide> {
+            composable<Guide> { backStackEntry ->
+                val route = backStackEntry.toRoute<Guide>()
+                val entryPoint = if (route.fromMyPage) {
+                    GuideEntryPoint.MY_PAGE
+                } else {
+                    GuideEntryPoint.ONBOARDING
+                }
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
                     screen = TrackedScreen.GUIDE,
                 )
+
+                LaunchedEffect(entryPoint) {
+                    appContainer.analyticsTracker.track(GuideStarted(entryPoint = entryPoint))
+                }
 
                 val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
 
@@ -124,14 +158,47 @@ fun App(
                     onCurrentPage = {
                         guideViewModel.onCurrentPage(it)
                     },
-                    onSuccessGuide = guideViewModel::onSuccessGuide,
-                    onClickPrevious = guideViewModel::onClickPrevious,
-                    onClickNext = guideViewModel::onClickNext,
+                    onSuccessGuide = {
+                        appContainer.analyticsTracker.track(GuideCompleted(entryPoint = entryPoint))
+                        guideViewModel.onSuccessGuide()
+                    },
+                    onClickPrevious = {
+                        guideViewModel.onClickPrevious()
+                        appContainer.analyticsTracker.track(
+                            GuidePageMoved(
+                                page = guideViewModel.uiState.currentPage,
+                                direction = GuideDirection.PREVIOUS,
+                            ),
+                        )
+                    },
+                    onClickNext = {
+                        guideViewModel.onClickNext()
+                        appContainer.analyticsTracker.track(
+                            GuidePageMoved(
+                                page = guideViewModel.uiState.currentPage,
+                                direction = GuideDirection.NEXT,
+                            ),
+                        )
+                    },
                     isLast = guideViewModel.isLast(),
                     currentPageText = guideViewModel.currentPageText(),
-                    onClickCommentSentence = guideViewModel::onClickCommentSentence,
-                    onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
-                    onCancel = guideViewModel::onCancel,
+                    onClickCommentSentence = {
+                        appContainer.analyticsTracker.track(GuideSentenceTapped(hasComment = true))
+                        guideViewModel.onClickCommentSentence()
+                    },
+                    onClickUnCommentSentence = {
+                        appContainer.analyticsTracker.track(GuideSentenceTapped(hasComment = false))
+                        guideViewModel.onClickUnCommentSentence()
+                    },
+                    onCancel = {
+                        appContainer.analyticsTracker.track(
+                            GuideDismissed(
+                                entryPoint = entryPoint,
+                                page = guideViewModel.uiState.currentPage,
+                            ),
+                        )
+                        guideViewModel.onCancel()
+                    },
                 )
             }
             composable<Home> {
@@ -145,30 +212,42 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
                 LaunchedEffect(true) {
-                    homeViewModel.initCurrentlyBook()
-                    homeViewModel.initGroups()
+                    homeViewModel.loadHome()
                 }
 
                 HomeScreen(
                     appName = appContainer.appName,
                     uiState = homeViewModel.uiState,
                     navigateToJoin = {
+                        appContainer.analyticsTracker.track(GroupJoinInitiated)
                         navController.navigate(Join)
                     },
                     navigateToDetail = { groupId ->
+                        appContainer.analyticsTracker.track(
+                            GroupDetailOpened(groupId = groupId),
+                        )
                         navController.navigate(Detail(groupId))
                     },
                     navigateToCreate = {
+                        appContainer.analyticsTracker.track(GroupCreateInitiated)
                         navController.navigate(Create)
                     },
                     navigateToReader = {
+                        appContainer.analyticsTracker.track(
+                            ReaderOpened(
+                                groupId = it,
+                                bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
+                            ),
+                        )
                         navController.navigate(Reader(groupId = it))
                     },
                     navigateToMyPage = {
+                        appContainer.analyticsTracker.track(MyPageOpened)
                         navController.navigate(MyPage)
                     },
                 )
@@ -186,6 +265,7 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
                 LaunchedEffect(
@@ -208,16 +288,28 @@ fun App(
 
                 DetailScreen(
                     uiState = detailViewModel.uiState,
+                    onInviteCodeCopy = {
+                        appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
+                    },
                     onBlockUser = { otherUserId ->
                         detailViewModel.blockUser(otherUserId)
                     },
                     onUnBlockUser = { otherUserId ->
                         detailViewModel.unBlockUser(otherUserId)
                     },
+                    onExitRequest = {
+                        appContainer.analyticsTracker.track(GroupExitRequested(groupId = route.groupId))
+                    },
                     onBackClick = {
                         navController.popBackStack()
                     },
                     onReadClick = {
+                        appContainer.analyticsTracker.track(
+                            ReaderOpened(
+                                groupId = route.groupId,
+                                bookTitle = detailViewModel.uiState.bookUiModel.title,
+                            ),
+                        )
                         navController.navigate(Reader(groupId = route.groupId))
                     },
                     onExitClick = {
@@ -230,11 +322,6 @@ fun App(
             }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
-                TrackScreen(
-                    crashReporter = appContainer.crashReporter,
-                    analyticsTracker = appContainer.analyticsTracker,
-                    screen = TrackedScreen.READER,
-                )
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModel.readerViewModelFactory(
                         groupId = route.groupId,
@@ -243,12 +330,29 @@ fun App(
                         readerRepository = appContainer.readerRepository,
                         commentRepository = appContainer.commentRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = if (readerViewModel.uiState.isCommentCollectionsVisible) {
+                        TrackedScreen.COMMENT_COLLECTION
+                    } else {
+                        TrackedScreen.READER
+                    },
+                )
+                LifecycleEventEffect(Lifecycle.Event.ON_START) {
+                    readerViewModel.onScreenStarted()
+                }
+                LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+                    readerViewModel.onScreenStopped()
+                }
                 val commentSheet = readerViewModel.commentSheet
                 val actions = remember(readerViewModel, navController) {
                     ReaderActions(
                         onBackClick = {
+                            readerViewModel.finishReadingSession()
                             readerViewModel.saveReadingProgress(
                                 onComplete = navController::popBackStack,
                             )
@@ -271,6 +375,7 @@ fun App(
                         onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
                         onCommentCollectionsRetry = readerViewModel::getCommentCollections,
                         onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+                        onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
                         onMoveToComment = readerViewModel::moveToSelectedComment,
                         onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
                     )
@@ -309,6 +414,7 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -330,11 +436,21 @@ fun App(
                     uiState = joinViewModel.uiState,
                     onCodeValueChange = joinViewModel::onCodeValueChange,
                     onBackClick = {
+                        appContainer.analyticsTracker.track(
+                            GroupJoinAbandoned(hasCode = joinViewModel.uiState.codeValue.isNotBlank()),
+                        )
                         navController.popBackStack()
                     },
                     navigateToHome = {
                         joinViewModel.checkCodeBlank()
-                        if (!joinViewModel.uiState.codeState) {
+                        if (joinViewModel.uiState.codeState) {
+                            appContainer.analyticsTracker.track(
+                                GroupJoinSubmitted(
+                                    result = EventResult.INVALID,
+                                    reason = InvalidReason.CODE_BLANK,
+                                ),
+                            )
+                        } else {
                             joinViewModel.joinGroup()
                         }
                     },
@@ -351,6 +467,7 @@ fun App(
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
                         crashReporter = appContainer.crashReporter,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -359,10 +476,25 @@ fun App(
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
                     onBackClick = {
+                        appContainer.analyticsTracker.track(
+                            GroupCreateAbandoned(
+                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
+                                hasBook = createViewModel.uiState.bookList.any { it.selected },
+                            ),
+                        )
                         navController.popBackStack()
                     },
                     onCreateGroup = {
-                        if (!createViewModel.createConditionCheck()) {
+                        if (createViewModel.createConditionCheck()) {
+                            val reason = if (createViewModel.uiState.groupNameCondition) {
+                                InvalidReason.NAME_BLANK
+                            } else {
+                                InvalidReason.BOOK_NOT_SELECTED
+                            }
+                            appContainer.analyticsTracker.track(
+                                GroupCreateSubmitted(result = EventResult.INVALID, reason = reason),
+                            )
+                        } else {
                             createViewModel.createGroup()
                         }
                     },
@@ -384,12 +516,16 @@ fun App(
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
                 MyPageScreen(
                     uiState = myPageViewModel.uiState,
                     appVersion = appContainer.appVersion,
+                    onDeleteAccountClick = {
+                        appContainer.analyticsTracker.track(AccountDeleteRequested)
+                    },
                     deleteAccount = myPageViewModel::deleteAccount,
                     navigateToNickname = {
                         navController.navigate(Nickname) {
@@ -399,7 +535,7 @@ fun App(
                         }
                     },
                     navigateToGuide = {
-                        navController.navigate(Guide) {
+                        navController.navigate(Guide(fromMyPage = true)) {
                             popUpTo<MyPage> {
                                 inclusive = false
                             }

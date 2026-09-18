@@ -8,6 +8,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupJoinSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -21,6 +24,7 @@ import kotlinx.coroutines.launch
 class JoinViewModel(
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
 
     var uiState by mutableStateOf(JoinUiState())
@@ -64,6 +68,7 @@ class JoinViewModel(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.GROUP_JOIN_SUCCEEDED),
                 )
+                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -71,6 +76,7 @@ class JoinViewModel(
                     throwable = e,
                     context = crashContext(CrashOperation.GROUP_JOIN_FAILED),
                 )
+                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE))
                 uiState = uiState.copy(
                     successJoin = false,
                     codeState = true,
@@ -84,11 +90,13 @@ class JoinViewModel(
             userRepository: UserRepository,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }

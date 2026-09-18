@@ -3,6 +3,8 @@ package com.yeobaek.feature.reader
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.yeobaek.core.analytics.CommentSheetSource
+import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
@@ -26,11 +28,13 @@ class CommentSheetController(
     private val crashContext: (operation: CrashOperation, sentenceId: Long, itemCount: Int?) -> CrashContext,
     private val onCommentCountChanged: (sentenceId: Long, commentCount: Int) -> Unit,
     private val onCommentsViewed: (sentenceId: Long) -> Unit,
+    private val analytics: CommentSheetAnalytics,
 ) {
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
         private set
 
     private var loadJob: Job? = null
+    private var didSubmitInSheet = false
 
     fun open(sentence: SentenceUiModel) {
         open(
@@ -38,6 +42,8 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = null,
+            requiresReveal = null,
+            hasNewComments = null,
         )
     }
 
@@ -47,6 +53,8 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = sentence.passageSequence,
+            requiresReveal = sentence.requiresReveal,
+            hasNewComments = sentence.isNewComment(),
         )
     }
 
@@ -66,12 +74,23 @@ class CommentSheetController(
         sentenceContent: String,
         itemCount: Int,
         targetPassageSequence: Int?,
+        requiresReveal: Boolean?,
+        hasNewComments: Boolean?,
     ) {
         cancelLoad()
+        didSubmitInSheet = false
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
             sentenceId = sentenceId,
             itemCount = itemCount,
+        )
+        analytics.sheetOpened(
+            sentenceId = sentenceId,
+            passageSequence = targetPassageSequence,
+            commentCount = itemCount,
+            source = sheetSourceOf(targetPassageSequence),
+            requiresReveal = requiresReveal,
+            hasNewComments = hasNewComments,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
@@ -130,6 +149,12 @@ class CommentSheetController(
 
     fun dismiss() {
         cancelLoad()
+        uiState?.let { sheet ->
+            analytics.sheetClosed(
+                commentCount = sheet.comments.size,
+                didSubmit = didSubmitInSheet,
+            )
+        }
         uiState = null
     }
 
@@ -151,6 +176,7 @@ class CommentSheetController(
             operation = CrashOperation.COMMENT_EDIT_STARTED,
             sentenceId = sheet.sentenceId,
         )
+        analytics.editStarted(commentId = comment.commentId)
         uiState = sheet.copy(
             input = comment.content,
             editingCommentId = comment.commentId,
@@ -163,6 +189,9 @@ class CommentSheetController(
     fun cancelEditing() {
         val sheet = uiState ?: return
         if (sheet.isSubmitting) return
+        if (sheet.editingCommentId != null) {
+            analytics.editCanceled()
+        }
 
         uiState = sheet.copy(
             input = "",
@@ -176,6 +205,7 @@ class CommentSheetController(
         if (sheet.isSubmitting || sheet.isDeleting) return
         if (sheet.findMyComment(commentId) == null) return
 
+        analytics.deleteRequested(commentId = commentId)
         uiState = sheet.copy(
             deletingCommentId = commentId,
             deleteErrorMessage = null,
@@ -185,6 +215,9 @@ class CommentSheetController(
     fun cancelDelete() {
         val sheet = uiState ?: return
         if (sheet.isDeleting) return
+        if (sheet.deletingCommentId != null) {
+            analytics.deleteCanceled()
+        }
 
         uiState = sheet.copy(
             deletingCommentId = null,
@@ -225,6 +258,7 @@ class CommentSheetController(
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
+                analytics.deleted(result = EventResult.SUCCESS)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -233,6 +267,7 @@ class CommentSheetController(
                     operation = CrashOperation.COMMENT_DELETE_FAILED,
                     sentenceId = sheet.sentenceId,
                 )
+                analytics.deleted(result = EventResult.FAILURE)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
                     isWaiting = { currentSheet -> currentSheet.isDeleting },
@@ -303,6 +338,15 @@ class CommentSheetController(
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
+                didSubmitInSheet = true
+                analytics.submitted(
+                    sentenceId = sheet.sentenceId,
+                    passageSequence = sheet.targetPassageSequence,
+                    source = sheetSourceOf(sheet.targetPassageSequence),
+                    isEditing = editingCommentId != null,
+                    commentLength = content.length,
+                    result = EventResult.SUCCESS,
+                )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -310,6 +354,14 @@ class CommentSheetController(
                     exception = exception,
                     operation = CrashOperation.COMMENT_SAVE_FAILED,
                     sentenceId = sheet.sentenceId,
+                )
+                analytics.submitted(
+                    sentenceId = sheet.sentenceId,
+                    passageSequence = sheet.targetPassageSequence,
+                    source = sheetSourceOf(sheet.targetPassageSequence),
+                    isEditing = editingCommentId != null,
+                    commentLength = content.length,
+                    result = EventResult.FAILURE,
                 )
                 updateSheet(
                     sentenceId = sheet.sentenceId,
@@ -333,6 +385,7 @@ class CommentSheetController(
         scope.launch {
             try {
                 commentRepository.reportComment(commentId)
+                analytics.reported(commentId = commentId, result = EventResult.SUCCESS)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
                     isWaiting = { currentSheet -> currentSheet.reportState is ReportState.Loading },
@@ -342,6 +395,7 @@ class CommentSheetController(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                analytics.reported(commentId = commentId, result = EventResult.FAILURE)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
                     isWaiting = { currentSheet -> currentSheet.reportState is ReportState.Loading },
@@ -399,6 +453,10 @@ class CommentSheetController(
         )
     }
 }
+
+// 모아보기에서 연 시트만 본문 이동 위치를 갖는다.
+private fun sheetSourceOf(targetPassageSequence: Int?): CommentSheetSource =
+    if (targetPassageSequence == null) CommentSheetSource.READER else CommentSheetSource.COMMENT_COLLECTION
 
 private fun CommentSheetUiState.findMyComment(commentId: Long): CommentUiModel? =
     comments.firstOrNull { comment -> comment.commentId == commentId && comment.isMine }
