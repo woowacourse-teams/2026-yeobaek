@@ -272,7 +272,7 @@ fun App(
                         onCommentCollectionsRetry = readerViewModel::getCommentCollections,
                         onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
                         onMoveToComment = readerViewModel::moveToSelectedComment,
-                        onReturnToReadingAnchor = readerViewModel::returnToReadingAnchor,
+                        onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
                     )
                 }
                 val commentSheetActions = remember(commentSheet) {

@@ -118,7 +118,7 @@ fun ReaderScreen(
             ?.let { returnProgress ->
                 ReaderReturnButton(
                     progress = returnProgress,
-                    onClick = actions.onReturnToReadingAnchor,
+                    onClick = actions.onReturnToPreviousReadingPosition,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .navigationBarsPadding()
@@ -188,7 +188,7 @@ class ReaderActions(
     val onCommentCollectionsRetry: () -> Unit,
     val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
     val onMoveToComment: () -> Unit,
-    val onReturnToReadingAnchor: () -> Unit,
+    val onReturnToPreviousReadingPosition: () -> Unit,
 )
 
 @Composable
@@ -369,7 +369,7 @@ private fun ReaderScreenPreview() {
                 onCommentCollectionsRetry = {},
                 onCommentCardClick = {},
                 onMoveToComment = {},
-                onReturnToReadingAnchor = {},
+                onReturnToPreviousReadingPosition = {},
             ),
             commentSheetActions = CommentSheetActions(
                 onDismiss = {},
