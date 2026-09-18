@@ -1,5 +1,12 @@
 package com.yeobaek.core.analytics
 
+enum class CommentSheetSource(
+    val value: String,
+) {
+    READER("reader"),
+    COMMENT_COLLECTION("comment_collection"),
+}
+
 enum class CommentMode(
     val value: String,
 ) {
@@ -11,12 +18,18 @@ data class CommentSheetOpened(
     val bookId: Long?,
     val passageSequence: Int?,
     val commentCount: Int,
+    val source: CommentSheetSource,
+    val requiresReveal: Boolean?,
+    val afterJump: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
     override val properties = buildMap {
         bookId?.let { put(KEY_BOOK_ID, it) }
         passageSequence?.let { put(KEY_PASSAGE_SEQUENCE, it) }
         put(KEY_COMMENT_COUNT, commentCount)
+        put(KEY_SOURCE, source.value)
+        requiresReveal?.let { put(KEY_REQUIRES_REVEAL, it) }
+        put(KEY_AFTER_JUMP, afterJump)
     }
 }
 
@@ -26,6 +39,8 @@ data class CommentSubmitted(
     val commentLength: Int,
     val bookId: Long?,
     val passageSequence: Int?,
+    val source: CommentSheetSource,
+    val afterJump: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_submitted"
     override val properties = buildMap {
@@ -34,6 +49,8 @@ data class CommentSubmitted(
         put(KEY_COMMENT_LENGTH, commentLength)
         bookId?.let { put(KEY_BOOK_ID, it) }
         passageSequence?.let { put(KEY_PASSAGE_SEQUENCE, it) }
+        put(KEY_SOURCE, source.value)
+        put(KEY_AFTER_JUMP, afterJump)
     }
 }
 
@@ -103,4 +120,7 @@ private const val KEY_COMMENT_ID = "comment_id"
 private const val KEY_COMMENT_LENGTH = "comment_length"
 private const val KEY_MODE = "mode"
 private const val KEY_RESULT = "result"
+private const val KEY_SOURCE = "source"
+private const val KEY_REQUIRES_REVEAL = "requires_reveal"
+private const val KEY_AFTER_JUMP = "after_jump"
 private const val KEY_DID_SUBMIT = "did_submit"

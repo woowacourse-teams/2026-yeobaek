@@ -10,6 +10,7 @@ import com.yeobaek.core.analytics.CommentMode
 import com.yeobaek.core.analytics.CommentReported
 import com.yeobaek.core.analytics.CommentSheetClosed
 import com.yeobaek.core.analytics.CommentSheetOpened
+import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.CommentSubmitted
 import com.yeobaek.core.analytics.EventResult
 
@@ -23,23 +24,32 @@ class CommentSheetAnalytics(
     private val readingSession: ReadingSessionTracker,
     private val bookId: () -> Long?,
     private val passageSequenceOf: (sentenceId: Long) -> Int?,
+    private val isAfterJump: () -> Boolean,
 ) {
     fun sheetOpened(
         sentenceId: Long,
+        passageSequence: Int?,
         commentCount: Int,
+        source: CommentSheetSource,
+        requiresReveal: Boolean?,
     ) {
         readingSession.onCommentSheetOpened()
         analyticsTracker.track(
             CommentSheetOpened(
                 bookId = bookId(),
-                passageSequence = passageSequenceOf(sentenceId),
+                passageSequence = passageSequence ?: passageSequenceOf(sentenceId),
                 commentCount = commentCount,
+                source = source,
+                requiresReveal = requiresReveal,
+                afterJump = isAfterJump(),
             ),
         )
     }
 
     fun submitted(
         sentenceId: Long,
+        passageSequence: Int?,
+        source: CommentSheetSource,
         isEditing: Boolean,
         commentLength: Int,
         result: EventResult,
@@ -54,7 +64,9 @@ class CommentSheetAnalytics(
                 result = result,
                 commentLength = commentLength,
                 bookId = bookId(),
-                passageSequence = passageSequenceOf(sentenceId),
+                passageSequence = passageSequence ?: passageSequenceOf(sentenceId),
+                source = source,
+                afterJump = isAfterJump(),
             ),
         )
     }

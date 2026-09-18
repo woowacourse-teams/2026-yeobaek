@@ -371,6 +371,7 @@ fun App(
                         onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
                         onCommentCollectionsRetry = readerViewModel::getCommentCollections,
                         onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+                        onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
                         onMoveToComment = readerViewModel::moveToSelectedComment,
                         onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
                     )

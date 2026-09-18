@@ -3,6 +3,7 @@ package com.yeobaek.feature.reader
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -41,6 +42,7 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = null,
+            requiresReveal = null,
         )
     }
 
@@ -50,6 +52,7 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = sentence.passageSequence,
+            requiresReveal = sentence.requiresReveal,
         )
     }
 
@@ -69,6 +72,7 @@ class CommentSheetController(
         sentenceContent: String,
         itemCount: Int,
         targetPassageSequence: Int?,
+        requiresReveal: Boolean?,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -79,7 +83,10 @@ class CommentSheetController(
         )
         analytics.sheetOpened(
             sentenceId = sentenceId,
+            passageSequence = targetPassageSequence,
             commentCount = itemCount,
+            source = sheetSourceOf(targetPassageSequence),
+            requiresReveal = requiresReveal,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
@@ -330,6 +337,8 @@ class CommentSheetController(
                 didSubmitInSheet = true
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
+                    passageSequence = sheet.targetPassageSequence,
+                    source = sheetSourceOf(sheet.targetPassageSequence),
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.SUCCESS,
@@ -344,6 +353,8 @@ class CommentSheetController(
                 )
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
+                    passageSequence = sheet.targetPassageSequence,
+                    source = sheetSourceOf(sheet.targetPassageSequence),
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.FAILURE,
@@ -438,6 +449,10 @@ class CommentSheetController(
         )
     }
 }
+
+// 모아보기에서 연 시트만 본문 이동 위치를 갖는다.
+private fun sheetSourceOf(targetPassageSequence: Int?): CommentSheetSource =
+    if (targetPassageSequence == null) CommentSheetSource.READER else CommentSheetSource.COMMENT_COLLECTION
 
 private fun CommentSheetUiState.findMyComment(commentId: Long): CommentUiModel? =
     comments.firstOrNull { comment -> comment.commentId == commentId && comment.isMine }

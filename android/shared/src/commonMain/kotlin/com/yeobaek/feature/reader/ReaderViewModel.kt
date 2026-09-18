@@ -10,9 +10,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.ChapterSelected
+import com.yeobaek.core.analytics.CommentCollectionEnd
+import com.yeobaek.core.analytics.CommentCollectionStart
+import com.yeobaek.core.analytics.CommentPassageJumped
 import com.yeobaek.core.analytics.FontSizeChanged
 import com.yeobaek.core.analytics.ProgressSeeked
+import com.yeobaek.core.analytics.ReaderPositionCleared
+import com.yeobaek.core.analytics.ReaderPositionReturned
 import com.yeobaek.core.analytics.ReaderSessionEnd
+import com.yeobaek.core.analytics.ReadingPositionClearedBy
 import com.yeobaek.core.analytics.TableOfContentsOpened
 import com.yeobaek.core.analytics.TextSettingOpened
 import com.yeobaek.core.common.TrackedScreen
@@ -50,6 +56,7 @@ class ReaderViewModel(
         private set
 
     private val readingSession = ReadingSessionTracker(analyticsTracker = analyticsTracker)
+    private val commentCollectionSession = CommentCollectionSessionTracker(analyticsTracker = analyticsTracker)
     private var isScreenStarted = false
 
     val commentSheet = CommentSheetController(
@@ -96,6 +103,7 @@ class ReaderViewModel(
             readingSession = readingSession,
             bookId = { currentBookId },
             passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
+            isAfterJump = { uiState.returnPassageSequence != null },
         ),
         onCommentsViewed = ::handleCommentsViewed,
     )
@@ -305,6 +313,7 @@ class ReaderViewModel(
             moveToPassageJob?.cancel()
             cancelPaginationLoads()
         }
+        trackReadingPositionCleared(ReadingPositionClearedBy.PROGRESS_BAR)
 
         uiState = uiState.copy(
             mode = ReaderMode.SelectingProgress(
@@ -358,6 +367,7 @@ class ReaderViewModel(
             passageSequence = targetSequence,
             chapterSequence = chapter.sequence,
         )
+        trackReadingPositionCleared(ReadingPositionClearedBy.TABLE_OF_CONTENTS)
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
             returnPassageSequence = null,
@@ -462,6 +472,7 @@ class ReaderViewModel(
                         CommentedSentenceMode.None
                     },
                 )
+                commentCollectionSession.onLoaded(uiState.commentedSentences.sentences)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -521,6 +532,11 @@ class ReaderViewModel(
     }
 
     fun openCommentCollections() {
+        commentCollectionSession.start(
+            bookId = currentBookId,
+            startedBy = CommentCollectionStart.ICON,
+            hasNewComments = uiState.isNewComment,
+        )
         uiState = uiState.copy(
             isCommentCollectionsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -529,6 +545,7 @@ class ReaderViewModel(
     }
 
     fun dismissCommentCollections() {
+        commentCollectionSession.end(CommentCollectionEnd.CLOSE)
         commentCollectionsJob?.cancel()
         commentCollectionsJob = null
         uiState = uiState.copy(
@@ -552,6 +569,7 @@ class ReaderViewModel(
     }
 
     fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
+        commentCollectionSession.onCardClicked()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.openFromCollection(sentence)
     }
@@ -564,6 +582,17 @@ class ReaderViewModel(
                 sequence in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount && sequence != targetSequence
             }
 
+        analyticsTracker.track(
+            CommentPassageJumped(
+                bookId = currentBookId,
+                fromProgress = uiState.readingProgress,
+                toProgress = sequenceToProgress(
+                    sequence = targetSequence,
+                    totalPassageCount = uiState.totalPassageCount,
+                ),
+            ),
+        )
+        commentCollectionSession.end(CommentCollectionEnd.JUMP)
         commentSheet.dismiss()
         uiState = uiState.copy(
             isCommentCollectionsVisible = false,
@@ -574,7 +603,29 @@ class ReaderViewModel(
 
     fun returnToReadingAnchor() {
         val targetSequence = uiState.returnPassageSequence ?: return
+        analyticsTracker.track(
+            ReaderPositionReturned(
+                bookId = currentBookId,
+                savedProgress = uiState.returnProgress ?: return,
+                currentProgress = uiState.readingProgress,
+            ),
+        )
         moveToPassage(targetSequence)
+    }
+
+    fun onCommentSentenceRevealed() {
+        commentCollectionSession.onSentenceRevealed()
+    }
+
+    private fun trackReadingPositionCleared(clearedBy: ReadingPositionClearedBy) {
+        if (uiState.returnPassageSequence == null) return
+
+        analyticsTracker.track(
+            ReaderPositionCleared(
+                bookId = currentBookId,
+                clearedBy = clearedBy,
+            ),
+        )
     }
 
     private fun returnAnchorAfterFailedMove(targetSequence: Int): Int? =
@@ -611,10 +662,18 @@ class ReaderViewModel(
     fun onScreenStarted() {
         isScreenStarted = true
         startReadingSessionIfReady()
+        if (uiState.isCommentCollectionsVisible) {
+            commentCollectionSession.start(
+                bookId = currentBookId,
+                startedBy = CommentCollectionStart.FOREGROUND,
+                hasNewComments = uiState.isNewComment,
+            )
+        }
     }
 
     fun onScreenStopped() {
         isScreenStarted = false
+        commentCollectionSession.end(CommentCollectionEnd.BACKGROUND)
         readingSession.end(
             progress = uiState.readingProgress,
             endedBy = ReaderSessionEnd.BACKGROUND,
