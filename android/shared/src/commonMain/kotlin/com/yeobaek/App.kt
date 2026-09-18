@@ -322,11 +322,6 @@ fun App(
             }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
-                TrackScreen(
-                    crashReporter = appContainer.crashReporter,
-                    analyticsTracker = appContainer.analyticsTracker,
-                    screen = TrackedScreen.READER,
-                )
                 val readerViewModel = viewModel<ReaderViewModel>(
                     factory = ReaderViewModel.readerViewModelFactory(
                         groupId = route.groupId,
@@ -337,6 +332,15 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,
                     ),
+                )
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = if (readerViewModel.uiState.isCommentCollectionsVisible) {
+                        TrackedScreen.COMMENT_COLLECTION
+                    } else {
+                        TrackedScreen.READER
+                    },
                 )
                 LifecycleEventEffect(Lifecycle.Event.ON_START) {
                     readerViewModel.onScreenStarted()

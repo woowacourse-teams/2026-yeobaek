@@ -32,6 +32,7 @@ class CommentSheetAnalytics(
         commentCount: Int,
         source: CommentSheetSource,
         requiresReveal: Boolean?,
+        hasNewComments: Boolean?,
     ) {
         readingSession.onCommentSheetOpened()
         analyticsTracker.track(
@@ -41,6 +42,7 @@ class CommentSheetAnalytics(
                 commentCount = commentCount,
                 source = source,
                 requiresReveal = requiresReveal,
+                hasNewComments = hasNewComments,
                 afterJump = isAfterJump(),
             ),
         )

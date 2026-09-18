@@ -20,6 +20,7 @@ data class CommentSheetOpened(
     val commentCount: Int,
     val source: CommentSheetSource,
     val requiresReveal: Boolean?,
+    val hasNewComments: Boolean?,
     val afterJump: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
@@ -29,6 +30,7 @@ data class CommentSheetOpened(
         put(KEY_COMMENT_COUNT, commentCount)
         put(KEY_SOURCE, source.value)
         requiresReveal?.let { put(KEY_REQUIRES_REVEAL, it) }
+        hasNewComments?.let { put(KEY_HAS_NEW_COMMENTS, it) }
         put(KEY_AFTER_JUMP, afterJump)
     }
 }
@@ -122,5 +124,6 @@ private const val KEY_MODE = "mode"
 private const val KEY_RESULT = "result"
 private const val KEY_SOURCE = "source"
 private const val KEY_REQUIRES_REVEAL = "requires_reveal"
+private const val KEY_HAS_NEW_COMMENTS = "has_new_comments"
 private const val KEY_AFTER_JUMP = "after_jump"
 private const val KEY_DID_SUBMIT = "did_submit"

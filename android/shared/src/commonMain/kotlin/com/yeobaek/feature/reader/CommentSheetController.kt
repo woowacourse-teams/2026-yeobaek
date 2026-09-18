@@ -43,6 +43,7 @@ class CommentSheetController(
             itemCount = sentence.commentCount,
             targetPassageSequence = null,
             requiresReveal = null,
+            hasNewComments = null,
         )
     }
 
@@ -53,6 +54,7 @@ class CommentSheetController(
             itemCount = sentence.commentCount,
             targetPassageSequence = sentence.passageSequence,
             requiresReveal = sentence.requiresReveal,
+            hasNewComments = sentence.isNewComment(),
         )
     }
 
@@ -73,6 +75,7 @@ class CommentSheetController(
         itemCount: Int,
         targetPassageSequence: Int?,
         requiresReveal: Boolean?,
+        hasNewComments: Boolean?,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -87,6 +90,7 @@ class CommentSheetController(
             commentCount = itemCount,
             source = sheetSourceOf(targetPassageSequence),
             requiresReveal = requiresReveal,
+            hasNewComments = hasNewComments,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
