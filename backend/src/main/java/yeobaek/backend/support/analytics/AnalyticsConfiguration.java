@@ -19,7 +19,7 @@ public class AnalyticsConfiguration {
         return new PostHogAnalyticsTracker(postHog, activeProfiles(environment));
     }
 
-    private static String activeProfiles(Environment environment) {
+    private String activeProfiles(Environment environment) {
         String[] activeProfiles = environment.getActiveProfiles();
         if (activeProfiles.length == 0) {
             return String.join(",", environment.getDefaultProfiles());

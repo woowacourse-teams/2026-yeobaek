@@ -5,17 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.Isni;
 
 class AuthorTest {
 
     @Test
-    @DisplayName("ISNI의 공백과 하이픈을 제거해 정규화한다")
-    void normalizeIsni() {
-        Author author = new Author("현진건", "0000 0001-2345 964X");
+    @DisplayName("작가는 생성 시 전달받은 ISNI 값 객체를 유지한다")
+    void retainsIsniValueObject() {
+        Isni isni = new Isni("0000 0001-2345 964X");
+        Author author = new Author("현진건", isni);
 
-        assertThat(author.getIsni()).isEqualTo("000000012345964X");
+        assertThat(author.getIsni()).isEqualTo(isni);
     }
 
     @Test
@@ -24,14 +25,6 @@ class AuthorTest {
         Author author = new Author("작자 미상");
 
         assertThat(author.getIsni()).isNull();
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"1234", "000000012345964Y", "0000000123459640X"})
-    @DisplayName("16자리(끝자리 X 허용) 형식이 아닌 ISNI는 거부한다")
-    void rejectInvalidIsni(String invalidIsni) {
-        assertThatThrownBy(() -> new Author("현진건", invalidIsni))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -48,7 +41,7 @@ class AuthorTest {
     void hasSameName() {
         Author author = new Author("현진건");
 
-        assertThat(author.hasSameName("현진건")).isTrue();
-        assertThat(author.hasSameName("이효석")).isFalse();
+        assertThat(author.hasSameName(new AuthorName("현진건"))).isTrue();
+        assertThat(author.hasSameName(new AuthorName("이효석"))).isFalse();
     }
 }

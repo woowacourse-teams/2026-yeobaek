@@ -3,6 +3,7 @@ package yeobaek.backend.comment.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Collections;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
@@ -85,12 +87,12 @@ class CommentReportRepositoryTest extends IntegrationTest {
     }
 
     private ReportFixture createReportFixture(String joinCode) {
-        Book book = bookRepository.save(new Book("신고 테스트 도서", null, 1924, 1));
+        Book book = bookRepository.save(new Book("신고 테스트 도서", null, 1924, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, "본문"));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("본문")));
         Member writer = memberRepository.save(new Member("작성자"));
         Member reporter = memberRepository.save(new Member("신고자"));
-        Club club = clubRepository.save(new Club("신고 모임", book, joinCode));
+        Club club = clubRepository.save(new Club("신고 모임", book, new JoinCode(joinCode)));
         ClubMember writerMembership = clubMemberRepository.save(new ClubMember(writer, club));
         Comment comment = commentRepository.saveAndFlush(
                 new Comment(writerMembership, passage.getSentences().getFirst(), "신고 대상"));

@@ -2,7 +2,9 @@ package com.yeobaek
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -24,25 +26,26 @@ import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
+import com.yeobaek.feature.guide.GuideScreen
+import com.yeobaek.feature.guide.GuideViewModel
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
 import com.yeobaek.feature.mypage.MyPageScreen
 import com.yeobaek.feature.mypage.MyPageViewModel
 import com.yeobaek.feature.navigation.Create
 import com.yeobaek.feature.navigation.Detail
+import com.yeobaek.feature.navigation.Guide
 import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
-import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
-import com.yeobaek.feature.onboarding.OnboardingScreen
-import com.yeobaek.feature.onboarding.OnboardingViewModel
+import com.yeobaek.feature.reader.CommentSheetActions
+import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderViewModel
-import com.yeobaek.feature.reader.ReaderViewModelFactory
 
 @Composable
 fun App(
@@ -74,7 +77,7 @@ fun App(
                             appContainer.analyticsTracker.identify(userId)
                         }
                         appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
-                        navController.navigate(Onboarding) {
+                        navController.navigate(Guide) {
                             popUpTo<Nickname> {
                                 inclusive = true
                             }
@@ -91,49 +94,44 @@ fun App(
                     },
                 )
             }
-            composable<Onboarding> {
+            composable<Guide> {
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
-                    screen = TrackedScreen.ONBOARDING,
-                )
-                val onboardingViewModel: OnboardingViewModel = viewModel(
-                    factory = OnboardingViewModel.onboardingViewModelFactory(
-                        groupRepository = appContainer.groupRepository,
-                        crashReporter = appContainer.crashReporter,
-                    ),
+                    screen = TrackedScreen.GUIDE,
                 )
 
-                LaunchedEffect(onboardingViewModel.uiState.successJoin) {
-                    if (onboardingViewModel.uiState.successJoin && !onboardingViewModel.uiState.codeState) {
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
-                            }
-                        }
-                    }
-                }
+                val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
 
-                OnboardingScreen(
-                    appName = appContainer.appName,
-                    uiState = onboardingViewModel.uiState,
-                    onCodeValueChange = onboardingViewModel::onCodeValueChange,
-                    navigateToCreate = {
-                        navController.navigate(Create)
-                    },
+                GuideScreen(
+                    uiState = guideViewModel.uiState,
                     navigateToHome = {
-                        onboardingViewModel.checkCodeBlank()
-                        if (!onboardingViewModel.uiState.codeState) {
-                            onboardingViewModel.joinGroup()
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
                         }
-                    },
-                    navigateToAroundHome = {
                         navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Guide> {
+                                    inclusive = true
+                                }
                             }
                         }
                     },
+                    onCurrentPage = {
+                        guideViewModel.onCurrentPage(it)
+                    },
+                    onSuccessGuide = guideViewModel::onSuccessGuide,
+                    onClickPrevious = guideViewModel::onClickPrevious,
+                    onClickNext = guideViewModel::onClickNext,
+                    isLast = guideViewModel.isLast(),
+                    currentPageText = guideViewModel.currentPageText(),
+                    onClickCommentSentence = guideViewModel::onClickCommentSentence,
+                    onClickUnCommentSentence = guideViewModel::onClickUnCommentSentence,
+                    onCancel = guideViewModel::onCancel,
                 )
             }
             composable<Home> {
@@ -238,7 +236,7 @@ fun App(
                     screen = TrackedScreen.READER,
                 )
                 val readerViewModel = viewModel<ReaderViewModel>(
-                    factory = ReaderViewModelFactory(
+                    factory = ReaderViewModel.readerViewModelFactory(
                         groupId = route.groupId,
                         bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,
@@ -247,37 +245,57 @@ fun App(
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
+                val commentSheet = readerViewModel.commentSheet
+                val actions = remember(readerViewModel, navController) {
+                    ReaderActions(
+                        onBackClick = {
+                            readerViewModel.saveReadingProgress(
+                                onComplete = navController::popBackStack,
+                            )
+                        },
+                        onSentenceClick = readerViewModel::openSentenceComments,
+                        onTableOfContentsClick = readerViewModel::openTableOfContents,
+                        onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+                        onChapterClick = readerViewModel::selectChapter,
+                        onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+                        onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+                        onFontSizeChange = readerViewModel::updateFontSize,
+                        onProgressChange = readerViewModel::selectProgress,
+                        onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
+                        onLoadPrevious = readerViewModel::loadPreviousPassages,
+                        onLoadNext = readerViewModel::loadNextPassages,
+                        onVisiblePassageChange = readerViewModel::updateReadingPassage,
+                        onTargetPassageReached = readerViewModel::completeMoveToPassage,
+                        onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
+                        onCommentCollectionsClick = readerViewModel::openCommentCollections,
+                        onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
+                        onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+                        onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+                        onMoveToComment = readerViewModel::moveToSelectedComment,
+                        onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
+                    )
+                }
+                val commentSheetActions = remember(commentSheet) {
+                    CommentSheetActions(
+                        onDismiss = commentSheet::dismiss,
+                        onRetry = commentSheet::retryLoad,
+                        onInputChange = commentSheet::updateInput,
+                        onSubmit = commentSheet::submit,
+                        onEdit = commentSheet::startEditing,
+                        onEditCancel = commentSheet::cancelEditing,
+                        onDelete = commentSheet::requestDelete,
+                        onDeleteCancel = commentSheet::cancelDelete,
+                        onDeleteConfirm = commentSheet::confirmDelete,
+                        onReport = commentSheet::report,
+                        onReportResultConsumed = commentSheet::consumeReportResult,
+                    )
+                }
 
                 ReaderScreen(
                     uiState = readerViewModel.uiState,
-                    onSentenceClick = readerViewModel::openSentenceComments,
-                    onBackClick = {
-                        readerViewModel.saveCurrentPassage(
-                            onComplete = navController::popBackStack,
-                        )
-                    },
-                    onTableOfContentsClick = readerViewModel::openTableOfContents,
-                    onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
-                    onChapterClick = readerViewModel::selectChapter,
-                    onTextSettingClick = readerViewModel::toggleTextSettingMenu,
-                    onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
-                    onFontSizeChange = readerViewModel::updateFontSize,
-                    onCommentSheetDismiss = readerViewModel::dismissPassageComments,
-                    onCommentInputChange = readerViewModel::updateCommentInput,
-                    onCommentSubmit = readerViewModel::submitComment,
-                    onCommentEdit = readerViewModel::startEditingComment,
-                    onCommentReport = readerViewModel::reportComment,
-                    onCommentReportResultConsumed = readerViewModel::consumeReportResult,
-                    onCommentEditCancel = readerViewModel::cancelEditingComment,
-                    onCommentDelete = readerViewModel::requestDeleteComment,
-                    onCommentDeleteCancel = readerViewModel::cancelDeleteComment,
-                    onCommentDeleteConfirm = readerViewModel::confirmDeleteComment,
-                    onLoadPrevious = readerViewModel::loadPreviousPassages,
-                    onLoadNext = readerViewModel::loadNextPassages,
-                    onVisiblePassageChange = readerViewModel::updateCurrentPassage,
-                    onProgressChange = readerViewModel::updateProgressDrag,
-                    onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
-                    onProgressSeekCompleted = readerViewModel::completeProgressSeek,
+                    commentSheet = commentSheet.uiState,
+                    actions = actions,
+                    commentSheetActions = commentSheetActions,
                 )
             }
             composable<Join> {
@@ -349,20 +367,20 @@ fun App(
                         }
                     },
                     navigateToHome = {
-                        val popped = navController.popBackStack<Home>(
-                            inclusive = false,
-                        )
-                        if (!popped) {
-                            navController.navigate(Home) {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
+                        navController.navigate(Home) {
+                            popUpTo<Home> {
+                                inclusive = true
                             }
                         }
                     },
                 )
             }
             composable<MyPage> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.MY_PAGE,
+                )
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
@@ -377,6 +395,13 @@ fun App(
                         navController.navigate(Nickname) {
                             popUpTo<Home> {
                                 inclusive = true
+                            }
+                        }
+                    },
+                    navigateToGuide = {
+                        navController.navigate(Guide) {
+                            popUpTo<MyPage> {
+                                inclusive = false
                             }
                         }
                     },

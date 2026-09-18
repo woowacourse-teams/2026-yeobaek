@@ -69,14 +69,14 @@ public class CommentService {
     public NewCommentCountResponse countNewComments(Long memberId, Long clubId, Long currentPassageId) {
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
-                memberId, clubId, currentPassage.getSequence());
+                memberId, clubId, currentPassage.getSequence().value());
         return new NewCommentCountResponse(count);
     }
 
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findCommentedSentences(Long memberId, Long clubId, Long currentPassageId) {
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
-        int currentPassageSequence = currentPassage.getSequence();
+        int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
                 .findCommentedSentenceSummaries(memberId, clubId).stream()
                 .map(summary -> toResponse(summary, currentPassageSequence))
@@ -87,7 +87,7 @@ public class CommentService {
 
     @Transactional
     public CommentResponse update(Long memberId, Long commentId, String content) {
-        Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 수정할 수 있습니다.");
+        Comment comment = findOwnComment(memberId, commentId, "수정");
         comment.ensureBookAvailable();
         comment.updateContent(content);
         return CommentResponse.of(comment, memberId);
@@ -95,7 +95,7 @@ public class CommentService {
 
     @Transactional
     public void delete(Long memberId, Long commentId) {
-        Comment comment = findOwnComment(memberId, commentId, "본인의 댓글만 삭제할 수 있습니다.");
+        Comment comment = findOwnComment(memberId, commentId, "삭제");
         comment.ensureBookAvailable();
         commentRepository.delete(comment);
     }
@@ -103,10 +103,14 @@ public class CommentService {
     @Transactional
     public void report(Long memberId, Long commentId) {
         Comment comment = commentRepository.findVisibleWithContextById(memberId, commentId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.COMMENT_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.COMMENT_NOT_FOUND,
+                        "신고할 댓글이 존재하지 않거나 요청자에게 보이지 않습니다: commentId=" + commentId));
         comment.ensureReportableBy(memberId);
         if (!clubMemberRepository.existsJoinedByMemberIdAndCommentId(memberId, commentId)) {
-            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+            throw new ForbiddenException(
+                    ErrorCode.NOT_CLUB_MEMBER,
+                    "모임에 참여 중인 회원만 댓글을 신고할 수 있습니다: commentId=" + commentId);
         }
         comment.ensureBookAvailable();
         if (!commentReportRepository.existsByReporterIdAndCommentId(memberId, commentId)) {
@@ -114,27 +118,41 @@ public class CommentService {
         }
     }
 
-    private Comment findOwnComment(Long memberId, Long commentId, String forbiddenMessage) {
+    private Comment findOwnComment(Long memberId, Long commentId, String action) {
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.COMMENT_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.COMMENT_NOT_FOUND,
+                        action + "할 댓글이 존재하지 않습니다: commentId=" + commentId));
         if (!comment.isWrittenBy(memberId)) {
-            throw new ForbiddenException(ErrorCode.NOT_COMMENT_OWNER, forbiddenMessage);
+            throw new ForbiddenException(
+                    ErrorCode.NOT_COMMENT_OWNER,
+                    "본인의 댓글만 " + action + "할 수 있습니다: commentId=" + commentId);
         }
         if (!comment.isWriterJoined()) {
-            throw new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+            throw new ForbiddenException(
+                    ErrorCode.NOT_CLUB_MEMBER,
+                    "모임에 참여 중인 작성자만 댓글을 " + action + "할 수 있습니다: commentId=" + commentId);
         }
         return comment;
     }
 
     private SentenceContext validateSentenceContext(Long memberId, Long clubId, Long sentenceId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "댓글을 조회하거나 작성할 모임이 존재하지 않습니다: clubId=" + clubId));
         ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "모임에 참여 중인 회원만 댓글을 조회하거나 작성할 수 있습니다: clubId=" + clubId));
         Sentence sentence = sentenceRepository.findById(sentenceId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.SENTENCE_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.SENTENCE_NOT_FOUND,
+                        "댓글을 조회하거나 작성할 문장이 존재하지 않습니다: sentenceId=" + sentenceId));
         if (!club.isReading(sentence)) {
-            throw new NotFoundException(ErrorCode.SENTENCE_NOT_FOUND);
+            throw new NotFoundException(
+                    ErrorCode.SENTENCE_NOT_FOUND,
+                    "해당 모임에서 읽는 문장이 아닙니다: clubId=" + clubId + ", sentenceId=" + sentenceId);
         }
         club.ensureBookAvailable();
         return new SentenceContext(clubMember, sentence);
@@ -145,13 +163,22 @@ public class CommentService {
 
     private Passage validatePassageContext(Long memberId, Long clubId, Long passageId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "댓글 발견 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
         clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "모임에 참여 중인 회원만 댓글 발견 정보를 조회할 수 있습니다: clubId=" + clubId));
         Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new BadRequestException(ErrorCode.INVALID_REQUEST));
+                .orElseThrow(() -> new BadRequestException(
+                        ErrorCode.INVALID_REQUEST,
+                        "현재 문단이 존재하지 않습니다: passageId=" + passageId));
         if (!club.isReading(passage)) {
-            throw new BadRequestException(ErrorCode.INVALID_REQUEST);
+            throw new BadRequestException(
+                    ErrorCode.INVALID_REQUEST,
+                    "현재 문단이 해당 모임의 도서에 속하지 않습니다: clubId=" + clubId
+                            + ", passageId=" + passageId);
         }
         club.ensureBookAvailable();
         return passage;

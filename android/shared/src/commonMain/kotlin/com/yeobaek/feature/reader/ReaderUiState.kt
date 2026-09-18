@@ -1,61 +1,84 @@
 package com.yeobaek.feature.reader
 
 import com.yeobaek.feature.reader.model.ChapterUiModel
-import com.yeobaek.feature.reader.model.PassageUiModel
+import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
+import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.ReaderFontSize
-import kotlin.math.roundToInt
 
 data class ReaderUiState(
     val title: String = "",
     val author: String = "",
     val chapters: List<ChapterUiModel> = emptyList(),
-    val passages: List<PassageUiModel> = emptyList(),
-    val currentSequence: Int = 0,
+    val passages: LoadedPassages = LoadedPassages(),
+    val readingSequence: Int = 0,
     val totalPassageCount: Int = 0,
     val fontSize: Int = ReaderFontSize.DEFAULT,
-    val isLoading: Boolean = false,
-    val isLoadingPrevious: Boolean = false,
-    val isLoadingNext: Boolean = false,
-    val targetProgress: Float? = null,
-    val scrollTargetSequence: Int? = null,
-    val isProgressDragging: Boolean = false,
-    val isMovingToPassage: Boolean = false,
-    val loadErrorMessage: String? = null,
+    val loadState: ReaderLoadState = ReaderLoadState.Loading,
+    val isLoadingMorePassages: Boolean = false,
+    val mode: ReaderMode = ReaderMode.Idle,
     val isTableOfContentsVisible: Boolean = false,
     val isTextSettingMenuExpanded: Boolean = false,
-    val commentSheet: PassageCommentSheetUiState? = null,
-    val reportState: ReportState = ReportState.Idle,
+    val isCommentCollectionsVisible: Boolean = false,
+    val isNewComment: Boolean = false,
+    val commentedSentences: CommentedSentencesUiModel = CommentedSentencesUiModel(),
+    val commentedSentenceMode: CommentedSentenceMode = CommentedSentenceMode.None,
+    val returnPassageSequence: Int? = null,
 ) {
-    val progress: Float
+    val readingProgress: Float
         get() = sequenceToProgress(
-            sequence = currentSequence,
+            sequence = readingSequence,
             totalPassageCount = totalPassageCount,
         )
 
     val displayProgress: Float
-        get() = targetProgress ?: progress
+        get() = when (val currentMode = mode) {
+            ReaderMode.Idle -> readingProgress
+
+            is ReaderMode.SelectingProgress -> currentMode.progress
+
+            is ReaderMode.MovingTo -> sequenceToProgress(
+                sequence = currentMode.targetSequence,
+                totalPassageCount = totalPassageCount,
+            )
+        }
+
+    val returnProgress: Float?
+        get() = returnPassageSequence?.let { sequence ->
+            sequenceToProgress(
+                sequence = sequence,
+                totalPassageCount = totalPassageCount,
+            )
+        }
 }
 
-internal fun sequenceToProgress(
-    sequence: Int,
-    totalPassageCount: Int,
-): Float {
-    if (totalPassageCount <= 0) return 0f
-    if (totalPassageCount == 1) {
-        return if (sequence >= 1) 100f else 0f
-    }
+sealed interface ReaderLoadState {
+    data object Loading : ReaderLoadState
 
-    val validSequence = sequence.coerceIn(1, totalPassageCount)
-    return ((validSequence - 1) * 100f) / (totalPassageCount - 1)
+    data object Success : ReaderLoadState
+
+    data class Failed(
+        val message: String,
+    ) : ReaderLoadState
 }
 
-internal fun progressToSequence(
-    progress: Float,
-    totalPassageCount: Int,
-): Int {
-    if (totalPassageCount <= 0) return 0
-    if (totalPassageCount == 1) return 1
+sealed interface ReaderMode {
+    data object Idle : ReaderMode
 
-    val validProgress = progress.coerceIn(0f, 100f) / 100f
-    return (validProgress * (totalPassageCount - 1)).roundToInt() + 1
+    data class SelectingProgress(
+        val progress: Float,
+    ) : ReaderMode
+
+    data class MovingTo(
+        val targetSequence: Int,
+        val isTargetLoaded: Boolean,
+    ) : ReaderMode
+}
+
+sealed interface CommentedSentenceMode {
+    data object Loading : CommentedSentenceMode
+    data object None : CommentedSentenceMode
+    data object Exists : CommentedSentenceMode
+    data class Failed(
+        val message: String,
+    ) : CommentedSentenceMode
 }

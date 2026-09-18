@@ -450,6 +450,27 @@ class SentenceIngestTests(unittest.TestCase):
         )
         self.assertEqual("".join(sentences), paragraph)
 
+    def test_uppercase_ship_prefix_requires_narrow_context_evidence(self):
+        cases = {
+            "작살 자루에는 ‘SS. 시 유니콘호, 던디’라고 새겨져 있었다. 다음 문장.":
+                ["작살 자루에는 ‘SS. 시 유니콘호, 던디’라고 새겨져 있었다. ", "다음 문장."],
+            "각인은 ‘SS.’로 시작해 배 이름으로 이어졌다.":
+                ["각인은 ‘SS.’로 시작해 배 이름으로 이어졌다."],
+            "그 문서는 SS. 다음 문장이다.": ["그 문서는 SS. ", "다음 문장이다."],
+            "‘SS.’ 다음 문장.": ["‘SS.’ ", "다음 문장."],
+            "SS. Next sentence.": ["SS. ", "Next sentence."],
+            "BOSS. 다음 문장.": ["BOSS. ", "다음 문장."],
+            "class. 다음 문장.": ["class. ", "다음 문장."],
+            "ss. 다음 문장.": ["ss. ", "다음 문장."],
+            "Ss. 다음 문장.": ["Ss. ", "다음 문장."],
+            "SS.": ["SS."],
+        }
+        for paragraph, expected in cases.items():
+            with self.subTest(paragraph=paragraph):
+                sentences = split_sentences(paragraph)
+                self.assertEqual(sentences, expected)
+                self.assertEqual("".join(sentences), paragraph)
+
     def test_ambiguous_abbreviations_split_before_korean_new_sentence(self):
         cases = {
             "5 p.m. 그는 떠났다.": ["5 p.m. ", "그는 떠났다."],

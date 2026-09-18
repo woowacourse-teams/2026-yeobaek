@@ -8,12 +8,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.ActiveBookRepository;
+import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinCodeGenerator;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
@@ -43,7 +43,6 @@ public class ClubService {
     private final AuthorBookRepository authorBookRepository;
     private final MemberRepository memberRepository;
     private final MemberBlockRepository memberBlockRepository;
-    private final JoinCodeGenerator joinCodeGenerator;
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional
@@ -58,7 +57,9 @@ public class ClubService {
     @Transactional
     public ClubJoinResponse join(Long memberId, String joinCode) {
         Club club = clubRepository.findByJoinCode(joinCode)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.JOIN_CODE_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.JOIN_CODE_NOT_FOUND,
+                        "참여 코드에 해당하는 모임이 존재하지 않습니다."));
         club.ensureBookAvailable();
         clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
                 .ifPresentOrElse(ClubMember::rejoin,
@@ -71,9 +72,13 @@ public class ClubService {
     @Transactional
     public void leave(Long memberId, Long clubId) {
         clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "탈퇴할 모임이 존재하지 않습니다: clubId=" + clubId));
         ClubMember clubMember = clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "가입 이력이 있는 회원만 모임을 탈퇴할 수 있습니다: clubId=" + clubId));
         clubMember.leave();
     }
 
@@ -100,12 +105,16 @@ public class ClubService {
     @Transactional(readOnly = true)
     public ClubDetailResponse findDetail(Long memberId, Long clubId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.CLUB_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.CLUB_NOT_FOUND,
+                        "상세 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
         List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithMemberByClubId(clubId);
         ClubMember myMembership = clubMembers.stream()
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst()
-                .orElseThrow(() -> new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER));
+                .orElseThrow(() -> new ForbiddenException(
+                        ErrorCode.NOT_CLUB_MEMBER,
+                        "모임에 참여 중인 회원만 상세 정보를 조회할 수 있습니다: clubId=" + clubId));
         Set<Long> blockedMemberIds = blockedMemberIds(memberId, clubMembers);
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
@@ -133,14 +142,14 @@ public class ClubService {
         if (clubMember.getLastReadPassage() == null) {
             return null;
         }
-        int sequence = clubMember.getLastReadPassage().getSequence();
+        int sequence = clubMember.getLastReadPassage().getSequence().value();
         return new MyProgressResponse(sequence, clubMember.progressRate(), clubMember.getLastReadAt());
     }
 
-    private String generateUniqueJoinCode() {
+    private JoinCode generateUniqueJoinCode() {
         for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
-            String code = joinCodeGenerator.generate();
-            if (!clubRepository.existsByJoinCode(code)) {
+            JoinCode code = JoinCode.generate();
+            if (!clubRepository.existsByJoinCode(code.value())) {
                 return code;
             }
         }
@@ -149,14 +158,14 @@ public class ClubService {
 
     private List<String> authorNames(Book book) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(List.of(book.getId())).stream()
-                .map(authorBook -> authorBook.getAuthor().getName())
+                .map(authorBook -> authorBook.getAuthor().getName().value())
                 .collect(Collectors.toList());
     }
 
     private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName().value(), Collectors.toList())));
     }
 
     private ClubBookResponse toBookResponse(Book book, List<String> authors) {

@@ -1,12 +1,16 @@
 package com.yeobaek.feature.home.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,6 +31,9 @@ fun CurrentlyGroupSection(
             title = title,
         )
         Spacer(modifier = Modifier.height(16.dp))
+        if (groupUiModelList.isEmpty()) {
+            EmptyGroupColumn()
+        }
         LazyColumn {
             items(items = groupUiModelList, key = { it.groupId }) { groupUiModel ->
                 HomeGroupCard(
@@ -41,6 +48,21 @@ fun CurrentlyGroupSection(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyGroupColumn(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "모임에 참여하거나 만들어서 함께 책을 읽어봐요!",
+        )
     }
 }
 

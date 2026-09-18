@@ -17,8 +17,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -80,7 +83,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).create(1L, "교환독서 1기", 5L);
-        verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreated(10L, 5L));
+        verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreate(10L, 5L));
     }
 
     @Test
@@ -116,7 +119,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
         verify(clubService, times(1)).join(2L, "A3F9KQ");
-        verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoined(10L, 5L));
+        verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoin(10L, 5L));
     }
 
     @Test
@@ -130,6 +133,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(clubService, times(1)).leave(8L, 10L);
+        verify(analyticsTracker).track(8L, AnalyticsEvent.clubLeave(10L));
     }
 
     @Test
@@ -182,6 +186,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.clubs[1].myProgress").value((Object) null));
 
         verify(clubService, times(1)).findMyClubs(3L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.clubsView(2));
     }
 
     @Test
@@ -232,6 +237,8 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.members[1].blocked").value(true));
 
         verify(clubService, times(1)).findDetail(4L, 10L);
+        verify(analyticsTracker).track(4L,
+                AnalyticsEvent.clubView(10L, 5L, 2, 13, "ACTIVE"));
     }
 
     @Test
@@ -250,6 +257,27 @@ class ClubControllerTest extends ControllerTest {
         verifyNoInteractions(analyticsTracker);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"bookId\":5}",
+            "{\"name\":null,\"bookId\":5}",
+            "{\"name\":\"교환독서 1기\"}",
+            "{\"name\":\"교환독서 1기\",\"bookId\":null}"
+    })
+    @DisplayName("모임 생성 필수 필드가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullCreateField(String content) throws Exception {
+        givenValidMember(5L);
+
+        mockMvc.perform(post("/api/clubs")
+                        .header("X-Member-Id", "5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService);
+    }
+
     @Test
     @DisplayName("모임 참여 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingJoinBody() throws Exception {
@@ -266,11 +294,29 @@ class ClubControllerTest extends ControllerTest {
         verifyNoInteractions(analyticsTracker);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"joinCode\":null}"})
+    @DisplayName("필수 참여 코드가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullJoinCode(String content) throws Exception {
+        givenValidMember(6L);
+
+        mockMvc.perform(post("/api/clubs/join")
+                        .header("X-Member-Id", "6")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService);
+    }
+
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(7L);
-        var serviceException = new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER);
+        var serviceException = new ForbiddenException(
+                ErrorCode.NOT_CLUB_MEMBER,
+                "모임에 참여 중인 회원만 상세 정보를 조회할 수 있습니다: clubId=999");
         given(clubService.findDetail(7L, 999L)).willThrow(serviceException);
 
         var result = mockMvc.perform(get("/api/clubs/{clubId}", 999L)

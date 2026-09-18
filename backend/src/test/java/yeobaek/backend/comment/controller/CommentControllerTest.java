@@ -18,8 +18,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -79,7 +82,7 @@ class CommentControllerTest extends ControllerTest {
 
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker, times(1))
-                .track(1L, AnalyticsEvent.commentsViewed(10L, 1042L, 2));
+                .track(1L, AnalyticsEvent.commentsViewFromDeprecatedGet(10L, 1042L, 2));
     }
 
     @Test
@@ -106,7 +109,7 @@ class CommentControllerTest extends ControllerTest {
 
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker, times(1))
-                .track(1L, AnalyticsEvent.commentsViewed(10L, 1042L, 1));
+                .track(1L, AnalyticsEvent.commentsViewFromExplicitPost(10L, 1042L, 1));
     }
 
     @Test
@@ -123,6 +126,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.newCommentCount").value(5));
 
         verify(commentService, times(1)).countNewComments(3L, 10L, 1042L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.newCommentCountView(10L, 1042L, 5));
     }
 
     @Test
@@ -156,6 +160,8 @@ class CommentControllerTest extends ControllerTest {
                         .value("2026-08-07T09:10:00"));
 
         verify(commentService, times(1)).findCommentedSentences(4L, 10L, 1042L);
+        verify(analyticsTracker).track(4L,
+                AnalyticsEvent.commentedSentencesView(10L, 1042L, 1));
     }
 
     @Test
@@ -174,6 +180,8 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences").isEmpty());
 
         verify(commentService, times(1)).findCommentedSentences(5L, 10L, 1042L);
+        verify(analyticsTracker).track(5L,
+                AnalyticsEvent.commentedSentencesView(10L, 1042L, 0));
     }
 
     @Test
@@ -216,12 +224,12 @@ class CommentControllerTest extends ControllerTest {
 
         verify(commentService, times(1)).create(2L, 10L, 1042L, "새 댓글");
         verify(analyticsTracker, times(1))
-                .track(2L, AnalyticsEvent.commentCreated(10L, 1042L, 9L));
+                .track(2L, AnalyticsEvent.commentCreate(10L, 1042L, 9L));
     }
 
     @Test
-    @DisplayName("댓글이 없는 목록 조회는 분석 이벤트를 기록하지 않는다")
-    void doNotTrackEmptyComments() throws Exception {
+    @DisplayName("댓글이 없는 목록 조회도 개수 0과 deprecated 경로를 기록한다")
+    void trackEmptyComments() throws Exception {
         givenValidMember(8L);
         given(commentService.findComments(8L, 10L, 1042L))
                 .willReturn(new CommentsResponse(List.of()));
@@ -234,7 +242,8 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.comments").isEmpty());
 
         verify(commentService, times(1)).findComments(8L, 10L, 1042L);
-        verifyNoInteractions(analyticsTracker);
+        verify(analyticsTracker).track(8L,
+                AnalyticsEvent.commentsViewFromDeprecatedGet(10L, 1042L, 0));
     }
 
     @Test
@@ -263,6 +272,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.mine").value(true));
 
         verify(commentService, times(1)).update(3L, 9L, "수정된 내용");
+        verify(analyticsTracker).track(3L, AnalyticsEvent.commentUpdate(9L));
     }
 
     @Test
@@ -276,6 +286,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(commentService, times(1)).delete(4L, 9L);
+        verify(analyticsTracker).track(4L, AnalyticsEvent.commentDelete(9L));
     }
 
     @Test
@@ -289,6 +300,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(commentService, times(1)).report(4L, 9L);
+        verify(analyticsTracker).track(4L, AnalyticsEvent.commentReport(9L));
     }
 
     @Test
@@ -307,6 +319,22 @@ class CommentControllerTest extends ControllerTest {
         verifyNoInteractions(analyticsTracker);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}"})
+    @DisplayName("댓글 작성 내용이 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullCreateContent(String content) throws Exception {
+        givenValidMember(5L);
+
+        mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
+                        .header("X-Member-Id", "5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(commentService);
+    }
+
     @Test
     @DisplayName("댓글 수정 본문이 없으면 서비스를 호출하지 않는다")
     void rejectMissingUpdateBody() throws Exception {
@@ -322,11 +350,29 @@ class CommentControllerTest extends ControllerTest {
         verifyNoInteractions(commentService);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"content\":null}"})
+    @DisplayName("댓글 수정 내용이 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullUpdateContent(String content) throws Exception {
+        givenValidMember(6L);
+
+        mockMvc.perform(put("/api/comments/{commentId}", 9L)
+                        .header("X-Member-Id", "6")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(commentService);
+    }
+
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(7L);
-        var serviceException = new NotFoundException(ErrorCode.COMMENT_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.COMMENT_NOT_FOUND,
+                "댓글이 존재하지 않습니다: commentId=1042");
         given(commentService.findComments(7L, 999L, 1042L)).willThrow(serviceException);
 
         var result = mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 999L, 1042L)
@@ -363,7 +409,7 @@ class CommentControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("새 상세 POST의 빈 목록은 이벤트 없이 빈 배열을 반환한다")
+    @DisplayName("새 상세 POST의 빈 목록도 개수 0과 명시적 POST 경로를 기록한다")
     void emptyPostDetails() throws Exception {
         givenValidMember(1L);
         given(commentService.findComments(1L, 10L, 1042L)).willReturn(new CommentsResponse(List.of()));
@@ -373,6 +419,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.comments").isArray())
                 .andExpect(jsonPath("$.comments").isEmpty());
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
-        verifyNoInteractions(analyticsTracker);
+        verify(analyticsTracker).track(1L,
+                AnalyticsEvent.commentsViewFromExplicitPost(10L, 1042L, 0));
     }
 }

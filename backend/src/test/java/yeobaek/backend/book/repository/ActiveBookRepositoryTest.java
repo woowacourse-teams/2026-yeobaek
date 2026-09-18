@@ -31,8 +31,8 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 활성 도서 목록에 포함되지 않는다")
     void excludesDeletedBookFromActiveBooks() {
-        Book active = bookManagementRepository.save(new Book("활성 도서", null, null, 1));
-        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1));
+        Book active = bookManagementRepository.save(new Book("활성 도서", null, null, 1, null));
+        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1, null));
         bookManagementRepository.delete(deleted.getId());
 
         assertThat(activeBookRepository.findAll()).extracting(Book::getId).containsExactly(active.getId());
@@ -41,7 +41,7 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 제목이나 작가 이름으로 검색할 수 없다")
     void excludesDeletedBookFromSearchResults() {
-        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1));
+        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1, null));
         Author author = authorRepository.save(new Author("검색 작가"));
         authorBookRepository.save(new AuthorBook(author, deleted));
         bookManagementRepository.delete(deleted.getId());
@@ -61,7 +61,7 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 BOOK_NOT_AVAILABLE 오류로 구분한다")
     void distinguishesDeletedBook() {
-        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1));
+        Book deleted = bookManagementRepository.save(new Book("삭제 도서", null, null, 1, null));
         bookManagementRepository.delete(deleted.getId());
 
         assertThatThrownBy(() -> activeBookRepository.getById(deleted.getId()))

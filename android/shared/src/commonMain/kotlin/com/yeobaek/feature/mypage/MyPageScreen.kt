@@ -1,9 +1,9 @@
 package com.yeobaek.feature.mypage
 
 import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_guide
 import android.shared.generated.resources.ic_user_delete
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -41,7 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
-import org.jetbrains.compose.resources.painterResource
+import com.yeobaek.feature.mypage.component.MyPageFeatureCard
 
 @Composable
 fun MyPageScreen(
@@ -49,6 +48,7 @@ fun MyPageScreen(
     appVersion: String,
     deleteAccount: () -> Unit,
     navigateToNickname: () -> Unit,
+    navigateToGuide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -110,20 +110,21 @@ fun MyPageScreen(
                     Text(uiState.name)
                 }
             }
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth().clickable {
+            MyPageFeatureCard(
+                text = "가이드",
+                icon = Res.drawable.ic_guide,
+                onClick = {
+                    navigateToGuide()
+                },
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            MyPageFeatureCard(
+                text = "회원 탈퇴",
+                icon = Res.drawable.ic_user_delete,
+                onClick = {
                     showDeleteDialog = true
                 },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_user_delete),
-                    contentDescription = "사용자 계정 삭제 아이콘",
-                    modifier = Modifier.size(24.dp),
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text("회원 탈퇴")
-            }
+            )
             Spacer(modifier = Modifier.height(30.dp))
             Text(
                 "v$appVersion",
@@ -156,6 +157,7 @@ private fun MyPageScreenPreview() {
             appVersion = "1.0.0",
             deleteAccount = {},
             navigateToNickname = {},
+            navigateToGuide = {},
         )
     }
 }

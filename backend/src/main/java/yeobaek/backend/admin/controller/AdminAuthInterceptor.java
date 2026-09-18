@@ -23,7 +23,9 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         if (isConfigured() && adminToken.equals(request.getHeader(ADMIN_TOKEN_HEADER))) {
             return true;
         }
-        throw new UnauthorizedException(ErrorCode.UNAUTHORIZED);
+        throw new UnauthorizedException(
+                ErrorCode.UNAUTHORIZED,
+                "관리자 토큰이 없거나 올바르지 않습니다.");
     }
 
     private boolean isConfigured() {

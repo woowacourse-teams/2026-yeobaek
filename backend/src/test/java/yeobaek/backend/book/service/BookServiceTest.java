@@ -3,6 +3,7 @@ package yeobaek.backend.book.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Collections;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,10 +20,10 @@ import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.NotFoundException;
 
 class BookServiceTest extends IntegrationTest {
 
@@ -49,7 +50,7 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("도서 목록에 작가 이름이 함께 조회된다")
     void findBooksWithAuthors() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 3));
+        Book book = bookRepository.save(new Book("운수 좋은 날", "자체 제작", 1924, 3, null));
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, book));
 
@@ -73,8 +74,8 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("키워드가 제목에 부분 일치하는 도서를 검색한다")
     void searchByTitle() {
-        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
-        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3, null));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5, null));
 
         BooksResponse response = bookService.findBooks("운수");
 
@@ -85,8 +86,8 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("키워드가 작가 이름에 부분 일치하는 도서를 검색한다")
     void searchByAuthorName() {
-        Book matched = bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
-        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+        Book matched = bookRepository.save(new Book("운수 좋은 날", null, 1924, 3, null));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5, null));
         Author author = authorRepository.save(new Author("현진건"));
         authorBookRepository.save(new AuthorBook(author, matched));
 
@@ -99,7 +100,7 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("제목과 작가 어디에도 일치하지 않으면 빈 목록을 반환한다")
     void searchNoMatch() {
-        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3, null));
 
         BooksResponse response = bookService.findBooks("이상");
 
@@ -109,8 +110,8 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("공백 키워드는 전체 목록을 반환한다")
     void searchWithBlankKeyword() {
-        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3));
-        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5));
+        bookRepository.save(new Book("운수 좋은 날", null, 1924, 3, null));
+        bookRepository.save(new Book("메밀꽃 필 무렵", null, 1936, 5, null));
 
         BooksResponse response = bookService.findBooks(" ");
 
@@ -120,14 +121,14 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("도서 상세의 목차에 챕터별 본문 순서 범위가 계산된다")
     void findBookWithChapterRanges() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 5));
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 5, null));
         Chapter first = chapterRepository.save(new Chapter(book, "1장", 1));
         Chapter second = chapterRepository.save(new Chapter(book, "2장", 2));
         for (int sequence = 1; sequence <= 3; sequence++) {
-            passageRepository.save(new Passage(first, sequence, "본문 " + sequence));
+            passageRepository.save(new Passage(first, sequence, Collections.singletonList("본문 " + sequence)));
         }
         for (int sequence = 4; sequence <= 5; sequence++) {
-            passageRepository.save(new Passage(second, sequence, "본문 " + sequence));
+            passageRepository.save(new Passage(second, sequence, Collections.singletonList("본문 " + sequence)));
         }
 
         BookDetailResponse response = bookService.findBook(book.getId());
@@ -146,7 +147,7 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 이용 가능한 도서 목록과 검색 결과에 나타나지 않는다")
     void excludesDeletedBookFromAvailableBooks() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1, null));
         bookRepository.delete(book.getId());
 
         assertThat(bookService.findBooks(null).books()).isEmpty();
@@ -156,7 +157,7 @@ class BookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서를 직접 조회하면 BOOK_NOT_AVAILABLE 오류가 발생한다")
     void cannotFindDeletedBookDetail() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1, null));
         bookRepository.delete(book.getId());
 
         assertThatThrownBy(() -> bookService.findBook(book.getId()))

@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun ReaderTableOfContents(
     chapters: List<ChapterUiModel>,
-    currentPassageSequence: Int,
+    readingPassageSequence: Int,
     onDismissRequest: () -> Unit,
     onChapterClick: (ChapterUiModel) -> Unit,
     modifier: Modifier = Modifier,
@@ -86,17 +86,17 @@ fun ReaderTableOfContents(
                             items = chapters,
                             key = ChapterUiModel::chapterId,
                         ) { chapter ->
-                            val isCurrentChapter = currentPassageSequence in
+                            val isReadingChapter = readingPassageSequence in
                                 chapter.startPassageSequence..chapter.endPassageSequence
 
                             Text(
                                 text = chapter.title,
-                                color = if (isCurrentChapter) {
+                                color = if (isReadingChapter) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onBackground
                                 },
-                                fontWeight = if (isCurrentChapter) {
+                                fontWeight = if (isReadingChapter) {
                                     FontWeight.SemiBold
                                 } else {
                                     FontWeight.Normal

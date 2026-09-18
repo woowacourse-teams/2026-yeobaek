@@ -4,6 +4,34 @@
 
 > 팀에 새로 합류한 개발자는 [온보딩 문서](docs/온보딩_프로젝트_개발_방법.md)부터 읽어야 합니다.
 
+## 디렉터리 구성
+
+| 경로 | 용도 |
+|---|---|
+| `src/main/`, `src/test/` | 애플리케이션 코드·리소스와 테스트 |
+| `infra/local/` | 로컬 실행 스크립트, Compose, 개인 환경변수 예시 |
+| `infra/prod/` | 운영 이미지, Compose, S3 인프라 설정 |
+| `config/` | PMD·SpotBugs 정적 분석 설정 |
+| `gradle/` | Gradle Wrapper와 동시 실행 잠금 도구·검증 |
+| `docs/` | 온보딩·배포 문서, ADR, 개발 지침과 템플릿 |
+
+루트에는 Gradle 빌드 파일과 Wrapper 진입점, README·에이전트 지침, Git 설정을 둡니다.
+개인 로컬 설정은 `infra/local/.env.local`을 사용하며 같은 디렉터리의 `.env.local.example`에서 복사합니다.
+기존 backend 루트에 `.env.local`이 있다면 `infra/local/.env.local`로 이동해야 합니다.
+`build/`, `.gradle/`, IDE 설정은 Git에서 제외되는 생성물입니다.
+
+로컬 인프라는 `infra/local/`, 운영 인프라는 `infra/prod/`에 모여 있습니다.
+로컬 환경은 아래 `infra/local/local-env.*` 명령으로 실행합니다. 스크립트는 실행 위치와 관계없이
+`backend/`를 기준으로 Compose 설정과 Gradle을 찾습니다. 기존 루트의 `local-env.*` 명령을
+사용했다면 `infra/local/` 경로를 추가하세요.
+
+Docker 이미지는 `backend/`를 빌드 컨텍스트로 유지합니다.
+
+```bash
+./gradlew bootJar
+docker build -f infra/prod/Dockerfile -t yeobaek-backend .
+```
+
 ## Android/API 로컬 테스트
 
 Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 JDK는 필요하지 않습니다.
@@ -16,15 +44,15 @@ Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 J
 
 ```powershell
 # Windows: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-pwsh -NoProfile -File .\local-env.ps1 dev
+pwsh -NoProfile -File .\infra\local\local-env.ps1 dev
 ```
 
 ```bash
 # macOS/Linux: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-sh ./local-env.sh dev
+sh ./infra/local/local-env.sh dev
 ```
 
-로컬 서버는 `local` 프로파일로 실행됩니다. `dev`는 기존 API 컨테이너가 실행 중이면 먼저 중지해 8080 포트 충돌을 막습니다. Windows 명령은 PowerShell 7.2 이상(`pwsh`)을 기준으로 합니다. IDE에서 서버를 실행할 때는 `pwsh -NoProfile -File .\local-env.ps1 db`(Windows) 또는 `sh ./local-env.sh db`(macOS/Linux)로 DB만 실행하고, 작업 후 공통 `down` 명령으로 종료합니다.
+로컬 서버는 `local` 프로파일로 실행됩니다. `dev`는 기존 API 컨테이너가 실행 중이면 먼저 중지해 8080 포트 충돌을 막습니다. Windows 명령은 PowerShell 7.2 이상(`pwsh`)을 기준으로 합니다. IDE에서 서버를 실행할 때는 `pwsh -NoProfile -File .\infra\local\local-env.ps1 db`(Windows) 또는 `sh ./infra/local/local-env.sh db`(macOS/Linux)로 DB만 실행하고, 작업 후 공통 `down` 명령으로 종료합니다.
 
 스크립트는 체크아웃 경로별 Compose 프로젝트명을 사용하므로 다른 clone이나 worktree의 컨테이너를 `down`하지 않습니다. 필요하면 `COMPOSE_PROJECT_NAME`으로 명시적으로 덮어쓸 수 있습니다.
 
@@ -65,21 +93,25 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
+`local` 프로파일로 시작하면 Hibernate가 스키마를 생성한 뒤 `src/main/resources/local/data.sql`을 자동 실행합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 별도 시더 실행은 필요하지 않습니다. 기존 `ddl-auto=create` 설정에 따라 재시작할 때 DB를 재생성하고 같은 테스트 데이터를 다시 넣습니다.
+
+SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
+
 Compose의 로컬 MySQL 기본값은 데이터베이스 `yeobaek`, 사용자 `root`, 비밀번호 `yeobaek`, 호스트 포트 `13306`입니다. 이 값은 PC에 이미 설치된 MySQL의 기본 포트 `3306`과 충돌하지 않도록 분리되어 있으며, 로컬 개발 전용입니다.
 
 DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android 에뮬레이터와 실제 기기의 접속 설정은 [로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)을 참고합니다.
 
-기본적으로 팀의 `alstj2384/yeobaek-backend:develop` 이미지를 사용합니다. 다른 이미지나 API 바인딩 주소가 필요할 때만 `.env.local.example`을 `.env.local`로 복사해 값을 재정의합니다. `.env.local`은 Git에서 제외됩니다. 앞으로 운영 DB 비밀번호나 외부 API 키가 생기면 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
+기본적으로 팀의 `alstj2384/yeobaek-backend:develop` 이미지를 사용합니다. 다른 이미지나 API 바인딩 주소가 필요할 때만 `infra/local/.env.local.example`을 같은 디렉터리의 `.env.local`로 복사해 값을 재정의합니다. `.env.local`은 Git에서 제외됩니다. 기존 backend 루트의 `.env.local`은 `infra/local/.env.local`로 이동해야 합니다. 앞으로 운영 DB 비밀번호나 외부 API 키가 생기면 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
 
 ### PostHog 로컬 확인
 
-PostHog는 기본적으로 비활성화되어 있으며 사용자 행동 이벤트는 아직 정의하지 않았습니다. US Cloud 프로젝트를 연결해 SDK 초기화만 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
+PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝트에서 사용자 API 행동 이벤트를 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
 
 ```bash
 export POSTHOG_ENABLED=true
 export POSTHOG_API_KEY='<US Cloud project API key>'
 export POSTHOG_HOST='https://us.i.posthog.com'
-sh ./local-env.sh dev
+sh ./infra/local/local-env.sh dev
 ```
 
 Windows의 PowerShell 7.2 이상에서는 같은 터미널에 환경변수를 설정한 뒤 실행합니다.
@@ -88,7 +120,7 @@ Windows의 PowerShell 7.2 이상에서는 같은 터미널에 환경변수를 �
 $env:POSTHOG_ENABLED='true'
 $env:POSTHOG_API_KEY='<US Cloud project API key>'
 $env:POSTHOG_HOST='https://us.i.posthog.com'
-pwsh -NoProfile -File .\local-env.ps1 dev
+pwsh -NoProfile -File .\infra\local\local-env.ps1 dev
 ```
 
 서버가 정상 기동하면 Spring의 조건부 설정과 PostHog SDK 초기화가 완료된 것입니다. 실제 US Cloud 수신은 애플리케이션에 테스트 전용 이벤트 코드를 남기지 않고 아래 일회성 요청으로 별도 확인합니다. `distinct_id`는 실제 회원 식별자가 아니며, `$process_person_profile=false`로 인물 프로필을 생성하지 않습니다.
@@ -99,7 +131,7 @@ curl --request POST 'https://us.i.posthog.com/batch' \
   --data "{\"api_key\":\"${POSTHOG_API_KEY}\",\"batch\":[{\"event\":\"backend_local_smoke_test\",\"properties\":{\"distinct_id\":\"backend-local-smoke\",\"environment\":\"local\",\"\$process_person_profile\":false}}]}"
 ```
 
-PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 시험 이벤트와 구분합니다.
+PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테스트 이벤트를 분석에서 제외합니다. 이 요청은 SDK 연동 전에도 사용할 수 있는 수집 API 확인용이며, 아래 백엔드 사용자 API 이벤트와 구분합니다.
 
 확인이 끝나면 현재 셸에서 값을 제거합니다.
 
@@ -107,25 +139,40 @@ PostHog의 Activity에서 `backend_local_smoke_test`를 확인한 뒤 해당 테
 unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 ```
 
-### PostHog 백엔드 시험 이벤트
+### PostHog 백엔드 사용자 API 이벤트
 
-다음 이벤트는 최종 퍼널을 확정하기 전 백엔드 API 성공 수집을 검증하기 위한 시험 이벤트입니다.
+다음 이벤트는 서비스가 정상 반환한 사용자 API 호출에서 기록합니다. 관리자 API는 수집하지 않습니다.
 
-| 이벤트 | 기록 시점 | 개별 속성 |
+| 이벤트 | API | 개별 속성 |
 |---|---|---|
-| `backend_member_created` | 회원 생성 성공 | 없음 |
-| `backend_club_created` | 모임 생성 성공 | `club_id`, `book_id` |
-| `backend_club_joined` | 모임 참여 성공 | `club_id`, `book_id` |
-| `backend_passages_viewed` | 본문 범위 조회 성공 | `club_id`, `from`, `to`, `passage_count` |
-| `backend_comments_viewed` | 댓글이 1개 이상인 목록 조회 성공 | `club_id`, `sentence_id`, `comment_count` |
-| `backend_comment_created` | 댓글 작성 성공 | `club_id`, `sentence_id`, `comment_id` |
+| `backend_member_create` | `POST /api/members` | 없음 |
+| `backend_member_delete` | `DELETE /api/members/me` | 없음 |
+| `backend_blocked_members_view` | `GET /api/members/me/blocks` | `blocked_member_count` |
+| `backend_member_block` | `PUT /api/members/me/blocks/{memberId}` | 없음 |
+| `backend_member_unblock` | `DELETE /api/members/me/blocks/{memberId}` | 없음 |
+| `backend_books_view` | `GET /api/books` | `search_used`, `result_count` |
+| `backend_book_view` | `GET /api/books/{bookId}` | `book_id`, `passage_count`, `chapter_count` |
+| `backend_club_create` | `POST /api/clubs` | `club_id`, `book_id` |
+| `backend_club_join` | `POST /api/clubs/join` | `club_id`, `book_id` |
+| `backend_club_leave` | `DELETE /api/clubs/{clubId}/members/me` | `club_id` |
+| `backend_clubs_view` | `GET /api/clubs` | `club_count` |
+| `backend_club_view` | `GET /api/clubs/{clubId}` | `club_id`, `book_id`, `member_count`, `has_progress`, `progress_rate`(진도가 있을 때), `book_status` |
+| `backend_passages_view` | `GET /api/clubs/{clubId}/passages` | `club_id`, `from`, `to`, `passage_count` |
+| `backend_progress_update` | `PUT /api/clubs/{clubId}/progress` | `club_id`, `passage_id`, `last_read_passage_sequence`, `progress_rate` |
+| `backend_last_reading_view` | `GET /api/members/me/last-reading` | `has_last_reading`, 기록이 있을 때 `club_id`, `book_id`, `last_read_passage_sequence`, `progress_rate` |
+| `backend_new_comment_count_view` | `GET /api/clubs/{clubId}/comments/new-count` | `club_id`, `current_passage_id`, `new_comment_count` |
+| `backend_commented_sentences_view` | `GET /api/clubs/{clubId}/commented-sentences` | `club_id`, `current_passage_id`, `commented_sentence_count` |
+| `backend_comments_view` | 댓글 상세 조회 POST와 deprecated GET | `club_id`, `sentence_id`, `comment_count`, `api_variant` (`explicit_post` 또는 `deprecated_get`) |
+| `backend_comment_create` | `POST /api/clubs/{clubId}/sentences/{sentenceId}/comments` | `club_id`, `sentence_id`, `comment_id` |
+| `backend_comment_update` | `PUT /api/comments/{commentId}` | `comment_id` |
+| `backend_comment_delete` | `DELETE /api/comments/{commentId}` | `comment_id` |
+| `backend_comment_report` | `POST /api/comments/{commentId}/reports` | `comment_id` |
 
-모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=1`, `$process_person_profile=false`가 붙습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용하며 닉네임, 모임 이름, 참여 코드, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
+모든 이벤트에는 `source=backend`, 활성 Spring 프로파일인 `environment`, `event_schema_version=2`, `$process_person_profile=false`가 붙습니다. `outcome`, 오류 코드, HTTP 상태, 지연 시간은 전송하지 않습니다. 회원 식별에는 내부 숫자 ID를 문자열로 변환한 `distinct_id`만 사용합니다. 닉네임, 차단 대상 회원 ID, 모임 이름, 참여 코드, 검색어 원문, 책 제목, 문장·댓글 원문은 전송하지 않습니다.
 
-현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다.
+현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다. 회원 로그인 도입 시에는 프론트엔드와 백엔드가 같은 `distinct_id`를 사용하도록 식별 정책을 함께 정합니다.
 
 ## 더 알아보기
 
 - [팀의 개발 방법](docs/온보딩_프로젝트_개발_방법.md)
 - 에이전트/개발 지침: `AGENTS.md`, `docs/지침/`
-- 개발 계획: `docs/개발계획.md`

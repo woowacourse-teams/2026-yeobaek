@@ -8,12 +8,10 @@ import lombok.Getter;
 @Getter
 public class UnauthorizedException extends RuntimeException {
 
-    private static final long serialVersionUID = 1L;
-
     private final ErrorCode code;
 
-    public UnauthorizedException(ErrorCode code) {
-        super(code.getDefaultMessage());
+    public UnauthorizedException(ErrorCode code, String message) {
+        super(message);
         this.code = code;
     }
 }

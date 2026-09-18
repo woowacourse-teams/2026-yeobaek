@@ -1,6 +1,8 @@
 package yeobaek.backend.comment.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -15,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -36,27 +39,24 @@ public class Comment {
     @JoinColumn(name = "sentence_id")
     private Sentence sentence;
 
-    @Column(nullable = false, length = 1000)
-    private String content;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "content", nullable = false, length = CommentContent.MAX_LENGTH))
+    private CommentContent content;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
-    private static final int MAX_CONTENT_LENGTH = 1000;
-
     public Comment(ClubMember clubMember, Sentence sentence, String content) {
-        validateContent(content);
         this.clubMember = clubMember;
         this.sentence = sentence;
-        this.content = content;
+        this.content = new CommentContent(content);
         this.createdAt = LocalDateTime.now();
     }
 
     public void updateContent(String content) {
-        validateContent(content);
-        this.content = content;
+        this.content = new CommentContent(content);
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -70,7 +70,9 @@ public class Comment {
 
     public void ensureReportableBy(Long memberId) {
         if (isWrittenBy(memberId)) {
-            throw new BadRequestException(ErrorCode.CANNOT_REPORT_OWN_COMMENT);
+            throw new BadRequestException(
+                    ErrorCode.CANNOT_REPORT_OWN_COMMENT,
+                    "본인이 작성한 댓글은 신고할 수 없습니다.");
         }
     }
 
@@ -78,9 +80,7 @@ public class Comment {
         clubMember.ensureBookAvailable();
     }
 
-    private static void validateContent(String content) {
-        if (content == null || content.isBlank() || content.length() > MAX_CONTENT_LENGTH) {
-            throw new IllegalArgumentException("댓글 내용은 공백이 아닌 1~" + MAX_CONTENT_LENGTH + "자여야 합니다.");
-        }
+    public String getContent() {
+        return content.value();
     }
 }

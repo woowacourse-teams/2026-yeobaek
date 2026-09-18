@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data object Nickname
 
 @Serializable
-data object Onboarding
+data object Guide
 
 @Serializable
 data object Home

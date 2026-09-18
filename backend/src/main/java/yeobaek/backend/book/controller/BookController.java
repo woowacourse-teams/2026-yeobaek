@@ -9,9 +9,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.book.dto.BookDetailResponse;
 import yeobaek.backend.book.dto.BooksResponse;
 import yeobaek.backend.book.service.BookService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @Tag(name = "도서")
 @SecurityRequirement(name = "memberId")
@@ -20,19 +23,28 @@ import yeobaek.backend.book.service.BookService;
 public class BookController {
 
     private final BookService bookService;
+    private final AnalyticsTracker analyticsTracker;
 
     @Operation(summary = "도서 목록 조회 · 검색",
             description = "모임 생성 시 선택할 도서 목록을 조회한다. keyword를 주면 제목 또는 작가 이름 부분 일치로 검색한다.")
     @GetMapping("/api/books")
     public BooksResponse findBooks(
+            @AuthMember Long memberId,
             @Parameter(description = "제목 또는 작가 이름 부분 일치 검색어. 미지정·공백이면 전체 목록")
             @RequestParam(required = false) String keyword) {
-        return bookService.findBooks(keyword);
+        BooksResponse response = bookService.findBooks(keyword);
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.booksView(keyword != null && !keyword.isBlank(), response.books().size()));
+        return response;
     }
 
     @Operation(summary = "도서 상세 + 목차 조회")
     @GetMapping("/api/books/{bookId}")
-    public BookDetailResponse findBook(@Parameter(description = "도서 ID") @PathVariable Long bookId) {
-        return bookService.findBook(bookId);
+    public BookDetailResponse findBook(@AuthMember Long memberId,
+                                       @Parameter(description = "도서 ID") @PathVariable Long bookId) {
+        BookDetailResponse response = bookService.findBook(bookId);
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.bookView(response.bookId(), response.passageCount(), response.chapters().size()));
+        return response;
     }
 }
