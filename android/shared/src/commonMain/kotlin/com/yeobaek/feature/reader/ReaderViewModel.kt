@@ -333,7 +333,7 @@ class ReaderViewModel(
         if (targetSequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount) {
             uiState = uiState.copy(
                 mode = ReaderMode.Idle,
-                returnPassageSequence = null,
+                returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
             )
             return
         }
@@ -373,7 +373,7 @@ class ReaderViewModel(
                     )
                     uiState.copy(
                         mode = ReaderMode.Idle,
-                        returnPassageSequence = null,
+                        returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
                     )
                 } else {
                     uiState.copy(
@@ -390,7 +390,7 @@ class ReaderViewModel(
                 recordFailure(exception, CrashOperation.READER_SEEK_FAILED, passageSequence = targetSequence)
                 uiState = uiState.copy(
                     mode = ReaderMode.Idle,
-                    returnPassageSequence = null,
+                    returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
                 )
             }
         }
@@ -447,6 +447,8 @@ class ReaderViewModel(
         uiState = uiState.copy(
             readingSequence = passage.sequence,
             mode = ReaderMode.Idle,
+            returnPassageSequence = uiState.returnPassageSequence
+                ?.takeUnless { returnSequence -> returnSequence == passage.sequence },
         )
         refreshNewCommentStatus()
     }
@@ -459,7 +461,7 @@ class ReaderViewModel(
         moveToPassageJob = null
         uiState = uiState.copy(
             mode = ReaderMode.Idle,
-            returnPassageSequence = null,
+            returnPassageSequence = returnAnchorAfterFailedMove(targetSequence),
         )
     }
 
@@ -527,9 +529,13 @@ class ReaderViewModel(
 
     fun returnToReadingAnchor() {
         val targetSequence = uiState.returnPassageSequence ?: return
-        uiState = uiState.copy(returnPassageSequence = null)
         moveToPassage(targetSequence)
     }
+
+    private fun returnAnchorAfterFailedMove(targetSequence: Int): Int? =
+        uiState.returnPassageSequence?.takeIf { returnSequence ->
+            returnSequence == targetSequence
+        }
 
     private fun handleCommentsViewed(sentenceId: Long) {
         uiState = uiState.copy(
