@@ -17,8 +17,11 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.book.domain.BookStatus;
@@ -29,12 +32,17 @@ import yeobaek.backend.club.service.ProgressService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(ProgressController.class)
 class ProgressControllerTest extends ControllerTest {
 
     @MockitoBean
     private ProgressService progressService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("진도 갱신 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
@@ -57,6 +65,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.lastReadAt").value("2026-08-05T14:30:00"));
 
         verify(progressService, times(1)).updateProgress(1L, 7L, 1042L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.progressUpdate(7L, 1042L, 42, 13));
     }
 
     @Test
@@ -93,6 +102,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.lastReadAt").value("2026-08-06T09:15:00"));
 
         verify(progressService, times(1)).findLastReading(2L);
+        verify(analyticsTracker).track(2L, AnalyticsEvent.lastReadingView(7L, 5L, 42, 13));
     }
 
     @Test
@@ -107,6 +117,7 @@ class ProgressControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(progressService, times(1)).findLastReading(3L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.lastReadingView());
     }
 
     @Test
@@ -124,11 +135,29 @@ class ProgressControllerTest extends ControllerTest {
         verifyNoInteractions(progressService);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"passageId\":null}"})
+    @DisplayName("필수 본문 ID가 누락되거나 null이면 진도 서비스를 호출하지 않는다")
+    void rejectMissingOrNullPassageId(String content) throws Exception {
+        givenValidMember(4L);
+
+        mockMvc.perform(put("/api/clubs/{clubId}/progress", 7L)
+                        .header("X-Member-Id", "4")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(progressService);
+    }
+
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         givenValidMember(5L);
-        var serviceException = new NotFoundException(ErrorCode.PASSAGE_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.PASSAGE_NOT_FOUND,
+                "진도를 갱신할 본문이 존재하지 않습니다: passageId=999");
         given(progressService.updateProgress(5L, 7L, 999L)).willThrow(serviceException);
 
         var result = mockMvc.perform(put("/api/clubs/{clubId}/progress", 7L)

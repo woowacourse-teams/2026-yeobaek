@@ -21,18 +21,18 @@ class PostHogAnalyticsTrackerTest {
     void captureEventWithCommonProperties() {
         PostHogInterface postHog = mock(PostHogInterface.class);
         var tracker = new PostHogAnalyticsTracker(postHog, "prod");
-        var event = AnalyticsEvent.clubCreated(10L, 5L);
+        var event = AnalyticsEvent.clubCreate(10L, 5L);
 
         tracker.track(1L, event);
 
         var optionsCaptor = ArgumentCaptor.forClass(PostHogCaptureOptions.class);
-        verify(postHog).capture(eq("1"), eq("backend_club_created"), optionsCaptor.capture());
+        verify(postHog).capture(eq("1"), eq("backend_club_create"), optionsCaptor.capture());
         assertThat(optionsCaptor.getValue().getProperties())
                 .containsEntry("club_id", 10L)
                 .containsEntry("book_id", 5L)
                 .containsEntry("source", "backend")
                 .containsEntry("environment", "prod")
-                .containsEntry("event_schema_version", 1)
+                .containsEntry("event_schema_version", 2)
                 .containsEntry("$process_person_profile", false);
     }
 
@@ -42,9 +42,9 @@ class PostHogAnalyticsTrackerTest {
         PostHogInterface postHog = mock(PostHogInterface.class);
         var tracker = new PostHogAnalyticsTracker(postHog, "prod");
         doThrow(new IllegalStateException("capture failed"))
-                .when(postHog).capture(eq("1"), eq("backend_member_created"), any());
+                .when(postHog).capture(eq("1"), eq("backend_member_create"), any());
 
-        assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreated()))
+        assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreate()))
                 .doesNotThrowAnyException();
     }
 }

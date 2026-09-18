@@ -16,7 +16,7 @@ public interface MemberBlockRepository extends JpaRepository<MemberBlock, Long> 
             select mb from MemberBlock mb
             join fetch mb.blocked blocked
             where mb.blocker.id = :blockerId
-            order by blocked.nickname asc, blocked.id asc
+            order by blocked.nickname.value asc, blocked.id asc
             """)
     List<MemberBlock> findAllWithBlockedByBlockerId(@Param("blockerId") Long blockerId);
 

@@ -24,7 +24,9 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
         }
         long memberId = parseMemberId(header);
         if (!memberRepository.existsById(memberId)) {
-            throw new NotFoundException(ErrorCode.MEMBER_NOT_FOUND);
+            throw new NotFoundException(
+                    ErrorCode.MEMBER_NOT_FOUND,
+                    "X-Member-Id가 가리키는 회원이 존재하지 않습니다: memberId=" + memberId);
         }
         request.setAttribute(MEMBER_ID_ATTRIBUTE, memberId);
         return true;

@@ -11,6 +11,7 @@ import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.feature.reader.model.CommentUiModel
+import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
@@ -25,6 +26,7 @@ class CommentSheetController(
     private val scope: CoroutineScope,
     private val crashContext: (operation: CrashOperation, sentenceId: Long, itemCount: Int?) -> CrashContext,
     private val onCommentCountChanged: (sentenceId: Long, commentCount: Int) -> Unit,
+    private val onCommentsViewed: (sentenceId: Long) -> Unit,
     private val analytics: CommentSheetAnalytics,
 ) {
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
@@ -34,31 +36,71 @@ class CommentSheetController(
     private var didSubmitInSheet = false
 
     fun open(sentence: SentenceUiModel) {
+        open(
+            sentenceId = sentence.sentenceId,
+            sentenceContent = sentence.content,
+            itemCount = sentence.commentCount,
+            targetPassageSequence = null,
+        )
+    }
+
+    fun openFromCollection(sentence: CommentedSentenceUiModel) {
+        open(
+            sentenceId = sentence.sentenceId,
+            sentenceContent = sentence.content,
+            itemCount = sentence.commentCount,
+            targetPassageSequence = sentence.passageSequence,
+        )
+    }
+
+    fun retryLoad() {
+        val sheet = uiState ?: return
+        if (sheet.isLoading) return
+
+        uiState = sheet.copy(
+            isLoading = true,
+            loadErrorMessage = null,
+        )
+        loadComments(sheet.sentenceId)
+    }
+
+    private fun open(
+        sentenceId: Long,
+        sentenceContent: String,
+        itemCount: Int,
+        targetPassageSequence: Int?,
+    ) {
         cancelLoad()
         didSubmitInSheet = false
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
-            sentenceId = sentence.sentenceId,
-            itemCount = sentence.commentCount,
+            sentenceId = sentenceId,
+            itemCount = itemCount,
         )
         analytics.sheetOpened(
-            sentenceId = sentence.sentenceId,
-            commentCount = sentence.commentCount,
+            sentenceId = sentenceId,
+            commentCount = itemCount,
         )
         uiState = CommentSheetUiState(
-            sentenceId = sentence.sentenceId,
+            sentenceId = sentenceId,
+            sentenceContent = sentenceContent,
+            targetPassageSequence = targetPassageSequence,
             isLoading = true,
         )
 
+        loadComments(sentenceId)
+    }
+
+    private fun loadComments(sentenceId: Long) {
         loadJob = scope.launch {
             try {
                 val comments = commentRepository.getComments(
                     clubId = groupId,
-                    sentenceId = sentence.sentenceId,
+                    sentenceId = sentenceId,
                 ).comments.map(CommentModel::toUiModel)
 
                 updateSheet(
-                    sentenceId = sentence.sentenceId,
+                    sentenceId = sentenceId,
                     isWaiting = { sheet -> sheet.isLoading },
                 ) { sheet ->
                     sheet.copy(
@@ -67,9 +109,10 @@ class CommentSheetController(
                         loadErrorMessage = null,
                     )
                 }
+                onCommentsViewed(sentenceId)
                 track(
                     operation = CrashOperation.COMMENTS_LOADED,
-                    sentenceId = sentence.sentenceId,
+                    sentenceId = sentenceId,
                     itemCount = comments.size,
                 )
             } catch (exception: CancellationException) {
@@ -78,10 +121,10 @@ class CommentSheetController(
                 recordFailure(
                     exception = exception,
                     operation = CrashOperation.COMMENTS_LOAD_FAILED,
-                    sentenceId = sentence.sentenceId,
+                    sentenceId = sentenceId,
                 )
                 updateSheet(
-                    sentenceId = sentence.sentenceId,
+                    sentenceId = sentenceId,
                     isWaiting = { sheet -> sheet.isLoading },
                 ) { sheet ->
                     sheet.copy(

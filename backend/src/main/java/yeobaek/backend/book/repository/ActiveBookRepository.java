@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
 
@@ -16,7 +17,9 @@ public class ActiveBookRepository {
 
     public Book getById(Long bookId) {
         Book book = bookJpaRepository.findById(bookId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.BOOK_NOT_FOUND));
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.BOOK_NOT_FOUND,
+                        "이용할 도서가 존재하지 않습니다: bookId=" + bookId));
         book.ensureAvailable();
         return book;
     }
@@ -29,7 +32,7 @@ public class ActiveBookRepository {
         return bookJpaRepository.searchActiveByTitleOrAuthorName(keyword, BookStatus.ACTIVE);
     }
 
-    public List<Book> findAllByTitle(String title) {
-        return bookJpaRepository.findAllByTitleAndStatus(title, BookStatus.ACTIVE);
+    public List<Book> findAllByTitle(BookTitle title) {
+        return bookJpaRepository.findAllByTitleAndStatus(title.value(), BookStatus.ACTIVE);
     }
 }

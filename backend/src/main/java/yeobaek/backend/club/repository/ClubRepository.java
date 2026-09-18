@@ -2,11 +2,15 @@ package yeobaek.backend.club.repository;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import yeobaek.backend.club.domain.Club;
 
 public interface ClubRepository extends JpaRepository<Club, Long> {
 
-    boolean existsByJoinCode(String joinCode);
+    @Query("select (count(c) > 0) from Club c where c.joinCode.value = :joinCode")
+    boolean existsByJoinCode(@Param("joinCode") String joinCode);
 
-    Optional<Club> findByJoinCode(String joinCode);
+    @Query("select c from Club c where c.joinCode.value = :joinCode")
+    Optional<Club> findByJoinCode(@Param("joinCode") String joinCode);
 }

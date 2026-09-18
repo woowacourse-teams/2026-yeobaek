@@ -17,8 +17,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.member.dto.BlockedMemberResponse;
@@ -59,7 +62,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.nickname").value("민서"));
 
         verify(memberService, times(1)).create("민서");
-        verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreated());
+        verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreate());
     }
 
     @Test
@@ -82,6 +85,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.blockedMembers[1].nickname").value("지수"));
 
         verify(memberBlockService).findBlockedMembers(1L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.blockedMembersView(2));
     }
 
     @Test
@@ -95,6 +99,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberBlockService).block(1L, 2L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.memberBlock());
     }
 
     @Test
@@ -108,6 +113,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberBlockService).unblock(1L, 2L);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.memberUnblock());
     }
 
     @Test
@@ -121,6 +127,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(content().string(""));
 
         verify(memberService, times(1)).delete(7L);
+        verify(analyticsTracker).track(7L, AnalyticsEvent.memberDelete());
     }
 
     @Test
@@ -131,6 +138,19 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(result -> assertInstanceOf(
                         HttpMessageNotReadableException.class,
                         result.getResolvedException()));
+
+        verifyNoInteractions(memberService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"nickname\":null}"})
+    @DisplayName("필수 닉네임이 누락되거나 null이면 회원 서비스를 호출하지 않는다")
+    void rejectMissingOrNullNickname(String content) throws Exception {
+        mockMvc.perform(post("/api/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
 
         verifyNoInteractions(memberService);
     }

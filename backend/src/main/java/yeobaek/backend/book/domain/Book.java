@@ -1,6 +1,8 @@
 package yeobaek.backend.book.domain;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -9,11 +11,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.PassageCount;
+import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -23,8 +30,6 @@ import yeobaek.backend.support.ErrorCode;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
-    private static final int MAX_TITLE_LENGTH = 100;
-    private static final int MAX_PUBLISHER_LENGTH = 100;
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_KEY_PATTERN = Pattern.compile(
             "^[^/]+(?:/[^/]+)*/book-covers/"
@@ -34,37 +39,36 @@ public class Book {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = MAX_TITLE_LENGTH)
-    private String title;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "title", nullable = false, length = BookTitle.MAX_LENGTH))
+    private BookTitle title;
 
-    @Column(length = MAX_PUBLISHER_LENGTH)
-    private String publisher;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "publisher", length = Publisher.MAX_LENGTH))
+    private Publisher publisher;
 
     private Integer publishedYear;
 
     @Column(length = MAX_COVER_IMAGE_KEY_LENGTH)
     private String coverImageKey;
 
-    @Column(nullable = false)
-    private int passageCount;
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "passage_count", nullable = false))
+    private PassageCount passageCount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
 
-    public Book(String title, String publisher, Integer publishedYear, int passageCount) {
-        this(title, publisher, publishedYear, passageCount, null);
-    }
-
     public Book(String title, String publisher, Integer publishedYear, int passageCount, String coverImageKey) {
-        validateTitle(title);
-        validatePublisher(publisher);
         validateCoverImageKey(coverImageKey);
-        this.title = title;
-        this.publisher = publisher;
+        this.title = new BookTitle(title);
+        if (publisher != null) {
+            this.publisher = new Publisher(publisher);
+        }
         this.publishedYear = publishedYear;
-        this.passageCount = passageCount;
+        this.passageCount = new PassageCount(passageCount);
         this.coverImageKey = coverImageKey;
     }
 
@@ -72,10 +76,8 @@ public class Book {
         return Objects.equals(id, other.getId());
     }
 
-    public boolean hasSameBibliography(Book other) {
-        return title.equals(other.getTitle())
-                && Objects.equals(publisher, other.getPublisher())
-                && Objects.equals(publishedYear, other.getPublishedYear());
+    public BookDuplicateCriteria duplicateCriteria(Set<Long> authorIds) {
+        return new BookDuplicateCriteria(title, publisher, publishedYear, authorIds);
     }
 
     public void delete() {
@@ -85,7 +87,9 @@ public class Book {
 
     public void ensureAvailable() {
         if (status != BookStatus.ACTIVE) {
-            throw new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE);
+            throw new BadRequestException(
+                    ErrorCode.BOOK_NOT_AVAILABLE,
+                    "더 이상 이용할 수 없는 도서입니다.");
         }
     }
 
@@ -106,19 +110,19 @@ public class Book {
         this.coverImageKey = coverImageKey;
     }
 
-    private static void validateTitle(String title) {
-        if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
-            throw new IllegalArgumentException("도서 제목은 공백이 아닌 1~" + MAX_TITLE_LENGTH + "자여야 합니다.");
-        }
+    public BookTitle getTitle() {
+        return title;
     }
 
-    private static void validatePublisher(String publisher) {
-        if (publisher != null && (publisher.isBlank() || publisher.length() > MAX_PUBLISHER_LENGTH)) {
-            throw new IllegalArgumentException("출판사는 공백이 아닌 1~" + MAX_PUBLISHER_LENGTH + "자여야 합니다.");
-        }
+    public Publisher getPublisher() {
+        return publisher;
     }
 
-    private static void validateCoverImageKey(String coverImageKey) {
+    public PassageCount getPassageCount() {
+        return passageCount;
+    }
+
+    private void validateCoverImageKey(String coverImageKey) {
         if (coverImageKey != null
                 && (coverImageKey.length() > MAX_COVER_IMAGE_KEY_LENGTH
                 || !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches())) {

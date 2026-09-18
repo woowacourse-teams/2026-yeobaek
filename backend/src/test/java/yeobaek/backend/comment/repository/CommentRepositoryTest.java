@@ -2,6 +2,9 @@ package yeobaek.backend.comment.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.Collections;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +16,7 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
@@ -43,14 +47,17 @@ class CommentRepositoryTest extends IntegrationTest {
     @Autowired
     private ClubMemberRepository clubMemberRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Test
     @DisplayName("댓글을 저장하면 작성일이 자동으로 기록되고 수정일은 비어 있다")
     void saveSetsCreatedAt() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1));
+        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, "본문"));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("본문")));
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", book, "CODE03"));
+        Club club = clubRepository.save(new Club("1기", book, new JoinCode("CODE03")));
         ClubMember clubMember = clubMemberRepository.save(new ClubMember(member, club));
 
         Comment saved = commentRepository.saveAndFlush(
@@ -62,14 +69,34 @@ class CommentRepositoryTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("수정한 댓글 값 객체를 저장한 뒤 다시 조회한다")
+    void reloadsUpdatedCommentContent() {
+        Book book = bookRepository.save(new Book("댓글 수정 도서", null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("본문")));
+        Member member = memberRepository.save(new Member("수정자"));
+        Club club = clubRepository.save(new Club("수정 모임", book, new JoinCode("EDIT01")));
+        ClubMember clubMember = clubMemberRepository.save(new ClubMember(member, club));
+        Comment comment = commentRepository.saveAndFlush(
+                new Comment(clubMember, passage.getSentences().getFirst(), "수정 전"));
+
+        comment.updateContent("  수정 후  ");
+        commentRepository.saveAndFlush(comment);
+        entityManager.clear();
+
+        assertThat(commentRepository.findById(comment.getId()).orElseThrow().getContent())
+                .isEqualTo("  수정 후  ");
+    }
+
+    @Test
     @DisplayName("조회할 문장 ID에 대해 현재 모임의 댓글 수만 집계한다")
     void countsCommentsByClubAndSentenceIds() {
-        Book book = bookRepository.save(new Book("댓글 집계 도서", null, null, 1));
+        Book book = bookRepository.save(new Book("댓글 집계 도서", null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, java.util.List.of("첫 문장.", "둘째 문장.")));
         Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", book, "COUNT1"));
-        Club otherClub = clubRepository.save(new Club("2기", book, "COUNT2"));
+        Club club = clubRepository.save(new Club("1기", book, new JoinCode("COUNT1")));
+        Club otherClub = clubRepository.save(new Club("2기", book, new JoinCode("COUNT2")));
         ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
         ClubMember otherMembership = clubMemberRepository.save(new ClubMember(member, otherClub));
         var firstSentence = passage.getSentences().getFirst();

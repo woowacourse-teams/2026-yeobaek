@@ -8,12 +8,10 @@ import lombok.Getter;
 @Getter
 public class BadRequestException extends RuntimeException {
 
-    private static final long serialVersionUID = 1L;
-
     private final ErrorCode code;
 
-    public BadRequestException(ErrorCode code) {
-        super(code.getDefaultMessage());
+    public BadRequestException(ErrorCode code, String message) {
+        super(message);
         this.code = code;
     }
 }

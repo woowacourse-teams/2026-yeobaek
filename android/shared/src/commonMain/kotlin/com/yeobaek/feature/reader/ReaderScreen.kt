@@ -23,11 +23,14 @@ import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.reader.component.CommentBottomSheet
+import com.yeobaek.feature.reader.component.CommentCollectionContents
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderProgressBar
+import com.yeobaek.feature.reader.component.ReaderReturnButton
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
 import com.yeobaek.feature.reader.component.ReaderTopBar
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
@@ -40,73 +43,117 @@ fun ReaderScreen(
     commentSheetActions: CommentSheetActions,
     modifier: Modifier = Modifier,
 ) {
-    PlatformBackHandler(onBack = actions.onBackClick)
+    PlatformBackHandler(
+        onBack = {
+            when {
+                commentSheet != null -> commentSheetActions.onDismiss()
+                uiState.isCommentCollectionsVisible -> actions.onCommentCollectionsDismiss()
+                uiState.isTableOfContentsVisible -> actions.onTableOfContentsDismiss()
+                else -> actions.onBackClick()
+            }
+        },
+    )
 
     val readerListState = rememberReaderListState(
         uiState = uiState,
         actions = actions,
     )
-    val selectedSentence = commentSheet?.let { sheet ->
-        uiState.passages.findSentence(sheet.sentenceId)
-    }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            ReaderTopBar(
-                title = uiState.title,
-                author = uiState.author,
-                fontSize = uiState.fontSize,
-                isTextSettingMenuExpanded = uiState.isTextSettingMenuExpanded,
-                onBackClick = actions.onBackClick,
-                onTableOfContentsClick = actions.onTableOfContentsClick,
-                onTextSettingClick = actions.onTextSettingClick,
-                onTextSettingDismiss = actions.onTextSettingDismiss,
-                onFontSizeChange = { fontSize ->
-                    if (fontSize != uiState.fontSize) {
-                        readerListState.savePositionBeforeFontSizeChange(uiState.passages)
-                        actions.onFontSizeChange(fontSize)
-                    }
-                },
-                modifier = Modifier.zIndex(1f),
-            )
-        },
-        bottomBar = {
-            if (uiState.loadState == ReaderLoadState.Success) {
-                ReaderProgressBar(
-                    progress = uiState.displayProgress,
-                    onProgressChange = actions.onProgressChange,
-                    onProgressChangeFinished = actions.onProgressChangeFinished,
-                    modifier = Modifier.navigationBarsPadding(),
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                ReaderTopBar(
+                    title = uiState.title,
+                    author = uiState.author,
+                    fontSize = uiState.fontSize,
+                    isNewComment = uiState.isNewComment,
+                    isTextSettingMenuExpanded = uiState.isTextSettingMenuExpanded,
+                    onBackClick = actions.onBackClick,
+                    onTableOfContentsClick = actions.onTableOfContentsClick,
+                    onTextSettingClick = actions.onTextSettingClick,
+                    onTextSettingDismiss = actions.onTextSettingDismiss,
+                    onCommentCollectionsClick = actions.onCommentCollectionsClick,
+                    onFontSizeChange = { fontSize ->
+                        if (fontSize != uiState.fontSize) {
+                            readerListState.savePositionBeforeFontSizeChange(uiState.passages)
+                            actions.onFontSizeChange(fontSize)
+                        }
+                    },
+                    modifier = Modifier.zIndex(1f),
+                )
+            },
+            bottomBar = {
+                if (uiState.loadState == ReaderLoadState.Success) {
+                    ReaderProgressBar(
+                        progress = uiState.displayProgress,
+                        onProgressChange = actions.onProgressChange,
+                        onProgressChangeFinished = actions.onProgressChangeFinished,
+                        modifier = Modifier.navigationBarsPadding(),
+                    )
+                }
+            },
+        ) { innerPadding ->
+            when (val loadState = uiState.loadState) {
+                ReaderLoadState.Loading -> ReaderLoading(
+                    modifier = Modifier.padding(innerPadding),
+                )
+
+                is ReaderLoadState.Failed -> ReaderLoadError(
+                    message = loadState.message,
+                    modifier = Modifier.padding(innerPadding),
+                )
+
+                ReaderLoadState.Success -> ReaderContent(
+                    passages = uiState.passages.items,
+                    fontSize = uiState.fontSize,
+                    listState = readerListState.listState,
+                    onSentenceClick = actions.onSentenceClick,
+                    modifier = Modifier.padding(innerPadding),
                 )
             }
-        },
-    ) { innerPadding ->
-        when (val loadState = uiState.loadState) {
-            ReaderLoadState.Loading -> ReaderLoading(
-                modifier = Modifier.padding(innerPadding),
-            )
+        }
 
-            is ReaderLoadState.Failed -> ReaderLoadError(
-                message = loadState.message,
-                modifier = Modifier.padding(innerPadding),
-            )
+        uiState.returnProgress
+            ?.takeIf { uiState.mode == ReaderMode.Idle }
+            ?.let { returnProgress ->
+                ReaderReturnButton(
+                    progress = returnProgress,
+                    onClick = actions.onReturnToPreviousReadingPosition,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .navigationBarsPadding()
+                        .padding(start = 20.dp, bottom = 72.dp)
+                        .zIndex(1f),
+                )
+            }
 
-            ReaderLoadState.Success -> ReaderContent(
-                passages = uiState.passages.items,
-                fontSize = uiState.fontSize,
-                listState = readerListState.listState,
-                onSentenceClick = actions.onSentenceClick,
-                modifier = Modifier.padding(innerPadding),
+        if (uiState.isTableOfContentsVisible) {
+            ReaderTableOfContents(
+                chapters = uiState.chapters,
+                readingPassageSequence = uiState.readingSequence,
+                onDismissRequest = actions.onTableOfContentsDismiss,
+                onChapterClick = actions.onChapterClick,
+            )
+        }
+
+        if (uiState.isCommentCollectionsVisible) {
+            CommentCollectionContents(
+                commentedSentences = uiState.commentedSentences,
+                mode = uiState.commentedSentenceMode,
+                onCommentCardClick = actions.onCommentCardClick,
+                onRetry = actions.onCommentCollectionsRetry,
+                onDismissRequest = actions.onCommentCollectionsDismiss,
+                modifier = Modifier.zIndex(2f),
             )
         }
     }
 
-    if (commentSheet != null && selectedSentence != null) {
+    if (commentSheet != null) {
         CommentBottomSheet(
-            sentence = selectedSentence,
             uiState = commentSheet,
             onDismissRequest = commentSheetActions.onDismiss,
+            onRetry = commentSheetActions.onRetry,
+            onGoToText = actions.onMoveToComment,
             onInputChange = commentSheetActions.onInputChange,
             onSubmit = commentSheetActions.onSubmit,
             onEdit = commentSheetActions.onEdit,
@@ -116,15 +163,6 @@ fun ReaderScreen(
             onDelete = commentSheetActions.onDelete,
             onDeleteCancel = commentSheetActions.onDeleteCancel,
             onDeleteConfirm = commentSheetActions.onDeleteConfirm,
-        )
-    }
-
-    if (uiState.isTableOfContentsVisible) {
-        ReaderTableOfContents(
-            chapters = uiState.chapters,
-            readingPassageSequence = uiState.readingSequence,
-            onDismissRequest = actions.onTableOfContentsDismiss,
-            onChapterClick = actions.onChapterClick,
         )
     }
 }
@@ -145,6 +183,12 @@ class ReaderActions(
     val onVisiblePassageChange: (PassageUiModel) -> Unit,
     val onTargetPassageReached: (PassageUiModel) -> Unit,
     val onTargetPassageNotFound: (Int) -> Unit,
+    val onCommentCollectionsClick: () -> Unit,
+    val onCommentCollectionsDismiss: () -> Unit,
+    val onCommentCollectionsRetry: () -> Unit,
+    val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
+    val onMoveToComment: () -> Unit,
+    val onReturnToPreviousReadingPosition: () -> Unit,
 )
 
 @Composable
@@ -320,9 +364,16 @@ private fun ReaderScreenPreview() {
                 onVisiblePassageChange = {},
                 onTargetPassageReached = {},
                 onTargetPassageNotFound = {},
+                onCommentCollectionsClick = {},
+                onCommentCollectionsDismiss = {},
+                onCommentCollectionsRetry = {},
+                onCommentCardClick = {},
+                onMoveToComment = {},
+                onReturnToPreviousReadingPosition = {},
             ),
             commentSheetActions = CommentSheetActions(
                 onDismiss = {},
+                onRetry = {},
                 onInputChange = {},
                 onSubmit = {},
                 onEdit = {},

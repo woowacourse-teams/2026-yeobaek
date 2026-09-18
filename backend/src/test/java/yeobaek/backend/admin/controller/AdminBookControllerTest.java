@@ -16,10 +16,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -137,6 +143,20 @@ class AdminBookControllerTest extends ControllerTest {
         verify(adminBookService).replaceCoverImage(3L, key);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"coverImageKey\":null}"})
+    @DisplayName("필수 표지 키가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullCoverImageKey(String content) throws Exception {
+        mockMvc.perform(put("/api/admin/books/{bookId}/cover", 3L)
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(adminBookService);
+    }
+
     @Test
     @DisplayName("도서 표지 제거 요청의 ID를 서비스에 전달하고 204를 반환한다")
     void removeCoverImage() throws Exception {
@@ -151,7 +171,9 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("이미 삭제된 도서의 삭제 요청은 이용 불가 오류를 반환한다")
     void rejectAlreadyDeletedBook() throws Exception {
-        willThrow(new BadRequestException(ErrorCode.BOOK_NOT_AVAILABLE))
+        willThrow(new BadRequestException(
+                ErrorCode.BOOK_NOT_AVAILABLE,
+                "더 이상 이용할 수 없는 도서입니다."))
                 .given(adminBookService).delete(3L);
 
         mockMvc.perform(delete("/api/admin/books/{bookId}", 3L)
@@ -254,6 +276,20 @@ class AdminBookControllerTest extends ControllerTest {
         verifyNoInteractions(bookIngestService);
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidRequiredUploadFields")
+    @DisplayName("도서 업로드 필수 필드가 누락되거나 null이면 서비스를 호출하지 않는다")
+    void rejectMissingOrNullUploadField(String description, String content) throws Exception {
+        mockMvc.perform(post("/api/admin/books")
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+
+        verifyNoInteractions(bookIngestService);
+    }
+
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
@@ -266,7 +302,9 @@ class AdminBookControllerTest extends ControllerTest {
                 List.of(new ChapterUploadRequest(
                         "1장",
                         List.of(passage("본문")))));
-        var serviceException = new NotFoundException(ErrorCode.AUTHOR_NOT_FOUND);
+        var serviceException = new NotFoundException(
+                ErrorCode.AUTHOR_NOT_FOUND,
+                "authorId가 가리키는 작가가 존재하지 않습니다: authorId=99");
         given(bookIngestService.upload(request)).willThrow(serviceException);
 
         var result = mockMvc.perform(post("/api/admin/books")
@@ -290,5 +328,41 @@ class AdminBookControllerTest extends ControllerTest {
 
     private PassageUploadRequest passage(String content) {
         return new PassageUploadRequest(List.of(new SentenceUploadRequest(content)));
+    }
+
+    private static Stream<Arguments> invalidRequiredUploadFields() {
+        return Stream.of(
+                Arguments.of("title 누락", "{\"authors\":[],\"chapters\":[]}"),
+                Arguments.of("title null", "{\"title\":null,\"authors\":[],\"chapters\":[]}"),
+                Arguments.of("authors 누락", "{\"title\":\"책\",\"chapters\":[]}"),
+                Arguments.of("authors null", "{\"title\":\"책\",\"authors\":null,\"chapters\":[]}"),
+                Arguments.of("authors null 원소", "{\"title\":\"책\",\"authors\":[null],\"chapters\":[]}"),
+                Arguments.of("author name 누락", "{\"title\":\"책\",\"authors\":[{}],\"chapters\":[]}"),
+                Arguments.of("author name null", "{\"title\":\"책\",\"authors\":[{\"name\":null}],\"chapters\":[]}"),
+                Arguments.of("ISNI 작가 name 누락",
+                        "{\"title\":\"책\",\"authors\":[{\"isni\":\"000000012345964X\"}],\"chapters\":[]}"),
+                Arguments.of("ISNI 작가 name null",
+                        "{\"title\":\"책\",\"authors\":[{\"name\":null,\"isni\":\"000000012345964X\"}],\"chapters\":[]}"),
+                Arguments.of("chapters 누락", "{\"title\":\"책\",\"authors\":[]}"),
+                Arguments.of("chapters null", "{\"title\":\"책\",\"authors\":[],\"chapters\":null}"),
+                Arguments.of("chapters null 원소", "{\"title\":\"책\",\"authors\":[],\"chapters\":[null]}"),
+                Arguments.of("chapter title 누락", validUploadWithChapter("\"passages\":[]")),
+                Arguments.of("chapter title null", validUploadWithChapter("\"title\":null,\"passages\":[]")),
+                Arguments.of("passages 누락", validUploadWithChapter("\"title\":\"1장\"")),
+                Arguments.of("passages null", validUploadWithChapter("\"title\":\"1장\",\"passages\":null")),
+                Arguments.of("passages null 원소", validUploadWithChapter("\"title\":\"1장\",\"passages\":[null]")),
+                Arguments.of("sentences 누락", validUploadWithPassage("")),
+                Arguments.of("sentences null", validUploadWithPassage("\"sentences\":null")),
+                Arguments.of("sentences null 원소", validUploadWithPassage("\"sentences\":[null]")),
+                Arguments.of("sentence content 누락", validUploadWithPassage("\"sentences\":[{}]")),
+                Arguments.of("sentence content null", validUploadWithPassage("\"sentences\":[{\"content\":null}]")));
+    }
+
+    private static String validUploadWithChapter(String chapterFields) {
+        return "{\"title\":\"책\",\"authors\":[],\"chapters\":[{" + chapterFields + "}]}";
+    }
+
+    private static String validUploadWithPassage(String passageFields) {
+        return validUploadWithChapter("\"title\":\"1장\",\"passages\":[{" + passageFields + "}]");
     }
 }

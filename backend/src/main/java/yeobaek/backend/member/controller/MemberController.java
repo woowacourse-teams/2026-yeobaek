@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,9 +38,9 @@ public class MemberController {
     @Operation(summary = "회원 생성", description = "닉네임 입력만으로 회원을 생성하고 ID를 발급한다. 헤더 불필요(최초 진입).")
     @PostMapping("/api/members")
     @ResponseStatus(HttpStatus.CREATED)
-    public MemberCreateResponse createMember(@RequestBody MemberCreateRequest request) {
+    public MemberCreateResponse createMember(@Valid @RequestBody MemberCreateRequest request) {
         MemberCreateResponse response = memberService.create(request.nickname());
-        analyticsTracker.track(response.memberId(), AnalyticsEvent.memberCreated());
+        analyticsTracker.track(response.memberId(), AnalyticsEvent.memberCreate());
         return response;
     }
 
@@ -47,7 +48,10 @@ public class MemberController {
     @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
     @GetMapping("/api/members/me/blocks")
     public BlockedMembersResponse findBlockedMembers(@AuthMember Long memberId) {
-        return memberBlockService.findBlockedMembers(memberId);
+        BlockedMembersResponse response = memberBlockService.findBlockedMembers(memberId);
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.blockedMembersView(response.blockedMembers().size()));
+        return response;
     }
 
     @Operation(summary = "사용자 차단", description = "서비스 전체에 단방향 차단을 적용한다. 이미 차단한 회원이면 멱등하게 성공한다.")
@@ -57,6 +61,7 @@ public class MemberController {
     public void block(@AuthMember Long blockerId,
                       @Parameter(description = "차단할 회원 ID") @PathVariable Long memberId) {
         memberBlockService.block(blockerId, memberId);
+        analyticsTracker.track(blockerId, AnalyticsEvent.memberBlock());
     }
 
     @Operation(summary = "사용자 차단 해제", description = "차단 관계가 없어도 멱등하게 성공한다.")
@@ -66,6 +71,7 @@ public class MemberController {
     public void unblock(@AuthMember Long blockerId,
                         @Parameter(description = "차단 해제할 회원 ID") @PathVariable Long memberId) {
         memberBlockService.unblock(blockerId, memberId);
+        analyticsTracker.track(blockerId, AnalyticsEvent.memberUnblock());
     }
 
     @Operation(summary = "계정 삭제",
@@ -75,5 +81,6 @@ public class MemberController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMember(@AuthMember Long memberId) {
         memberService.delete(memberId);
+        analyticsTracker.track(memberId, AnalyticsEvent.memberDelete());
     }
 }

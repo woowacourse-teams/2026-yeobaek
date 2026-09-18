@@ -47,9 +47,10 @@ public class BookService {
     public BookDetailResponse findBook(Long bookId) {
         Book book = bookRepository.getById(bookId);
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
-        return new BookDetailResponse(book.getId(), book.getTitle(), authors,
-                book.getPublisher(), book.getPublishedYear(), bookCoverUrlResolver.resolve(book.getCoverImageKey()),
-                book.getPassageCount(), chapters(bookId));
+        return new BookDetailResponse(book.getId(), book.getTitle().value(), authors,
+                book.getPublisher() == null ? null : book.getPublisher().value(), book.getPublishedYear(),
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()),
+                book.getPassageCount().value(), chapters(bookId));
     }
 
     private List<ChapterResponse> chapters(Long bookId) {
@@ -58,7 +59,7 @@ public class BookService {
         return chapterRepository.findAllByBookIdOrderBySequenceAsc(bookId).stream()
                 .map(chapter -> {
                     ChapterPassageRange range = ranges.get(chapter.getId());
-                    return new ChapterResponse(chapter.getId(), chapter.getTitle(), chapter.getSequence(),
+                    return new ChapterResponse(chapter.getId(), chapter.getTitle(), chapter.getSequence().value(),
                             range == null ? 0 : range.getStartSequence(),
                             range == null ? 0 : range.getEndSequence());
                 })
@@ -68,6 +69,6 @@ public class BookService {
     private Map<Long, List<String>> authorNamesByBookId(List<Long> bookIds) {
         return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
                 .collect(Collectors.groupingBy(authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName(), Collectors.toList())));
+                        Collectors.mapping(authorBook -> authorBook.getAuthor().getName().value(), Collectors.toList())));
     }
 }
