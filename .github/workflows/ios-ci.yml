@@ -62,6 +62,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      - name: Read Xcode version
+        id: xcode-version
+        run: |
+          set -euo pipefail
+
+          version="$(xcodebuild -version | tr '\n ' '__')"
+          echo "value=${version%_}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/DerivedData
+          key: ${{ runner.os }}-${{ runner.arch }}-derived-data-${{ steps.xcode-version.outputs.value }}-${{ hashFiles('android/iosApp/iosApp.xcodeproj/project.pbxproj', 'android/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'android/gradle/libs.versions.toml') }}-${{ hashFiles('android/iosApp/iosApp/**', 'android/shared/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-derived-data-${{ steps.xcode-version.outputs.value }}-${{ hashFiles('android/iosApp/iosApp.xcodeproj/project.pbxproj', 'android/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'android/gradle/libs.versions.toml') }}-
+
       - name: Create non-sensitive iOS configuration
         run: |
           set -euo pipefail
@@ -118,7 +134,10 @@ jobs:
             -quiet \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
+            DEBUG_INFORMATION_FORMAT=dwarf \
+            ENABLE_PREVIEWS=NO \
             SKIP_CRASHLYTICS_UPLOAD=1 \
+            SWIFT_EMIT_LOC_STRINGS=NO \
             build
 
       - name: Upload iOS verification reports
