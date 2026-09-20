@@ -8,6 +8,7 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
@@ -28,6 +29,7 @@ class AppContainer(
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)
+    val readerPreferences = ReaderPreferences(settings)
 
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 
