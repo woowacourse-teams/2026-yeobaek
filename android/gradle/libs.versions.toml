@@ -11,7 +11,7 @@ android-targetSdk = "36"
 android-versionCode = "2026"
 android-majorVersion = "1"
 android-minorVersion = "2"
-android-patchVersion = "0"
+android-patchVersion = "1"
 
 # kotlin & ksp
 kotlin = "2.4.10"
