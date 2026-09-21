@@ -11,7 +11,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.ChapterSelected
 import com.yeobaek.core.analytics.CommentCollectionEnd
-import com.yeobaek.core.analytics.CommentCollectionStart
 import com.yeobaek.core.analytics.CommentPassageJumped
 import com.yeobaek.core.analytics.FontSizeChanged
 import com.yeobaek.core.analytics.ProgressSeeked
@@ -65,6 +64,9 @@ class ReaderViewModel(
 
     private val readingSession = ReadingSessionTracker(analyticsTracker = analyticsTracker)
     private val commentCollectionSession = CommentCollectionSessionTracker(analyticsTracker = analyticsTracker)
+
+    // 글자 설정 메뉴를 열었을 때의 크기. 메뉴가 닫힐 때 최종 크기와 비교해 한 번만 기록한다.
+    private var fontSizeAtMenuOpen: Int? = null
     private var isScreenStarted = false
 
     val commentSheet = CommentSheetController(
@@ -367,6 +369,7 @@ class ReaderViewModel(
     }
 
     fun openTableOfContents() {
+        commitFontSizeChange()
         analyticsTracker.track(TableOfContentsOpened(bookId = currentBookId))
         uiState = uiState.copy(
             isTableOfContentsVisible = true,
@@ -545,22 +548,27 @@ class ReaderViewModel(
             isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,
         )
         if (uiState.isTextSettingMenuExpanded) {
+            fontSizeAtMenuOpen = uiState.fontSize
             analyticsTracker.track(TextSettingOpened)
+        } else {
+            commitFontSizeChange()
         }
     }
 
     fun dismissTextSettingMenu() {
+        commitFontSizeChange()
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
         )
     }
 
     fun openCommentCollections() {
-        commentCollectionSession.start(
+        commitFontSizeChange()
+        commentCollectionSession.open(
             bookId = currentBookId,
-            startedBy = CommentCollectionStart.ICON,
             hasNewComments = uiState.isNewComment,
         )
+        readingSession.onCommentCollectionOpened()
         uiState = uiState.copy(
             isCommentCollectionsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -580,7 +588,6 @@ class ReaderViewModel(
     fun updateFontSize(fontSize: Int) {
         if (fontSize !in ReaderFontSize.options || fontSize == uiState.fontSize) return
 
-        analyticsTracker.track(FontSizeChanged(fontSize = fontSize))
         readerPreferences.saveFontSize(fontSize)
 
         uiState = uiState.copy(
@@ -589,12 +596,14 @@ class ReaderViewModel(
     }
 
     fun openSentenceComments(sentence: SentenceUiModel) {
+        commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.open(sentence)
     }
 
     fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
         commentCollectionSession.onCardClicked()
+        commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.openFromCollection(sentence)
     }
@@ -638,6 +647,19 @@ class ReaderViewModel(
         moveToPassage(targetSequence)
     }
 
+    private fun commitFontSizeChange() {
+        val fromFontSize = fontSizeAtMenuOpen ?: return
+        fontSizeAtMenuOpen = null
+        if (fromFontSize == uiState.fontSize) return
+
+        analyticsTracker.track(
+            FontSizeChanged(
+                fromFontSize = fromFontSize,
+                fontSize = uiState.fontSize,
+            ),
+        )
+    }
+
     fun onCommentSentenceRevealed() {
         commentCollectionSession.onSentenceRevealed()
     }
@@ -676,6 +698,7 @@ class ReaderViewModel(
                     currentPassageId = currentPassageId,
                 ).newCommentCount
                 uiState = uiState.copy(isNewComment = newCommentCount > 0)
+                if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
@@ -687,18 +710,16 @@ class ReaderViewModel(
     fun onScreenStarted() {
         isScreenStarted = true
         startReadingSessionIfReady()
-        if (uiState.isCommentCollectionsVisible) {
-            commentCollectionSession.start(
-                bookId = currentBookId,
-                startedBy = CommentCollectionStart.FOREGROUND,
-                hasNewComments = uiState.isNewComment,
-            )
-        }
+        commentCollectionSession.resume()
     }
 
     fun onScreenStopped() {
         isScreenStarted = false
-        commentCollectionSession.end(CommentCollectionEnd.BACKGROUND)
+        commitFontSizeChange()
+        if (uiState.isTextSettingMenuExpanded) {
+            fontSizeAtMenuOpen = uiState.fontSize
+        }
+        commentCollectionSession.pause()
         readingSession.end(
             progress = uiState.readingProgress,
             endedBy = ReaderSessionEnd.BACKGROUND,
@@ -707,6 +728,7 @@ class ReaderViewModel(
     }
 
     fun finishReadingSession() {
+        commitFontSizeChange()
         readingSession.end(
             progress = uiState.readingProgress,
             endedBy = ReaderSessionEnd.BACK,
@@ -723,6 +745,7 @@ class ReaderViewModel(
             readingSequence = uiState.readingSequence,
             progress = uiState.readingProgress,
         )
+        if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
     }
 
     private fun cancelPaginationLoads() {

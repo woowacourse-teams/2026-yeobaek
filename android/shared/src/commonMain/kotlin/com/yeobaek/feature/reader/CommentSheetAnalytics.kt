@@ -31,17 +31,16 @@ class CommentSheetAnalytics(
         passageSequence: Int?,
         commentCount: Int,
         source: CommentSheetSource,
-        requiresReveal: Boolean?,
         hasNewComments: Boolean?,
     ) {
         readingSession.onCommentSheetOpened()
         analyticsTracker.track(
             CommentSheetOpened(
                 bookId = bookId(),
+                sentenceId = sentenceId,
                 passageSequence = passageSequence ?: passageSequenceOf(sentenceId),
                 commentCount = commentCount,
                 source = source,
-                requiresReveal = requiresReveal,
                 hasNewComments = hasNewComments,
                 afterJump = isAfterJump(),
             ),
@@ -66,6 +65,7 @@ class CommentSheetAnalytics(
                 result = result,
                 commentLength = commentLength,
                 bookId = bookId(),
+                sentenceId = sentenceId,
                 passageSequence = passageSequence ?: passageSequenceOf(sentenceId),
                 source = source,
                 afterJump = isAfterJump(),
@@ -75,11 +75,13 @@ class CommentSheetAnalytics(
 
     fun sheetClosed(
         commentCount: Int,
+        othersCommentCount: Int?,
         didSubmit: Boolean,
     ) {
         analyticsTracker.track(
             CommentSheetClosed(
                 commentCount = commentCount,
+                othersCommentCount = othersCommentCount,
                 didSubmit = didSubmit,
             ),
         )

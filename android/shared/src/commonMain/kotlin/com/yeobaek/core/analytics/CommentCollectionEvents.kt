@@ -1,12 +1,5 @@
 package com.yeobaek.core.analytics
 
-enum class CommentCollectionStart(
-    val value: String,
-) {
-    ICON("icon"),
-    FOREGROUND("foreground"),
-}
-
 enum class CommentCollectionEnd(
     val value: String,
 ) {
@@ -24,29 +17,12 @@ enum class ReadingPositionClearedBy(
 
 data class CommentCollectionOpened(
     val bookId: Long?,
-    val startedBy: CommentCollectionStart,
     val hasNewComments: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_collection_opened"
     override val properties = buildMap {
         bookId?.let { put(KEY_BOOK_ID, it) }
-        put(KEY_STARTED_BY, startedBy.value)
         put(KEY_HAS_NEW_COMMENTS, hasNewComments)
-    }
-}
-
-data class CommentCollectionLoaded(
-    val bookId: Long?,
-    val sentenceCount: Int,
-    val revealRequiredCount: Int,
-    val newCommentSentenceCount: Int,
-) : AnalyticsEvent {
-    override val name = "comment_collection_loaded"
-    override val properties = buildMap {
-        bookId?.let { put(KEY_BOOK_ID, it) }
-        put(KEY_SENTENCE_COUNT, sentenceCount)
-        put(KEY_REVEAL_REQUIRED_COUNT, revealRequiredCount)
-        put(KEY_NEW_COMMENT_SENTENCE_COUNT, newCommentSentenceCount)
     }
 }
 
@@ -55,6 +31,9 @@ data class CommentCollectionClosed(
     val durationSeconds: Long,
     val cardClickCount: Int,
     val revealCount: Int,
+    val sentenceCount: Int?,
+    val revealRequiredCount: Int?,
+    val newCommentSentenceCount: Int?,
     val endedBy: CommentCollectionEnd,
 ) : AnalyticsEvent {
     override val name = "comment_collection_closed"
@@ -63,6 +42,9 @@ data class CommentCollectionClosed(
         put(KEY_DURATION_SECONDS, durationSeconds)
         put(KEY_CARD_CLICK_COUNT, cardClickCount)
         put(KEY_REVEAL_COUNT, revealCount)
+        sentenceCount?.let { put(KEY_SENTENCE_COUNT, it) }
+        revealRequiredCount?.let { put(KEY_REVEAL_REQUIRED_COUNT, it) }
+        newCommentSentenceCount?.let { put(KEY_NEW_COMMENT_SENTENCE_COUNT, it) }
         put(KEY_ENDED_BY, endedBy.value)
     }
 }
@@ -105,7 +87,6 @@ data class ReaderPositionCleared(
 }
 
 private const val KEY_BOOK_ID = "book_id"
-private const val KEY_STARTED_BY = "started_by"
 private const val KEY_ENDED_BY = "ended_by"
 private const val KEY_HAS_NEW_COMMENTS = "has_new_comments"
 private const val KEY_SENTENCE_COUNT = "sentence_count"

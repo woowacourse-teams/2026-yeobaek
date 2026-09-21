@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.BookListExposure
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.GroupCreateBookSelected
 import com.yeobaek.core.analytics.GroupCreateSubmitted
@@ -86,6 +87,23 @@ class CreateViewModel(
         )
     }
 
+    // 스크롤마다 이벤트를 보내지 않고, 가장 아래까지 본 위치만 기억했다가 화면을 떠날 때 함께 보낸다.
+    private var maxSeenBookPosition = 0
+
+    fun onBookListScrolled(lastVisibleIndex: Int) {
+        maxSeenBookPosition = maxOf(maxSeenBookPosition, lastVisibleIndex + 1)
+    }
+
+    fun bookListExposure(): BookListExposure? {
+        val bookCount = uiState.bookList.size
+        if (bookCount == 0) return null
+
+        return BookListExposure(
+            bookCount = bookCount,
+            maxSeenBookPosition = maxSeenBookPosition,
+        )
+    }
+
     fun selectBook(index: Int) {
         uiState = uiState.copy(
             bookList = uiState.bookList.mapIndexed { i, book ->
@@ -151,6 +169,7 @@ class CreateViewModel(
                         result = EventResult.SUCCESS,
                         bookId = bookId,
                         bookTitle = selectedBook?.title,
+                        bookList = bookListExposure(),
                     ),
                 )
             } catch (e: CancellationException) {
@@ -169,6 +188,7 @@ class CreateViewModel(
                         result = EventResult.FAILURE,
                         bookId = selectedBookId,
                         bookTitle = selectedBook?.title,
+                        bookList = bookListExposure(),
                     ),
                 )
                 uiState = uiState.copy(

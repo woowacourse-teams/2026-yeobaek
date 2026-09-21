@@ -48,6 +48,8 @@ data class ReaderClosed(
     val passagesSeeked: Int,
     val commentsWritten: Int,
     val commentSheetsOpened: Int,
+    val commentCollectionsOpened: Int,
+    val newCommentBadgeShown: Boolean,
     val endedBy: ReaderSessionEnd,
 ) : AnalyticsEvent {
     override val name = "reader_closed"
@@ -59,6 +61,8 @@ data class ReaderClosed(
         KEY_PASSAGES_SEEKED to passagesSeeked,
         KEY_COMMENTS_WRITTEN to commentsWritten,
         KEY_COMMENT_SHEETS_OPENED to commentSheetsOpened,
+        KEY_COMMENT_COLLECTIONS_OPENED to commentCollectionsOpened,
+        KEY_NEW_COMMENT_BADGE_SHOWN to newCommentBadgeShown,
         KEY_ENDED_BY to endedBy.value,
     )
 }
@@ -102,10 +106,12 @@ data object TextSettingOpened : AnalyticsEvent {
 }
 
 data class FontSizeChanged(
+    val fromFontSize: Int,
     val fontSize: Int,
 ) : AnalyticsEvent {
     override val name = "font_size_changed"
     override val properties = mapOf(
+        KEY_FROM_FONT_SIZE to fromFontSize,
         KEY_FONT_SIZE to fontSize,
     )
 }
@@ -121,7 +127,10 @@ private const val KEY_PASSAGES_READ = "passages_read"
 private const val KEY_PASSAGES_SEEKED = "passages_seeked"
 private const val KEY_COMMENTS_WRITTEN = "comments_written"
 private const val KEY_COMMENT_SHEETS_OPENED = "comment_sheets_opened"
+private const val KEY_COMMENT_COLLECTIONS_OPENED = "comment_collections_opened"
+private const val KEY_NEW_COMMENT_BADGE_SHOWN = "new_comment_badge_shown"
 private const val KEY_FROM_PROGRESS = "from_progress"
 private const val KEY_TO_PROGRESS = "to_progress"
 private const val KEY_CHAPTER_SEQUENCE = "chapter_sequence"
 private const val KEY_FONT_SIZE = "font_size"
+private const val KEY_FROM_FONT_SIZE = "from_font_size"
