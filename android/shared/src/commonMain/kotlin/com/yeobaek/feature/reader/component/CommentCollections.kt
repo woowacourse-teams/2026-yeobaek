@@ -45,15 +45,11 @@ fun CommentCollectionContents(
 ) {
     val listState = rememberLazyListState()
     var revealedSentenceIds by remember { mutableStateOf(emptySet<Long>()) }
-    val sortedSentences = commentedSentences.sentences.sortedWith(
-        compareBy(
-            CommentedSentenceUiModel::passageSequence,
-            CommentedSentenceUiModel::sentenceSequence,
-        ),
-    )
+    val displayedSentences = commentedSentences.sentences
+    val sentenceOrder = displayedSentences.map(CommentedSentenceUiModel::sentenceId)
 
-    LaunchedEffect(sortedSentences.size) {
-        if (sortedSentences.isNotEmpty()) {
+    LaunchedEffect(sentenceOrder) {
+        if (displayedSentences.isNotEmpty()) {
             listState.scrollToItem(0)
         }
     }
@@ -107,7 +103,7 @@ fun CommentCollectionContents(
                         state = listState,
                     ) {
                         items(
-                            items = sortedSentences,
+                            items = displayedSentences,
                             key = { it.sentenceId },
                         ) { sentence ->
                             CommentCollectionContent(
