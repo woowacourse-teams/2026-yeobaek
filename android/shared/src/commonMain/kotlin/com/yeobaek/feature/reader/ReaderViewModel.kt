@@ -26,6 +26,7 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.model.toUiModel
 import com.yeobaek.data.repository.BookRepository
@@ -48,11 +49,18 @@ class ReaderViewModel(
     private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
+    private val readerPreferences: ReaderPreferences,
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
-    var uiState by mutableStateOf(ReaderUiState())
+    var uiState by mutableStateOf(
+        ReaderUiState(
+            fontSize = readerPreferences.getFontSize()
+                ?.takeIf { fontSize -> fontSize in ReaderFontSize.options }
+                ?: ReaderFontSize.DEFAULT,
+        ),
+    )
         private set
 
     private val readingSession = ReadingSessionTracker(analyticsTracker = analyticsTracker)
@@ -557,6 +565,7 @@ class ReaderViewModel(
         if (fontSize !in ReaderFontSize.options || fontSize == uiState.fontSize) return
 
         analyticsTracker.track(FontSizeChanged(fontSize = fontSize))
+        readerPreferences.saveFontSize(fontSize)
 
         uiState = uiState.copy(
             fontSize = fontSize,
@@ -774,6 +783,7 @@ class ReaderViewModel(
             bookRepository: BookRepository,
             groupRepository: GroupRepository,
             readerRepository: ReaderRepository,
+            readerPreferences: ReaderPreferences,
             commentRepository: CommentRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
@@ -784,6 +794,7 @@ class ReaderViewModel(
                     bookRepository = bookRepository,
                     groupRepository = groupRepository,
                     readerRepository = readerRepository,
+                    readerPreferences = readerPreferences,
                     commentRepository = commentRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,

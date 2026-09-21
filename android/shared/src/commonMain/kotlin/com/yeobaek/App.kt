@@ -328,6 +328,7 @@ fun App(
                         bookRepository = appContainer.bookRepository,
                         groupRepository = appContainer.groupRepository,
                         readerRepository = appContainer.readerRepository,
+                        readerPreferences = appContainer.readerPreferences,
                         commentRepository = appContainer.commentRepository,
                         crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,
