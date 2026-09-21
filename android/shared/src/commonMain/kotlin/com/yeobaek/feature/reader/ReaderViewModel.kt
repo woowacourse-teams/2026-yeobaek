@@ -123,6 +123,7 @@ class ReaderViewModel(
     private var newCommentCountJob: Job? = null
 
     private var currentBookId: Long? = null
+    private var lastSavedPassageId: Long? = null
 
     init {
         loadReader()
@@ -280,9 +281,13 @@ class ReaderViewModel(
         )
     }
 
-    fun saveReadingProgress(onComplete: () -> Unit) {
-        if (saveReadingProgressJob?.isActive == true) {
-            onComplete()
+    fun saveReadingProgress(onComplete: () -> Unit = {}) {
+        val runningJob = saveReadingProgressJob
+        if (runningJob?.isActive == true) {
+            viewModelScope.launch {
+                runningJob.join()
+                onComplete()
+            }
             return
         }
 
@@ -293,12 +298,23 @@ class ReaderViewModel(
             return
         }
 
+        if (readingPassage.passageId == lastSavedPassageId) {
+            track(
+                operation = CrashOperation.READER_PROGRESS_SAVE_SKIPPED,
+                level = CrashLogLevel.DEBUG,
+                passageSequence = readingPassage.sequence,
+            )
+            onComplete()
+            return
+        }
+
         saveReadingProgressJob = viewModelScope.launch {
             try {
                 readerRepository.updatePassage(
                     clubId = groupId,
                     passageId = readingPassage.passageId,
                 )
+                lastSavedPassageId = readingPassage.passageId
                 track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = readingPassage.sequence)
             } catch (exception: CancellationException) {
                 throw exception
@@ -687,6 +703,7 @@ class ReaderViewModel(
             progress = uiState.readingProgress,
             endedBy = ReaderSessionEnd.BACKGROUND,
         )
+        saveReadingProgress()
     }
 
     fun finishReadingSession() {
