@@ -16,20 +16,20 @@ enum class CommentMode(
 
 data class CommentSheetOpened(
     val bookId: Long?,
+    val sentenceId: Long,
     val passageSequence: Int?,
     val commentCount: Int,
     val source: CommentSheetSource,
-    val requiresReveal: Boolean?,
     val hasNewComments: Boolean?,
     val afterJump: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
     override val properties = buildMap {
         bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
         passageSequence?.let { put(KEY_PASSAGE_SEQUENCE, it) }
         put(KEY_COMMENT_COUNT, commentCount)
         put(KEY_SOURCE, source.value)
-        requiresReveal?.let { put(KEY_REQUIRES_REVEAL, it) }
         hasNewComments?.let { put(KEY_HAS_NEW_COMMENTS, it) }
         put(KEY_AFTER_JUMP, afterJump)
     }
@@ -40,6 +40,7 @@ data class CommentSubmitted(
     val result: EventResult,
     val commentLength: Int,
     val bookId: Long?,
+    val sentenceId: Long,
     val passageSequence: Int?,
     val source: CommentSheetSource,
     val afterJump: Boolean,
@@ -50,6 +51,7 @@ data class CommentSubmitted(
         put(KEY_RESULT, result.value)
         put(KEY_COMMENT_LENGTH, commentLength)
         bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
         passageSequence?.let { put(KEY_PASSAGE_SEQUENCE, it) }
         put(KEY_SOURCE, source.value)
         put(KEY_AFTER_JUMP, afterJump)
@@ -106,13 +108,15 @@ data class CommentReported(
 
 data class CommentSheetClosed(
     val commentCount: Int,
+    val othersCommentCount: Int?,
     val didSubmit: Boolean,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_closed"
-    override val properties = mapOf(
-        KEY_COMMENT_COUNT to commentCount,
-        KEY_DID_SUBMIT to didSubmit,
-    )
+    override val properties = buildMap {
+        put(KEY_COMMENT_COUNT, commentCount)
+        othersCommentCount?.let { put(KEY_OTHERS_COMMENT_COUNT, it) }
+        put(KEY_DID_SUBMIT, didSubmit)
+    }
 }
 
 private const val KEY_BOOK_ID = "book_id"
@@ -123,7 +127,8 @@ private const val KEY_COMMENT_LENGTH = "comment_length"
 private const val KEY_MODE = "mode"
 private const val KEY_RESULT = "result"
 private const val KEY_SOURCE = "source"
-private const val KEY_REQUIRES_REVEAL = "requires_reveal"
+private const val KEY_SENTENCE_ID = "sentence_id"
+private const val KEY_OTHERS_COMMENT_COUNT = "others_comment_count"
 private const val KEY_HAS_NEW_COMMENTS = "has_new_comments"
 private const val KEY_AFTER_JUMP = "after_jump"
 private const val KEY_DID_SUBMIT = "did_submit"

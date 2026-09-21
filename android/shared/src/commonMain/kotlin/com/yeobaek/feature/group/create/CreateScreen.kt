@@ -28,6 +28,7 @@ fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
     selectBook: (Int) -> Unit,
+    onBookListScrolled: (lastVisibleIndex: Int) -> Unit,
     onBackClick: () -> Unit,
     onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
@@ -91,6 +92,7 @@ fun CreateScreen(
                 subTitle = if (uiState.selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
                 isError = uiState.selectedBookCondition,
                 bookState = uiState.bookState,
+                onBookListScrolled = onBookListScrolled,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -105,6 +107,7 @@ private fun CreateScreenPreview() {
             uiState = CreateUiState(),
             updateGroupNameValue = {},
             selectBook = {},
+            onBookListScrolled = {},
             onBackClick = {},
             onCreateGroup = {},
             navigateToHome = {},

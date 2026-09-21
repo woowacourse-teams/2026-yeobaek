@@ -42,7 +42,6 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = null,
-            requiresReveal = null,
             hasNewComments = null,
         )
     }
@@ -53,7 +52,6 @@ class CommentSheetController(
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
             targetPassageSequence = sentence.passageSequence,
-            requiresReveal = sentence.requiresReveal,
             hasNewComments = sentence.isNewComment(),
         )
     }
@@ -74,7 +72,6 @@ class CommentSheetController(
         sentenceContent: String,
         itemCount: Int,
         targetPassageSequence: Int?,
-        requiresReveal: Boolean?,
         hasNewComments: Boolean?,
     ) {
         cancelLoad()
@@ -89,7 +86,6 @@ class CommentSheetController(
             passageSequence = targetPassageSequence,
             commentCount = itemCount,
             source = sheetSourceOf(targetPassageSequence),
-            requiresReveal = requiresReveal,
             hasNewComments = hasNewComments,
         )
         uiState = CommentSheetUiState(
@@ -152,6 +148,10 @@ class CommentSheetController(
         uiState?.let { sheet ->
             analytics.sheetClosed(
                 commentCount = sheet.comments.size,
+                // 댓글을 불러오지 못한 시트는 남의 댓글 수를 알 수 없으므로 보내지 않는다.
+                othersCommentCount = sheet.comments
+                    .count { comment -> !comment.isMine }
+                    .takeUnless { sheet.isLoading || sheet.loadErrorMessage != null },
                 didSubmit = didSubmitInSheet,
             )
         }

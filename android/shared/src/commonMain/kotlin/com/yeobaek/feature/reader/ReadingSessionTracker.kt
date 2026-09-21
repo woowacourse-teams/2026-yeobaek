@@ -26,7 +26,9 @@ class ReadingSessionTracker(
     private var passagesRead = 0
     private var passagesSeeked = 0
     private var commentSheetsOpened = 0
+    private var commentCollectionsOpened = 0
     private var commentsWritten = 0
+    private var newCommentBadgeShown = false
 
     val isActive: Boolean
         get() = startMark != null
@@ -46,7 +48,9 @@ class ReadingSessionTracker(
         passagesRead = 0
         passagesSeeked = 0
         commentSheetsOpened = 0
+        commentCollectionsOpened = 0
         commentsWritten = 0
+        newCommentBadgeShown = false
         startMark = timeSource.markNow()
 
         analyticsTracker.track(
@@ -80,8 +84,16 @@ class ReadingSessionTracker(
         if (isActive) commentSheetsOpened++
     }
 
+    fun onCommentCollectionOpened() {
+        if (isActive) commentCollectionsOpened++
+    }
+
     fun onCommentWritten() {
         if (isActive) commentsWritten++
+    }
+
+    fun onNewCommentBadgeShown() {
+        if (isActive) newCommentBadgeShown = true
     }
 
     fun end(
@@ -100,6 +112,8 @@ class ReadingSessionTracker(
                 passagesSeeked = passagesSeeked,
                 commentsWritten = commentsWritten,
                 commentSheetsOpened = commentSheetsOpened,
+                commentCollectionsOpened = commentCollectionsOpened,
+                newCommentBadgeShown = newCommentBadgeShown,
                 endedBy = endedBy,
             ),
         )

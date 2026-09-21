@@ -212,12 +212,12 @@ fun App(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
-                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
                 LaunchedEffect(true) {
-                    homeViewModel.loadHome()
+                    homeViewModel.initCurrentlyBook()
+                    homeViewModel.initGroups()
                 }
 
                 HomeScreen(
@@ -476,11 +476,13 @@ fun App(
                     uiState = createViewModel.uiState,
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
+                    onBookListScrolled = createViewModel::onBookListScrolled,
                     onBackClick = {
                         appContainer.analyticsTracker.track(
                             GroupCreateAbandoned(
                                 hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
                                 hasBook = createViewModel.uiState.bookList.any { it.selected },
+                                bookList = createViewModel.bookListExposure(),
                             ),
                         )
                         navController.popBackStack()
@@ -493,7 +495,11 @@ fun App(
                                 InvalidReason.BOOK_NOT_SELECTED
                             }
                             appContainer.analyticsTracker.track(
-                                GroupCreateSubmitted(result = EventResult.INVALID, reason = reason),
+                                GroupCreateSubmitted(
+                                    result = EventResult.INVALID,
+                                    reason = reason,
+                                    bookList = createViewModel.bookListExposure(),
+                                ),
                             )
                         } else {
                             createViewModel.createGroup()
