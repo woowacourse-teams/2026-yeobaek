@@ -41,7 +41,7 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
         clubRepository.save(new Club(new ClubName("넷째 모임"), tied, new JoinCode("BOOK04")));
         bookRepository.delete(second.getId());
 
-        assertThat(adminBookDashboardService.findBooks().books())
+        assertThat(adminBookDashboardService.findBooksWithClubCounts().books())
                 .extracting(
                         AdminDashboardBookResponse::bookId,
                         AdminDashboardBookResponse::title,
@@ -56,8 +56,8 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("도서가 없으면 빈 목록을 반환한다")
-    void findBooksWhenEmpty() {
-        assertThat(adminBookDashboardService.findBooks().books()).isEmpty();
+    void findBooksWithClubCountsWhenEmpty() {
+        assertThat(adminBookDashboardService.findBooksWithClubCounts().books()).isEmpty();
     }
 
     private Book saveBook(String title) {

@@ -56,7 +56,7 @@ test('전체 조회는 세 API를 독립 호출하며 실패한 영역만 숨긴
         return response(url.endsWith('/clubs') ? { clubs: [] } : emptyMembers);
     });
 
-    await dashboard.refreshAll();
+    await dashboard.refreshAllStatistics();
 
     assert.equal(calls.length, 3);
     assert.deepEqual(calls.map(call => call.url), [
@@ -91,7 +91,7 @@ test('평균은 소수 둘째 자리까지 표시하고 0개 참여 분포도 �
         averageClubCount: 1,
         distribution: [{ clubCount: 0, memberCount: 1 }, { clubCount: 2, memberCount: 1 }]
     }));
-    await dashboard.refreshSection('members');
+    await dashboard.refreshStatisticsSection('members');
     assert.equal(get('member-average').textContent, '1.00');
     assert.equal(get('member-total').textContent, '2');
     assert.equal(get('distribution').children[0].textContent, '0개1명');
@@ -101,7 +101,7 @@ test('평균은 소수 둘째 자리까지 표시하고 0개 참여 분포도 �
 test('데이터가 없는 경우 각 영역의 빈 상태와 0 평균을 표시한다', async () => {
     const { dashboard, get } = setup(async url => response(url.endsWith('/members')
         ? emptyMembers : url.endsWith('/clubs') ? { clubs: [] } : { books: [] }));
-    await dashboard.refreshAll();
+    await dashboard.refreshAllStatistics();
     assert.match(get('clubs-body').textContent, /모임이 없습니다/);
     assert.match(get('books-body').textContent, /책이 없습니다/);
     assert.match(get('members-body').textContent, /회원이 없습니다/);
@@ -113,7 +113,7 @@ test('토큰이 비어 있으면 API를 호출하지 않는다', async () => {
     let calls = 0;
     const { dashboard, get } = setup(async () => { calls++; });
     get('admin-token').value = '  ';
-    await dashboard.refreshAll();
+    await dashboard.refreshAllStatistics();
     assert.equal(calls, 0);
     assert.match(get('clubs-status').textContent, /토큰을 입력/);
 });
@@ -125,7 +125,7 @@ test('기존 관리자 화면처럼 토큰 앞뒤 공백을 제거해 전송한�
         return response({ books: [] });
     });
     get('admin-token').value = '  test-admin  ';
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('books');
     assert.equal(sentToken, 'test-admin');
     assert.equal(get('books-content').hidden, false);
 });
@@ -133,15 +133,15 @@ test('기존 관리자 화면처럼 토큰 앞뒤 공백을 제거해 전송한�
 test('인증 오류 후 이전 결과를 숨기고 재조회 성공 시 복구한다', async () => {
     let status = 200;
     const { dashboard, get } = setup(async () => response({ books: [] }, status));
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('books');
     assert.equal(get('books-content').hidden, false);
     status = 401;
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('books');
     assert.equal(get('books-content').hidden, true);
     assert.match(get('books-status').textContent, /토큰을 확인/);
     assert.equal(get('refresh-books').disabled, false);
     status = 200;
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('books');
     assert.equal(get('books-content').hidden, false);
 });
 
@@ -149,8 +149,8 @@ test('이전 요청이 늦게 도착해도 최신 조회 결과를 덮어쓰지 
     const first = deferred();
     let calls = 0;
     const { dashboard, get } = setup(async () => ++calls === 1 ? first.promise : response({ books: [] }));
-    const pending = dashboard.refreshSection('books');
-    await dashboard.refreshSection('books');
+    const pending = dashboard.refreshStatisticsSection('books');
+    await dashboard.refreshStatisticsSection('books');
     first.resolve(response({ books: [{ bookId: 1, title: '오래된 결과', status: 'ACTIVE', clubCount: 3 }] }));
     await pending;
     assert.equal(get('book-total').textContent, '0');
@@ -161,8 +161,8 @@ test('토큰을 바꾸면 표시된 데이터를 지우고 진행 중 요청의 
     const pending = deferred();
     const { dashboard, get } = setup(async url => url.endsWith('/books')
         ? pending.promise : response(emptyMembers));
-    await dashboard.refreshSection('members');
-    const request = dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('members');
+    const request = dashboard.refreshStatisticsSection('books');
     get('admin-token').value = 'different-token';
     get('admin-token').listeners.input();
     pending.resolve(response({ books: [] }));
@@ -179,7 +179,7 @@ test('책 제목에 HTML이 들어 있어도 텍스트로만 표시한다', asyn
     const { dashboard, get } = setup(async () => response({ books: [
         { bookId: 1, title, status: 'ACTIVE', clubCount: 2 }
     ] }));
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('books');
     const titleCell = get('books-body').children[0].children[1];
     assert.equal(titleCell.textContent, title);
     assert.equal(titleCell.children.length, 0);
@@ -190,8 +190,8 @@ test('네트워크 오류 후 로딩을 해제하며 다른 영역은 계속 조
         if (url.endsWith('/clubs')) throw new Error('네트워크 연결 실패');
         return response({ books: [] });
     });
-    await dashboard.refreshSection('clubs');
-    await dashboard.refreshSection('books');
+    await dashboard.refreshStatisticsSection('clubs');
+    await dashboard.refreshStatisticsSection('books');
     assert.equal(get('clubs-content').hidden, true);
     assert.equal(get('refresh-clubs').disabled, false);
     assert.equal(get('clubs-panel').attributes['aria-busy'], 'false');

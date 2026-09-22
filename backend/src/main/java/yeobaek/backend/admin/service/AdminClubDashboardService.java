@@ -24,15 +24,15 @@ public class AdminClubDashboardService {
     private final CommentRepository commentRepository;
 
     @Transactional(readOnly = true)
-    public AdminDashboardClubsResponse findClubs() {
+    public AdminDashboardClubsResponse findClubsWithMemberAndCommentCounts() {
         Clubs clubs = new Clubs(clubRepository.findAllWithBookByOrderByIdAsc());
         if (clubs.isEmpty()) {
             return new AdminDashboardClubsResponse(List.of());
         }
         List<Long> clubIds = clubs.ids();
-        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(clubIds).stream()
+        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedMembersByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
-        Map<Long, Long> commentCounts = commentRepository.countByClubIds(clubIds).stream()
+        Map<Long, Long> commentCounts = commentRepository.countCommentsByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubCommentCount::getClubId, ClubCommentCount::getCommentCount));
         return new AdminDashboardClubsResponse(clubs.asList().stream()
                 .map(club -> new AdminDashboardClubResponse(

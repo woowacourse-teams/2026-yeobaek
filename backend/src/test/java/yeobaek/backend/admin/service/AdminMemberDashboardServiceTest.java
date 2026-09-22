@@ -43,7 +43,7 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("현재 회원의 JOINED 모임만 집계해 평균과 오름차순 분포를 계산한다")
-    void findMembersWithAverageAndDistribution() {
+    void findMemberClubParticipationStatistics() {
         Book book = bookRepository.save(new Book(new BookTitle("회원 통계 도서"), null, null, 1, null));
         Club first = saveClub("첫 모임", book, "MEM001");
         Club second = saveClub("둘째 모임", book, "MEM002");
@@ -62,7 +62,8 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
         clubMemberRepository.save(leftMembership);
         bookRepository.delete(book.getId());
 
-        AdminDashboardMembersResponse response = adminMemberDashboardService.findMembers();
+        AdminDashboardMembersResponse response =
+                adminMemberDashboardService.findMemberClubParticipationStatistics();
 
         assertThat(response.members())
                 .extracting(
@@ -96,14 +97,15 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
         saveMember("일곱째 회원");
         saveMember("여덟째 회원");
 
-        assertThat(adminMemberDashboardService.findMembers().averageClubCount())
+        assertThat(adminMemberDashboardService.findMemberClubParticipationStatistics().averageClubCount())
                 .isEqualByComparingTo(new BigDecimal("0.13"));
     }
 
     @Test
     @DisplayName("회원이 없으면 빈 목록과 빈 분포 및 0.00 평균을 반환한다")
-    void findMembersWhenEmpty() {
-        AdminDashboardMembersResponse response = adminMemberDashboardService.findMembers();
+    void findMemberClubParticipationStatisticsWhenEmpty() {
+        AdminDashboardMembersResponse response =
+                adminMemberDashboardService.findMemberClubParticipationStatistics();
 
         assertThat(response.members()).isEmpty();
         assertThat(response.distribution()).isEmpty();

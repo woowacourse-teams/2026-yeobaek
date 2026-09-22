@@ -71,7 +71,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             group by cm.club.id
             """)
-    List<ClubMemberCount> countJoinedByClubIds(@Param("clubIds") List<Long> clubIds);
+    List<ClubMemberCount> countJoinedMembersByClubIds(@Param("clubIds") List<Long> clubIds);
 
     @Query("""
             select cm.member.id as memberId, count(cm) as clubCount
@@ -80,7 +80,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             group by cm.member.id
             """)
-    List<MemberClubCount> countJoinedByMemberIds(@Param("memberIds") List<Long> memberIds);
+    List<MemberClubCount> countJoinedClubsByMemberIds(@Param("memberIds") List<Long> memberIds);
 
     @Query("""
             select cm from ClubMember cm

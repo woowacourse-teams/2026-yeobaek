@@ -22,7 +22,7 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
             where c.book.id in :bookIds
             group by c.book.id
             """)
-    List<BookClubCount> countByBookIds(@Param("bookIds") List<Long> bookIds);
+    List<BookClubCount> countClubsByBookIds(@Param("bookIds") List<Long> bookIds);
 
     @Query("select (count(c) > 0) from Club c where c.joinCode.value = :joinCode")
     boolean existsByJoinCode(@Param("joinCode") String joinCode);

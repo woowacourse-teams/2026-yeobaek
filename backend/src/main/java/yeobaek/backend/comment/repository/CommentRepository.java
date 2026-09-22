@@ -19,7 +19,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             where c.clubMember.club.id in :clubIds
             group by c.clubMember.club.id
             """)
-    List<ClubCommentCount> countByClubIds(@Param("clubIds") List<Long> clubIds);
+    List<ClubCommentCount> countCommentsByClubIds(@Param("clubIds") List<Long> clubIds);
 
     @Query("""
             select c from Comment c

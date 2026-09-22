@@ -28,13 +28,13 @@ public class AdminMemberDashboardService {
     private final ClubMemberRepository clubMemberRepository;
 
     @Transactional(readOnly = true)
-    public AdminDashboardMembersResponse findMembers() {
+    public AdminDashboardMembersResponse findMemberClubParticipationStatistics() {
         Members allMembers = new Members(memberRepository.findAll());
         if (allMembers.isEmpty()) {
             return new AdminDashboardMembersResponse(
                     List.of(), BigDecimal.ZERO.setScale(AVERAGE_SCALE), List.of());
         }
-        Map<Long, Long> clubCounts = clubMemberRepository.countJoinedByMemberIds(allMembers.ids()).stream()
+        Map<Long, Long> clubCounts = clubMemberRepository.countJoinedClubsByMemberIds(allMembers.ids()).stream()
                 .collect(Collectors.toMap(MemberClubCount::getMemberId, MemberClubCount::getClubCount));
         List<AdminDashboardMemberResponse> members = allMembers.asList().stream()
                 .map(member -> new AdminDashboardMemberResponse(
@@ -44,10 +44,13 @@ public class AdminMemberDashboardService {
                 .sorted(Comparator.comparingLong(AdminDashboardMemberResponse::clubCount).reversed()
                         .thenComparing(AdminDashboardMemberResponse::memberId))
                 .toList();
-        return new AdminDashboardMembersResponse(members, averageClubCount(members), distribution(members));
+        return new AdminDashboardMembersResponse(
+                members,
+                calculateAverageJoinedClubCount(members),
+                calculateMemberDistributionByClubCount(members));
     }
 
-    private BigDecimal averageClubCount(List<AdminDashboardMemberResponse> members) {
+    private BigDecimal calculateAverageJoinedClubCount(List<AdminDashboardMemberResponse> members) {
         long totalClubCount = members.stream()
                 .mapToLong(AdminDashboardMemberResponse::clubCount)
                 .sum();
@@ -55,7 +58,7 @@ public class AdminMemberDashboardService {
                 .divide(BigDecimal.valueOf(members.size()), AVERAGE_SCALE, RoundingMode.HALF_UP);
     }
 
-    private List<AdminDashboardClubCountDistributionResponse> distribution(
+    private List<AdminDashboardClubCountDistributionResponse> calculateMemberDistributionByClubCount(
             List<AdminDashboardMemberResponse> members
     ) {
         Map<Long, Long> memberCountsByClubCount = new TreeMap<>();

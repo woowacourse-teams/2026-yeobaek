@@ -22,12 +22,12 @@ public class AdminBookDashboardService {
     private final ClubRepository clubRepository;
 
     @Transactional(readOnly = true)
-    public AdminDashboardBooksResponse findBooks() {
+    public AdminDashboardBooksResponse findBooksWithClubCounts() {
         Books books = new Books(bookManagementRepository.findAll());
         if (books.isEmpty()) {
             return new AdminDashboardBooksResponse(List.of());
         }
-        Map<Long, Long> clubCounts = clubRepository.countByBookIds(books.ids()).stream()
+        Map<Long, Long> clubCounts = clubRepository.countClubsByBookIds(books.ids()).stream()
                 .collect(Collectors.toMap(BookClubCount::getBookId, BookClubCount::getClubCount));
         return new AdminDashboardBooksResponse(books.asList().stream()
                 .map(book -> new AdminDashboardBookResponse(

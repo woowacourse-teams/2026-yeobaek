@@ -70,7 +70,7 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("모임별 참여자와 댓글을 중복 없이 집계하고 탈퇴자 댓글과 삭제 도서를 보존한다")
-    void findClubsWithCounts() {
+    void findClubsWithMemberAndCommentCounts() {
         Book book = bookRepository.save(new Book(new BookTitle("통계 도서"), null, null, 1, null));
         Passage passage = createPassage(book);
         Club first = clubRepository.save(new Club(new ClubName("첫 모임"), book, new JoinCode("DASH01")));
@@ -97,7 +97,7 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
         memberService.delete(deleted.getId());
         bookRepository.delete(book.getId());
 
-        AdminDashboardClubsResponse response = adminClubDashboardService.findClubs();
+        AdminDashboardClubsResponse response = adminClubDashboardService.findClubsWithMemberAndCommentCounts();
 
         assertThat(response.clubs())
                 .extracting(
@@ -117,8 +117,8 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
 
     @Test
     @DisplayName("모임이 없으면 빈 목록을 반환한다")
-    void findClubsWhenEmpty() {
-        assertThat(adminClubDashboardService.findClubs().clubs()).isEmpty();
+    void findClubsWithMemberAndCommentCountsWhenEmpty() {
+        assertThat(adminClubDashboardService.findClubsWithMemberAndCommentCounts().clubs()).isEmpty();
     }
 
     private Passage createPassage(Book book) {
