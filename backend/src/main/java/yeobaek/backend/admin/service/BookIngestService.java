@@ -18,7 +18,9 @@ import yeobaek.backend.admin.dto.PassageUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
+import yeobaek.backend.book.domain.Authors;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.Books;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
@@ -58,11 +60,11 @@ public class BookIngestService {
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
                 request.coverImageKey());
-        List<Author> authors = resolveAuthors(request.authors());
+        Authors authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
-        for (Author author : authors) {
+        for (Author author : authors.asList()) {
             if (author.getId() == null) {
                 authorRepository.save(author);
             }
@@ -106,7 +108,7 @@ public class BookIngestService {
         return request.chapters().stream().mapToInt(chapter -> chapter.passages().size()).sum();
     }
 
-    private List<Author> resolveAuthors(List<AuthorEntryRequest> entries) {
+    private Authors resolveAuthors(List<AuthorEntryRequest> entries) {
         List<Author> resolved = new ArrayList<>();
         Set<Long> seenAuthorIds = new HashSet<>();
         Set<Isni> seenIsnis = new HashSet<>();
@@ -115,7 +117,7 @@ public class BookIngestService {
             rejectDuplicateEntry(author, seenAuthorIds, seenIsnis);
             resolved.add(author);
         }
-        return resolved;
+        return new Authors(resolved);
     }
 
     private Author resolve(AuthorEntryRequest entry) {
@@ -163,31 +165,26 @@ public class BookIngestService {
         }
     }
 
-    private void rejectDuplicateBook(Book book, List<Author> authors) {
-        if (authors.stream().anyMatch(author -> author.getId() == null)) {
+    private void rejectDuplicateBook(Book book, Authors authors) {
+        if (authors.containsUnsavedAuthor()) {
             return;
         }
-        Set<Long> authorIds = authors.stream().map(Author::getId).collect(Collectors.toSet());
-        BookDuplicateCriteria criteria = book.duplicateCriteria(authorIds);
-        List<Book> candidates = activeBookRepository.findAllByTitle(book.getTitle());
+        BookDuplicateCriteria criteria = book.duplicateCriteria(authors.ids());
+        Books candidates = new Books(
+                activeBookRepository.findAllByTitle(book.getTitle()));
         Map<Long, Set<Long>> authorIdsByBookId = authorIdsByBookId(candidates);
-        boolean duplicate = candidates.stream()
-                .map(candidate -> candidate.duplicateCriteria(
-                        authorIdsByBookId.getOrDefault(candidate.getId(), Set.of())))
-                .anyMatch(criteria::isDuplicateOf);
-        if (duplicate) {
+        if (candidates.containsDuplicateOf(criteria, authorIdsByBookId)) {
             throw new BadRequestException(
                     ErrorCode.DUPLICATE_BOOK,
                     "동일한 서지 정보와 작가 구성의 활성 도서가 이미 존재합니다.");
         }
     }
 
-    private Map<Long, Set<Long>> authorIdsByBookId(List<Book> books) {
-        if (books.isEmpty()) {
+    private Map<Long, Set<Long>> authorIdsByBookId(Books candidates) {
+        if (candidates.isEmpty()) {
             return Map.of();
         }
-        List<Long> bookIds = books.stream().map(Book::getId).toList();
-        return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
+        return authorBookRepository.findAllWithAuthorByBookIdIn(candidates.ids()).stream()
                 .collect(Collectors.groupingBy(
                         authorBook -> authorBook.getBook().getId(),
                         Collectors.mapping(authorBook -> authorBook.getAuthor().getId(), Collectors.toSet())));
