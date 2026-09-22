@@ -16,6 +16,14 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
             """)
     List<Club> findAllWithBookByOrderByIdAsc();
 
+    @Query("""
+            select c.book.id as bookId, count(c) as clubCount
+            from Club c
+            where c.book.id in :bookIds
+            group by c.book.id
+            """)
+    List<BookClubCount> countByBookIds(@Param("bookIds") List<Long> bookIds);
+
     @Query("select (count(c) > 0) from Club c where c.joinCode.value = :joinCode")
     boolean existsByJoinCode(@Param("joinCode") String joinCode);
 

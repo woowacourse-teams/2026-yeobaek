@@ -48,10 +48,10 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
         Club first = saveClub("첫 모임", book, "MEM001");
         Club second = saveClub("둘째 모임", book, "MEM002");
         Club third = saveClub("셋째 모임", book, "MEM003");
-        Member threeClubs = saveMember("세 모임 회원");
-        Member oneClubFirst = saveMember("한 모임 회원 A");
-        Member oneClubSecond = saveMember("한 모임 회원 B");
         Member zeroClubs = saveMember("모임 없는 회원");
+        Member oneClubFirst = saveMember("한 모임 회원 A");
+        Member threeClubs = saveMember("세 모임 회원");
+        Member oneClubSecond = saveMember("한 모임 회원 B");
         join(threeClubs, first);
         join(threeClubs, second);
         join(threeClubs, third);

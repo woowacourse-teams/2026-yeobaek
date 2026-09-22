@@ -38,10 +38,6 @@ public class BookManagementRepository {
         return bookJpaRepository.findAllByOrderByIdAsc();
     }
 
-    public List<AdminBookDashboardStatistics> findAdminDashboardStatistics() {
-        return bookJpaRepository.findAdminDashboardStatistics();
-    }
-
     public Book getByIdForUpdate(Long bookId) {
         return bookJpaRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new NotFoundException(

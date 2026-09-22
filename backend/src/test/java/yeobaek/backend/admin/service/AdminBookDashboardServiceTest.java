@@ -32,12 +32,13 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
     @DisplayName("도서별 모임 수를 내림차순으로 조회하고 동률은 ID 순으로 정렬한다")
     void findBooksWithClubCounts() {
         Book first = saveBook("같은 제목");
-        Book second = saveBook("같은 제목");
         Book zero = saveBook("모임 없는 책");
+        Book second = saveBook("같은 제목");
+        Book tied = saveBook("동률 도서");
         clubRepository.save(new Club(new ClubName("첫 모임"), first, new JoinCode("BOOK01")));
-        clubRepository.save(new Club(new ClubName("둘째 모임"), first, new JoinCode("BOOK02")));
+        clubRepository.save(new Club(new ClubName("둘째 모임"), second, new JoinCode("BOOK02")));
         clubRepository.save(new Club(new ClubName("셋째 모임"), second, new JoinCode("BOOK03")));
-        clubRepository.save(new Club(new ClubName("넷째 모임"), second, new JoinCode("BOOK04")));
+        clubRepository.save(new Club(new ClubName("넷째 모임"), tied, new JoinCode("BOOK04")));
         bookRepository.delete(second.getId());
 
         assertThat(adminBookDashboardService.findBooks().books())
@@ -47,8 +48,9 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
                         AdminDashboardBookResponse::status,
                         AdminDashboardBookResponse::clubCount)
                 .containsExactly(
-                        tuple(first.getId(), "같은 제목", BookStatus.ACTIVE, 2L),
                         tuple(second.getId(), "같은 제목", BookStatus.DELETED, 2L),
+                        tuple(first.getId(), "같은 제목", BookStatus.ACTIVE, 1L),
+                        tuple(tied.getId(), "동률 도서", BookStatus.ACTIVE, 1L),
                         tuple(zero.getId(), "모임 없는 책", BookStatus.ACTIVE, 0L));
     }
 

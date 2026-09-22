@@ -74,6 +74,15 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     List<ClubMemberCount> countJoinedByClubIds(@Param("clubIds") List<Long> clubIds);
 
     @Query("""
+            select cm.member.id as memberId, count(cm) as clubCount
+            from ClubMember cm
+            where cm.member.id in :memberIds
+              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
+            group by cm.member.id
+            """)
+    List<MemberClubCount> countJoinedByMemberIds(@Param("memberIds") List<Long> memberIds);
+
+    @Query("""
             select cm from ClubMember cm
             join fetch cm.member
             left join fetch cm.lastReadPassage
