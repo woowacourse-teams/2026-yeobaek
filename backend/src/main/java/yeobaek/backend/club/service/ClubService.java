@@ -13,6 +13,7 @@ import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.ClubMembers;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -85,13 +86,12 @@ public class ClubService {
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId);
-        List<Long> clubIds = clubMembers.stream().map(clubMember -> clubMember.getClub().getId()).toList();
-        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(clubIds).stream()
+        ClubMembers myClubMemberships = new ClubMembers(
+                clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId));
+        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(myClubMemberships.clubIds()).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
-        Map<Long, List<String>> authorNames = authorNamesByBookId(
-                clubMembers.stream().map(clubMember -> clubMember.getClub().getBook().getId()).distinct().toList());
-        return new MyClubsResponse(clubMembers.stream()
+        Map<Long, List<String>> authorNames = authorNamesByBookId(myClubMemberships.bookIds());
+        return new MyClubsResponse(myClubMemberships.asList().stream()
                 .map(clubMember -> {
                     Club club = clubMember.getClub();
                     Book book = club.getBook();
@@ -109,19 +109,18 @@ public class ClubService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
                         "상세 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
-        List<ClubMember> clubMembers = clubMemberRepository.findAllJoinedWithMemberByClubId(clubId);
-        ClubMember myMembership = clubMembers.stream()
-                .filter(clubMember -> clubMember.isOwnedBy(memberId))
-                .findFirst()
+        ClubMembers clubMembers = new ClubMembers(
+                clubMemberRepository.findAllJoinedWithMemberByClubId(clubId));
+        ClubMember myMembership = clubMembers.findByMemberId(memberId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
                         "모임에 참여 중인 회원만 상세 정보를 조회할 수 있습니다: clubId=" + clubId));
-        Set<Long> blockedMemberIds = blockedMemberIds(memberId, clubMembers);
+        Set<Long> blockedMemberIds = blockedMemberIds(memberId, clubMembers.memberIds());
         Book book = club.getBook();
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
                 toBookResponse(book, authorNames(book)),
                 toMyProgress(myMembership),
-                clubMembers.stream()
+                clubMembers.asList().stream()
                         .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
                                 clubMember.getMember().getNickname(), clubMember.isOwnedBy(memberId),
                                 !clubMember.isOwnedBy(memberId)
@@ -129,10 +128,7 @@ public class ClubService {
                         .toList());
     }
 
-    private Set<Long> blockedMemberIds(Long memberId, List<ClubMember> clubMembers) {
-        List<Long> memberIds = clubMembers.stream()
-                .map(clubMember -> clubMember.getMember().getId())
-                .toList();
+    private Set<Long> blockedMemberIds(Long memberId, List<Long> memberIds) {
         if (memberIds.isEmpty()) {
             return Set.of();
         }
