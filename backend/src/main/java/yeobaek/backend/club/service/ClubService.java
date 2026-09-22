@@ -88,7 +88,8 @@ public class ClubService {
     public MyClubsResponse findMyClubs(Long memberId) {
         ClubMembers myClubMemberships = new ClubMembers(
                 clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId));
-        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(myClubMemberships.clubIds()).stream()
+        Map<Long, Long> memberCounts = clubMemberRepository
+                .countJoinedMembersByClubIds(myClubMemberships.clubIds()).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
         Map<Long, List<String>> authorNames = authorNamesByBookId(myClubMemberships.bookIds());
         return new MyClubsResponse(myClubMemberships.asList().stream()

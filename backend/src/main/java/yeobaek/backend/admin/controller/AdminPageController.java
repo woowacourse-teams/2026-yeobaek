@@ -14,4 +14,9 @@ public class AdminPageController {
     public String adminPage() {
         return "admin";
     }
+
+    @GetMapping("/admin/dashboard")
+    public String dashboardPage() {
+        return "admin-dashboard";
+    }
 }

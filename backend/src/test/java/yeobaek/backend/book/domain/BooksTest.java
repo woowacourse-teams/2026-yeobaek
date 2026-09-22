@@ -1,7 +1,9 @@
 package yeobaek.backend.book.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +17,12 @@ import yeobaek.backend.book.domain.vo.Publisher;
 class BooksTest {
 
     @Test
+    @DisplayName("도서가 없으면 빈 컬렉션이다")
+    void isEmpty() {
+        assertThat(new Books(List.of()).isEmpty()).isTrue();
+    }
+
+    @Test
     @DisplayName("도서 id를 반환한다")
     void ids() {
         Book first = bookWithId(1L, "운수 좋은 날");
@@ -22,6 +30,20 @@ class BooksTest {
         Books books = new Books(List.of(first, second));
 
         assertThat(books.ids()).containsExactly(1L, 2L);
+    }
+
+    @Test
+    @DisplayName("원본 목록을 복사하고 변경할 수 없는 도서 목록을 반환한다")
+    void copyAndExposeUnmodifiableList() {
+        Book book = bookWithId(1L, "운수 좋은 날");
+        List<Book> source = new ArrayList<>(List.of(book));
+        Books books = new Books(source);
+
+        source.clear();
+
+        assertThat(books.asList()).containsExactly(book);
+        assertThatThrownBy(() -> books.asList().add(book))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

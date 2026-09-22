@@ -168,7 +168,8 @@ class ClubServiceTest extends IntegrationTest {
         ClubJoinResponse response = clubService.join(creator.getId(), new JoinCode(created.joinCode()));
 
         assertThat(response.clubId()).isEqualTo(created.clubId());
-        assertThat(clubMemberRepository.countJoinedByClubIds(List.of(created.clubId())).getFirst().getMemberCount())
+        assertThat(clubMemberRepository.countJoinedMembersByClubIds(List.of(created.clubId()))
+                .getFirst().getMemberCount())
                 .isEqualTo(1);
     }
 
