@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardClubResponse;
 import yeobaek.backend.admin.dto.AdminDashboardClubsResponse;
-import yeobaek.backend.club.domain.Club;
+import yeobaek.backend.club.domain.Clubs;
 import yeobaek.backend.club.repository.ClubMemberCount;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
@@ -25,16 +25,16 @@ public class AdminClubDashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardClubsResponse findClubs() {
-        List<Club> clubs = clubRepository.findAllWithBookByOrderByIdAsc();
+        Clubs clubs = new Clubs(clubRepository.findAllWithBookByOrderByIdAsc());
         if (clubs.isEmpty()) {
             return new AdminDashboardClubsResponse(List.of());
         }
-        List<Long> clubIds = clubs.stream().map(Club::getId).toList();
+        List<Long> clubIds = clubs.ids();
         Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
         Map<Long, Long> commentCounts = commentRepository.countByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubCommentCount::getClubId, ClubCommentCount::getCommentCount));
-        return new AdminDashboardClubsResponse(clubs.stream()
+        return new AdminDashboardClubsResponse(clubs.asList().stream()
                 .map(club -> new AdminDashboardClubResponse(
                         club.getId(),
                         club.getName(),

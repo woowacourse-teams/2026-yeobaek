@@ -15,7 +15,7 @@ import yeobaek.backend.admin.dto.AdminDashboardMemberResponse;
 import yeobaek.backend.admin.dto.AdminDashboardMembersResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.MemberClubCount;
-import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.Members;
 import yeobaek.backend.member.repository.MemberRepository;
 
 @Service
@@ -29,15 +29,14 @@ public class AdminMemberDashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardMembersResponse findMembers() {
-        List<Member> allMembers = memberRepository.findAll();
+        Members allMembers = new Members(memberRepository.findAll());
         if (allMembers.isEmpty()) {
             return new AdminDashboardMembersResponse(
                     List.of(), BigDecimal.ZERO.setScale(AVERAGE_SCALE), List.of());
         }
-        Map<Long, Long> clubCounts = clubMemberRepository.countJoinedByMemberIds(
-                        allMembers.stream().map(Member::getId).toList()).stream()
+        Map<Long, Long> clubCounts = clubMemberRepository.countJoinedByMemberIds(allMembers.ids()).stream()
                 .collect(Collectors.toMap(MemberClubCount::getMemberId, MemberClubCount::getClubCount));
-        List<AdminDashboardMemberResponse> members = allMembers.stream()
+        List<AdminDashboardMemberResponse> members = allMembers.asList().stream()
                 .map(member -> new AdminDashboardMemberResponse(
                         member.getId(),
                         member.getNickname(),

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardBookResponse;
 import yeobaek.backend.admin.dto.AdminDashboardBooksResponse;
-import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.Books;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.club.repository.BookClubCount;
 import yeobaek.backend.club.repository.ClubRepository;
@@ -23,13 +23,13 @@ public class AdminBookDashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardBooksResponse findBooks() {
-        List<Book> books = bookManagementRepository.findAll();
+        Books books = new Books(bookManagementRepository.findAll());
         if (books.isEmpty()) {
             return new AdminDashboardBooksResponse(List.of());
         }
-        Map<Long, Long> clubCounts = clubRepository.countByBookIds(books.stream().map(Book::getId).toList()).stream()
+        Map<Long, Long> clubCounts = clubRepository.countByBookIds(books.ids()).stream()
                 .collect(Collectors.toMap(BookClubCount::getBookId, BookClubCount::getClubCount));
-        return new AdminDashboardBooksResponse(books.stream()
+        return new AdminDashboardBooksResponse(books.asList().stream()
                 .map(book -> new AdminDashboardBookResponse(
                         book.getId(),
                         book.getTitle().value(),
