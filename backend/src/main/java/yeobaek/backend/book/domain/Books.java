@@ -23,6 +23,10 @@ public final class Books {
                 .toList();
     }
 
+    public List<Book> asList() {
+        return values;
+    }
+
     public boolean containsDuplicateOf(BookDuplicateCriteria criteria, Map<Long, Set<Long>> authorIdsByBookId) {
         return values.stream()
                 .map(book -> book.duplicateCriteria(authorIdsByBookId.getOrDefault(book.getId(), Set.of())))

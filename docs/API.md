@@ -612,6 +612,76 @@
 모든 `/api/admin/**` API는 `X-Admin-Token: {고정 토큰}` 헤더가 필수다. 앱은 사용하지 않는다.
 토큰 누락·불일치는 `401` (`UNAUTHORIZED`). 서버에 토큰이 설정되지 않은 경우에도 전부 `401`이다 (기동은 정상).
 
+### 관리자 통계: 모임 목록과 댓글 수
+`GET /api/admin/dashboard/clubs`
+
+응답 `200` — 모임 ID 오름차순, 전체 조회:
+```json
+{
+  "clubs": [
+    { "clubId": 1, "name": "여백 모임", "bookId": 3, "bookTitle": "운수 좋은 날",
+      "bookStatus": "ACTIVE", "memberCount": 2, "commentCount": 5 }
+  ]
+}
+```
+
+- 참여자가 0명인 모임과 삭제된 도서의 모임도 포함한다. `bookStatus`는 `ACTIVE` 또는 `DELETED`다.
+- `memberCount`는 현재 `JOINED` 상태인 참여자 수다.
+- `commentCount`는 현재 저장된 전체 댓글 수다. 모임 탈퇴자의 댓글도 포함하고 개인 차단 여부는
+  적용하지 않는다. 삭제된 댓글은 집계하지 않으며, 댓글 본문이나 모임 참여 코드는 제공하지 않는다.
+- 모임이 없으면 `{ "clubs": [] }`다.
+
+### 관리자 통계: 책별 모임 수
+`GET /api/admin/dashboard/books`
+
+응답 `200` — 모임 수 내림차순, 동률이면 책 ID 오름차순, 전체 조회:
+```json
+{
+  "books": [
+    { "bookId": 3, "title": "운수 좋은 날", "status": "ACTIVE", "clubCount": 4 },
+    { "bookId": 7, "title": "보관 도서", "status": "DELETED", "clubCount": 0 }
+  ]
+}
+```
+
+- 책 ID별로 집계하며 제목이 같아도 합치지 않는다. 삭제된 도서와 모임이 0개인 도서도 포함한다.
+- 도서가 없으면 `{ "books": [] }`다.
+
+### 관리자 통계: 회원별 참여 수·평균·분포
+`GET /api/admin/dashboard/members`
+
+응답 `200` — 회원 목록은 참여 모임 수 내림차순, 동률이면 회원 ID 오름차순, 전체 조회:
+```json
+{
+  "members": [
+    { "memberId": 1, "nickname": "여백", "clubCount": 2 },
+    { "memberId": 2, "nickname": "독자", "clubCount": 0 }
+  ],
+  "averageClubCount": 1.00,
+  "distribution": [
+    { "clubCount": 0, "memberCount": 1 },
+    { "clubCount": 2, "memberCount": 1 }
+  ]
+}
+```
+
+- 참여 모임은 `JOINED` 상태만 집계하며 삭제된 도서의 모임도 포함한다.
+- 평균·분포는 참여 수가 0인 회원을 포함한 현재 전체 회원 기준이다. 삭제된 계정은 포함하지 않는다.
+- `averageClubCount`는 총 참여 수 / 전체 회원 수를 소수 둘째 자리까지 반올림한 숫자다.
+- `distribution`은 모임 수 오름차순이며 해당 회원이 없는 구간은 생략한다.
+- 회원이 없으면 `{ "members": [], "averageClubCount": 0.00, "distribution": [] }`다.
+- 세 통계 API는 서로 독립된 조회다. 공통 시점의 스냅샷을 보장하지 않는다. 검색·페이징·기간 입력은 없다.
+
+### 관리자 통계 페이지
+`GET /admin/dashboard`
+
+- 별도 통계 페이지를 반환하고 기존 `/admin`과 이동 링크를 제공한다.
+- HTML 페이지는 토큰 없이 열리지만 데이터는 기존 `X-Admin-Token` 인증을 거친 세 API에서만 조회한다.
+- 전체 새로고침은 세 API를 각각 호출하며, 영역별 새로고침은 해당 API만 호출한다.
+- 조회 중·실패한 영역의 이전 결과는 숨긴다. 실패해도 성공한 다른 영역의 결과는 유지한다.
+- 각 영역은 완료 시각을 표시한다. 빈 데이터는 오류와 구분해 표시하며, 토큰 변경 시 기존 결과를 지운다.
+- 입력 토큰은 페이지 메모리에서만 사용하고 브라우저 저장소에 보관하지 않는다.
+
 ### 표지 업로드 URL 발급
 `POST /api/admin/book-covers/upload-url`
 
@@ -939,7 +1009,11 @@
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
 | GET | /api/admin/authors | (관리자) 작가 목록 조회 |
+| GET | /api/admin/dashboard/clubs | (관리자) 모임 목록·댓글 수 |
+| GET | /api/admin/dashboard/books | (관리자) 책별 모임 수 |
+| GET | /api/admin/dashboard/members | (관리자) 회원별 참여 수·평균·분포 |
 | GET | /admin | (관리자) 관리자 페이지 (HTML) |
+| GET | /admin/dashboard | (관리자) 통계 대시보드 (HTML) |
 
 ## 9. App Store 배포 전 후속 과제
 
