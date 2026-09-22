@@ -18,6 +18,7 @@ import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.ContentVisibility;
+import yeobaek.backend.comment.domain.VisibleComments;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
@@ -50,10 +51,10 @@ public class CommentService {
     @Transactional
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
         validateSentenceContext(memberId, clubId, sentenceId);
-        List<Comment> comments = commentRepository
-                .findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId);
+        VisibleComments comments = new VisibleComments(
+                commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId));
         markAsViewed(memberId, comments);
-        return new CommentsResponse(comments.stream()
+        return new CommentsResponse(comments.values().stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
     }
@@ -185,15 +186,13 @@ public class CommentService {
         return passage;
     }
 
-    private void markAsViewed(Long memberId, List<Comment> comments) {
+    private void markAsViewed(Long memberId, VisibleComments comments) {
         if (comments.isEmpty()) {
             return;
         }
-        List<Long> commentIds = comments.stream().map(Comment::getId).toList();
-        var viewedCommentIds = new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, commentIds));
+        var viewedCommentIds = new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, comments.ids()));
         var member = memberRepository.getReferenceById(memberId);
-        List<CommentView> newViews = comments.stream()
-                .filter(comment -> !viewedCommentIds.contains(comment.getId()))
+        List<CommentView> newViews = comments.excludingIds(viewedCommentIds).stream()
                 .map(comment -> new CommentView(member, comment))
                 .toList();
         commentViewRepository.saveAll(newViews);
