@@ -4,25 +4,25 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public final class ResolvedAuthors {
+public final class Authors {
 
-    private final List<Author> authors;
+    private final List<Author> entries;
 
-    public ResolvedAuthors(List<Author> authors) {
-        this.authors = List.copyOf(authors);
+    public Authors(List<Author> authors) {
+        this.entries = List.copyOf(authors);
     }
 
     public boolean containsUnsavedAuthor() {
-        return authors.stream().anyMatch(author -> author.getId() == null);
+        return entries.stream().anyMatch(author -> author.getId() == null);
     }
 
     public Set<Long> ids() {
-        return authors.stream()
+        return entries.stream()
                 .map(Author::getId)
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     public List<Author> values() {
-        return authors;
+        return entries;
     }
 }

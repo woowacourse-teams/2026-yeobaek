@@ -17,8 +17,8 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.CommentView;
+import yeobaek.backend.comment.domain.Comments;
 import yeobaek.backend.comment.domain.ContentVisibility;
-import yeobaek.backend.comment.domain.VisibleComments;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
@@ -51,7 +51,7 @@ public class CommentService {
     @Transactional
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
         validateSentenceContext(memberId, clubId, sentenceId);
-        VisibleComments comments = new VisibleComments(
+        Comments comments = new Comments(
                 commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId));
         markAsViewed(memberId, comments);
         return new CommentsResponse(comments.values().stream()
@@ -186,7 +186,7 @@ public class CommentService {
         return passage;
     }
 
-    private void markAsViewed(Long memberId, VisibleComments comments) {
+    private void markAsViewed(Long memberId, Comments comments) {
         if (comments.isEmpty()) {
             return;
         }

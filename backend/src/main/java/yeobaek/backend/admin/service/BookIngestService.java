@@ -18,11 +18,11 @@ import yeobaek.backend.admin.dto.PassageUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
+import yeobaek.backend.book.domain.Authors;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.Books;
 import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.DuplicateBookCandidates;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.ResolvedAuthors;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 import yeobaek.backend.book.domain.vo.Isni;
@@ -60,7 +60,7 @@ public class BookIngestService {
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
                 request.coverImageKey());
-        ResolvedAuthors authors = resolveAuthors(request.authors());
+        Authors authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
@@ -108,7 +108,7 @@ public class BookIngestService {
         return request.chapters().stream().mapToInt(chapter -> chapter.passages().size()).sum();
     }
 
-    private ResolvedAuthors resolveAuthors(List<AuthorEntryRequest> entries) {
+    private Authors resolveAuthors(List<AuthorEntryRequest> entries) {
         List<Author> resolved = new ArrayList<>();
         Set<Long> seenAuthorIds = new HashSet<>();
         Set<Isni> seenIsnis = new HashSet<>();
@@ -117,7 +117,7 @@ public class BookIngestService {
             rejectDuplicateEntry(author, seenAuthorIds, seenIsnis);
             resolved.add(author);
         }
-        return new ResolvedAuthors(resolved);
+        return new Authors(resolved);
     }
 
     private Author resolve(AuthorEntryRequest entry) {
@@ -165,12 +165,12 @@ public class BookIngestService {
         }
     }
 
-    private void rejectDuplicateBook(Book book, ResolvedAuthors authors) {
+    private void rejectDuplicateBook(Book book, Authors authors) {
         if (authors.containsUnsavedAuthor()) {
             return;
         }
         BookDuplicateCriteria criteria = book.duplicateCriteria(authors.ids());
-        DuplicateBookCandidates candidates = new DuplicateBookCandidates(
+        Books candidates = new Books(
                 activeBookRepository.findAllByTitle(book.getTitle()));
         Map<Long, Set<Long>> authorIdsByBookId = authorIdsByBookId(candidates);
         if (candidates.containsDuplicateOf(criteria, authorIdsByBookId)) {
@@ -180,7 +180,7 @@ public class BookIngestService {
         }
     }
 
-    private Map<Long, Set<Long>> authorIdsByBookId(DuplicateBookCandidates candidates) {
+    private Map<Long, Set<Long>> authorIdsByBookId(Books candidates) {
         if (candidates.isEmpty()) {
             return Map.of();
         }

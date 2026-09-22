@@ -12,26 +12,26 @@ import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.Publisher;
 
-class DuplicateBookCandidatesTest {
+class BooksTest {
 
     @Test
-    @DisplayName("중복 검사 후보 도서 id를 반환한다")
+    @DisplayName("도서 id를 반환한다")
     void ids() {
         Book first = bookWithId(1L, "운수 좋은 날");
         Book second = bookWithId(2L, "날개");
-        DuplicateBookCandidates candidates = new DuplicateBookCandidates(List.of(first, second));
+        Books books = new Books(List.of(first, second));
 
-        assertThat(candidates.ids()).containsExactly(1L, 2L);
+        assertThat(books.ids()).containsExactly(1L, 2L);
     }
 
     @Test
     @DisplayName("서지 정보와 작가 구성이 같은 도서가 있는지 확인한다")
     void containsDuplicateOf() {
-        Book candidate = bookWithId(1L, "운수 좋은 날");
-        DuplicateBookCandidates candidates = new DuplicateBookCandidates(List.of(candidate));
-        BookDuplicateCriteria criteria = candidate.duplicateCriteria(Set.of(10L));
+        Book book = bookWithId(1L, "운수 좋은 날");
+        Books books = new Books(List.of(book));
+        BookDuplicateCriteria criteria = book.duplicateCriteria(Set.of(10L));
 
-        boolean duplicate = candidates.containsDuplicateOf(criteria, Map.of(1L, Set.of(10L)));
+        boolean duplicate = books.containsDuplicateOf(criteria, Map.of(1L, Set.of(10L)));
 
         assertThat(duplicate).isTrue();
     }
@@ -39,11 +39,11 @@ class DuplicateBookCandidatesTest {
     @Test
     @DisplayName("작가 구성이 다르면 중복 도서가 아니다")
     void doesNotContainDifferentAuthors() {
-        Book candidate = bookWithId(1L, "운수 좋은 날");
-        DuplicateBookCandidates candidates = new DuplicateBookCandidates(List.of(candidate));
-        BookDuplicateCriteria criteria = candidate.duplicateCriteria(Set.of(10L));
+        Book book = bookWithId(1L, "운수 좋은 날");
+        Books books = new Books(List.of(book));
+        BookDuplicateCriteria criteria = book.duplicateCriteria(Set.of(10L));
 
-        boolean duplicate = candidates.containsDuplicateOf(criteria, Map.of(1L, Set.of(20L)));
+        boolean duplicate = books.containsDuplicateOf(criteria, Map.of(1L, Set.of(20L)));
 
         assertThat(duplicate).isFalse();
     }

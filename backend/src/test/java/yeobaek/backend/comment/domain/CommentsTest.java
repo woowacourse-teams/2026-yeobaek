@@ -8,14 +8,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class VisibleCommentsTest {
+class CommentsTest {
 
     @Test
-    @DisplayName("보이는 댓글 id를 순서대로 반환한다")
+    @DisplayName("댓글 id를 순서대로 반환한다")
     void ids() {
         Comment first = commentWithId(1L);
         Comment second = commentWithId(2L);
-        VisibleComments comments = new VisibleComments(List.of(first, second));
+        Comments comments = new Comments(List.of(first, second));
 
         assertThat(comments.ids()).containsExactly(1L, 2L);
     }
@@ -25,7 +25,7 @@ class VisibleCommentsTest {
     void excludingIds() {
         Comment first = commentWithId(1L);
         Comment second = commentWithId(2L);
-        VisibleComments comments = new VisibleComments(List.of(first, second));
+        Comments comments = new Comments(List.of(first, second));
 
         assertThat(comments.excludingIds(Set.of(1L))).containsExactly(second);
     }
@@ -33,7 +33,7 @@ class VisibleCommentsTest {
     @Test
     @DisplayName("댓글이 없으면 빈 컬렉션이다")
     void isEmpty() {
-        VisibleComments comments = new VisibleComments(List.of());
+        Comments comments = new Comments(List.of());
 
         assertThat(comments.isEmpty()).isTrue();
     }

@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.vo.AuthorName;
 
-class ResolvedAuthorsTest {
+class AuthorsTest {
 
     @Test
     @DisplayName("저장되지 않은 작가가 포함되었는지 확인한다")
     void containsUnsavedAuthor() {
         Author saved = authorWithId(1L, "현진건");
         Author unsaved = new Author(new AuthorName("이상"));
-        ResolvedAuthors authors = new ResolvedAuthors(List.of(saved, unsaved));
+        Authors authors = new Authors(List.of(saved, unsaved));
 
         assertThat(authors.containsUnsavedAuthor()).isTrue();
     }
@@ -25,7 +25,7 @@ class ResolvedAuthorsTest {
     void ids() {
         Author first = authorWithId(1L, "현진건");
         Author second = authorWithId(2L, "이상");
-        ResolvedAuthors authors = new ResolvedAuthors(List.of(first, second));
+        Authors authors = new Authors(List.of(first, second));
 
         assertThat(authors.ids()).containsExactlyInAnyOrder(1L, 2L);
     }

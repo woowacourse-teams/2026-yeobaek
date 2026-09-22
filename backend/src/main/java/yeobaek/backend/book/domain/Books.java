@@ -5,26 +5,26 @@ import java.util.Map;
 import java.util.Set;
 import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 
-public final class DuplicateBookCandidates {
+public final class Books {
 
-    private final List<Book> books;
+    private final List<Book> entries;
 
-    public DuplicateBookCandidates(List<Book> books) {
-        this.books = List.copyOf(books);
+    public Books(List<Book> books) {
+        this.entries = List.copyOf(books);
     }
 
     public boolean isEmpty() {
-        return books.isEmpty();
+        return entries.isEmpty();
     }
 
     public List<Long> ids() {
-        return books.stream()
+        return entries.stream()
                 .map(Book::getId)
                 .toList();
     }
 
     public boolean containsDuplicateOf(BookDuplicateCriteria criteria, Map<Long, Set<Long>> authorIdsByBookId) {
-        return books.stream()
+        return entries.stream()
                 .map(book -> book.duplicateCriteria(authorIdsByBookId.getOrDefault(book.getId(), Set.of())))
                 .anyMatch(criteria::isDuplicateOf);
     }

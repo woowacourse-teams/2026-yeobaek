@@ -13,8 +13,7 @@ import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.JoinedClubMembers;
-import yeobaek.backend.club.domain.MemberClubMemberships;
+import yeobaek.backend.club.domain.ClubMembers;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -87,7 +86,7 @@ public class ClubService {
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        MemberClubMemberships memberships = new MemberClubMemberships(
+        ClubMembers memberships = new ClubMembers(
                 clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId));
         Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(memberships.clubIds()).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
@@ -110,7 +109,7 @@ public class ClubService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
                         "상세 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
-        JoinedClubMembers clubMembers = new JoinedClubMembers(
+        ClubMembers clubMembers = new ClubMembers(
                 clubMemberRepository.findAllJoinedWithMemberByClubId(clubId));
         ClubMember myMembership = clubMembers.findByMemberId(memberId)
                 .orElseThrow(() -> new ForbiddenException(
