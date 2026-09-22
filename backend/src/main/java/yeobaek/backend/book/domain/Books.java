@@ -7,24 +7,24 @@ import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
 
 public final class Books {
 
-    private final List<Book> entries;
+    private final List<Book> values;
 
-    public Books(List<Book> books) {
-        this.entries = List.copyOf(books);
+    public Books(List<Book> values) {
+        this.values = List.copyOf(values);
     }
 
     public boolean isEmpty() {
-        return entries.isEmpty();
+        return values.isEmpty();
     }
 
     public List<Long> ids() {
-        return entries.stream()
+        return values.stream()
                 .map(Book::getId)
                 .toList();
     }
 
     public boolean containsDuplicateOf(BookDuplicateCriteria criteria, Map<Long, Set<Long>> authorIdsByBookId) {
-        return entries.stream()
+        return values.stream()
                 .map(book -> book.duplicateCriteria(authorIdsByBookId.getOrDefault(book.getId(), Set.of())))
                 .anyMatch(criteria::isDuplicateOf);
     }

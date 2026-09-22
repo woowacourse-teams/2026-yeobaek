@@ -91,7 +91,7 @@ public class ClubService {
         Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(memberships.clubIds()).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
         Map<Long, List<String>> authorNames = authorNamesByBookId(memberships.bookIds());
-        return new MyClubsResponse(memberships.values().stream()
+        return new MyClubsResponse(memberships.asList().stream()
                 .map(clubMember -> {
                     Club club = clubMember.getClub();
                     Book book = club.getBook();
@@ -120,7 +120,7 @@ public class ClubService {
         return new ClubDetailResponse(club.getId(), club.getName(), club.getJoinCode(),
                 toBookResponse(book, authorNames(book)),
                 toMyProgress(myMembership),
-                clubMembers.values().stream()
+                clubMembers.asList().stream()
                         .map(clubMember -> new ClubMemberResponse(clubMember.getMember().getId(),
                                 clubMember.getMember().getNickname(), clubMember.isOwnedBy(memberId),
                                 !clubMember.isOwnedBy(memberId)

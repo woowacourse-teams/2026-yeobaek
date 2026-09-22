@@ -5,38 +5,38 @@ import java.util.Optional;
 
 public final class ClubMembers {
 
-    private final List<ClubMember> members;
+    private final List<ClubMember> values;
 
-    public ClubMembers(List<ClubMember> members) {
-        this.members = List.copyOf(members);
+    public ClubMembers(List<ClubMember> values) {
+        this.values = List.copyOf(values);
     }
 
     public Optional<ClubMember> findByMemberId(Long memberId) {
-        return members.stream()
+        return values.stream()
                 .filter(clubMember -> clubMember.isOwnedBy(memberId))
                 .findFirst();
     }
 
     public List<Long> memberIds() {
-        return members.stream()
+        return values.stream()
                 .map(clubMember -> clubMember.getMember().getId())
                 .toList();
     }
 
     public List<Long> clubIds() {
-        return members.stream()
+        return values.stream()
                 .map(clubMember -> clubMember.getClub().getId())
                 .toList();
     }
 
     public List<Long> bookIds() {
-        return members.stream()
+        return values.stream()
                 .map(clubMember -> clubMember.getClub().getBook().getId())
                 .distinct()
                 .toList();
     }
 
-    public List<ClubMember> values() {
-        return members;
+    public List<ClubMember> asList() {
+        return values;
     }
 }

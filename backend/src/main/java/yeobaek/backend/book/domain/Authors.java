@@ -6,23 +6,23 @@ import java.util.stream.Collectors;
 
 public final class Authors {
 
-    private final List<Author> entries;
+    private final List<Author> values;
 
-    public Authors(List<Author> authors) {
-        this.entries = List.copyOf(authors);
+    public Authors(List<Author> values) {
+        this.values = List.copyOf(values);
     }
 
     public boolean containsUnsavedAuthor() {
-        return entries.stream().anyMatch(author -> author.getId() == null);
+        return values.stream().anyMatch(author -> author.getId() == null);
     }
 
     public Set<Long> ids() {
-        return entries.stream()
+        return values.stream()
                 .map(Author::getId)
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    public List<Author> values() {
-        return entries;
+    public List<Author> asList() {
+        return values;
     }
 }

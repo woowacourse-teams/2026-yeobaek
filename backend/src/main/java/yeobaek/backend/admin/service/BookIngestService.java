@@ -64,7 +64,7 @@ public class BookIngestService {
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
-        for (Author author : authors.values()) {
+        for (Author author : authors.asList()) {
             if (author.getId() == null) {
                 authorRepository.save(author);
             }

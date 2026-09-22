@@ -54,7 +54,7 @@ public class CommentService {
         Comments comments = new Comments(
                 commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId));
         markAsViewed(memberId, comments);
-        return new CommentsResponse(comments.values().stream()
+        return new CommentsResponse(comments.asList().stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
     }
