@@ -10,24 +10,11 @@ import yeobaek.backend.club.domain.Club;
 public interface ClubRepository extends JpaRepository<Club, Long> {
 
     @Query("""
-            select c.id as clubId,
-                   c.name.value as name,
-                   b.id as bookId,
-                   b.title.value as bookTitle,
-                   b.status as bookStatus,
-                   count(distinct case
-                       when cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED then cm.id
-                       else null
-                   end) as memberCount,
-                   count(distinct comment.id) as commentCount
-            from Club c
-            join c.book b
-            left join ClubMember cm on cm.club = c
-            left join Comment comment on comment.clubMember = cm
-            group by c.id, c.name.value, b.id, b.title.value, b.status
+            select c from Club c
+            join fetch c.book
             order by c.id asc
             """)
-    List<AdminClubDashboardStatistics> findAdminDashboardStatistics();
+    List<Club> findAllWithBookByOrderByIdAsc();
 
     @Query("select (count(c) > 0) from Club c where c.joinCode.value = :joinCode")
     boolean existsByJoinCode(@Param("joinCode") String joinCode);

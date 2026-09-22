@@ -14,6 +14,14 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     String CLUB_ID = "clubId";
 
     @Query("""
+            select c.clubMember.club.id as clubId, count(c) as commentCount
+            from Comment c
+            where c.clubMember.club.id in :clubIds
+            group by c.clubMember.club.id
+            """)
+    List<ClubCommentCount> countByClubIds(@Param("clubIds") List<Long> clubIds);
+
+    @Query("""
             select c from Comment c
             join fetch c.clubMember cm
             join fetch cm.club club

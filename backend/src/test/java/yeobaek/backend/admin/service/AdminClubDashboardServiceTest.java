@@ -75,20 +75,25 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
         Passage passage = createPassage(book);
         Club first = clubRepository.save(new Club(new ClubName("첫 모임"), book, new JoinCode("DASH01")));
         Club empty = clubRepository.save(new Club(new ClubName("빈 모임"), book, new JoinCode("DASH02")));
+        Club second = clubRepository.save(new Club(new ClubName("둘째 모임"), book, new JoinCode("DASH03")));
         Member joined = memberRepository.save(new Member(new Nickname("참여 회원")));
         Member left = memberRepository.save(new Member(new Nickname("탈퇴 회원")));
         Member deleted = memberRepository.save(new Member(new Nickname("삭제 회원")));
+        Member secondJoined = memberRepository.save(new Member(new Nickname("둘째 모임 회원")));
         ClubMember joinedMembership = clubMemberRepository.save(new ClubMember(joined, first));
         ClubMember leftMembership = new ClubMember(left, first);
         leftMembership.leave();
         leftMembership = clubMemberRepository.save(leftMembership);
         ClubMember deletedMembership = clubMemberRepository.save(new ClubMember(deleted, first));
+        ClubMember secondMembership = clubMemberRepository.save(new ClubMember(joined, second));
+        clubMemberRepository.save(new ClubMember(secondJoined, second));
         memberBlockRepository.save(new MemberBlock(joined, left));
         commentRepository.saveAll(List.of(
                 new Comment(joinedMembership, passage.getSentences().getFirst(), new CommentContent("첫 댓글")),
                 new Comment(joinedMembership, passage.getSentences().getFirst(), new CommentContent("둘째 댓글")),
                 new Comment(leftMembership, passage.getSentences().getFirst(), new CommentContent("탈퇴자 댓글")),
-                new Comment(deletedMembership, passage.getSentences().getFirst(), new CommentContent("삭제될 댓글"))));
+                new Comment(deletedMembership, passage.getSentences().getFirst(), new CommentContent("삭제될 댓글")),
+                new Comment(secondMembership, passage.getSentences().getFirst(), new CommentContent("다른 모임 댓글"))));
         memberService.delete(deleted.getId());
         bookRepository.delete(book.getId());
 
@@ -103,7 +108,8 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
                         AdminDashboardClubResponse::commentCount)
                 .containsExactly(
                         tuple(first.getId(), "첫 모임", BookStatus.DELETED, 1L, 3L),
-                        tuple(empty.getId(), "빈 모임", BookStatus.DELETED, 0L, 0L));
+                        tuple(empty.getId(), "빈 모임", BookStatus.DELETED, 0L, 0L),
+                        tuple(second.getId(), "둘째 모임", BookStatus.DELETED, 2L, 1L));
         assertThat(response.clubs().getFirst())
                 .extracting(AdminDashboardClubResponse::bookId, AdminDashboardClubResponse::bookTitle)
                 .containsExactly(book.getId(), "통계 도서");
