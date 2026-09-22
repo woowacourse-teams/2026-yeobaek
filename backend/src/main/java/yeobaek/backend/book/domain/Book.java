@@ -17,7 +17,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
@@ -77,8 +77,8 @@ public class Book {
         return Objects.equals(id, other.getId());
     }
 
-    public BookDuplicateCriteria duplicateCriteria(Set<Long> authorIds) {
-        return new BookDuplicateCriteria(title, publisher, publishedYear, authorIds);
+    public BookDeduplicationKey deduplicationKey(Set<Long> authorIds) {
+        return new BookDeduplicationKey(title, publisher, publishedYear, authorIds);
     }
 
     public void delete() {
