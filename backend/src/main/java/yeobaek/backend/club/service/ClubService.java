@@ -86,12 +86,12 @@ public class ClubService {
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        ClubMembers memberships = new ClubMembers(
+        ClubMembers myClubMemberships = new ClubMembers(
                 clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId));
-        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(memberships.clubIds()).stream()
+        Map<Long, Long> memberCounts = clubMemberRepository.countJoinedByClubIds(myClubMemberships.clubIds()).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
-        Map<Long, List<String>> authorNames = authorNamesByBookId(memberships.bookIds());
-        return new MyClubsResponse(memberships.asList().stream()
+        Map<Long, List<String>> authorNames = authorNamesByBookId(myClubMemberships.bookIds());
+        return new MyClubsResponse(myClubMemberships.asList().stream()
                 .map(clubMember -> {
                     Club club = clubMember.getClub();
                     Book book = club.getBook();
