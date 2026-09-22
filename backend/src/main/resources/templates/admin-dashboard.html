@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>통계 대시보드 · 여백 관리자</title>
+    <link rel="stylesheet" href="/admin-dashboard.css">
+    <script src="/admin-dashboard.js" defer></script>
+</head>
+<body>
+<main>
+    <header class="page-header">
+        <div><p class="eyebrow">여백 / 관리자</p><h1>통계 대시보드</h1><p>모임과 독서 활동의 현재 현황을 확인하세요.</p></div>
+        <a href="/admin">도서 관리로 이동 <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <section class="access-panel" aria-labelledby="access-heading">
+        <div><h2 id="access-heading">관리자 인증</h2><p>토큰은 이 페이지에서만 사용하며 저장하지 않습니다.</p></div>
+        <div class="access-controls">
+            <label for="admin-token">관리자 토큰</label>
+            <div class="input-row"><input type="password" id="admin-token" autocomplete="off" placeholder="X-Admin-Token"><button type="button" id="refresh-all">전체 조회 / 새로고침</button></div>
+        </div>
+    </section>
+    <p class="scope-note">현재 저장된 데이터 기준입니다. 각 영역은 독립적으로 조회되므로 갱신 시점이 다를 수 있습니다.</p>
+
+    <section class="data-panel" aria-labelledby="clubs-heading" id="clubs-panel">
+        <div class="section-header"><div><p class="eyebrow">01 / 모임</p><h2 id="clubs-heading">모임 목록과 댓글 수</h2></div><button type="button" class="secondary" id="refresh-clubs">모임 새로고침</button></div>
+        <p class="section-note">빈 모임과 삭제된 도서의 모임도 포함합니다. 댓글 수는 모임 탈퇴자의 댓글을 포함한 현재 전체 댓글 수입니다.</p>
+        <p id="clubs-status" class="status" role="status" aria-live="polite">관리자 토큰을 입력한 뒤 조회해 주세요.</p>
+        <div id="clubs-content" hidden>
+            <div class="metric"><span>전체 모임</span><strong id="club-total">—</strong></div>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="모임 목록"><table><caption class="sr-only">모임별 현재 참여자와 댓글 수</caption><thead><tr><th scope="col">모임 ID</th><th scope="col">모임 이름</th><th scope="col">책 ID</th><th scope="col">책 제목</th><th scope="col">도서 상태</th><th scope="col" class="number">참여자</th><th scope="col" class="number">댓글</th></tr></thead><tbody id="clubs-body"></tbody></table></div>
+        </div>
+    </section>
+
+    <section class="data-panel" aria-labelledby="books-heading" id="books-panel">
+        <div class="section-header"><div><p class="eyebrow">02 / 도서</p><h2 id="books-heading">어떤 책에 모임이 많을까요?</h2></div><button type="button" class="secondary" id="refresh-books">책 새로고침</button></div>
+        <p class="section-note">모임 수가 많은 순서입니다. 삭제된 도서와 모임이 없는 책도 포함하며, 같은 제목이라도 책 ID별로 구분합니다.</p>
+        <p id="books-status" class="status" role="status" aria-live="polite">관리자 토큰을 입력한 뒤 조회해 주세요.</p>
+        <div id="books-content" hidden>
+            <div class="metric"><span>전체 도서</span><strong id="book-total">—</strong></div>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="책별 모임 수"><table><caption class="sr-only">도서별 모임 수 내림차순 목록</caption><thead><tr><th scope="col">책 ID</th><th scope="col">책 제목</th><th scope="col">도서 상태</th><th scope="col" class="number">모임 수</th></tr></thead><tbody id="books-body"></tbody></table></div>
+        </div>
+    </section>
+
+    <section class="data-panel" aria-labelledby="members-heading" id="members-panel">
+        <div class="section-header"><div><p class="eyebrow">03 / 회원</p><h2 id="members-heading">회원의 모임 참여 현황</h2></div><button type="button" class="secondary" id="refresh-members">회원 새로고침</button></div>
+        <p class="section-note">현재 가입 중인 모임만 집계합니다. 삭제된 도서의 모임도 포함하며, 평균과 분포에는 참여 모임이 0개인 회원도 포함합니다.</p>
+        <p id="members-status" class="status" role="status" aria-live="polite">관리자 토큰을 입력한 뒤 조회해 주세요.</p>
+        <div id="members-content" hidden>
+            <div class="metrics"><div class="metric"><span>전체 회원</span><strong id="member-total">—</strong></div><div class="metric"><span>1인당 평균 참여 모임</span><strong><span id="member-average">—</span><small>개</small></strong></div></div>
+            <div class="member-grid">
+                <div><h3>참여 모임 수 분포</h3><p class="section-note">각 모임 수에 해당하는 회원 수입니다.</p><div id="distribution" class="distribution"></div></div>
+                <div><h3>회원별 참여 모임</h3><div class="table-scroll" tabindex="0" role="region" aria-label="회원별 참여 모임 수"><table><caption class="sr-only">회원별 참여 모임 수 내림차순 목록</caption><thead><tr><th scope="col">회원 ID</th><th scope="col">닉네임</th><th scope="col" class="number">참여 모임</th></tr></thead><tbody id="members-body"></tbody></table></div></div>
+            </div>
+        </div>
+    </section>
+    <footer>여백 관리자 · 통계는 조회 시점의 현황이며 과거 이력을 나타내지 않습니다.</footer>
+</main>
+</body>
+</html>
