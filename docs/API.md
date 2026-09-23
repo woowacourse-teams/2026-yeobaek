@@ -3,6 +3,10 @@
 > 기반 문서: [`PRD.md`](PRD.md) · 상태: **구현 계약**
 > 이 문서는 백엔드 구현과 Android 연동이 따르는 API 계약의 기준이다. 런타임 OpenAPI 스펙(`/v3/api-docs`)과 Swagger UI(`/docs`)도 이 계약을 따른다.
 
+> **공개방 선행 명세:** 10절은 Android 병렬 개발을 위한 **구현 예정 계약**이다. 이 문서 변경으로
+> 서버 기능이나 런타임 OpenAPI가 추가되는 것은 아니다. 10절의 신규 API와 기존 API 확장은
+> 후속 구현·배포 이후 사용할 수 있으며, 기존 모임 API의 요청·응답과 구버전 지원은 유지한다.
+
 ## 0. 공통 규약
 
 - Base path: `/api` (호스트는 배포 후 공유)
@@ -29,6 +33,7 @@
 | `BOOK_NOT_FOUND` | 400 | 대상 도서 없음 |
 | `BOOK_NOT_AVAILABLE` | 400 | 대상 도서가 삭제되어 더 이상 이용할 수 없음 |
 | `CLUB_NOT_FOUND` | 400 | 대상 모임 없음 |
+| `PUBLIC_ROOM_NOT_FOUND` | 400 | 대상 공개방 없음 (10절 구현 예정 계약) |
 | `JOIN_CODE_NOT_FOUND` | 400 | 참여 코드에 해당하는 모임 없음 |
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
 | `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
@@ -94,6 +99,8 @@
 
 ### 계정 삭제
 `DELETE /api/members/me`
+
+공개방 도입 후의 방문·진도·댓글 데이터 삭제 범위는 10.9절에서 이 계약을 확장한다 (구현 예정).
 
 요청 본문은 없다.
 
@@ -310,7 +317,9 @@
 
 ## 4. 읽기 · 진도
 
-읽기는 항상 모임 맥락에서 이루어진다 (진도·댓글이 모임 단위이므로).
+모임에서의 읽기는 해당 모임 맥락에서 이루어진다 (진도·댓글이 모임 단위이므로).
+
+이 절은 기존 모임 읽기 계약이다. 공개방의 독립 진도와 통합 최근 읽기는 10절에서 정의한다.
 
 ### 본문 범위 조회
 `GET /api/clubs/{clubId}/passages?from={sequence}&to={sequence}`
@@ -370,6 +379,9 @@
 ### 홈 — 마지막으로 읽던 책
 `GET /api/members/me/last-reading`
 
+구버전 지원을 위해 모임 전용 계약을 유지한다. 공개방·모임 통합 조회는 10절의
+`GET /api/members/me/recent-reading`을 사용한다 (구현 예정).
+
 응답 `200` — 전 모임 중 `lastReadAt`이 가장 최근인 것:
 ```json
 {
@@ -400,6 +412,9 @@
   복원하는 별도 API를 추가하지 않으며, 돌아간 뒤에도 일반 뷰어의 진도 저장 규칙을 적용한다.
 
 ## 5. 댓글
+
+이 절의 모임 소속·탈퇴 조건은 모임 댓글에 적용한다. 공개방 도입 후 공통 댓글 수정·삭제·신고
+경로에 공개방 댓글을 전달하는 경우의 권한과 오류는 10.9절에서 정의한다 (구현 예정).
 
 댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
 (`SENTENCE_NOT_FOUND`)을 반환한다.
@@ -882,6 +897,16 @@
 
 ## 7. Android 개발자 변경 안내
 
+### 공개방 선행 계약 (구현 예정)
+
+- 10절에서 공개방 탐색·방문·독서·댓글과 공개방·모임 통합 최근 읽기를 정의한다.
+- 신규 클라이언트는 `GET /api/members/me/recent-reading`의 `space.type`으로 이동 대상을 구분한다.
+  기존 `GET /api/members/me/last-reading`은 계속 모임만 반환한다.
+- 방문은 독서 화면 진입 시, 진도는 기존과 같이 일반 뷰어 종료 시 기록한다. 두 시각은 독립적이다.
+- 목록은 전체 반환한다. 정렬을 지정하지 않으면 서비스 기본 정렬을 사용하며, 응답 순서를 따른다.
+- 기존 도서·모임 API 응답은 변경하지 않는다. 공개방 목록의 `publicRoomId`와 `book.bookId`를
+  사용하면 책 선택 화면에서 공개방 진입과 기존 모임 생성으로 각각 이동할 수 있다.
+
 이번 변경에서 Android 코드 자체는 수정하지 않는다. 다음 후속 연동이 필요하다.
 
 ### 문장 단위 본문·댓글 계약
@@ -977,6 +1002,9 @@
 
 ## 8. 엔드포인트 요약
 
+아래는 기존 API 목록이다. 구현 예정인 공개방 신규 API 11개는 [10.2절](#102-신규-api-목록),
+기존 공통 API의 공개방 확장은 [10.9절](#109-공통-api의-공개방-적용)에 정리한다.
+
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | POST | /api/members | 회원 생성 |
@@ -1031,3 +1059,403 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 
 - [Apple App Review Guidelines 1.2 — User-Generated Content](https://developer.apple.com/app-store/review/guidelines/)
 - [Apple — Offering account deletion in your app](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
+
+## 10. 공개방 선행 계약 (구현 예정)
+
+기능 범위는 [P-156 공개방](https://linear.app/yeobaek/issue/P-156/공개방)과 2026-09-23 API 계약
+논의를 따른다. [P-269 구조 개편](https://linear.app/yeobaek/issue/P-269/스키마-and-코드-구조-개편)과
+독립적인 HTTP 계약이며, 테이블·모듈·클래스·집계 저장 방식은 규정하지 않는다.
+
+### 10.1 범위와 공통 규칙
+
+- 이용 가능한 책마다 공개방을 하나 제공한다. 공개방에는 모임 이름·참여 코드·가입/탈퇴 상태가 없다.
+  생성·삭제·가입/탈퇴 API는 제공하지 않는다.
+- 0절의 `X-Member-Id`, JSON, 시각 형식, 오류 응답 규약을 적용한다. 여기서 자유로운 접근은
+  유효한 회원이 모임 가입 없이 이용할 수 있다는 뜻이다. 비회원 접근은 추가하지 않는다.
+- 공개방의 진도·댓글·댓글 확인 상태는 같은 책의 다른 모임과 분리한다. 사용자 차단은 서비스
+  전체에 적용한다. 공개방의 방문 기록은 읽기·댓글 기능을 사용할 수 있는 권한의 조건이 아니다.
+- 본문·목차, 이어 읽기·진도, 댓글 작성·수정·삭제, 새 댓글·직접 확인·미래 문장 가림,
+  신고·차단을 제공한다. 리뷰와 공개방 인원수 표시는 포함하지 않는다.
+- `publicRoomId`는 책·모임 ID와 별개의 식별자다. 클라이언트는 ID를 서로 변환하거나 값이 같다고
+  가정하지 않는다. 신규 계약의 ID는 양의 64비트 정수이며, 순서·내부 저장 구조를 의미하지 않는다.
+- 전체 공개방과 방문한 공개방은 모두 **전체 반환**한다. `page`, `size`, `cursor`, `nextCursor`를
+  계약에 추가하지 않는다. 필요성이 확인되면 기존 전체 반환을 유지하면서 페이지네이션 계약을 별도로 추가한다.
+- 인원수·누적 방문 회원 수 필드는 응답에 포함하지 않는다. 댓글의 `commentCount` 등 독서에
+  필요한 기존 집계 필드는 유지한다.
+- 이 절에서 별도로 바꾸지 않은 독서·댓글의 요청·응답·행동 규칙은 4·5절의 공개 계약을 따른다.
+  기존 절의 DB·트랜잭션·저장 행 등에 대한 구현 설명은 공개방의 구현 제약으로 가져오지 않는다.
+
+### 10.2 신규 API 목록
+
+아래 API는 모두 구현 예정이다. 기존 모임 경로는 유지한다.
+
+| 메서드 | 경로 | 기능 |
+|---|---|---|
+| GET | `/api/public-rooms` | 전체 공개방 목록, 선택 쿼리 `sort` |
+| GET | `/api/members/me/public-rooms` | 최근 방문순 공개방 목록 |
+| GET | `/api/public-rooms/{publicRoomId}` | 공개방 정보·내 진도 |
+| POST | `/api/public-rooms/{publicRoomId}/visits` | 방문 기록 |
+| GET | `/api/public-rooms/{publicRoomId}/passages` | 본문 범위, 필수 쿼리 `from`, `to` |
+| PUT | `/api/public-rooms/{publicRoomId}/progress` | 진도 저장 |
+| GET | `/api/public-rooms/{publicRoomId}/comments/new-count` | 새 댓글 수, 필수 쿼리 `currentPassageId` |
+| GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록, 필수 쿼리 `currentPassageId` |
+| POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 댓글 상세·직접 확인 |
+| POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | 댓글 작성 |
+| GET | `/api/members/me/recent-reading` | 공개방·모임 통합 최근 읽기 |
+
+### 10.3 응답 데이터
+
+아래 이름은 JSON 구조를 설명하기 위한 명칭이며 서버 내부 타입을 지정하지 않는다.
+표의 필드는 모두 존재한다. `null` 허용을 명시한 필드만 `null`일 수 있다.
+
+| 구조 | 필드 | 타입·의미 |
+|---|---|---|
+| 도서 요약 | `bookId` | 도서 ID |
+| 도서 요약 | `title` | 문자열, 제목 |
+| 도서 요약 | `authors` | 문자열 배열, 작가명 |
+| 도서 요약 | `coverImageUrl` | 문자열 또는 `null`; 없으면 클라이언트 기본 표지 사용 |
+| 도서 요약 | `passageCount` | 정수, 전체 문단 수 |
+| 도서 요약 | `status` | 0절의 확장 가능한 도서 상태. `ACTIVE`일 때만 읽기 허용 |
+| 진도 | `lastReadPassageSequence` | 정수, 최근 열람 문단의 도서 전체 순서 |
+| 진도 | `progressRate` | 0~100 정수. `lastReadPassageSequence / passageCount * 100` 반올림 |
+| 진도 | `lastReadAt` | 0절 시각 형식의 문자열, 마지막 진도 저장 시각 |
+| 공개방 요약 | `publicRoomId` | 공개방 ID |
+| 공개방 요약 | `book` | 도서 요약 |
+| 공개방 요약 | `myProgress` | 진도 또는 `null`; 한 번도 진도를 저장하지 않았으면 `null` |
+
+방문만 해서는 진도를 만들지 않는다. 공개방에 진입할 때 `myProgress=null`이면 첫 문단부터
+시작하고, 값이 있으면 `lastReadPassageSequence`부터 이어 읽는다.
+
+### 10.4 전체 공개방 목록과 정렬 확장
+
+`GET /api/public-rooms?sort=MOST_VISITED`
+
+| 쿼리 | 필수 | 계약 |
+|---|---|---|
+| `sort` | 아니오 | 생략하면 서비스 기본 정렬. 현재 명시적으로 지원하는 값은 `MOST_VISITED` |
+
+- 현재 기본 정렬과 `MOST_VISITED`는 **중복을 제외한 누적 방문 회원 수 내림차순**이다.
+  한 회원의 같은 방 재방문은 순위 계산에 사용하는 회원 수를 늘리지 않는다.
+- 생략한 `sort`의 기본 기준은 서비스 정책에 따라 향후 바뀔 수 있다. 명시한 `MOST_VISITED`의
+  의미를 주간 독서순이나 주간 댓글순으로 바꾸지는 않는다.
+- 향후 정렬은 별도 `sort` 값으로 추가한다. 최근 7일 독서순·댓글순의 값 이름과 집계 정책은
+  아직 지원 계약에 포함하지 않는다. 정렬이 추가되어도 같은 목록 경로와 응답 구조를 사용한다.
+- 빈 문자열 또는 지원하지 않는 `sort`는 `400 INVALID_REQUEST`다. 무시하거나 기본값으로 대체하지 않는다.
+- 모든 이용 가능한 책의 공개방을 반환한다. 방문한 공개방도 포함하며, 삭제 도서의 공개방은 제외한다.
+- 같은 누적 방문 회원 수 사이의 상대 순서는 보장하지 않는다. 클라이언트는 자체 재정렬하지 않고
+  서버가 반환한 배열 순서를 표시한다.
+
+응답 `200`:
+
+```json
+{
+  "appliedSort": "MOST_VISITED",
+  "publicRooms": [
+    {
+      "publicRoomId": 12,
+      "book": {
+        "bookId": 1,
+        "title": "운수 좋은 날",
+        "authors": ["현진건"],
+        "coverImageUrl": null,
+        "passageCount": 312,
+        "status": "ACTIVE"
+      },
+      "myProgress": null
+    }
+  ]
+}
+```
+
+`appliedSort`는 실제 적용한 기준의 문자열이다. 서버 기본 정렬이 확장되어 처음 보는 문자열이
+오더라도 목록 표시를 실패시키지 않는다. Android는 해당 문자열로 순위를 재계산하지 않으며,
+향후 정렬 선택 UI에서는 서버가 지원한다고 명세된 값만 요청한다. 결과가 없으면
+`publicRooms: []`이며 `appliedSort`는 그대로 포함한다.
+
+책 선택 화면도 이 목록을 사용한다. 공개방은 `publicRoomId`, 새 모임 생성은 `book.bookId`를
+사용하므로 별도 ID 변환 API가 필요 없다. 기존 `GET /api/books`와 도서 상세 응답은 변경하지 않는다.
+
+### 10.5 내가 방문한 공개방 목록
+
+`GET /api/members/me/public-rooms`
+
+요청 본문과 쿼리 파라미터는 없다. 응답 `200`:
+
+```json
+{
+  "publicRooms": [
+    {
+      "publicRoomId": 12,
+      "book": {
+        "bookId": 1,
+        "title": "운수 좋은 날",
+        "authors": ["현진건"],
+        "coverImageUrl": null,
+        "passageCount": 312,
+        "status": "ACTIVE"
+      },
+      "myProgress": null,
+      "lastVisitedAt": "2026-09-23T14:30:00"
+    }
+  ]
+}
+```
+
+- 각 항목은 공개방 요약과 `lastVisitedAt`(문자열, `null` 불가)이다. 방마다 최대 한 항목만 반환한다.
+- `lastVisitedAt` 내림차순이며 재방문하면 맨 앞으로 이동한다. 같은 시각끼리의 상대 순서는 보장하지 않는다.
+- 삭제 도서의 공개방은 숨긴다. 남은 항목이 없으면 `publicRooms: []`다.
+- 조회는 방문 시각·진도·댓글 확인 상태를 변경하지 않는다.
+
+### 10.6 공개방 정보와 방문 기록
+
+#### 공개방 정보
+
+`GET /api/public-rooms/{publicRoomId}`
+
+응답 `200`은 공개방 요약에 `lastVisitedAt`을 추가한 객체다.
+
+```json
+{
+  "publicRoomId": 12,
+  "book": {
+    "bookId": 1,
+    "title": "운수 좋은 날",
+    "authors": ["현진건"],
+    "coverImageUrl": null,
+    "passageCount": 312,
+    "status": "ACTIVE"
+  },
+  "myProgress": null,
+  "lastVisitedAt": null
+}
+```
+
+- 방문 기록이 없으면 `lastVisitedAt=null`이다. 방문 여부와 관계없이 조회할 수 있다.
+- 목차는 `book.bookId`로 기존 `GET /api/books/{bookId}`를 호출해 얻는다.
+- 삭제된 책도 이미 알고 있는 공개방 ID로 조회하면 식별 정보·저장 진도와 `book.status=DELETED`를
+  반환한다. 이 조회는 읽기 허용을 뜻하지 않는다.
+- 조회는 방문 기록·진도·댓글 확인 상태를 변경하지 않는다.
+
+#### 방문 기록
+
+`POST /api/public-rooms/{publicRoomId}/visits`
+
+요청 본문은 없다. 응답 `204 No Content`.
+
+- 클라이언트는 공개방 독서 화면에 진입하면 즉시 호출한다. 목록 카드·진입 확인창을 보는 것만으로
+  호출하지 않는다. 통합 최근 읽기를 통해 공개방에 다시 진입할 때도 호출한다.
+- 성공하면 최초 방문은 방문 목록에 추가하고, 재방문은 `lastVisitedAt`을 이번 방문 시각으로 갱신한다.
+- 재요청·동시 최초 요청으로 방문 목록 항목이나 누적 방문 회원 수가 중복 증가하지 않는다.
+  다만 성공한 호출마다 방문 시각이 갱신되므로 전체 응답 상태가 불변인 멱등 요청으로 취급하지 않는다.
+- 응답 유실로 재시도해도 방문자는 중복 집계되지 않는다. 이미 성공한 요청의 방문 기록은 응답
+  유실만으로 취소되지 않는다.
+- 방문은 진도·`lastReadAt`·댓글 확인 상태를 변경하지 않는다. 방문만 한 공개방은 통합 최근 읽기의 후보가 아니다.
+- 삭제 도서에는 `400 BOOK_NOT_AVAILABLE`을 반환하며 방문 시각을 갱신하지 않는다.
+
+### 10.7 본문과 진도
+
+#### 본문 범위 조회
+
+`GET /api/public-rooms/{publicRoomId}/passages?from={sequence}&to={sequence}`
+
+`from`, `to`는 필수 정수다. `1 <= from <= to`, `to - from + 1 <= 100`을 만족해야 하며,
+위반하면 `400 INVALID_REQUEST`다. 양 끝을 포함하는 범위에서 존재하는 문단을 순서대로 반환한다.
+마지막 문단을 넘는 구간은 제외하고, 해당 범위에 문단이 없으면 `passages: []`다.
+
+응답 `200`의 구조는 4절 본문 범위 조회와 같다. `passages[]`는 `passageId`, `sequence`,
+`chapterId`, `sentences[]`를 포함하고, 각 문장은 `sentenceId`, 문단 내 `sequence`, `content`,
+`commentCount`를 포함한다. 문자열의 공백·개행은 보존한다. `commentCount`는 **이 공개방에서
+요청 회원에게 보이는 댓글 수**이며 모임 댓글이나 차단한 작성자의 댓글을 섞지 않는다.
+
+본문 조회는 방문·진도·댓글 확인 상태를 변경하지 않는다.
+
+#### 진도 갱신
+
+`PUT /api/public-rooms/{publicRoomId}/progress`
+
+요청:
+
+```json
+{ "passageId": 1042 }
+```
+
+응답 `200`:
+
+```json
+{
+  "lastReadPassageSequence": 42,
+  "progressRate": 13,
+  "lastReadAt": "2026-09-23T14:35:00"
+}
+```
+
+- 기존 모임처럼 일반 뷰어 종료 시 마지막으로 화면에 표시한 문단으로 호출한다. 최근 열람 위치로
+  덮어쓰며 앞부분 재열람을 저장하면 진도율이 후퇴할 수 있다.
+- 성공하면 이 공개방의 내 진도와 `lastReadAt`만 갱신하고 통합 최근 읽기 선정에 반영한다.
+  모임 진도·방문 시각·댓글 확인 상태는 변경하지 않는다.
+- 본문 이동·목차 이동·댓글 문장의 “보러 가기”와 원래 위치로 돌아가기도 4절의 일반 뷰어 규칙을
+  따른다. 서버에 이전 진도를 보관·복원하는 별도 API를 추가하지 않는다.
+- `passageId` 누락·형식 오류는 `400 INVALID_REQUEST`, 없거나 이 책에 속하지 않는 문단은
+  `400 PASSAGE_NOT_FOUND`다.
+
+### 10.8 댓글 발견·확인·작성
+
+모든 집계·목록·직접 확인은 해당 공개방의 댓글 중 요청 회원에게 보이는 댓글만 대상으로 한다.
+진도 경계는 저장 진도가 아니라 요청의 `currentPassageId`다. 이 파라미터는 진도와 방문 시각을 변경하지 않는다.
+아래 네 API 모두 없는 공개방에는 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서에는
+`400 BOOK_NOT_AVAILABLE`을 반환한다. 모임 소속 조건은 적용하지 않는다.
+
+| 기능과 경로 | 요청 | 성공 응답 및 5절과 공유하는 규칙 |
+|---|---|---|
+| `GET /api/public-rooms/{publicRoomId}/comments/new-count` | 필수 쿼리 `currentPassageId` | `200 {"newCommentCount": 3}`. 현재 문단까지의 보이는 `NEW` 댓글 수. 상태 변경 없음 |
+| `GET /api/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 댓글 문장 목록의 모든 필드·정렬·가림·전체 반환 규칙 적용 |
+| `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 본문 없음 | `200 {"comments": [...]}`. 작성일 오름차순의 댓글 객체와 직접 확인 처리 |
+| `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | `{"content": "이 문장에서 멈칫했어요."}`. `content` 1~1000자 | `201`, 생성한 댓글 객체 하나. 작성자에게 즉시 `VIEWED` |
+
+댓글 객체는 아래와 같다. `updatedAt`만 `null`을 허용한다.
+
+```json
+{
+  "commentId": 7,
+  "memberId": 2,
+  "nickname": "지수",
+  "content": "이 문장에서 멈칫했어요.",
+  "createdAt": "2026-09-23T14:30:00",
+  "updatedAt": null,
+  "mine": false
+}
+```
+
+- 댓글 문장 항목은 5절과 동일하게 `sentenceId`, `content`, `passageId`, `passageSequence`,
+  `sentenceSequence`, `future`, `commentCount`, `unreadCommentCount`, `contentVisibility`,
+  `latestCommentCreatedAt`을 모두 포함한다.
+- 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
+  확인한 문장 순이며, 그룹 안에서는 `latestCommentCreatedAt` 내림차순, 동률이면 `sentenceId`
+  내림차순이다. 받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
+- `future=true`이고 `unreadCommentCount>0`일 때 `contentVisibility=REVEAL_REQUIRED`, 그 외에는
+  `VISIBLE`이다. 가림 상태여도 `content`는 포함한다. 클라이언트는 이 정책 값을 따르며, 화면에서
+  가림을 해제하는 것만으로 서버의 댓글 확인 상태는 바뀌지 않는다.
+- 회원이 직접 확인하지 않은 과거 댓글도 `NEW`다. 상세 조회는 응답 대상 댓글을 `VIEWED`로
+  전환한다. 상세 확인과 응답 대상 결정은 하나의 성공 결과로 처리하며, 실패 시 확인 상태를 변경하지 않는다.
+  처리가 성공한 뒤 응답만 유실되면 확인 상태는 유지된다. 댓글 수정은 확인 상태와 `createdAt`을 바꾸지 않는다.
+- 목록에 댓글이 없으면 해당 배열은 빈 배열이다. 모든 작성자를 차단했거나 목록 조회 후 댓글이
+  삭제된 경우에도 문장 상세는 `200 {"comments": []}`를 반환할 수 있다.
+- `currentPassageId` 누락·형식 오류·없거나 다른 책의 문단이면 `400 INVALID_REQUEST`다.
+  경로의 `sentenceId`가 없거나 다른 책 소속이면 `400 SENTENCE_NOT_FOUND`다.
+- 공개방에는 구버전 호환용 `GET .../sentences/{sentenceId}/comments`를 새로 추가하지 않는다.
+
+### 10.9 공통 API의 공개방 적용
+
+아래 확장은 공개방 구현 이후 적용한다. 기존 모임 댓글의 요청·응답·권한은 유지한다.
+
+| 기존 API | 공개방에 적용할 계약 |
+|---|---|
+| `PUT /api/comments/{commentId}` | 요청 `{"content": "수정된 내용"}`, 1~1000자. 본인 댓글만 수정, `200` 댓글 객체 |
+| `DELETE /api/comments/{commentId}` | 본인 댓글만 삭제, `204 No Content` |
+| `POST /api/comments/{commentId}/reports` | 본문 없음. 보이는 타인 댓글 신고, 반복 신고도 `204 No Content` |
+| `GET /api/members/me/blocks` | 기존 차단 목록 계약 그대로 사용 |
+| `PUT /api/members/me/blocks/{memberId}` | 기존 서비스 전체 단방향 차단을 공개방 댓글에도 적용 |
+| `DELETE /api/members/me/blocks/{memberId}` | 기존 차단 해제 계약 그대로 사용 |
+| `DELETE /api/members/me` | 공개방 방문·진도·작성 댓글·확인 상태도 기존 계정 삭제 완료 시점에 함께 제거 |
+
+- `commentId`는 모임·공개방 전체에서 댓글 하나를 유일하게 식별한다. 이는 단일 테이블이나
+  공통 내부 모델을 요구하지 않는다. 수정·삭제·신고에 공간 종류나 ID를 추가로 보내지 않는다.
+- 공개방 댓글에는 모임 소속 조건을 적용하지 않는다. 본인 댓글의 수정·삭제는 회원과 도서가
+  유효하면 가능하다. 모임 댓글에는 기존 모임 소속 조건을 계속 적용한다.
+- 없는 댓글의 수정·삭제·신고는 `400 COMMENT_NOT_FOUND`, 남의 댓글 수정·삭제는
+  `403 NOT_COMMENT_OWNER`, 본인 댓글 신고는 `400 CANNOT_REPORT_OWN_COMMENT`다.
+- 차단한 작성자의 댓글은 목록·집계에서 제외하고, 해당 댓글의 신고에는 `400 COMMENT_NOT_FOUND`를
+  반환한다. 차단은 단방향이며 상대방의 댓글 작성·수정·삭제 권한을 바꾸지 않는다.
+- 신고만으로 댓글을 숨기지 않는다. 같은 회원의 같은 댓글 재신고는 중복 접수하지 않는다.
+- 계정 삭제 후 해당 회원의 방문은 인기순 집계에서도 제외한다. 공개방 자체와 다른 회원의
+  데이터는 유지한다. 즉시 삭제의 범위와 완료 시점은 기존 계정 삭제 계약을 확장한 것이다.
+
+### 10.10 공개방·모임 통합 최근 읽기
+
+`GET /api/members/me/recent-reading`
+
+공개방과 현재 참여 중인 모임에서 저장한 진도 중 `lastReadAt`이 가장 최근인 기록 하나를 반환한다.
+방문만 하고 진도를 저장하지 않은 공개방은 후보가 아니며, 후보가 없으면 `204 No Content`다.
+동일한 최신 시각의 후보가 여러 개면 그중 하나를 반환하며 동률 선택 기준에 의존하지 않는다.
+
+공개방 응답 `200`:
+
+```json
+{
+  "space": { "type": "PUBLIC_ROOM", "publicRoomId": 12 },
+  "book": {
+    "bookId": 1,
+    "title": "운수 좋은 날",
+    "authors": ["현진건"],
+    "coverImageUrl": null,
+    "passageCount": 312,
+    "status": "ACTIVE"
+  },
+  "lastReadPassageSequence": 42,
+  "progressRate": 13,
+  "lastReadAt": "2026-09-23T14:35:00"
+}
+```
+
+모임인 경우 같은 응답 구조의 `space`가 다음 객체다.
+
+```json
+{ "type": "CLUB", "clubId": 1, "clubName": "교환독서 1기" }
+```
+
+| `space.type` | 필수 필드 | 포함하지 않는 필드 |
+|---|---|---|
+| `PUBLIC_ROOM` | `publicRoomId` | `clubId`, `clubName` |
+| `CLUB` | `clubId`, `clubName` | `publicRoomId` |
+
+- `space`, `book`, 진도 필드는 모두 필수이며 `null`이 아니다. `book.coverImageUrl`만 `null`일 수 있다.
+  Android는 `space.type`을 먼저 판별하여 해당 공간의 API·화면으로 이동한다.
+- 탈퇴한 모임의 기록은 제외한다. 가장 최근 기록의 도서가 삭제됐더라도 건너뛰지 않고
+  `book.status=DELETED`와 저장된 진도를 반환한다. Android는 이어 읽기를 막는다.
+- 기존 `GET /api/members/me/last-reading`은 **참여 중인 모임만** 대상으로 기존 응답을 반환한다.
+  공개방 진도를 저장해도 기존 API에 공개방 기록이나 신규 필드를 섞지 않는다.
+
+### 10.11 삭제 도서와 오류
+
+| 영역 | 도서 삭제 후 동작 |
+|---|---|
+| 전체·방문 공개방 목록 | 해당 공개방을 숨김 |
+| 이미 아는 ID로 공개방 정보 조회 | 식별 정보·저장 진도와 `book.status=DELETED` 반환 |
+| 통합 최근 읽기 | 가장 최근이면 기록과 `DELETED` 유지, 다른 책으로 대체하지 않음 |
+| 방문 기록 | `400 BOOK_NOT_AVAILABLE`, 방문 시각 갱신 없음 |
+| 목차·본문·진도·댓글 조회/작성/수정/삭제/신고 | `400 BOOK_NOT_AVAILABLE` |
+
+도서 삭제만으로 기존 댓글·진도·방문 기록을 지우지는 않는다. 삭제 도서에서 읽기·댓글 기능을
+다시 제공하는 계약은 이번 범위에 포함하지 않는다.
+
+| 조건 | HTTP | `code` |
+|---|---|---|
+| 회원 헤더 누락·형식 오류, 입력 필드·쿼리·경로 ID 형식 오류 | 400 | `INVALID_REQUEST` |
+| 존재하지 않는 요청 회원 | 400 | `MEMBER_NOT_FOUND` |
+| 존재하지 않는 공개방 | 400 | `PUBLIC_ROOM_NOT_FOUND` |
+| 삭제 도서에서 위 표의 읽기·변경 동작 시도 | 400 | `BOOK_NOT_AVAILABLE` |
+| 진도 요청의 문단이 없거나 다른 책 소속 | 400 | `PASSAGE_NOT_FOUND` |
+| 댓글 발견 요청의 현재 문단이 없거나 다른 책 소속 | 400 | `INVALID_REQUEST` |
+| 댓글 상세·작성 요청의 문장이 없거나 다른 책 소속 | 400 | `SENTENCE_NOT_FOUND` |
+| 없는 댓글 또는 신고자에게 보이지 않는 댓글 | 400 | `COMMENT_NOT_FOUND` |
+| 본인 댓글 신고 | 400 | `CANNOT_REPORT_OWN_COMMENT` |
+| 타인 댓글 수정·삭제 | 403 | `NOT_COMMENT_OWNER` |
+
+공개방 경로에는 `NOT_CLUB_MEMBER`를 적용하지 않는다. 오류 본문은 0절의 `{code, message}`이며
+`message`는 클라이언트 분기 기준이 아니다. 여러 오류 조건을 동시에 만족할 때 코드의 우선순위는
+별도 보장하지 않는다.
+
+### 10.12 Android 호출 흐름
+
+1. 홈에서 통합 최근 읽기를 조회한다. 공개방 탭에서는 방문 목록과 전체 목록을 조회한다.
+   세 조회는 서로 독립적이며 병렬 호출할 수 있다.
+2. 전체 목록을 사용하는 책 선택 화면은 같은 항목의 `publicRoomId`로 공개방에 진입하거나,
+   `book.bookId`로 기존 모임 생성 API를 호출한다.
+3. 공개방 독서 화면에 진입하면 방문을 기록한다. 공개방 정보의 내 진도와 도서 상세의 목차,
+   필요한 범위의 본문을 조회한다. 방문 기록은 읽기 권한이나 진도 저장을 대신하지 않는다.
+4. 독서 중 현재 문단을 댓글 발견 API에 전달한다. 댓글 문장을 선택하면 상세 확인 API를 호출한다.
+5. 일반 뷰어 종료 시 마지막으로 표시한 문단으로 공개방 진도를 저장한다. 이후 통합 최근 읽기에 반영된다.
+
+모든 신규 `GET`은 방문·진도·댓글 확인 상태를 변경하지 않는다. 방문 직후 본문 조회가 실패해도
+이미 성공한 방문 기록은 유지된다. 방문 요청의 응답을 받지 못하면 기록 반영 여부가 불확실할 수
+있으며, 재요청은 같은 회원을 중복 방문자로 집계하지 않는다.
