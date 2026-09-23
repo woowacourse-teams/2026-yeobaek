@@ -195,6 +195,10 @@ class CommentServiceTest extends IntegrationTest {
                 .isEqualTo(ContentVisibility.REVEAL_REQUIRED);
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isEqualTo(1);
+        assertThat(commentService.findCommentedSentences(other.getId(), club.getId(), passage.getId())
+                .commentedSentences())
+                .extracting(item -> item.content())
+                .containsExactly("확인한 문장", "본문 1", "미래 문장");
     }
 
     @Test
@@ -565,22 +569,36 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("같은 그룹은 최신 댓글 시각으로 정렬하고 동점은 문장 ID 내림차순이다")
-    void sortLatestCommentAndSentenceTie() {
+    @DisplayName("같은 그룹은 댓글 작성 시각과 관계없이 책의 문단과 문장 순서로 정렬한다")
+    void sortSameGroupByBookPosition() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("정렬 장"), 2));
-        Passage otherPassage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("다른 문장"))));
-        Long secondSentenceId = otherPassage.getSentences().getFirst().getId();
-        CommentResponse first = commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("첫 문장"));
-        commentService.create(other.getId(), club.getId(), secondSentenceId, new CommentContent("둘째 문장"));
-        jdbcTemplate.update("update comments set created_at = ?", java.sql.Timestamp.valueOf("2026-09-07 12:00:00"));
-        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
-                .commentedSentences()).extracting(item -> item.sentenceId())
-                .containsExactly(secondSentenceId, sentence.getId());
+        Passage laterPassage = passageRepository.save(new Passage(chapter, 2, java.util.List.of(
+                new SentenceContent("뒤 문단 첫 문장"),
+                new SentenceContent("뒤 문단 둘째 문장"))));
+        Sentence laterFirstSentence = laterPassage.getSentences().get(0);
+        Sentence laterSecondSentence = laterPassage.getSentences().get(1);
+        CommentResponse earlierPassageComment = commentService.create(
+                other.getId(), club.getId(), sentence.getId(), new CommentContent("앞 문단 댓글"));
+        CommentResponse laterFirstComment = commentService.create(
+                other.getId(), club.getId(), laterFirstSentence.getId(), new CommentContent("뒤 문단 첫 댓글"));
+        CommentResponse laterSecondComment = commentService.create(
+                other.getId(), club.getId(), laterSecondSentence.getId(), new CommentContent("뒤 문단 둘째 댓글"));
         jdbcTemplate.update("update comments set created_at = ? where id = ?",
-                java.sql.Timestamp.valueOf("2026-09-07 13:00:00"), first.commentId());
-        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                java.sql.Timestamp.valueOf("2026-09-07 10:00:00"), earlierPassageComment.commentId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                java.sql.Timestamp.valueOf("2026-09-07 12:00:00"), laterFirstComment.commentId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                java.sql.Timestamp.valueOf("2026-09-07 13:00:00"), laterSecondComment.commentId());
+
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), laterPassage.getId())
                 .commentedSentences()).extracting(item -> item.sentenceId())
-                .containsExactly(sentence.getId(), secondSentenceId);
+                .containsExactly(sentence.getId(), laterFirstSentence.getId(), laterSecondSentence.getId());
+
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("앞 문단 최신 댓글"));
+
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), laterPassage.getId())
+                .commentedSentences()).extracting(item -> item.sentenceId())
+                .containsExactly(sentence.getId(), laterFirstSentence.getId(), laterSecondSentence.getId());
     }
 
     @Test

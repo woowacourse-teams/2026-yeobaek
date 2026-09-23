@@ -215,7 +215,8 @@ public class CommentService {
 
     private Comparator<CommentedSentenceResponse> commentedSentenceComparator() {
         return Comparator.comparingInt(this::sortGroup)
-                .thenComparing(CommentedSentenceResponse::latestCommentCreatedAt, Comparator.reverseOrder())
+                .thenComparingInt(CommentedSentenceResponse::passageSequence)
+                .thenComparingInt(CommentedSentenceResponse::sentenceSequence)
                 .thenComparing(CommentedSentenceResponse::sentenceId, Comparator.reverseOrder());
     }
 
