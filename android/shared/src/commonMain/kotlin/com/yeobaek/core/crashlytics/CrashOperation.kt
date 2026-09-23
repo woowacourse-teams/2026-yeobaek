@@ -7,6 +7,7 @@ enum class CrashOperation(
     NICKNAME_SUBMIT_STARTED("nickname_submit_started"),
     NICKNAME_SUBMIT_SUCCEEDED("nickname_submit_succeeded"),
     NICKNAME_SUBMIT_FAILED("nickname_submit_failed"),
+    ACCOUNT_DELETE_FAILED("account_delete_failed"),
     ONBOARDING_JOIN_STARTED("onboarding_join_started"),
     ONBOARDING_JOIN_SUCCEEDED("onboarding_join_succeeded"),
     ONBOARDING_JOIN_FAILED("onboarding_join_failed"),

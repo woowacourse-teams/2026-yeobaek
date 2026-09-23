@@ -523,6 +523,7 @@ fun App(
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
                         userRepository = appContainer.userRepository,
+                        crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
