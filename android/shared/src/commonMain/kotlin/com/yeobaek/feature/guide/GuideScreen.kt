@@ -28,6 +28,7 @@ import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.guide.component.group.detail.GroupDetailGuideCard
 import com.yeobaek.feature.guide.component.home.HomeGuideCard
+import com.yeobaek.feature.guide.component.publicroom.PublicRoomGuideScreen
 import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -123,7 +124,7 @@ fun GuideScreen(
                     onClick = {
                         onClickNext()
                     },
-                    text = if (isLast) "여백 시작하기" else "다음",
+                    text = if (isLast) "책 읽으러 가기" else "다음",
                     modifier = Modifier.weight(1f),
                     enabled = uiState.nextEnabled,
                 )
@@ -145,7 +146,9 @@ fun GuideScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                3 -> ReaderGuideCard(
+                3 -> PublicRoomGuideScreen()
+
+                4 -> ReaderGuideCard(
                     sentences = uiState.sentences,
                     onClickCommentSentence = {
                         onClickCommentSentence()

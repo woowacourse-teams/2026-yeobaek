@@ -33,7 +33,9 @@ class GuideViewModel : ViewModel() {
                 uiState = uiState.copy(nextEnabled = true)
             }
 
-            3 -> {
+            3 -> uiState = uiState.copy(nextEnabled = true)
+
+            4 -> {
                 uiState = uiState.copy(
                     isSuccessGuide = false,
                     nextEnabled = false,
@@ -85,7 +87,7 @@ class GuideViewModel : ViewModel() {
     fun currentPageText(): String = "${minOf(uiState.currentPage, TOTAL_PAGES)} / $TOTAL_PAGES"
 
     companion object {
-        private const val TOTAL_PAGES = 3
+        private const val TOTAL_PAGES = 4
 
         private val mockSentences = listOf(
             SentenceGuideUiModel(
