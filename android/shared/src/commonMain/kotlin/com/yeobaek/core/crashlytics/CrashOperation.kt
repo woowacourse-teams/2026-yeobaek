@@ -43,6 +43,7 @@ enum class CrashOperation(
     READER_CHAPTER_SELECTED("reader_chapter_selected"),
     READER_SEEK_TARGET_MISSING("reader_seek_target_missing"),
     READER_SEEK_FAILED("reader_seek_failed"),
+    NEW_COMMENT_STATUS_LOAD_FAILED("new_comment_status_load_failed"),
     COMMENT_SHEET_OPENED("comment_sheet_opened"),
     COMMENTS_LOADED("comments_loaded"),
     COMMENTS_LOAD_FAILED("comments_load_failed"),

@@ -701,7 +701,8 @@ class ReaderViewModel(
                 if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                recordFailure(exception, CrashOperation.NEW_COMMENT_STATUS_LOAD_FAILED)
                 // 새 댓글 강조 조회 실패가 본문 읽기를 막아서는 안 된다.
             }
         }
