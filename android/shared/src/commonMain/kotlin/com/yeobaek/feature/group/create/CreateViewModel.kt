@@ -168,7 +168,7 @@ class CreateViewModel(
                     GroupCreateSubmitted(
                         result = EventResult.SUCCESS,
                         bookId = bookId,
-                        bookTitle = selectedBook?.title,
+                        bookTitle = selectedBook.title,
                         bookList = bookListExposure(),
                     ),
                 )

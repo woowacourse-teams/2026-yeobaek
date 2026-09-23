@@ -18,6 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,6 +33,8 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupButtonSection
+import com.yeobaek.feature.home.component.GroupTab
+import com.yeobaek.feature.home.component.GroupTabBar
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -42,6 +48,8 @@ fun HomeScreen(
     navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var selectedGroupTab by remember { mutableStateOf(GroupTab.MyGroups) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -62,21 +70,32 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
             uiState.currentlyReadingBookUiModel?.let { book ->
-                Spacer(modifier = Modifier.height(20.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
                     navigateToReader = navigateToReader,
                     modifier = Modifier.padding(
                         start = 16.dp,
                         end = 16.dp,
+                        top = 8.dp,
                         bottom = 16.dp,
                     ),
                 )
             }
-            Spacer(modifier = Modifier.height(20.dp))
+            GroupTabBar(
+                selectedTab = selectedGroupTab,
+                onTabSelected = { selectedGroupTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             CurrentlyGroupSection(
-                title = "내 모임",
-                groupUiModelList = uiState.groups,
+                groupUiModelList = when (selectedGroupTab) {
+                    GroupTab.MyGroups -> uiState.groups
+                    GroupTab.PublicRooms -> emptyList()
+                },
+                emptyMessage = when (selectedGroupTab) {
+                    GroupTab.MyGroups -> "모임을 만들거나 참여해 보세요!"
+                    GroupTab.PublicRooms -> "공개방에서 함께 책을 읽어봐요!"
+                },
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
