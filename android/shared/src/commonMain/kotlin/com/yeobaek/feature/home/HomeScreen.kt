@@ -45,6 +45,7 @@ fun HomeScreen(
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
     navigateToReader: (Long) -> Unit,
+    onPublicRoomClick: (Long) -> Unit,
     navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -95,10 +96,15 @@ fun HomeScreen(
                 )
 
                 GroupTab.PublicRooms -> PublicGroupSection(
+                    uiState = uiState.publicRoomTab,
+                    onPublicRoomClick = onPublicRoomClick,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-            if (uiState.screenState != ScreenState.Success) {
+            if (
+                selectedGroupTab == GroupTab.MyGroups &&
+                uiState.screenState != ScreenState.Success
+            ) {
                 Text(
                     text = when (uiState.screenState) {
                         is ScreenState.Error -> uiState.screenState.message
@@ -164,6 +170,7 @@ private fun HomeScreenPreview() {
             navigateToDetail = {},
             navigateToCreate = {},
             navigateToReader = {},
+            onPublicRoomClick = {},
             navigateToMyPage = {},
         )
     }

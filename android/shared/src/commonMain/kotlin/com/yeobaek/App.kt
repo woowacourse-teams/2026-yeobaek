@@ -211,6 +211,7 @@ fun App(
                     factory = HomeViewModel.homeViewModelFactory(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
+                        publicRoomRepository = appContainer.publicRoomRepository,
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
@@ -218,6 +219,7 @@ fun App(
                 LaunchedEffect(true) {
                     homeViewModel.initCurrentlyBook()
                     homeViewModel.initGroups()
+                    homeViewModel.initPublicRooms()
                 }
 
                 HomeScreen(
@@ -246,6 +248,7 @@ fun App(
                         )
                         navController.navigate(Reader(groupId = it))
                     },
+                    onPublicRoomClick = {},
                     navigateToMyPage = {
                         appContainer.analyticsTracker.track(MyPageOpened)
                         navController.navigate(MyPage)

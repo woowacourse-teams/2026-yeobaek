@@ -15,6 +15,8 @@ enum class CrashOperation(
     HOME_LAST_READING_FAILED("home_last_reading_failed"),
     HOME_GROUPS_LOADED("home_groups_loaded"),
     HOME_GROUPS_FAILED("home_groups_failed"),
+    HOME_PUBLIC_ROOMS_LOADED("home_public_rooms_loaded"),
+    HOME_PUBLIC_ROOMS_FAILED("home_public_rooms_failed"),
     GROUP_DETAIL_LOADED("group_detail_loaded"),
     GROUP_DETAIL_FAILED("group_detail_failed"),
     GROUP_JOIN_STARTED("group_join_started"),
