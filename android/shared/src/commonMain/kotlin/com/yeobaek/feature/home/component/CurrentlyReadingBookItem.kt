@@ -26,9 +26,11 @@ import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 @Composable
 fun CurrentlyReadingBookItem(
     bookUiModel: CurrentlyReadingBookUiModel,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -127,6 +129,7 @@ private fun CurrentlyReadingBookItemPreview() {
                 progressRate = 12,
                 clubId = 0,
             ),
+            onClick = {},
         )
     }
 }

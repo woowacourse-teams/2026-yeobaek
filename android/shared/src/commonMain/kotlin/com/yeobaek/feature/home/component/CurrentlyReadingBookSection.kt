@@ -1,6 +1,5 @@
 package com.yeobaek.feature.home.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,13 +18,14 @@ fun CurrentlyReadingBookSection(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth().clickable {
-            navigateToReader(bookUiModel.clubId)
-        },
+        modifier = modifier.fillMaxWidth(),
     ) {
         SectionTitle(title = "읽고 있는 책")
         Spacer(modifier = Modifier.height(20.dp))
-        CurrentlyReadingBookItem(bookUiModel = bookUiModel)
+        CurrentlyReadingBookItem(
+            bookUiModel = bookUiModel,
+            onClick = { navigateToReader(bookUiModel.clubId) },
+        )
     }
 }
 
