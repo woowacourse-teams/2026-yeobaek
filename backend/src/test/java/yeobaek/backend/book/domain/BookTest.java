@@ -7,7 +7,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
@@ -70,11 +70,11 @@ class BookTest {
 
     @Test
     @DisplayName("도서의 중복 판단 기준을 제목·출판사·출판연도·작가로 구성한다")
-    void duplicateCriteria() {
+    void deduplicationKey() {
         Book book = new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null);
 
-        assertThat(book.duplicateCriteria(Set.of(1L, 2L)))
-                .isEqualTo(new BookDuplicateCriteria(
+        assertThat(book.deduplicationKey(Set.of(1L, 2L)))
+                .isEqualTo(new BookDeduplicationKey(
                         new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924,
                         Set.of(1L, 2L)));
     }

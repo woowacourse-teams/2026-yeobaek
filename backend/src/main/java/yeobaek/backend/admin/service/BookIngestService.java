@@ -24,7 +24,7 @@ import yeobaek.backend.book.domain.Books;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.Isni;
 import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.ActiveBookRepository;
@@ -169,11 +169,11 @@ public class BookIngestService {
         if (authors.containsUnsavedAuthor()) {
             return;
         }
-        BookDuplicateCriteria criteria = book.duplicateCriteria(authors.ids());
+        BookDeduplicationKey key = book.deduplicationKey(authors.ids());
         Books candidates = new Books(
                 activeBookRepository.findAllByTitle(book.getTitle()));
         Map<Long, Set<Long>> authorIdsByBookId = authorIdsByBookId(candidates);
-        if (candidates.containsDuplicateOf(criteria, authorIdsByBookId)) {
+        if (candidates.containsDuplicateOf(key, authorIdsByBookId)) {
             throw new BadRequestException(
                     ErrorCode.DUPLICATE_BOOK,
                     "동일한 서지 정보와 작가 구성의 활성 도서가 이미 존재합니다.");

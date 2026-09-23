@@ -10,7 +10,7 @@ import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.Publisher;
 
@@ -51,9 +51,9 @@ class BooksTest {
     void containsDuplicateOf() {
         Book book = bookWithId(1L, "운수 좋은 날");
         Books books = new Books(List.of(book));
-        BookDuplicateCriteria criteria = book.duplicateCriteria(Set.of(10L));
+        BookDeduplicationKey key = book.deduplicationKey(Set.of(10L));
 
-        boolean duplicate = books.containsDuplicateOf(criteria, Map.of(1L, Set.of(10L)));
+        boolean duplicate = books.containsDuplicateOf(key, Map.of(1L, Set.of(10L)));
 
         assertThat(duplicate).isTrue();
     }
@@ -63,9 +63,9 @@ class BooksTest {
     void doesNotContainDifferentAuthors() {
         Book book = bookWithId(1L, "운수 좋은 날");
         Books books = new Books(List.of(book));
-        BookDuplicateCriteria criteria = book.duplicateCriteria(Set.of(10L));
+        BookDeduplicationKey key = book.deduplicationKey(Set.of(10L));
 
-        boolean duplicate = books.containsDuplicateOf(criteria, Map.of(1L, Set.of(20L)));
+        boolean duplicate = books.containsDuplicateOf(key, Map.of(1L, Set.of(20L)));
 
         assertThat(duplicate).isFalse();
     }

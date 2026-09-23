@@ -3,7 +3,7 @@ package yeobaek.backend.book.domain;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 
 public final class Books {
 
@@ -27,9 +27,9 @@ public final class Books {
         return values;
     }
 
-    public boolean containsDuplicateOf(BookDuplicateCriteria criteria, Map<Long, Set<Long>> authorIdsByBookId) {
+    public boolean containsDuplicateOf(BookDeduplicationKey key, Map<Long, Set<Long>> authorIdsByBookId) {
         return values.stream()
-                .map(book -> book.duplicateCriteria(authorIdsByBookId.getOrDefault(book.getId(), Set.of())))
-                .anyMatch(criteria::isDuplicateOf);
+                .map(book -> book.deduplicationKey(authorIdsByBookId.getOrDefault(book.getId(), Set.of())))
+                .anyMatch(key::isDuplicateOf);
     }
 }
