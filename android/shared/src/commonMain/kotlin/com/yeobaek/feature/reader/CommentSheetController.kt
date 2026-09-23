@@ -395,6 +395,11 @@ class CommentSheetController(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                recordFailure(
+                    exception = exception,
+                    operation = CrashOperation.COMMENT_REPORT_FAILED,
+                    sentenceId = sheet.sentenceId,
+                )
                 analytics.reported(commentId = commentId, result = EventResult.FAILURE)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
