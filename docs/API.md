@@ -1054,13 +1054,13 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 도서 요약 | `authors` | 문자열 배열, 작가명 |
 | 도서 요약 | `coverImageUrl` | 문자열 또는 `null`; 없으면 클라이언트 기본 표지 사용 |
 | 도서 요약 | `passageCount` | 정수, 전체 문단 수 |
-| 도서 요약 | `status` | 0절의 확장 가능한 도서 상태. `ACTIVE`일 때만 읽기 허용 |
+| 도서 요약 | `status` | `ACTIVE`일 때만 읽기 허용 |
 | 진도 | `lastReadPassageSequence` | 정수, 최근 열람 문단의 도서 전체 순서 |
 | 진도 | `progressRate` | 0~100 정수. `lastReadPassageSequence / passageCount * 100` 반올림 |
-| 진도 | `lastReadAt` | 0절 시각 형식의 문자열, 마지막 진도 저장 시각 |
+| 진도 | `lastReadAt` | 마지막 진도 저장 시각 |
 | 공개방 요약 | `publicRoomId` | 공개방 ID |
 | 공개방 요약 | `book` | 도서 요약 |
-| 공개방 요약 | `myProgress` | 진도 또는 `null`; 한 번도 진도를 저장하지 않았으면 `null` |
+| 공개방 요약 | `myProgress` | 진도. 저장한 적이 없으면 `null` |
 
 방문만 해서는 진도를 만들지 않는다. 공개방에 진입할 때 `myProgress=null`이면 첫 문단부터
 시작하고, 값이 있으면 `lastReadPassageSequence`부터 이어 읽는다.
@@ -1137,7 +1137,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 }
 ```
 
-- 각 항목은 공개방 요약과 `lastVisitedAt`(문자열, `null` 불가)이다. 방마다 최대 한 항목만 반환한다.
+- 각 항목은 공개방 요약과 `lastVisitedAt`(최근 방문 시각, `null` 불가)이다. 방마다 최대 한 항목만 반환한다.
 - `lastVisitedAt` 내림차순이며 재방문하면 맨 앞으로 이동한다. 같은 시각끼리의 상대 순서는 보장하지 않는다.
 - 삭제 도서의 공개방은 숨긴다. 남은 항목이 없으면 `publicRooms: []`다.
 - 조회는 방문 시각·진도·댓글 확인 상태를 변경하지 않는다.
@@ -1377,7 +1377,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 본인 댓글 신고 | 400 | `CANNOT_REPORT_OWN_COMMENT` |
 | 타인 댓글 수정·삭제 | 403 | `NOT_COMMENT_OWNER` |
 
-공개방 경로에는 `NOT_CLUB_MEMBER`를 적용하지 않는다. 오류 본문은 0절의 `{code, message}`이며
+공개방 경로에는 `NOT_CLUB_MEMBER`를 적용하지 않는다. 오류 본문은 `{code, message}`이며
 `message`는 클라이언트 분기 기준이 아니다. 여러 오류 조건을 동시에 만족할 때 코드의 우선순위는
 별도 보장하지 않는다.
 
