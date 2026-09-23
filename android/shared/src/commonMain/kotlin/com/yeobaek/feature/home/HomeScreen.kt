@@ -34,6 +34,7 @@ import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
 import com.yeobaek.feature.home.component.GroupFabMenu
 import com.yeobaek.feature.home.component.GroupTab
 import com.yeobaek.feature.home.component.GroupTabBar
+import com.yeobaek.feature.home.component.PublicGroupSection
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -85,18 +86,18 @@ fun HomeScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(16.dp))
-            CurrentlyGroupSection(
-                groupUiModelList = when (selectedGroupTab) {
-                    GroupTab.MyGroups -> uiState.groups
-                    GroupTab.PublicRooms -> emptyList()
-                },
-                emptyMessage = when (selectedGroupTab) {
-                    GroupTab.MyGroups -> "모임을 만들거나 참여해 보세요!"
-                    GroupTab.PublicRooms -> "공개방에 참여해보세요!"
-                },
-                navigateToDetail = navigateToDetail,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            when (selectedGroupTab) {
+                GroupTab.MyGroups -> CurrentlyGroupSection(
+                    groupUiModelList = uiState.groups,
+                    emptyMessage = "모임을 만들거나 참여해 보세요!",
+                    navigateToDetail = navigateToDetail,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+
+                GroupTab.PublicRooms -> PublicGroupSection(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
             if (uiState.screenState != ScreenState.Success) {
                 Text(
                     text = when (uiState.screenState) {

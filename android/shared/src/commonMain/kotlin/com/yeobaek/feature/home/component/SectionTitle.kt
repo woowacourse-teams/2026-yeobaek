@@ -21,7 +21,7 @@ fun SectionTitle(
         style = MaterialTheme.typography.headlineMedium.copy(
             fontWeight = FontWeight.Medium,
             fontSize = 18.sp,
-            letterSpacing = 0.8.sp,
+            letterSpacing = 0.1.sp,
         ),
     )
 }
