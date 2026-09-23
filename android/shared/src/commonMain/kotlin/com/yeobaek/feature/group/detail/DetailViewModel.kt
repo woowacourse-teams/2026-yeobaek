@@ -144,6 +144,10 @@ class DetailViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.MEMBER_BLOCK_FAILED),
+                )
                 analyticsTracker.track(
                     MemberBlocked(groupId = uiState.groupUiModel.id, result = EventResult.FAILURE),
                 )
@@ -173,6 +177,10 @@ class DetailViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.MEMBER_UNBLOCK_FAILED),
+                )
                 analyticsTracker.track(
                     MemberUnblocked(groupId = uiState.groupUiModel.id, result = EventResult.FAILURE),
                 )

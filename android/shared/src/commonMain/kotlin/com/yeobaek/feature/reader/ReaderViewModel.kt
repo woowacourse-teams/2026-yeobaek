@@ -503,7 +503,7 @@ class ReaderViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                recordFailure(e, CrashOperation.COMMENTS_LOAD_FAILED)
+                recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
                 uiState = uiState.copy(
                     commentedSentenceMode = CommentedSentenceMode.Failed(
                         message = "댓글을 불러오지 못했습니다.",
@@ -701,7 +701,8 @@ class ReaderViewModel(
                 if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                recordFailure(exception, CrashOperation.NEW_COMMENT_STATUS_LOAD_FAILED)
                 // 새 댓글 강조 조회 실패가 본문 읽기를 막아서는 안 된다.
             }
         }
