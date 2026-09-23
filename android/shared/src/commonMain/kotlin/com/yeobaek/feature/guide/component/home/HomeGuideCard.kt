@@ -20,11 +20,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
 fun HomeGuideCard(
-    onClickJoin: () -> Unit,
-    onClickCreate: () -> Unit,
     modifier: Modifier = Modifier,
-    isJoinEnabled: Boolean = true,
-    isCreateEnabled: Boolean = true,
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
@@ -53,12 +49,7 @@ fun HomeGuideCard(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            HomeGroupButtonSection(
-                onClickJoin = onClickJoin,
-                onClickCreate = onClickCreate,
-                isJoinEnabled = isJoinEnabled,
-                isCreateEnabled = isCreateEnabled,
-            )
+            HomeGroupButtonSection()
         }
     }
 }
@@ -67,9 +58,6 @@ fun HomeGuideCard(
 @Composable
 private fun HomeGuideCardPreview() {
     YeobaekTheme {
-        HomeGuideCard(
-            onClickJoin = {},
-            onClickCreate = {},
-        )
+        HomeGuideCard()
     }
 }

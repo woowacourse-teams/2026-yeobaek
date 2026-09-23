@@ -137,8 +137,6 @@ fun GuideScreen(
             Text(currentPageText, color = MaterialTheme.colorScheme.secondary)
             when (uiState.currentPage) {
                 1 -> HomeGuideCard(
-                    onClickJoin = {},
-                    onClickCreate = {},
                     modifier = Modifier.weight(1f),
                 )
 
