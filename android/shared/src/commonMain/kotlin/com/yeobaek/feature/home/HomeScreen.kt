@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -32,7 +31,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
-import com.yeobaek.feature.home.component.GroupButtonSection
+import com.yeobaek.feature.home.component.GroupFabMenu
 import com.yeobaek.feature.home.component.GroupTab
 import com.yeobaek.feature.home.component.GroupTabBar
 import org.jetbrains.compose.resources.painterResource
@@ -58,11 +57,10 @@ fun HomeScreen(
                 navigateToMyPage = navigateToMyPage,
             )
         },
-        bottomBar = {
-            GroupButtonSection(
+        floatingActionButton = {
+            GroupFabMenu(
                 navigateToJoin = navigateToJoin,
                 navigateToCreate = navigateToCreate,
-                modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
     ) { innerPadding ->
@@ -94,7 +92,7 @@ fun HomeScreen(
                 },
                 emptyMessage = when (selectedGroupTab) {
                     GroupTab.MyGroups -> "모임을 만들거나 참여해 보세요!"
-                    GroupTab.PublicRooms -> "공개방에서 함께 책을 읽어봐요!"
+                    GroupTab.PublicRooms -> "공개방에 참여해보세요!"
                 },
                 navigateToDetail = navigateToDetail,
                 modifier = Modifier.padding(horizontal = 16.dp),
