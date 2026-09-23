@@ -62,14 +62,18 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
             uiState.currentlyReadingBookUiModel?.let { book ->
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(20.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
                     navigateToReader = navigateToReader,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = 16.dp,
+                    ),
                 )
             }
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             CurrentlyGroupSection(
                 title = "내 모임",
                 groupUiModelList = uiState.groups,
@@ -112,7 +116,7 @@ private fun AppTitle(
                 onClick = {
                     navigateToMyPage()
                 },
-                modifier = Modifier.size(50.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_person_circle),

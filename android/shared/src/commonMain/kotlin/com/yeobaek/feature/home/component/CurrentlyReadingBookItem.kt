@@ -37,12 +37,15 @@ fun CurrentlyReadingBookItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(
+                    horizontal = 12.dp,
+                    vertical = 8.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BookCoverImage(
                 imageUrl = bookUiModel.coverImageUrl,
-                modifier = Modifier.width(52.dp),
+                modifier = Modifier.width(41.dp),
             )
             Column(
                 modifier = Modifier
@@ -52,8 +55,9 @@ fun CurrentlyReadingBookItem(
                 GroupName(name = bookUiModel.groupName)
                 Spacer(modifier = Modifier.height(8.dp))
                 BookTitle(title = bookUiModel.title)
+                Spacer(modifier = Modifier.height(2.dp))
                 BookAuthors(authors = bookUiModel.authors)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 ReadingProgressIndicator(progressRate = bookUiModel.progressRate)
             }
         }
@@ -86,6 +90,7 @@ private fun BookTitle(
         modifier = modifier.fillMaxWidth(),
         maxLines = 1,
         style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = 16.sp,
             letterSpacing = 2.sp,
         ),
     )
