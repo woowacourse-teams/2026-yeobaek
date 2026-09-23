@@ -503,7 +503,7 @@ class ReaderViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                recordFailure(e, CrashOperation.COMMENTS_LOAD_FAILED)
+                recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
                 uiState = uiState.copy(
                     commentedSentenceMode = CommentedSentenceMode.Failed(
                         message = "댓글을 불러오지 못했습니다.",

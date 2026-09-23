@@ -127,7 +127,7 @@ class CommentSheetController(
             } catch (exception: Exception) {
                 recordFailure(
                     exception = exception,
-                    operation = CrashOperation.COMMENTS_LOAD_FAILED,
+                    operation = CrashOperation.COMMENT_SHEET_LOAD_FAILED,
                     sentenceId = sentenceId,
                 )
                 updateSheet(
