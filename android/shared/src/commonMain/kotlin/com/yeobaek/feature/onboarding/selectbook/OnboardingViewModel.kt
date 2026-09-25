@@ -1,10 +1,10 @@
-package com.yeobaek.feature.onboarding
+package com.yeobaek.feature.onboarding.selectbook
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.yeobaek.feature.onboarding.model.OnboardingBookUiModel
+import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 
 class OnboardingViewModel : ViewModel() {
     var uiState by mutableStateOf(OnboardingUiState())

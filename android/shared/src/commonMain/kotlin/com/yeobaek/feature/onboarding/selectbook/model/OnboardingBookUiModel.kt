@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding.model
+package com.yeobaek.feature.onboarding.selectbook.model
 
 data class OnboardingBookUiModel(
     val id: Long = 0L,

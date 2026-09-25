@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding.component
+package com.yeobaek.feature.onboarding.selectbook.component
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer

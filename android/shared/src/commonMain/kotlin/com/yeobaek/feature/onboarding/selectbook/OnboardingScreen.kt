@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding
+package com.yeobaek.feature.onboarding.selectbook
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,9 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.feature.onboarding.component.OnboardingBookCard
-import com.yeobaek.feature.onboarding.component.OnboardingBottomSheetContent
-import com.yeobaek.feature.onboarding.component.OnboardingJoinCard
+import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
+import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBottomSheetContent
+import com.yeobaek.feature.onboarding.selectbook.component.OnboardingJoinCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

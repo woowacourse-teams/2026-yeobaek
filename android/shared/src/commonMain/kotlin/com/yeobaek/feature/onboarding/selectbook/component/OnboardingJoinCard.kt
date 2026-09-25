@@ -1,4 +1,4 @@
-package com.yeobaek.feature.onboarding.component
+package com.yeobaek.feature.onboarding.selectbook.component
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
