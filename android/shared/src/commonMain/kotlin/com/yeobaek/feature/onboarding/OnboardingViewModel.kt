@@ -20,31 +20,57 @@ class OnboardingViewModel : ViewModel() {
         )
     }
 
+    fun onSelectBook(id: Long) {
+        val selectedBook = uiState.bookUiModelList.firstOrNull { bookUiModel -> bookUiModel.id == id }
+        uiState = if (selectedBook != null) {
+            uiState.copy(
+                selectedBookUiState = uiState.selectedBookUiState.copy(
+                    selectedBook = selectedBook,
+                    isSelected = true,
+                ),
+            )
+        } else {
+            uiState.copy(
+                selectedBookUiState = uiState.selectedBookUiState.copy(
+                    isSelected = false,
+                ),
+            )
+        }
+    }
+
+    fun dismissDialog() {
+        uiState = uiState.copy(
+            selectedBookUiState = uiState.selectedBookUiState.copy(
+                isSelected = false,
+            ),
+        )
+    }
+
     companion object {
         val mockBookList = listOf(
             OnboardingBookUiModel(
-                id = 0,
+                id = 0L,
                 title = "The Great Gatsby",
                 authors = "F. Scott Fitzgerald",
                 coverUrl = "https://template.canva.com/EAF8mKE9JzY/1/0/1003w-F9EPCH-Tgf0.jpg",
             ),
             OnboardingBookUiModel(
-                id = 1,
+                id = 1L,
                 title = "To Kill a Mockingbird",
                 authors = "Harper Lee",
             ),
             OnboardingBookUiModel(
-                id = 2,
+                id = 2L,
                 title = "1984",
                 authors = "George Orwell",
             ),
             OnboardingBookUiModel(
-                id = 3,
+                id = 3L,
                 title = "Pride and Prejudice",
                 authors = "Jane Austen",
             ),
             OnboardingBookUiModel(
-                id = 4,
+                id = 4L,
                 title = "The Catcher in the Rye",
                 authors = "J.D. Salinger",
             ),
