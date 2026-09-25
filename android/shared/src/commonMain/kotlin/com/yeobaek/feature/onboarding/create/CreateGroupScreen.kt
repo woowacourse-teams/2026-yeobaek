@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.onboarding.create.model.SelectBookUiModel
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -124,26 +126,26 @@ private fun SelectBookCard(
             border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.secondary),
         ) {
             Row(
-                modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                modifier = Modifier.padding(12.dp).fillMaxWidth().height(100.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 BookCoverImage(
                     imageUrl = coverUrl,
-                    modifier = Modifier.height(100.dp),
+                    modifier = Modifier.fillMaxHeight(),
                 )
                 Spacer(modifier = Modifier.width(20.dp))
                 Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.SpaceAround,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.Top,
                 ) {
-                    Text(title)
-                    Text(authors)
-                    Text("")
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(authors, style = MaterialTheme.typography.bodyMedium)
                 }
                 TextButton(
                     onClick = selectOtherBook,
                 ) {
-                    Text("다른 책 고르기")
+                    Text("다른 책 고르기", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -213,7 +215,13 @@ private fun GroupNameTextField(
 private fun CreateGroupScreenPreview() {
     YeobaekTheme {
         CreateGroupScreen(
-            uiState = CreateGroupUiState(),
+            uiState = CreateGroupUiState(
+                selectBookUiModel = SelectBookUiModel(
+                    id = 0L,
+                    title = "The Great Gatsby",
+                    authors = "F. Scott Fitzgerald",
+                ),
+            ),
             onClickBack = {},
             selectOtherBook = {},
             onValueChangeGroupName = {},
