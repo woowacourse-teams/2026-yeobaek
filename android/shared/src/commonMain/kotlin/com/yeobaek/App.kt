@@ -81,7 +81,6 @@ import com.yeobaek.feature.reader.ReaderViewModel
 fun App(
     appContainer: AppContainer,
 ) {
-    appContainer.userPreferences.clearUser()
     YeobaekTheme {
         val navController = rememberNavController()
 
