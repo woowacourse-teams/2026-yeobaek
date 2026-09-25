@@ -32,25 +32,21 @@ class OnboardingViewModel : ViewModel() {
                 id = 1,
                 title = "To Kill a Mockingbird",
                 authors = "Harper Lee",
-                coverUrl = "https://example.com/mockingbird_cover.jpg",
             ),
             OnboardingBookUiModel(
                 id = 2,
                 title = "1984",
                 authors = "George Orwell",
-                coverUrl = "https://example.com/1984_cover.jpg",
             ),
             OnboardingBookUiModel(
                 id = 3,
                 title = "Pride and Prejudice",
                 authors = "Jane Austen",
-                coverUrl = "https://example.com/pride_prejudice_cover.jpg",
             ),
             OnboardingBookUiModel(
                 id = 4,
                 title = "The Catcher in the Rye",
                 authors = "J.D. Salinger",
-                coverUrl = "https://example.com/catcher_in_the_rye_cover.jpg",
             ),
         )
     }
