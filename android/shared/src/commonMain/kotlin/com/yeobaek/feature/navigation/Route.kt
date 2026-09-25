@@ -14,6 +14,11 @@ data class Guide(
 data object Onboarding
 
 @Serializable
+data class OnboardingCreate(
+    val bookId: Long,
+)
+
+@Serializable
 data object Home
 
 @Serializable

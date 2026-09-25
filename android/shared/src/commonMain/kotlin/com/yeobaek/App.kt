@@ -63,9 +63,13 @@ import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
 import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.navigation.OnboardingCreate
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
+import com.yeobaek.feature.onboarding.create.CreateGroupScreen
+import com.yeobaek.feature.onboarding.create.CreateGroupState
+import com.yeobaek.feature.onboarding.create.CreateGroupViewModel
 import com.yeobaek.feature.onboarding.selectbook.OnboardingScreen
 import com.yeobaek.feature.onboarding.selectbook.OnboardingViewModel
 import com.yeobaek.feature.reader.CommentSheetActions
@@ -197,7 +201,11 @@ fun App(
                 )
             }
             composable<Onboarding> {
-                val onBoardingViewModel: OnboardingViewModel = viewModel()
+                val onBoardingViewModel: OnboardingViewModel = viewModel(
+                    factory = OnboardingViewModel.onboardingViewModelFactory(
+                        bookRepository = appContainer.bookRepository,
+                    ),
+                )
 
                 OnboardingScreen(
                     uiState = onBoardingViewModel.uiState,
@@ -225,10 +233,45 @@ fun App(
                     onClickPublicRoom = {
                         TODO("공개방 API가 나오면 구현할 계획")
                     },
-                    onClickCreateRoom = {
+                    onClickCreateRoom = { bookId ->
                         onBoardingViewModel.dismissDialog()
-                        navController.navigate(Create)
+                        navController.navigate(OnboardingCreate(bookId = bookId))
                     },
+                )
+            }
+            composable<OnboardingCreate> {
+                val route = it.toRoute<OnboardingCreate>()
+
+                val createGroupViewModel: CreateGroupViewModel = viewModel(
+                    factory = CreateGroupViewModel.createGroupViewModelFactory(
+                        groupRepository = appContainer.groupRepository,
+                        bookRepository = appContainer.bookRepository,
+                    ),
+                )
+                LaunchedEffect(route.bookId) {
+                    createGroupViewModel.initSelectBook(route.bookId)
+                }
+
+                LaunchedEffect(createGroupViewModel.uiState.createGroupState) {
+                    if (createGroupViewModel.uiState.createGroupState is CreateGroupState.Success) {
+                        navController.navigate(Home) {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                }
+
+                CreateGroupScreen(
+                    uiState = createGroupViewModel.uiState,
+                    onClickBack = {
+                        navController.popBackStack()
+                    },
+                    selectOtherBook = {
+                        navController.popBackStack()
+                    },
+                    onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
+                    onClickCreateGroup = createGroupViewModel::createGroup,
                 )
             }
             composable<Home> {

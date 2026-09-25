@@ -37,8 +37,10 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun CreateGroupScreen(
     uiState: CreateGroupUiState,
+    onClickBack: () -> Unit,
     selectOtherBook: () -> Unit,
     onValueChangeGroupName: (String) -> Unit,
+    onClickCreateGroup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -50,7 +52,7 @@ fun CreateGroupScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = {},
+                        onClick = onClickBack,
                     ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_back_arrow),
@@ -89,11 +91,13 @@ fun CreateGroupScreen(
                 GroupNameTextField(
                     value = uiState.groupName,
                     onValueChange = onValueChangeGroupName,
+                    isError = !uiState.isGroupNameValid,
                 )
             }
             YeobaekButton(
                 text = "모임 만들기",
-                onClick = {},
+                onClick = onClickCreateGroup,
+                enabled = uiState.isGroupNameValid && uiState.createGroupState !is CreateGroupState.Success,
             )
         }
     }
@@ -151,6 +155,7 @@ private fun GroupNameTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -159,7 +164,6 @@ private fun GroupNameTextField(
         Spacer(modifier = Modifier.height(8.dp))
         Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.End,
         ) {
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
@@ -167,6 +171,7 @@ private fun GroupNameTextField(
                 onValueChange = {
                     onValueChange(it)
                 },
+                isError = isError,
                 shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -182,12 +187,23 @@ private fun GroupNameTextField(
                 singleLine = true,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "${value.length}/20",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = MaterialTheme.colorScheme.secondary,
-                ),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = if (isError) "모임 이름이 공백이면 안됩니다!" else "",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.error,
+                    ),
+                )
+                Text(
+                    text = "${value.length}/20",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.secondary,
+                    ),
+                )
+            }
         }
     }
 }
@@ -198,8 +214,10 @@ private fun CreateGroupScreenPreview() {
     YeobaekTheme {
         CreateGroupScreen(
             uiState = CreateGroupUiState(),
+            onClickBack = {},
             selectOtherBook = {},
             onValueChangeGroupName = {},
+            onClickCreateGroup = {},
         )
     }
 }

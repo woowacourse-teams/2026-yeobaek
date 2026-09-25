@@ -35,7 +35,7 @@ fun OnboardingScreen(
     onSelectBook: (Long) -> Unit,
     onDismissBottomSheet: () -> Unit,
     onClickPublicRoom: () -> Unit,
-    onClickCreateRoom: () -> Unit,
+    onClickCreateRoom: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -98,7 +98,9 @@ fun OnboardingScreen(
                 OnboardingBottomSheetContent(
                     title = uiState.selectedBookUiState.selectedBook?.title ?: "제목없음",
                     onClickPublicRoom = onClickPublicRoom,
-                    onClickCreateRoom = onClickCreateRoom,
+                    onClickCreateRoom = {
+                        onClickCreateRoom(uiState.selectedBookUiState.selectedBook?.id ?: 0L)
+                    },
                 )
             }
         }

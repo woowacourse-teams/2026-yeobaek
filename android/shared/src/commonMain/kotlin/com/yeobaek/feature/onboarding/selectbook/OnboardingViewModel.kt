@@ -4,9 +4,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
+import com.yeobaek.feature.onboarding.selectbook.model.toUiModel
+import kotlinx.coroutines.launch
 
-class OnboardingViewModel : ViewModel() {
+class OnboardingViewModel(
+    private val bookRepository: BookRepository,
+) : ViewModel() {
     var uiState by mutableStateOf(OnboardingUiState())
         private set
 
@@ -15,9 +24,12 @@ class OnboardingViewModel : ViewModel() {
     }
 
     fun initList() {
-        uiState = uiState.copy(
-            bookUiModelList = mockBookList,
-        )
+        viewModelScope.launch {
+            val bookList = bookRepository.getBooks()
+            uiState = uiState.copy(
+                bookUiModelList = bookList.map { it.toUiModel() },
+            )
+        }
     }
 
     fun onSelectBook(id: Long) {
@@ -47,6 +59,16 @@ class OnboardingViewModel : ViewModel() {
     }
 
     companion object {
+        fun onboardingViewModelFactory(
+            bookRepository: BookRepository,
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                OnboardingViewModel(
+                    bookRepository = bookRepository,
+                )
+            }
+        }
+
         val mockBookList = listOf(
             OnboardingBookUiModel(
                 id = 0L,
