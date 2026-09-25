@@ -62,9 +62,12 @@ import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
+import com.yeobaek.feature.navigation.Onboarding
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
+import com.yeobaek.feature.onboarding.OnboardingScreen
+import com.yeobaek.feature.onboarding.OnboardingViewModel
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
@@ -74,6 +77,7 @@ import com.yeobaek.feature.reader.ReaderViewModel
 fun App(
     appContainer: AppContainer,
 ) {
+    appContainer.userPreferences.clearUser()
     YeobaekTheme {
         val navController = rememberNavController()
 
@@ -139,19 +143,10 @@ fun App(
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
-                    navigateToHome = {
-                        val hasHome = navController.currentBackStack.value.any { entry ->
-                            entry.destination.hasRoute<Home>()
-                        }
-                        navController.navigate(Home) {
-                            if (hasHome) {
-                                popUpTo<Home> {
-                                    inclusive = true
-                                }
-                            } else {
-                                popUpTo<Guide> {
-                                    inclusive = true
-                                }
+                    navigateToOnboarding = {
+                        navController.navigate(Onboarding) {
+                            popUpTo<Guide> {
+                                inclusive = true
                             }
                         }
                     },
@@ -198,6 +193,41 @@ fun App(
                             ),
                         )
                         guideViewModel.onCancel()
+                    },
+                )
+            }
+            composable<Onboarding> {
+                val onBoardingViewModel: OnboardingViewModel = viewModel()
+
+                OnboardingScreen(
+                    uiState = onBoardingViewModel.uiState,
+                    navigateToHome = {
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
+                        }
+                        navController.navigate(Home) {
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    },
+                    navigateToJoin = {
+                        navController.navigate(Join)
+                    },
+                    onSelectBook = onBoardingViewModel::onSelectBook,
+                    onDismissBottomSheet = onBoardingViewModel::dismissDialog,
+                    onClickPublicRoom = {
+                        TODO("공개방 API가 나오면 구현할 계획")
+                    },
+                    onClickCreateRoom = {
+                        onBoardingViewModel.dismissDialog()
+                        navController.navigate(Create)
                     },
                 )
             }

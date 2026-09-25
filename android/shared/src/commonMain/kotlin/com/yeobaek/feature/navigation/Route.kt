@@ -11,6 +11,9 @@ data class Guide(
 )
 
 @Serializable
+data object Onboarding
+
+@Serializable
 data object Home
 
 @Serializable
