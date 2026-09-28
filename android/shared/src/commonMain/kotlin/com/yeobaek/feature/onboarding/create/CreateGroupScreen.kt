@@ -82,7 +82,10 @@ fun CreateGroupScreen(
                 ) {
                     Text("모임 이름을 정해주세요", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("선택한 데미안으로 함께 읽을 모임을 만들어요.", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "선택한 \"${uiState.selectBookUiModel.title}\"(으)로 함께 읽을 모임을 만들어요.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
                 SelectBookCard(
                     title = uiState.selectBookUiModel.title,
