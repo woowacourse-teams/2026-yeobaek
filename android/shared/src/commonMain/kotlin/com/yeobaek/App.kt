@@ -175,12 +175,21 @@ fun App(
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
-                    navigateToOnboarding = {
-                        navController.navigate(Onboarding) {
-                            popUpTo<Guide> {
-                                inclusive = true
+                    navigateToRoute = {
+                        if (route.fromMyPage) {
+                            navController.navigate(Home) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            }
+                        } else {
+                            navController.navigate(Onboarding) {
+                                popUpTo<Guide> {
+                                    inclusive = true
+                                }
                             }
                         }
+
                         appContainer.guideOnboardingPreferences.saveGuideState(true)
                         appContainer.guideOnboardingPreferences.saveGuidePage(1)
                     },

@@ -46,7 +46,7 @@ fun GuideScreen(
     onClickCommentSentence: () -> Unit,
     onClickUnCommentSentence: () -> Unit,
     onCancel: () -> Unit,
-    navigateToOnboarding: () -> Unit,
+    navigateToRoute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -79,7 +79,7 @@ fun GuideScreen(
 
     LaunchedEffect(uiState.currentPage) {
         onCurrentPage {
-            navigateToOnboarding()
+            navigateToRoute()
         }
     }
 
@@ -92,7 +92,7 @@ fun GuideScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            navigateToOnboarding()
+                            navigateToRoute()
                         },
                     ) {
                         Text("건너뛰기")
@@ -171,7 +171,7 @@ fun GuideScreen(
 private fun GuideScreenPreview() {
     YeobaekTheme {
         GuideScreen(
-            navigateToOnboarding = {},
+            navigateToRoute = {},
             uiState = GuideUiState(),
             onCurrentPage = {},
             onSuccessGuide = {},
