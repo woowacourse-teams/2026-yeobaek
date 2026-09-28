@@ -98,16 +98,18 @@ class CreateViewModel(
     }
 
     fun selectBook(book: SelectBookUiModel) {
-        val selectedBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
-        val newSelection = selectedBook.takeUnless { item -> item.id == uiState.selectedBook?.id }
+        val targetBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
+        val isAlreadySelected = targetBook.id == uiState.selectedBook?.id
 
-        uiState = uiState.copy(selectedBook = newSelection)
+        uiState = uiState.copy(
+            selectedBook = targetBook.takeUnless { isAlreadySelected },
+        )
 
-        newSelection?.let { selected ->
+        if (!isAlreadySelected) {
             analyticsTracker.track(
                 GroupCreateBookSelected(
-                    bookId = selected.id,
-                    bookTitle = selected.title,
+                    bookId = targetBook.id,
+                    bookTitle = targetBook.title,
                 ),
             )
         }
