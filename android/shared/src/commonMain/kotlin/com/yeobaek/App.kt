@@ -152,6 +152,12 @@ fun App(
                 } else {
                     GuideEntryPoint.ONBOARDING
                 }
+                val guideViewModel: GuideViewModel = viewModel(
+                    factory = GuideViewModel.guideViewModelFactory(
+                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
+                    ),
+                )
+
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
@@ -162,11 +168,10 @@ fun App(
                     appContainer.analyticsTracker.track(GuideStarted(entryPoint = entryPoint))
                 }
 
-                val guideViewModel: GuideViewModel = viewModel(
-                    factory = GuideViewModel.guideViewModelFactory(
-                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
-                    ),
-                )
+                LaunchedEffect(Unit) {
+                    guideViewModel.initGuidePage(route.fromMyPage)
+                    guideViewModel.initSentences()
+                }
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
@@ -177,6 +182,7 @@ fun App(
                             }
                         }
                         appContainer.guideOnboardingPreferences.saveGuideState(true)
+                        appContainer.guideOnboardingPreferences.saveGuidePage(1)
                     },
                     onCurrentPage = {
                         guideViewModel.onCurrentPage(it)
@@ -633,6 +639,7 @@ fun App(
                 )
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
+                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
                         userRepository = appContainer.userRepository,
                         crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,

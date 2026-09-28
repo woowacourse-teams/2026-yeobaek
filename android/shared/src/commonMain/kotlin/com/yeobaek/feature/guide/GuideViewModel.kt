@@ -16,15 +16,16 @@ class GuideViewModel(
     var uiState by mutableStateOf(GuideUiState())
         private set
 
-    init {
-        initSentences()
-        initGuidePage()
-    }
-
-    fun initGuidePage() {
-        uiState = uiState.copy(
-            currentPage = guideOnboardingPreferences.getGuidePage() ?: 1,
-        )
+    fun initGuidePage(isMyPage: Boolean) {
+        uiState = if (isMyPage) {
+            uiState.copy(
+                currentPage = 1,
+            )
+        } else {
+            uiState.copy(
+                currentPage = guideOnboardingPreferences.getGuidePage() ?: 1,
+            )
+        }
     }
 
     fun initSentences() {

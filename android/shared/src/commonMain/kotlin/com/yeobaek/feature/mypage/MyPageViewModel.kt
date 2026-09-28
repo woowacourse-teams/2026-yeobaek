@@ -15,11 +15,13 @@ import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.repository.UserRepository
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
 class MyPageViewModel(
+    private val guideOnboardingPreferences: GuideOnboardingPreferences,
     private val userRepository: UserRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
@@ -53,6 +55,7 @@ class MyPageViewModel(
                 uiState = uiState.copy(
                     deleteState = DeleteState.Success,
                 )
+                guideOnboardingPreferences.clearGuideState()
                 analyticsTracker.track(AccountDeleted(result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
@@ -74,12 +77,14 @@ class MyPageViewModel(
 
     companion object {
         fun myPageViewModelFactory(
+            guideOnboardingPreferences: GuideOnboardingPreferences,
             userRepository: UserRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MyPageViewModel(
+                    guideOnboardingPreferences = guideOnboardingPreferences,
                     userRepository = userRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,

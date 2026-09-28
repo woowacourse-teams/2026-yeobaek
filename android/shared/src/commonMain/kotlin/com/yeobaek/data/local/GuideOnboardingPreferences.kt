@@ -23,6 +23,12 @@ class GuideOnboardingPreferences(
 
     fun getOnboardingState(): Boolean = settings.getBooleanOrNull(ONBOARDING_STATE) ?: false
 
+    fun clearGuideState() {
+        settings.remove(GUIDE_STATE)
+        settings.remove(ONBOARDING_STATE)
+        settings.remove(GUIDE_PAGE)
+    }
+
     companion object {
         const val GUIDE_STATE = "guideState"
         const val ONBOARDING_STATE = "onboardingState"
