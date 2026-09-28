@@ -83,10 +83,30 @@ fun App(
 ) {
     YeobaekTheme {
         val navController = rememberNavController()
+        val startDestination = if (appContainer.userPreferences.getUserId() == null) {
+            Nickname
+        } else {
+            val isFinishGuide = appContainer.guideOnboardingPreferences.getGuideState()
+            val isFinishOnboarding = appContainer.guideOnboardingPreferences.getOnboardingState()
+
+            when (isFinishGuide) {
+                true if isFinishOnboarding -> {
+                    Home
+                }
+
+                true if !isFinishOnboarding -> {
+                    Onboarding
+                }
+
+                else -> {
+                    Guide(fromMyPage = false)
+                }
+            }
+        }
 
         NavHost(
             navController = navController,
-            startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
+            startDestination = startDestination,
         ) {
             composable<Nickname> {
                 TrackScreen(
@@ -142,7 +162,11 @@ fun App(
                     appContainer.analyticsTracker.track(GuideStarted(entryPoint = entryPoint))
                 }
 
-                val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
+                val guideViewModel: GuideViewModel = viewModel(
+                    factory = GuideViewModel.guideViewModelFactory(
+                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
+                    ),
+                )
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
@@ -152,6 +176,7 @@ fun App(
                                 inclusive = true
                             }
                         }
+                        appContainer.guideOnboardingPreferences.saveGuideState(true)
                     },
                     onCurrentPage = {
                         guideViewModel.onCurrentPage(it)
@@ -223,6 +248,7 @@ fun App(
                                 }
                             }
                         }
+                        appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                     },
                     navigateToJoin = {
                         navController.navigate(Join)
@@ -258,6 +284,7 @@ fun App(
                                 inclusive = true
                             }
                         }
+                        appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                     }
                 }
 
@@ -497,10 +524,22 @@ fun App(
 
                 LaunchedEffect(joinViewModel.uiState.successJoin) {
                     if (joinViewModel.uiState.successJoin) {
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
+                        }
                         navController.navigate(Home) {
-                            popUpTo<Home> {
-                                inclusive = true
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
                             }
+                        }
+                        if (!appContainer.guideOnboardingPreferences.getOnboardingState()) {
+                            appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                         }
                     }
                 }
