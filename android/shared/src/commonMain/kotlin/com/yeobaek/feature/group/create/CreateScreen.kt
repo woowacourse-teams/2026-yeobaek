@@ -1,11 +1,10 @@
 package com.yeobaek.feature.group.create
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -20,21 +19,23 @@ import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
-import com.yeobaek.feature.group.create.component.CreateBookChooseCard
-import com.yeobaek.feature.group.create.component.CreateGroupNameCard
+import com.yeobaek.feature.group.create.model.SelectBookUiModel
 
 @Composable
 fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
-    selectBook: (Int) -> Unit,
+    selectBook: (SelectBookUiModel) -> Unit,
     onBookListScrolled: (lastVisibleIndex: Int) -> Unit,
+    onNextStep: () -> Unit,
+    onSelectOtherBook: () -> Unit,
     onBackClick: () -> Unit,
     onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val bookGridState = rememberLazyGridState()
 
     PlatformBackHandler(onBack = onBackClick)
 
@@ -55,15 +56,27 @@ fun CreateScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             YeobaekTopAppBar(
-                title = "새로운 모임 만들기",
+                title = "새 모임 만들기",
                 onBackClick = onBackClick,
             )
         },
         bottomBar = {
             YeobaekButton(
-                text = "모임 생성하고 친구 초대하기",
-                onClick = onCreateGroup,
-                enabled = uiState.createState !is CreateState.Loading && uiState.createState !is CreateState.Success,
+                text = when (uiState.step) {
+                    CreateStep.BookSelection -> "다음"
+                    CreateStep.GroupName -> "모임 만들기"
+                },
+                onClick = when (uiState.step) {
+                    CreateStep.BookSelection -> onNextStep
+                    CreateStep.GroupName -> onCreateGroup
+                },
+                enabled = when (uiState.step) {
+                    CreateStep.BookSelection -> uiState.bookState is BookState.Success && uiState.selectedBook != null
+
+                    CreateStep.GroupName ->
+                        uiState.createState !is CreateState.Loading &&
+                            uiState.createState !is CreateState.Success
+                },
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
@@ -74,27 +87,24 @@ fun CreateScreen(
         Column(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
-            CreateGroupNameCard(
-                value = uiState.groupNameValue,
-                onValueChange = {
-                    updateGroupNameValue(it)
-                },
-                placeholder = if (uiState.groupNameCondition) "제목을 입력해주세요." else "예: 일요일 아침, 함께 읽기",
-                isError = uiState.groupNameCondition,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            CreateBookChooseCard(
-                books = uiState.bookList,
-                onClickBook = {
-                    selectBook(it)
-                },
-                subTitle = if (uiState.selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
-                isError = uiState.selectedBookCondition,
-                bookState = uiState.bookState,
-                onBookListScrolled = onBookListScrolled,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            when (uiState.step) {
+                CreateStep.BookSelection -> CreateBookSelectionContent(
+                    books = uiState.bookList,
+                    bookState = uiState.bookState,
+                    selectedBookId = uiState.selectedBook?.id,
+                    gridState = bookGridState,
+                    onClickBook = selectBook,
+                    onBookListScrolled = onBookListScrolled,
+                )
+
+                CreateStep.GroupName -> CreateGroupContent(
+                    selectedBook = requireNotNull(uiState.selectedBook),
+                    groupName = uiState.groupNameValue,
+                    isGroupNameValid = uiState.isGroupNameValid,
+                    selectOtherBook = onSelectOtherBook,
+                    onValueChangeGroupName = updateGroupNameValue,
+                )
+            }
         }
     }
 }
@@ -104,10 +114,21 @@ fun CreateScreen(
 private fun CreateScreenPreview() {
     YeobaekTheme {
         CreateScreen(
-            uiState = CreateUiState(),
+            uiState = CreateUiState(
+                bookState = BookState.Success,
+                bookList = listOf(
+                    SelectBookUiModel(
+                        id = 1L,
+                        title = "데미안",
+                        authors = "헤르만 헤세",
+                    ),
+                ),
+            ),
             updateGroupNameValue = {},
             selectBook = {},
             onBookListScrolled = {},
+            onNextStep = {},
+            onSelectOtherBook = {},
             onBackClick = {},
             onCreateGroup = {},
             navigateToHome = {},

@@ -20,7 +20,8 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
-import com.yeobaek.feature.group.create.model.CreateBookUiModel
+import com.yeobaek.feature.group.create.model.SelectBookUiModel
+import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
@@ -46,15 +47,7 @@ class CreateViewModel(
             try {
                 val groups = bookRepository.getBooks()
                 uiState = uiState.copy(
-                    bookList = groups.map {
-                        CreateBookUiModel(
-                            id = it.id,
-                            uri = it.coverImageUrl,
-                            title = it.title,
-                            authors = it.authors,
-                            description = it.description,
-                        )
-                    },
+                    bookList = groups.map { book -> book.toUiModel() },
                     bookState = BookState.Success,
                 )
                 crashReporter.track(
@@ -83,7 +76,7 @@ class CreateViewModel(
     fun updateGroupNameValue(value: String) {
         uiState = uiState.copy(
             groupNameValue = value.take(20),
-            groupNameCondition = false,
+            isGroupNameValid = true,
         )
     }
 
@@ -104,30 +97,35 @@ class CreateViewModel(
         )
     }
 
-    fun selectBook(index: Int) {
-        uiState = uiState.copy(
-            bookList = uiState.bookList.mapIndexed { i, book ->
-                if (i == index) {
-                    book.copy(selected = !book.selected)
-                } else {
-                    book.copy(selected = false)
-                }
-            },
-            selectedBookCondition = false,
-        )
-        uiState.bookList.getOrNull(index)?.takeIf { it.selected }?.let { book ->
+    fun selectBook(book: SelectBookUiModel) {
+        val selectedBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
+        val newSelection = selectedBook.takeUnless { item -> item.id == uiState.selectedBook?.id }
+
+        uiState = uiState.copy(selectedBook = newSelection)
+
+        newSelection?.let { selected ->
             analyticsTracker.track(
                 GroupCreateBookSelected(
-                    bookId = book.id,
-                    bookTitle = book.title,
+                    bookId = selected.id,
+                    bookTitle = selected.title,
                 ),
             )
         }
     }
 
+    fun moveToGroupName() {
+        if (uiState.bookState !is BookState.Success || uiState.selectedBook == null) return
+        uiState = uiState.copy(step = CreateStep.GroupName)
+    }
+
+    fun moveToBookSelection() {
+        uiState = uiState.copy(step = CreateStep.BookSelection)
+    }
+
     fun createGroup() {
-        val selectedBook = uiState.bookList.find { it.selected }
+        val selectedBook = uiState.selectedBook
         val selectedBookId = selectedBook?.id
+        val groupName = uiState.groupNameValue
 
         if (uiState.createState is CreateState.Loading) return
 
@@ -149,7 +147,7 @@ class CreateViewModel(
                 val bookId = selectedBookId ?: throw IllegalArgumentException("선택된 책이 없습니다.")
 
                 groupRepository.createGroup(
-                    groupName = uiState.groupNameValue,
+                    groupName = groupName,
                     bookId = bookId,
                 )
 
@@ -199,27 +197,16 @@ class CreateViewModel(
     }
 
     fun groupNameCheck() {
+        val isGroupNameValid = uiState.groupNameValue.isNotBlank()
         uiState = uiState.copy(
-            groupNameCondition = uiState.groupNameValue.isBlank(),
-        )
-
-        if (uiState.groupNameCondition) {
-            uiState = uiState.copy(
-                groupNameValue = "",
-            )
-        }
-    }
-
-    fun selectedBookCheck() {
-        uiState = uiState.copy(
-            selectedBookCondition = uiState.bookList.all { !it.selected },
+            groupNameValue = if (isGroupNameValid) uiState.groupNameValue else "",
+            isGroupNameValid = isGroupNameValid,
         )
     }
 
     fun createConditionCheck(): Boolean {
         groupNameCheck()
-        selectedBookCheck()
-        return uiState.groupNameCondition || uiState.selectedBookCondition
+        return !uiState.isGroupNameValid || uiState.selectedBook == null
     }
 
     companion object {

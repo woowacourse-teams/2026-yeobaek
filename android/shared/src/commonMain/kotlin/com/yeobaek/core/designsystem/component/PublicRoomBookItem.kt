@@ -37,6 +37,9 @@ fun PublicRoomBookItem(
         ),
     ) {
         Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             BookCoverImage(

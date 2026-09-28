@@ -42,6 +42,7 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.feature.group.create.CreateScreen
+import com.yeobaek.feature.group.create.CreateStep
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -420,19 +421,27 @@ fun App(
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
                     onBookListScrolled = createViewModel::onBookListScrolled,
+                    onNextStep = createViewModel::moveToGroupName,
+                    onSelectOtherBook = createViewModel::moveToBookSelection,
                     onBackClick = {
-                        appContainer.analyticsTracker.track(
-                            GroupCreateAbandoned(
-                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
-                                hasBook = createViewModel.uiState.bookList.any { it.selected },
-                                bookList = createViewModel.bookListExposure(),
-                            ),
-                        )
-                        navController.popBackStack()
+                        when (createViewModel.uiState.step) {
+                            CreateStep.GroupName -> createViewModel.moveToBookSelection()
+
+                            CreateStep.BookSelection -> {
+                                appContainer.analyticsTracker.track(
+                                    GroupCreateAbandoned(
+                                        hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
+                                        hasBook = createViewModel.uiState.selectedBook != null,
+                                        bookList = createViewModel.bookListExposure(),
+                                    ),
+                                )
+                                navController.popBackStack()
+                            }
+                        }
                     },
                     onCreateGroup = {
                         if (createViewModel.createConditionCheck()) {
-                            val reason = if (createViewModel.uiState.groupNameCondition) {
+                            val reason = if (!createViewModel.uiState.isGroupNameValid) {
                                 InvalidReason.NAME_BLANK
                             } else {
                                 InvalidReason.BOOK_NOT_SELECTED
