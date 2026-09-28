@@ -420,7 +420,7 @@ fun App(
                     uiState = createViewModel.uiState,
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
-                    onBookListScrolled = createViewModel::onBookListScrolled,
+                    onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,
                     onNextStep = createViewModel::moveToGroupName,
                     onSelectOtherBook = createViewModel::moveToBookSelection,
                     onBackClick = {

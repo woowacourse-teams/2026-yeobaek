@@ -26,7 +26,7 @@ fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
     selectBook: (SelectBookUiModel) -> Unit,
-    onBookListScrolled: (lastVisibleIndex: Int) -> Unit,
+    onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     onNextStep: () -> Unit,
     onSelectOtherBook: () -> Unit,
     onBackClick: () -> Unit,
@@ -94,7 +94,7 @@ fun CreateScreen(
                     selectedBookId = uiState.selectedBook?.id,
                     gridState = bookGridState,
                     onClickBook = selectBook,
-                    onBookListScrolled = onBookListScrolled,
+                    onLastVisibleBookChanged = onLastVisibleBookChanged,
                 )
 
                 CreateStep.GroupName -> CreateGroupContent(
@@ -126,7 +126,7 @@ private fun CreateScreenPreview() {
             ),
             updateGroupNameValue = {},
             selectBook = {},
-            onBookListScrolled = {},
+            onLastVisibleBookChanged = {},
             onNextStep = {},
             onSelectOtherBook = {},
             onBackClick = {},

@@ -41,16 +41,18 @@ fun CreateBookSelectionContent(
     selectedBookId: Long?,
     gridState: LazyGridState,
     onClickBook: (SelectBookUiModel) -> Unit,
-    onBookListScrolled: (lastVisibleIndex: Int) -> Unit,
+    onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val currentOnBookListScrolled by rememberUpdatedState(onBookListScrolled)
+    val currentOnLastVisibleBookChanged by rememberUpdatedState(onLastVisibleBookChanged)
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { item -> item.index } }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect(currentOnBookListScrolled)
+            .collect { lastVisibleIndex ->
+                currentOnLastVisibleBookChanged(lastVisibleIndex)
+            }
     }
 
     Column(
@@ -219,7 +221,7 @@ private fun SuccessCreateBookSelectionScreenPreview() {
             selectedBookId = 1L,
             gridState = rememberLazyGridState(),
             onClickBook = {},
-            onBookListScrolled = {},
+            onLastVisibleBookChanged = {},
         )
     }
 }
@@ -234,7 +236,7 @@ private fun LoadingCreateBookSelectionScreenPreview() {
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},
-            onBookListScrolled = {},
+            onLastVisibleBookChanged = {},
         )
     }
 }
@@ -249,7 +251,7 @@ private fun FailureCreateBookSelectionScreenPreview() {
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},
-            onBookListScrolled = {},
+            onLastVisibleBookChanged = {},
         )
     }
 }

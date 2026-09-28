@@ -83,7 +83,7 @@ class CreateViewModel(
     // 스크롤마다 이벤트를 보내지 않고, 가장 아래까지 본 위치만 기억했다가 화면을 떠날 때 함께 보낸다.
     private var maxSeenBookPosition = 0
 
-    fun onBookListScrolled(lastVisibleIndex: Int) {
+    fun onLastVisibleBookChanged(lastVisibleIndex: Int) {
         maxSeenBookPosition = maxOf(maxSeenBookPosition, lastVisibleIndex + 1)
     }
 
