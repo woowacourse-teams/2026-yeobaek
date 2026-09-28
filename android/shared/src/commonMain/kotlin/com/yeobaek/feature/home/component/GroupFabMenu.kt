@@ -26,7 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
 
@@ -97,15 +101,20 @@ private fun GroupFabAction(
         onClick = onClick,
         modifier = modifier
             .width(150.dp)
-            .height(56.dp),
+            .height(56.dp)
+            .dropShadow(
+                shape = MaterialTheme.shapes.large,
+                shadow = Shadow(
+                    radius = 4.dp,
+                    spread = 0.dp,
+                    color = Color(0x1A000000),
+                    offset = DpOffset.Zero,
+                ),
+            ),
         shape = MaterialTheme.shapes.large,
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 0.3.dp,
-            pressedElevation = 0.3.dp,
         ),
     ) {
         Text(
