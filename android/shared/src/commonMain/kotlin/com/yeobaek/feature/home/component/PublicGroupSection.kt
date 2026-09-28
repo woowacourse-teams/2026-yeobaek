@@ -13,9 +13,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -115,11 +117,21 @@ private fun VisitedPublicRoomRow(
     onPublicRoomClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+    val firstPublicRoomId = publicRooms.firstOrNull()?.publicRoomId
+
+    LaunchedEffect(firstPublicRoomId) {
+        if (firstPublicRoomId != null) {
+            listState.scrollToItem(0)
+        }
+    }
+
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val itemWidth = (maxWidth - PUBLIC_ROOM_ITEM_SPACING * (PUBLIC_ROOM_COLUMN_COUNT - 1)) /
             PUBLIC_ROOM_COLUMN_COUNT
 
         LazyRow(
+            state = listState,
             horizontalArrangement = Arrangement.spacedBy(PUBLIC_ROOM_ITEM_SPACING),
         ) {
             rowItems(

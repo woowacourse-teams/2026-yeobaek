@@ -63,7 +63,7 @@ fun VisitedPublicRoom.toModel(): VisitedPublicRoomModel =
         lastVisitedAt = lastVisitedAt,
     )
 
-private fun PublicRoomBook.toModel(): PublicRoomBookModel =
+fun PublicRoomBook.toModel(): PublicRoomBookModel =
     PublicRoomBookModel(
         bookId = bookId,
         title = title,

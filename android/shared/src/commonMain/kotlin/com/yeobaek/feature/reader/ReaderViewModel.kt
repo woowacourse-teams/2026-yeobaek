@@ -26,11 +26,15 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.model.CommentSpace
+import com.yeobaek.data.model.MyProgressModel
 import com.yeobaek.data.model.PassageModel
+import com.yeobaek.data.model.PassagesModel
 import com.yeobaek.data.model.toUiModel
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
@@ -44,9 +48,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
-    private val groupId: Long,
+    private val readerTarget: ReaderTarget,
     private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
+    private val publicRoomRepository: PublicRoomRepository,
     private val readerRepository: ReaderRepository,
     private val readerPreferences: ReaderPreferences,
     private val commentRepository: CommentRepository,
@@ -69,8 +74,13 @@ class ReaderViewModel(
     private var fontSizeAtMenuOpen: Int? = null
     private var isScreenStarted = false
 
+    private val commentSpace = when (readerTarget) {
+        is ReaderTarget.Group -> CommentSpace.Group(groupId = readerTarget.id)
+        is ReaderTarget.PublicRoom -> CommentSpace.PublicRoom(publicRoomId = readerTarget.id)
+    }
+
     val commentSheet = CommentSheetController(
-        groupId = groupId,
+        commentSpace = commentSpace,
         commentRepository = commentRepository,
         crashReporter = crashReporter,
         scope = viewModelScope,
@@ -137,15 +147,31 @@ class ReaderViewModel(
             uiState = uiState.copy(loadState = ReaderLoadState.Loading)
 
             try {
-                val groupDetail = groupRepository.getGroupDetail(groupId = groupId)
-                currentBookId = groupDetail.book.bookId
+                val readerDetail = getReaderDetail()
+                currentBookId = readerDetail.bookId
 
-                val bookDetail = bookRepository.getBookDetail(
-                    bookId = groupDetail.book.bookId,
-                )
-                val passageCount = groupDetail.book.passageCount
+                val passageCount = readerDetail.passageCount
+                val chapters = when (readerTarget) {
+                    is ReaderTarget.Group -> bookRepository.getBookDetail(
+                        bookId = readerDetail.bookId,
+                    ).chapters.map { chapter -> chapter.toUiModel() }
 
-                val readingSequence = (groupDetail.myProgress?.lastReadPassageSequence ?: 0)
+                    is ReaderTarget.PublicRoom -> listOf(
+                        ChapterUiModel(
+                            chapterId = readerDetail.bookId,
+                            endPassageSequence = passageCount,
+                            sequence = 1,
+                            startPassageSequence = FIRST_PASSAGE_SEQUENCE,
+                            title = readerDetail.title,
+                        ),
+                    )
+                }
+
+                val initialReadingSequence = when (readerTarget) {
+                    is ReaderTarget.Group -> 0
+                    is ReaderTarget.PublicRoom -> FIRST_PASSAGE_SEQUENCE.takeIf { passageCount > 0 } ?: 0
+                }
+                val readingSequence = (readerDetail.myProgress?.lastReadPassageSequence ?: initialReadingSequence)
                     .coerceIn(
                         minimumValue = 0,
                         maximumValue = passageCount,
@@ -158,17 +184,16 @@ class ReaderViewModel(
                         targetSequence = readingSequence,
                         totalPassageCount = passageCount,
                     )
-                    readerRepository.getPassages(
-                        groupId = groupId,
+                    getPassages(
                         from = passageRange.first,
                         to = passageRange.last,
                     ).passages
                 }
 
                 uiState = uiState.copy(
-                    title = groupDetail.book.title,
-                    author = groupDetail.book.authors.joinToString(", "),
-                    chapters = bookDetail.chapters.map { chapter -> chapter.toUiModel() },
+                    title = readerDetail.title,
+                    author = readerDetail.authors.joinToString(", "),
+                    chapters = chapters,
                     passages = LoadedPassages(passageModels.map(PassageModel::toUiModel)),
                     readingSequence = readingSequence,
                     totalPassageCount = passageCount,
@@ -210,8 +235,7 @@ class ReaderViewModel(
 
         pagingJob = viewModelScope.launch {
             try {
-                val previousPassages = readerRepository.getPassages(
-                    groupId = groupId,
+                val previousPassages = getPassages(
                     from = window.first,
                     to = window.last,
                 ).passages.map(PassageModel::toUiModel)
@@ -248,8 +272,7 @@ class ReaderViewModel(
         track(CrashOperation.READER_NEXT_PAGE_LOAD, CrashLogLevel.DEBUG, passageSequence = window.first)
         pagingJob = viewModelScope.launch {
             try {
-                val nextPassages = readerRepository.getPassages(
-                    groupId = groupId,
+                val nextPassages = getPassages(
                     from = window.first,
                     to = window.last,
                 ).passages.map(PassageModel::toUiModel)
@@ -312,10 +335,7 @@ class ReaderViewModel(
 
         saveReadingProgressJob = viewModelScope.launch {
             try {
-                readerRepository.updatePassage(
-                    clubId = groupId,
-                    passageId = readingPassage.passageId,
-                )
+                updatePassage(passageId = readingPassage.passageId)
                 lastSavedPassageId = readingPassage.passageId
                 track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = readingPassage.sequence)
             } catch (exception: CancellationException) {
@@ -429,8 +449,7 @@ class ReaderViewModel(
         )
         moveToPassageJob = viewModelScope.launch {
             try {
-                val passages = readerRepository.getPassages(
-                    groupId = groupId,
+                val passages = getPassages(
                     from = passageRange.first,
                     to = passageRange.last,
                 ).passages.map(PassageModel::toUiModel)
@@ -478,7 +497,7 @@ class ReaderViewModel(
                 val currentPassageId = currentPassageId()
                     ?: throw IllegalArgumentException("문단 아이디를 찾지 못했어요")
                 val comments = commentRepository.getCommentedSentences(
-                    clubId = groupId,
+                    space = commentSpace,
                     currentPassageId = currentPassageId,
                 ).toUiModel()
 
@@ -694,7 +713,7 @@ class ReaderViewModel(
         newCommentCountJob = viewModelScope.launch {
             try {
                 val newCommentCount = commentRepository.getNewCommentCount(
-                    clubId = groupId,
+                    space = commentSpace,
                     currentPassageId = currentPassageId,
                 ).newCommentCount
                 uiState = uiState.copy(isNewComment = newCommentCount > 0)
@@ -804,6 +823,60 @@ class ReaderViewModel(
         .findBySequence(currentReadingSequence())
         ?.passageId
 
+    private suspend fun getReaderDetail(): ReaderDetail = when (val target = readerTarget) {
+        is ReaderTarget.Group -> {
+            val detail = groupRepository.getGroupDetail(groupId = target.id)
+            ReaderDetail(
+                bookId = detail.book.bookId,
+                title = detail.book.title,
+                authors = detail.book.authors,
+                passageCount = detail.book.passageCount,
+                myProgress = detail.myProgress,
+            )
+        }
+
+        is ReaderTarget.PublicRoom -> {
+            publicRoomRepository.visitPublicRoom(publicRoomId = target.id)
+            val detail = publicRoomRepository.getPublicRoomDetail(publicRoomId = target.id).publicRoom
+            ReaderDetail(
+                bookId = detail.book.bookId,
+                title = detail.book.title,
+                authors = detail.book.authors,
+                passageCount = detail.book.passageCount,
+                myProgress = detail.myProgress,
+            )
+        }
+    }
+
+    private suspend fun getPassages(
+        from: Int,
+        to: Int,
+    ): PassagesModel = when (val target = readerTarget) {
+        is ReaderTarget.Group -> readerRepository.getPassages(
+            groupId = target.id,
+            from = from,
+            to = to,
+        )
+
+        is ReaderTarget.PublicRoom -> publicRoomRepository.getPassages(
+            publicRoomId = target.id,
+            from = from,
+            to = to,
+        )
+    }
+
+    private suspend fun updatePassage(passageId: Long): MyProgressModel = when (val target = readerTarget) {
+        is ReaderTarget.Group -> readerRepository.updatePassage(
+            clubId = target.id,
+            passageId = passageId,
+        )
+
+        is ReaderTarget.PublicRoom -> publicRoomRepository.updatePassage(
+            publicRoomId = target.id,
+            passageId = passageId,
+        )
+    }
+
     private fun readerContext(
         operation: CrashOperation,
         passageSequence: Int?,
@@ -820,9 +893,10 @@ class ReaderViewModel(
 
     companion object {
         fun readerViewModelFactory(
-            groupId: Long,
+            readerTarget: ReaderTarget,
             bookRepository: BookRepository,
             groupRepository: GroupRepository,
+            publicRoomRepository: PublicRoomRepository,
             readerRepository: ReaderRepository,
             readerPreferences: ReaderPreferences,
             commentRepository: CommentRepository,
@@ -831,9 +905,10 @@ class ReaderViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ReaderViewModel(
-                    groupId = groupId,
+                    readerTarget = readerTarget,
                     bookRepository = bookRepository,
                     groupRepository = groupRepository,
+                    publicRoomRepository = publicRoomRepository,
                     readerRepository = readerRepository,
                     readerPreferences = readerPreferences,
                     commentRepository = commentRepository,
@@ -844,3 +919,11 @@ class ReaderViewModel(
         }
     }
 }
+
+private data class ReaderDetail(
+    val bookId: Long,
+    val title: String,
+    val authors: List<String>,
+    val passageCount: Int,
+    val myProgress: MyProgressModel?,
+)

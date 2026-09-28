@@ -19,7 +19,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -49,7 +50,14 @@ fun HomeScreen(
     navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedGroupTab by remember { mutableStateOf(GroupTab.MyGroups) }
+    var selectedGroupTab by rememberSaveable(
+        stateSaver = Saver(
+            save = { tab -> tab.name },
+            restore = { name -> GroupTab.valueOf(name) },
+        ),
+    ) {
+        mutableStateOf(GroupTab.MyGroups)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
