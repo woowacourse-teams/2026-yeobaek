@@ -6,5 +6,6 @@ data class CreateGroupUiState(
     val selectBookUiModel: SelectBookUiModel = SelectBookUiModel(),
     val groupName: String = "",
     val isGroupNameValid: Boolean = true,
+    val initSelectBookState: InitSelectBookState = InitSelectBookState.Idle,
     val createGroupState: CreateGroupState = CreateGroupState.Idle,
 )

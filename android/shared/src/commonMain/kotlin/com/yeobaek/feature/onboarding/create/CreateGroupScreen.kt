@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -50,6 +51,27 @@ fun CreateGroupScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.initSelectBookState) {
+        when (uiState.initSelectBookState) {
+            is InitSelectBookState.Success -> {
+                isLoading = false
+            }
+
+            is InitSelectBookState.Failure -> {
+                isLoading = false
+                snackbarHostState.showSnackbar(
+                    message = uiState.initSelectBookState.message,
+                )
+            }
+
+            is InitSelectBookState.Loading -> {
+                isLoading = true
+            }
+
+            else -> return@LaunchedEffect
+        }
+    }
 
     LaunchedEffect(uiState.createGroupState) {
         when (uiState.createGroupState) {
@@ -94,6 +116,9 @@ fun CreateGroupScreen(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->

@@ -22,9 +22,21 @@ class CreateGroupViewModel(
         private set
 
     fun initSelectBook(bookId: Long) {
+        uiState = uiState.copy(
+            initSelectBookState = InitSelectBookState.Loading,
+        )
         viewModelScope.launch {
-            val book = bookRepository.getBook(bookId)
-            uiState = uiState.copy(selectBookUiModel = book.toUiModel())
+            try {
+                val book = bookRepository.getBook(bookId)
+                uiState = uiState.copy(
+                    selectBookUiModel = book.toUiModel(),
+                    initSelectBookState = InitSelectBookState.Success,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(initSelectBookState = InitSelectBookState.Failure(e.message ?: "알 수 없는 오류"))
+            }
         }
     }
 
@@ -76,6 +88,13 @@ class CreateGroupViewModel(
             }
         }
     }
+}
+
+sealed class InitSelectBookState {
+    data object Idle : InitSelectBookState()
+    data object Loading : InitSelectBookState()
+    data object Success : InitSelectBookState()
+    data class Failure(val message: String) : InitSelectBookState()
 }
 
 sealed class CreateGroupState {
