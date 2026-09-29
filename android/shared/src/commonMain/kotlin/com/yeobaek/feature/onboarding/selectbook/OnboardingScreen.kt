@@ -119,7 +119,6 @@ fun OnboardingScreen(
                         coverUrl = bookUiModel.coverUrl,
                         onClick = {
                             onSelectBook(bookUiModel.id)
-                            println("onClick: ${bookUiModel.id}")
                         },
                     )
                 }
