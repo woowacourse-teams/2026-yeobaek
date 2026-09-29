@@ -292,17 +292,6 @@ fun App(
                     createGroupViewModel.initSelectBook(route.bookId)
                 }
 
-                LaunchedEffect(createGroupViewModel.uiState.createGroupState) {
-                    if (createGroupViewModel.uiState.createGroupState is CreateGroupState.Success) {
-                        navController.navigate(Home) {
-                            popUpTo<Onboarding> {
-                                inclusive = true
-                            }
-                        }
-                        appContainer.guideOnboardingPreferences.saveOnboardingState(true)
-                    }
-                }
-
                 CreateGroupScreen(
                     uiState = createGroupViewModel.uiState,
                     onClickBack = {
@@ -313,6 +302,16 @@ fun App(
                     },
                     onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
                     onClickCreateGroup = createGroupViewModel::createGroup,
+                    navigateToHome = {
+                        if (createGroupViewModel.uiState.createGroupState is CreateGroupState.Success) {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                            appContainer.guideOnboardingPreferences.saveOnboardingState(true)
+                        }
+                    },
                 )
             }
             composable<Home> {
