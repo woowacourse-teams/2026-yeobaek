@@ -44,7 +44,7 @@ class CreateGroupViewModel(
         if (!uiState.isGroupNameValid && checkGroupName()) {
             uiState = uiState.copy(isGroupNameValid = true)
         }
-        uiState = uiState.copy(groupName = groupName)
+        uiState = uiState.copy(groupName = groupName.take(20))
     }
 
     fun checkGroupName(): Boolean = uiState.groupName.isNotBlank()

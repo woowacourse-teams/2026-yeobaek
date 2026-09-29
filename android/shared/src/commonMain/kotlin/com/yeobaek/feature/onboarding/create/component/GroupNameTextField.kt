@@ -34,7 +34,7 @@ fun GroupNameTextField(
         ) {
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
-                value = value.take(20),
+                value = value,
                 onValueChange = {
                     onValueChange(it)
                 },
