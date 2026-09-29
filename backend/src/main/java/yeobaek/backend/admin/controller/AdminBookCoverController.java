@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.controller;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,7 +33,7 @@ public class AdminBookCoverController {
         log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl")
                 .log("표지 업로드 URL 발급 API 처리를 시작합니다.");
         BookCoverUploadUrlResponse response = bookCoverUploadService.issueUploadUrl(request);
-        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(RESULT, SUCCESS)
                 .log("표지 업로드 URL 발급 API 처리를 완료했습니다.");
         return response;
     }

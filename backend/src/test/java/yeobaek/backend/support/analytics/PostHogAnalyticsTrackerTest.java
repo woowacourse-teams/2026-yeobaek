@@ -50,7 +50,7 @@ class PostHogAnalyticsTrackerTest {
             assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreate()))
                     .doesNotThrowAnyException();
             assertThat(logs.events().getLast().getLevel()).isEqualTo(Level.WARN);
-            assertThat(logs.field(logs.events().getLast(), "phase")).isEqualTo("recovered");
+            assertThat(logs.field(logs.events().getLast(), "result")).isEqualTo("recovered");
             assertThat(logs.structuredText()).doesNotContain("capture failed");
         }
     }

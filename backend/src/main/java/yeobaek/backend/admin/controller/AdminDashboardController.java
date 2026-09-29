@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.controller;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,7 +36,7 @@ public class AdminDashboardController {
         log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts")
                 .log("모임 현황 API 처리를 시작합니다.");
         AdminDashboardClubsResponse response = adminClubDashboardService.findClubsWithMemberAndCommentCounts();
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", response.clubs().size())
                 .addKeyValue("clubs", response.clubs().stream()
                         .map(club -> Map.of(
@@ -56,7 +56,7 @@ public class AdminDashboardController {
         log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts")
                 .log("도서 현황 API 처리를 시작합니다.");
         AdminDashboardBooksResponse response = adminBookDashboardService.findBooksWithClubCounts();
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", response.books().size())
                 .addKeyValue("books", response.books().stream()
                         .map(book -> Map.of(
@@ -74,7 +74,7 @@ public class AdminDashboardController {
         log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findMemberClubParticipationStatistics")
                 .log("회원 현황 API 처리를 시작합니다.");
         AdminDashboardMembersResponse response = adminMemberDashboardService.findMemberClubParticipationStatistics();
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findMemberClubParticipationStatistics").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findMemberClubParticipationStatistics").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("memberCount", response.members().size())
                 .addKeyValue("averageClubCount", response.averageClubCount())
                 .addKeyValue("members", response.members().stream()

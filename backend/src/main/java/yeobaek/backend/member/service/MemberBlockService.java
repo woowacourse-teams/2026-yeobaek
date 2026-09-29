@@ -3,7 +3,7 @@ package yeobaek.backend.member.service;
 import static yeobaek.backend.support.LogField.BLOCKED_MEMBER_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -36,7 +36,7 @@ public class MemberBlockService {
         var response = new BlockedMembersResponse(memberBlockRepository.findAllWithBlockedByBlockerId(blockerId).stream()
                 .map(block -> new BlockedMemberResponse(block.getBlocked().getId(), block.getBlocked().getNickname()))
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "memberBlock.findBlockedMembers").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "memberBlock.findBlockedMembers").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, blockerId).addKeyValue("resultCount", response.blockedMembers().size())
                 .log("차단 목록을 조회했습니다.");
         return response;
@@ -82,7 +82,7 @@ public class MemberBlockService {
     }
 
     private void logSuccess(String operation, Long memberId, Long blockedMemberId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(BLOCKED_MEMBER_ID, blockedMemberId)
                 .log("회원 차단 작업을 완료했습니다.");
     }

@@ -2,7 +2,7 @@ package yeobaek.backend.admin.controller;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +43,7 @@ public class AdminBookController {
         log.atInfo().addKeyValue(OPERATION, "admin.book.findBooks")
                 .log("관리자 도서 목록 API 처리를 시작합니다.");
         AdminBooksResponse response = adminBookService.findBooks();
-        log.atInfo().addKeyValue(OPERATION, "admin.book.findBooks").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.findBooks").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", response.books().size()).log("관리자 도서 목록 API 처리를 완료했습니다.");
         return response;
     }
@@ -56,7 +56,7 @@ public class AdminBookController {
         log.atInfo().addKeyValue(OPERATION, "admin.book.upload")
                 .log("도서 업로드 API 처리를 시작합니다.");
         BookUploadResponse response = bookIngestService.upload(request);
-        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, response.bookId()).log("도서 업로드 API 처리를 완료했습니다.");
         return response;
     }
@@ -68,7 +68,7 @@ public class AdminBookController {
         log.atInfo().addKeyValue(OPERATION, "admin.book.delete")
                 .addKeyValue(BOOK_ID, bookId).log("도서 삭제 API 처리를 시작합니다.");
         adminBookService.delete(bookId);
-        log.atInfo().addKeyValue(OPERATION, "admin.book.delete").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.delete").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("도서 삭제 API 처리를 완료했습니다.");
     }
 
@@ -79,7 +79,7 @@ public class AdminBookController {
         log.atInfo().addKeyValue(OPERATION, "admin.book.replaceCoverImage")
                 .addKeyValue(BOOK_ID, bookId).log("표지 교체 API 처리를 시작합니다.");
         adminBookService.replaceCoverImage(bookId, request.coverImageKey());
-        log.atInfo().addKeyValue(OPERATION, "admin.book.replaceCoverImage").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.replaceCoverImage").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("표지 교체 API 처리를 완료했습니다.");
     }
 
@@ -90,7 +90,7 @@ public class AdminBookController {
         log.atInfo().addKeyValue(OPERATION, "admin.book.removeCoverImage")
                 .addKeyValue(BOOK_ID, bookId).log("표지 제거 API 처리를 시작합니다.");
         adminBookService.removeCoverImage(bookId);
-        log.atInfo().addKeyValue(OPERATION, "admin.book.removeCoverImage").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.removeCoverImage").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("표지 제거 API 처리를 완료했습니다.");
     }
 }

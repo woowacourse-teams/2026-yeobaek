@@ -4,7 +4,7 @@ import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,7 +53,7 @@ public class ClubController {
                 .log("모임 생성 API 처리를 시작합니다.");
         ClubCreateResponse response = clubService.create(memberId, request.name(), request.bookId());
         analyticsTracker.track(memberId, AnalyticsEvent.clubCreate(response.clubId(), response.book().bookId()));
-        log.atInfo().addKeyValue(OPERATION, "club.create").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, response.clubId())
                 .log("모임 생성 API 처리를 완료했습니다.");
         return response;
@@ -67,7 +67,7 @@ public class ClubController {
                 .addKeyValue(MEMBER_ID, memberId).log("모임 참여 API 처리를 시작합니다.");
         ClubJoinResponse response = clubService.join(memberId, request.joinCode());
         analyticsTracker.track(memberId, AnalyticsEvent.clubJoin(response.clubId(), response.book().bookId()));
-        log.atInfo().addKeyValue(OPERATION, "club.join").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.join").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, response.clubId())
                 .log("모임 참여 API 처리를 완료했습니다.");
         return response;
@@ -82,7 +82,7 @@ public class ClubController {
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 시작합니다.");
         clubService.leave(memberId, clubId);
         analyticsTracker.track(memberId, AnalyticsEvent.clubLeave(clubId));
-        log.atInfo().addKeyValue(OPERATION, "club.leave").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.leave").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 완료했습니다.");
     }
 
@@ -93,7 +93,7 @@ public class ClubController {
                 .addKeyValue(MEMBER_ID, memberId).log("내 모임 목록 API 처리를 시작합니다.");
         MyClubsResponse response = clubService.findMyClubs(memberId);
         analyticsTracker.track(memberId, AnalyticsEvent.clubsView(response.clubs().size()));
-        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue("resultCount", response.clubs().size())
                 .log("내 모임 목록 API 처리를 완료했습니다.");
         return response;
@@ -110,7 +110,7 @@ public class ClubController {
         analyticsTracker.track(memberId, AnalyticsEvent.clubView(
                 response.clubId(), response.book().bookId(), response.members().size(),
                 progressRate, response.book().status().name()));
-        log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("memberCount", response.members().size()).log("모임 상세 API 처리를 완료했습니다.");
         return response;

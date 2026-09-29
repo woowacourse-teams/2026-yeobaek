@@ -3,7 +3,7 @@ package yeobaek.backend.club.controller;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,7 +50,7 @@ public class ProgressController {
         ProgressResponse response = progressService.updateProgress(memberId, clubId, request.passageId());
         analyticsTracker.track(memberId, AnalyticsEvent.progressUpdate(
                 clubId, request.passageId(), response.lastReadPassageSequence(), response.progressRate()));
-        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("progressRate", response.progressRate()).log("진도 갱신 API 처리를 완료했습니다.");
         return response;
@@ -68,7 +68,7 @@ public class ProgressController {
                         response.clubId(), response.book().bookId(),
                         response.lastReadPassageSequence(), response.progressRate())),
                 () -> analyticsTracker.track(memberId, AnalyticsEvent.lastReadingView()));
-        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue("found", lastReading.isPresent())
                 .log("최근 독서 API 처리를 완료했습니다.");
         return lastReading

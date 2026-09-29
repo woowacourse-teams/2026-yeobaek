@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.controller;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import org.springframework.stereotype.Controller;
@@ -20,7 +20,7 @@ public class AdminPageController {
     public String adminPage() {
         log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage")
                 .log("관리자 도서 페이지 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage").addKeyValue(RESULT, SUCCESS)
                 .log("관리자 도서 페이지 처리를 완료했습니다.");
         return "admin";
     }
@@ -29,7 +29,7 @@ public class AdminPageController {
     public String dashboardPage() {
         log.atInfo().addKeyValue(OPERATION, "admin.page.dashboardPage")
                 .log("관리자 대시보드 페이지 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.dashboardPage").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.page.dashboardPage").addKeyValue(RESULT, SUCCESS)
                 .log("관리자 대시보드 페이지 처리를 완료했습니다.");
         return "admin-dashboard";
     }

@@ -32,7 +32,7 @@ class GlobalExceptionLoggingTest {
 
         ILoggingEvent event = appender.list.getLast();
         assertThat(event.getLevel()).isEqualTo(Level.INFO);
-        assertThat(keyValue(event, "phase")).isEqualTo("rejected");
+        assertThat(keyValue(event, "result")).isEqualTo("rejected");
         assertThat(keyValue(event, "clubId")).isEqualTo("7");
         assertThat(event.getFormattedMessage()).doesNotContain("sensitive-message");
     }
@@ -47,7 +47,7 @@ class GlobalExceptionLoggingTest {
 
         ILoggingEvent event = appender.list.getLast();
         assertThat(event.getLevel()).isEqualTo(Level.ERROR);
-        assertThat(keyValue(event, "phase")).isEqualTo("failure");
+        assertThat(keyValue(event, "result")).isEqualTo("failure");
         assertThat(event.getThrowableProxy()).isNotNull();
         assertThat(event.getFormattedMessage()).doesNotContain("server-secret");
     }

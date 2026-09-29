@@ -29,7 +29,7 @@ class MemberLoggingTest {
             assertThatThrownBy(() -> service.delete(7L)).isSameAs(failure);
             assertThat(logs.events()).extracting(event -> logs.field(event, "operation"))
                     .containsExactly("member.delete", "member.deleteComments");
-            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.field(event, "phase")).isNull());
+            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.field(event, "result")).isNull());
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
             verifyNoInteractions(members, clubs);
         }

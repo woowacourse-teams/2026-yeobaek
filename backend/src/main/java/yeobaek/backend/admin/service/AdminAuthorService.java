@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.service;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.List;
@@ -48,7 +48,7 @@ public class AdminAuthorService {
     }
 
     private void logSuccess(int resultCount) {
-        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", resultCount).log("관리자 작가 목록을 조회했습니다.");
     }
 

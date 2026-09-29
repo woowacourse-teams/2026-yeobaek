@@ -3,7 +3,7 @@ package yeobaek.backend.book.controller;
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,7 +46,7 @@ public class BookController {
         BooksResponse response = bookService.findBooks(keyword);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.booksView(keyword != null && !keyword.isBlank(), response.books().size()));
-        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(PHASE, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
                 .addKeyValue("keyword", keyword)
                 .addKeyValue("searchUsed", keyword != null && !keyword.isBlank())
                 .addKeyValue("resultCount", response.books().size()).log("도서 목록 API 처리를 완료했습니다.");
@@ -62,7 +62,7 @@ public class BookController {
         BookDetailResponse response = bookService.findBook(bookId);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.bookView(response.bookId(), response.passageCount(), response.chapters().size()));
-        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(PHASE, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
                 .addKeyValue(BOOK_ID, bookId).log("도서 상세 API 처리를 완료했습니다.");
         return response;
     }

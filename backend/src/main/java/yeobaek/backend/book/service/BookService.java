@@ -2,7 +2,7 @@ package yeobaek.backend.book.service;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.List;
@@ -46,7 +46,7 @@ public class BookService {
                 .map(book -> BookSummaryResponse.of(book, authorNames.getOrDefault(book.getId(), List.of()),
                         bookCoverUrlResolver.resolve(book.getCoverImageKey())))
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("keyword", keyword).addKeyValue("searchUsed", searchUsed)
                 .addKeyValue("resultCount", response.books().size())
                 .log("도서 목록을 조회했습니다.");
@@ -69,7 +69,7 @@ public class BookService {
                 book.getPublisher() == null ? null : book.getPublisher().value(), book.getPublishedYear(),
                 bookCoverUrlResolver.resolve(book.getCoverImageKey()),
                 book.getPassageCount().value(), chapters(bookId));
-        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).addKeyValue("chapterCount", response.chapters().size())
                 .log("도서 상세를 조회했습니다.");
         return response;

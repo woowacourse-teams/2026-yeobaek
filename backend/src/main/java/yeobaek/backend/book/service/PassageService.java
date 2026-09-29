@@ -3,7 +3,7 @@ package yeobaek.backend.book.service;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -75,7 +75,7 @@ public class PassageService {
                                 sentence.getContent(), commentCounts.getOrDefault(sentence.getId(), 0L)))
                         .toList()))
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.passages().size()).log("본문 범위를 조회했습니다.");
         return response;

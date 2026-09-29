@@ -2,7 +2,7 @@ package yeobaek.backend.admin.service;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -80,7 +80,7 @@ public class BookIngestService {
         saveChapters(book, request.chapters());
         var response = new BookUploadResponse(book.getId(), book.getTitle().value(),
                 bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount().value());
-        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, book.getId()).addKeyValue("chapterCount", chapterCount)
                 .addKeyValue("passageCount", book.getPassageCount().value()).log("도서 업로드를 완료했습니다.");
         return response;
@@ -242,7 +242,7 @@ public class BookIngestService {
     }
 
     private void logPersistenceSuccess(String operation, int itemCount) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("itemCount", itemCount).log("도서 업로드 영속성 작업을 완료했습니다.");
     }
 }

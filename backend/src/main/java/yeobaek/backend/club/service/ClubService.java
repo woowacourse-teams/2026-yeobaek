@@ -4,7 +4,7 @@ import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.RECOVERED;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -124,7 +124,7 @@ public class ClubService {
                             toMyProgress(clubMember));
                 })
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue("resultCount", response.clubs().size())
                 .log("내 모임 목록을 조회했습니다.");
         return response;
@@ -156,7 +156,7 @@ public class ClubService {
                                 !clubMember.isOwnedBy(memberId)
                                         && blockedMemberIds.contains(clubMember.getMember().getId())))
                         .toList());
-        log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("memberCount", response.members().size()).log("모임 상세를 조회했습니다.");
         return response;
@@ -182,7 +182,7 @@ public class ClubService {
             JoinCode code = JoinCode.generate();
             if (!clubRepository.existsByJoinCode(code.value())) {
                 if (attempt > 0) {
-                    log.atWarn().addKeyValue(OPERATION, "club.generateUniqueJoinCode").addKeyValue(PHASE, RECOVERED)
+                    log.atWarn().addKeyValue(OPERATION, "club.generateUniqueJoinCode").addKeyValue(RESULT, RECOVERED)
                             .addKeyValue("retryCount", attempt).log("참여 코드 충돌을 재시도해 복구했습니다.");
                 }
                 return code;
@@ -214,7 +214,7 @@ public class ClubService {
     }
 
     private void logSuccess(String operation, Long memberId, Long clubId, Long bookId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).addKeyValue(BOOK_ID, bookId)
                 .log("모임 작업을 완료했습니다.");
     }

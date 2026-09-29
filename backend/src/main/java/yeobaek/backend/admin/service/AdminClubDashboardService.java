@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.service;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.List;
@@ -58,7 +58,7 @@ public class AdminClubDashboardService {
     }
 
     private void logSuccess(int resultCount) {
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", resultCount).log("관리자 모임 현황을 조회했습니다.");
     }
 }

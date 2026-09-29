@@ -1,7 +1,7 @@
 package yeobaek.backend.support;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import jakarta.servlet.FilterChain;
@@ -59,7 +59,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private void logCompletion(HttpServletRequest request, int status, long startedAt, Exception failure) {
         var event = status >= 500 ? LOGGER.atError() : LOGGER.atInfo();
         event.addKeyValue(OPERATION, "http.doFilterInternal")
-                .addKeyValue(PHASE, status >= 500 ? "failure" : SUCCESS)
+                .addKeyValue(RESULT, status >= 500 ? "failure" : SUCCESS)
                 .addKeyValue("httpMethod", request.getMethod())
                 .addKeyValue("route", route(request))
                 .addKeyValue("status", status)

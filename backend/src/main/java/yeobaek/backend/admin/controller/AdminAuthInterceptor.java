@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.controller;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -31,7 +31,7 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
         log.atInfo().addKeyValue(OPERATION, "auth.admin.preHandle")
                 .log("관리자 인증을 시작합니다.");
         if (isConfigured() && adminToken.equals(request.getHeader(ADMIN_TOKEN_HEADER))) {
-            log.atInfo().addKeyValue(OPERATION, "auth.admin.preHandle").addKeyValue(PHASE, SUCCESS)
+            log.atInfo().addKeyValue(OPERATION, "auth.admin.preHandle").addKeyValue(RESULT, SUCCESS)
                     .log("관리자 인증에 성공했습니다.");
             return true;
         }

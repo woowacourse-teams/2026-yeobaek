@@ -1,7 +1,7 @@
 package yeobaek.backend.admin.service;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.math.BigDecimal;
@@ -62,7 +62,7 @@ public class AdminMemberDashboardService {
     }
 
     private void logSuccess(int memberCount) {
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findMemberClubParticipationStatistics").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findMemberClubParticipationStatistics").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("memberCount", memberCount).log("관리자 회원 현황을 조회했습니다.");
     }
 

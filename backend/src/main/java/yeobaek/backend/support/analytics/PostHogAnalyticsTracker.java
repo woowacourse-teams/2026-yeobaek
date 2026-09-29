@@ -2,7 +2,7 @@ package yeobaek.backend.support.analytics;
 
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.RECOVERED;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -37,14 +37,14 @@ final class PostHogAnalyticsTracker implements AnalyticsTracker {
             postHog.capture(memberId.toString(), event.name(), captureOptions(event));
             LOGGER.atInfo()
                     .addKeyValue(OPERATION, "analytics.track")
-                    .addKeyValue(PHASE, SUCCESS)
+                    .addKeyValue(RESULT, SUCCESS)
                     .addKeyValue(MEMBER_ID, memberId)
                     .addKeyValue("eventName", event.name())
                     .log("분석 이벤트 전송 요청에 성공했습니다.");
         } catch (IllegalArgumentException | IllegalStateException exception) {
             LOGGER.atWarn()
                     .addKeyValue(OPERATION, "analytics.track")
-                    .addKeyValue(PHASE, RECOVERED)
+                    .addKeyValue(RESULT, RECOVERED)
                     .addKeyValue(MEMBER_ID, memberId)
                     .addKeyValue("eventName", event.name())
                     .addKeyValue("exceptionType", exception.getClass().getSimpleName())

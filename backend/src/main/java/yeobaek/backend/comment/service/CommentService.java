@@ -4,7 +4,7 @@ import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.Comparator;
@@ -149,7 +149,7 @@ public class CommentService {
         if (reportCreated) {
             commentReportRepository.save(new CommentReport(memberRepository.getReferenceById(memberId), comment));
         }
-        log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId)
                 .addKeyValue("reportCreated", reportCreated)
                 .log("댓글 작업을 완료했습니다.");
@@ -282,7 +282,7 @@ public class CommentService {
 
     private void logSuccess(String operation, Long memberId, Long clubId, Long sentenceId,
                             Long commentId, Number resultCount) {
-        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId);
         if (resultCount != null) {

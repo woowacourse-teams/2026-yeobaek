@@ -2,7 +2,7 @@ package yeobaek.backend.member.service;
 
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
@@ -40,7 +40,7 @@ public class MemberService {
 
         Member savedMember = memberRepository.save(member);
         var response = new MemberCreateResponse(savedMember.getId(), savedMember.getNickname());
-        log.atInfo().addKeyValue(OPERATION, "member.create").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "member.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, savedMember.getId()).log("회원을 생성했습니다.");
         return response;
     }
@@ -52,7 +52,7 @@ public class MemberService {
         deleteComments(memberId);
         deleteClubMemberships(memberId);
         deleteMember(memberId);
-        log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).log("회원을 삭제했습니다.");
     }
 
@@ -80,7 +80,7 @@ public class MemberService {
     }
 
     private void logPersistenceSuccess(String operation, Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).log("회원 삭제 영속성 작업을 완료했습니다.");
     }
 }

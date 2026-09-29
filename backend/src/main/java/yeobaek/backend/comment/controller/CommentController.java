@@ -4,7 +4,7 @@ import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -87,7 +87,7 @@ public class CommentController {
         NewCommentCountResponse response = commentService.countNewComments(memberId, clubId, currentPassageId);
         analyticsTracker.track(memberId, AnalyticsEvent.newCommentCountView(
                 clubId, currentPassageId, response.newCommentCount()));
-        log.atInfo().addKeyValue(OPERATION, "comment.countNewComments").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "comment.countNewComments").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.newCommentCount()).log("새 댓글 수 API 처리를 완료했습니다.");
         return response;
@@ -106,7 +106,7 @@ public class CommentController {
                 memberId, clubId, currentPassageId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentedSentencesView(
                 clubId, currentPassageId, response.commentedSentences().size()));
-        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.commentedSentences().size()).log("댓글 문장 목록 API 처리를 완료했습니다.");
         return response;
@@ -136,7 +136,7 @@ public class CommentController {
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 시작합니다.");
         CommentResponse response = commentService.update(memberId, commentId, request.content());
         analyticsTracker.track(memberId, AnalyticsEvent.commentUpdate(response.commentId()));
-        log.atInfo().addKeyValue(OPERATION, "comment.update").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "comment.update").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 완료했습니다.");
         return response;
     }
@@ -168,7 +168,7 @@ public class CommentController {
     }
 
     private void logCommentSuccess(String operation, Long memberId, Long clubId, Long sentenceId, Integer resultCount) {
-        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).addKeyValue("sentenceId", sentenceId);
         if (resultCount != null) {
             event = event.addKeyValue("resultCount", resultCount);
@@ -182,7 +182,7 @@ public class CommentController {
     }
 
     private void logCommentMutationSuccess(String operation, Long memberId, Long commentId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 API 처리를 완료했습니다.");
     }
 }

@@ -2,7 +2,7 @@ package yeobaek.backend.book.repository;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.List;
@@ -93,13 +93,13 @@ public class BookManagementRepository {
     }
 
     private void logSuccess(String operation, Long bookId, long resultCount) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).addKeyValue("resultCount", resultCount)
                 .log("도서 관리 저장소 호출을 완료했습니다.");
     }
 
     private void logSuccess(String operation, Long bookId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("도서 관리 저장소 호출을 완료했습니다.");
     }
 }

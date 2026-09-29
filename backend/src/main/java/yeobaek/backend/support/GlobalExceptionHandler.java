@@ -1,7 +1,7 @@
 package yeobaek.backend.support;
 
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 
 import java.util.Map;
 import org.slf4j.Logger;
@@ -103,7 +103,7 @@ public class GlobalExceptionHandler {
     private void logExpected(String operation, ErrorCode errorCode, Map<String, String> context) {
         var event = LOGGER.atInfo()
                 .addKeyValue(OPERATION, operation)
-                .addKeyValue(PHASE, "rejected")
+                .addKeyValue(RESULT, "rejected")
                 .addKeyValue("errorCode", errorCode.name());
         context.forEach(event::addKeyValue);
         event.log("의도한 요청 거절을 처리했습니다.");
@@ -112,7 +112,7 @@ public class GlobalExceptionHandler {
     private void logUnexpected(String operation, Exception exception) {
         LOGGER.atError()
                 .addKeyValue(OPERATION, operation)
-                .addKeyValue(PHASE, "failure")
+                .addKeyValue(RESULT, "failure")
                 .addKeyValue("errorCode", ErrorCode.INTERNAL_ERROR.name())
                 .addKeyValue("exceptionType", exception.getClass().getSimpleName())
                 .setCause(exception)

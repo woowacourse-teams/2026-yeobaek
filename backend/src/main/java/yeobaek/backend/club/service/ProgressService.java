@@ -3,7 +3,7 @@ package yeobaek.backend.club.service;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.time.LocalDateTime;
@@ -73,7 +73,7 @@ public class ProgressService {
         clubMember.updateProgress(passage, LocalDateTime.now());
         var response = new ProgressResponse(
                 passage.getSequence().value(), clubMember.progressRate(), clubMember.getLastReadAt());
-        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("progressRate", response.progressRate()).log("진도를 갱신했습니다.");
         return response;
@@ -85,7 +85,7 @@ public class ProgressService {
                 .addKeyValue(MEMBER_ID, memberId).log("최근 독서를 조회합니다.");
         List<ClubMember> readings = clubMemberRepository.findAllJoinedWithLastReadingByMemberId(memberId);
         if (readings.isEmpty()) {
-            log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(PHASE, SUCCESS)
+            log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(RESULT, SUCCESS)
                     .addKeyValue(MEMBER_ID, memberId).addKeyValue("found", false).log("최근 독서를 조회했습니다.");
             return Optional.empty();
         }
@@ -98,7 +98,7 @@ public class ProgressService {
         var response = Optional.of(new LastReadingResponse(club.getId(), club.getName(),
                 ClubBookResponse.of(book, authors, bookCoverUrlResolver.resolve(book.getCoverImageKey())),
                 latest.getLastReadPassage().getSequence().value(), latest.progressRate(), latest.getLastReadAt()));
-        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue("found", true).addKeyValue(CLUB_ID, club.getId())
                 .log("최근 독서를 조회했습니다.");
         return response;
