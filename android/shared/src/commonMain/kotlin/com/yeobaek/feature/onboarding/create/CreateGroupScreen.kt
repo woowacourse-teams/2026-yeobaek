@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.onboarding.create.component.GroupNameTextField
 import com.yeobaek.feature.onboarding.create.component.SelectBookCard
 import com.yeobaek.feature.onboarding.create.model.SelectBookUiModel
@@ -51,6 +52,15 @@ fun CreateGroupScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
+
+    PlatformBackHandler(
+        enabled = true,
+        onBack = {
+            if (!isLoading) {
+                onClickBack()
+            }
+        },
+    )
 
     LaunchedEffect(uiState.initSelectBookState) {
         when (uiState.initSelectBookState) {
