@@ -1,6 +1,5 @@
 package yeobaek.backend.comment.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
@@ -61,7 +60,7 @@ public class CommentService {
 
     @Transactional
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
-        logAttempt("comment.findAll", memberId, clubId, sentenceId, null);
+        logAttempt("comment.findComments", memberId, clubId, sentenceId, null);
         validateSentenceContext(memberId, clubId, sentenceId);
         Comments comments = new Comments(
                 commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId));
@@ -69,7 +68,7 @@ public class CommentService {
         var response = new CommentsResponse(comments.asList().stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
-        logSuccess("comment.findAll", memberId, clubId, sentenceId, null, response.comments().size());
+        logSuccess("comment.findComments", memberId, clubId, sentenceId, null, response.comments().size());
         return response;
     }
 
@@ -80,24 +79,24 @@ public class CommentService {
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
         var response = CommentResponse.of(comment, memberId);
-        logSuccess("comment.create", memberId, clubId, sentenceId, response.commentId(), 1);
+        logSuccess("comment.create", memberId, clubId, sentenceId, response.commentId(), null);
         return response;
     }
 
     @Transactional(readOnly = true)
     public NewCommentCountResponse countNewComments(Long memberId, Long clubId, Long currentPassageId) {
-        logAttempt("comment.countNew", memberId, clubId, null, null);
+        logAttempt("comment.countNewComments", memberId, clubId, null, null);
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
                 memberId, clubId, currentPassage.getSequence().value());
         var response = new NewCommentCountResponse(count);
-        logSuccess("comment.countNew", memberId, clubId, null, null, count);
+        logSuccess("comment.countNewComments", memberId, clubId, null, null, count);
         return response;
     }
 
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findCommentedSentences(Long memberId, Long clubId, Long currentPassageId) {
-        logAttempt("comment.findSentences", memberId, clubId, null, null);
+        logAttempt("comment.findCommentedSentences", memberId, clubId, null, null);
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
@@ -106,7 +105,7 @@ public class CommentService {
                 .sorted(commentedSentenceComparator())
                 .toList();
         var response = new CommentedSentencesResponse(responses);
-        logSuccess("comment.findSentences", memberId, clubId, null, null, responses.size());
+        logSuccess("comment.findCommentedSentences", memberId, clubId, null, null, responses.size());
         return response;
     }
 
@@ -117,7 +116,7 @@ public class CommentService {
         comment.ensureBookAvailable();
         comment.updateContent(content);
         var response = CommentResponse.of(comment, memberId);
-        logSuccess("comment.update", memberId, null, null, commentId, 1);
+        logSuccess("comment.update", memberId, null, null, commentId, null);
         return response;
     }
 
@@ -127,7 +126,7 @@ public class CommentService {
         Comment comment = findOwnComment(memberId, commentId, "삭제");
         comment.ensureBookAvailable();
         commentRepository.delete(comment);
-        logSuccess("comment.delete", memberId, null, null, commentId, 1);
+        logSuccess("comment.delete", memberId, null, null, commentId, null);
     }
 
     @Transactional
@@ -150,7 +149,10 @@ public class CommentService {
         if (reportCreated) {
             commentReportRepository.save(new CommentReport(memberRepository.getReferenceById(memberId), comment));
         }
-        logSuccess("comment.report", memberId, null, null, commentId, reportCreated ? 1 : 0);
+        log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId)
+                .addKeyValue("reportCreated", reportCreated)
+                .log("댓글 작업을 완료했습니다.");
     }
 
     private Comment findOwnComment(Long memberId, Long commentId, String action) {
@@ -272,18 +274,21 @@ public class CommentService {
     }
 
     private void logAttempt(String operation, Long memberId, Long clubId, Long sentenceId, Long commentId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, operation)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId)
                 .log("댓글 작업을 시작합니다.");
     }
 
     private void logSuccess(String operation, Long memberId, Long clubId, Long sentenceId,
-                            Long commentId, long resultCount) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+                            Long commentId, Number resultCount) {
+        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
-                .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId)
-                .addKeyValue("resultCount", resultCount).log("댓글 작업을 완료했습니다.");
+                .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId);
+        if (resultCount != null) {
+            event = event.addKeyValue("resultCount", resultCount);
+        }
+        event.log("댓글 작업을 완료했습니다.");
     }
 
     private Map<String, String> commentContext(Long memberId, Long commentId) {

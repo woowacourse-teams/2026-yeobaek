@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.controller;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -27,10 +26,10 @@ public class AdminAuthorController {
     @Operation(summary = "작가 목록 조회", description = "업로드 전 기존 작가 확인용. 등록순, 페이징 없음.")
     @GetMapping("/api/admin/authors")
     public AdminAuthorsResponse findAuthors() {
-        log.atInfo().addKeyValue(OPERATION, "admin.author.findAll").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors")
                 .log("관리자 작가 목록 API 처리를 시작합니다.");
         AdminAuthorsResponse response = adminAuthorService.findAuthors();
-        log.atInfo().addKeyValue(OPERATION, "admin.author.findAll").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue("resultCount", response.authors().size()).log("관리자 작가 목록 API 처리를 완료했습니다.");
         return response;
     }

@@ -22,93 +22,96 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation() {
-        logExpected(ErrorCode.INVALID_REQUEST, Map.of("validation", "bean"));
+        logExpected("exception.handleValidation", ErrorCode.INVALID_REQUEST, Map.of("validation", "bean"));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "필수 요청 값이 누락되었습니다."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
-        logExpected(ErrorCode.INVALID_REQUEST, Map.of("exceptionType", e.getClass().getSimpleName()));
+        logExpected("exception.handleIllegalArgument", ErrorCode.INVALID_REQUEST,
+                Map.of("exceptionType", e.getClass().getSimpleName()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getMessage()));
     }
 
     @ExceptionHandler(InvalidRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidRequest(InvalidRequestException e) {
-        logExpected(ErrorCode.INVALID_REQUEST, e.getLogContext());
+        logExpected("exception.handleInvalidRequest", ErrorCode.INVALID_REQUEST, e.getLogContext());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getMessage()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException e) {
-        logExpected(ErrorCode.INVALID_REQUEST, Map.of("exceptionType", e.getClass().getSimpleName()));
+        logExpected("exception.handleUnreadableBody", ErrorCode.INVALID_REQUEST,
+                Map.of("exceptionType", e.getClass().getSimpleName()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "요청 본문을 읽을 수 없습니다."));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException e) {
-        logExpected(ErrorCode.INVALID_REQUEST, Map.of("parameterName", e.getParameterName()));
+        logExpected("exception.handleMissingParameter", ErrorCode.INVALID_REQUEST,
+                Map.of("parameterName", e.getParameterName()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "필수 파라미터가 없습니다: " + e.getParameterName()));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
-        logExpected(ErrorCode.INVALID_REQUEST, Map.of("parameterName", e.getName()));
+        logExpected("exception.handleTypeMismatch", ErrorCode.INVALID_REQUEST, Map.of("parameterName", e.getName()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "파라미터 형식이 올바르지 않습니다: " + e.getName()));
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException e) {
-        logExpected(e.getCode(), e.getLogContext());
+        logExpected("exception.handleBadRequest", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException e) {
-        logExpected(e.getCode(), e.getLogContext());
+        logExpected("exception.handleNotFound", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException e) {
-        logExpected(e.getCode(), e.getLogContext());
+        logExpected("exception.handleForbidden", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException e) {
-        logExpected(e.getCode(), e.getLogContext());
+        logExpected("exception.handleUnauthorized", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException e) {
-        logUnexpected(e);
+        logUnexpected("exception.handleIllegalState", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, e.getMessage()));
     }
 
-    private void logExpected(ErrorCode errorCode, Map<String, String> context) {
+    private void logExpected(String operation, ErrorCode errorCode, Map<String, String> context) {
         var event = LOGGER.atInfo()
-                .addKeyValue(OPERATION, "exception.handle")
+                .addKeyValue(OPERATION, operation)
                 .addKeyValue(PHASE, "rejected")
                 .addKeyValue("errorCode", errorCode.name());
         context.forEach(event::addKeyValue);
         event.log("의도한 요청 거절을 처리했습니다.");
     }
 
-    private void logUnexpected(Exception exception) {
+    private void logUnexpected(String operation, Exception exception) {
         LOGGER.atError()
-                .addKeyValue(OPERATION, "exception.handle")
+                .addKeyValue(OPERATION, operation)
                 .addKeyValue(PHASE, "failure")
                 .addKeyValue("errorCode", ErrorCode.INTERNAL_ERROR.name())
                 .addKeyValue("exceptionType", exception.getClass().getSimpleName())

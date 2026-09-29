@@ -11,7 +11,7 @@ enum NoOpAnalyticsTracker implements AnalyticsTracker {
 
     @Override
     public void track(Long memberId, AnalyticsEvent event) {
-        LOGGER.atInfo().addKeyValue("operation", "analytics.track").addKeyValue("phase", "attempt")
+        LOGGER.atInfo().addKeyValue("operation", "analytics.track")
                 .addKeyValue("enabled", false).addKeyValue("eventName", event.name())
                 .log("비활성화된 분석 이벤트 처리를 시작합니다.");
         LOGGER.atInfo().addKeyValue("operation", "analytics.track").addKeyValue("phase", "success")

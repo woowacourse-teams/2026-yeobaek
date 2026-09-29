@@ -4,7 +4,6 @@ public final class LogField {
 
     public static final String OPERATION = "operation";
     public static final String PHASE = "phase";
-    public static final String ATTEMPT = "attempt";
     public static final String SUCCESS = "success";
     public static final String RECOVERED = "recovered";
     public static final String MEMBER_ID = "memberId";

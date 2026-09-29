@@ -1,6 +1,5 @@
 package yeobaek.backend.book.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
@@ -45,7 +44,7 @@ public class PassageService {
     private final CommentRepository commentRepository;
 
     public PassagesResponse findPassages(Long memberId, Long clubId, int from, int to) {
-        log.atInfo().addKeyValue(OPERATION, "passage.findRange").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages")
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("from", from).addKeyValue("to", to).log("본문 범위를 조회합니다.");
         PassageRange range = new PassageRange(from, to);
@@ -76,7 +75,7 @@ public class PassageService {
                                 sentence.getContent(), commentCounts.getOrDefault(sentence.getId(), 0L)))
                         .toList()))
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "passage.findRange").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.passages().size()).log("본문 범위를 조회했습니다.");
         return response;

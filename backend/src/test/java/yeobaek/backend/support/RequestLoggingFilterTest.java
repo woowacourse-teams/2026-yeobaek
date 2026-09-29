@@ -42,6 +42,22 @@ class RequestLoggingFilterTest {
     }
 
     @Test
+    @DisplayName("인증 회원 MDC는 요청 종료 후 제거되어 다음 요청에 전달되지 않는다")
+    void isolateMemberId() throws Exception {
+        MockHttpServletRequest firstRequest = new MockHttpServletRequest("GET", "/api/books");
+        MockHttpServletResponse firstResponse = new MockHttpServletResponse();
+        filter.doFilter(firstRequest, firstResponse, (request, response) ->
+                MDC.put(RequestLoggingFilter.MEMBER_ID, "7"));
+        AtomicReference<String> nextRequestMemberId = new AtomicReference<>();
+
+        filter.doFilter(new MockHttpServletRequest("GET", "/api/clubs"), new MockHttpServletResponse(),
+                (request, response) -> nextRequestMemberId.set(MDC.get(RequestLoggingFilter.MEMBER_ID)));
+
+        assertThat(MDC.get(RequestLoggingFilter.MEMBER_ID)).isNull();
+        assertThat(nextRequestMemberId.get()).isNull();
+    }
+
+    @Test
     @DisplayName("처리되지 않은 예외는 ERROR와 500 상태로 기록하고 원래 예외를 전파한다")
     void logUnhandledFailure() {
         ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender = attachAppender();

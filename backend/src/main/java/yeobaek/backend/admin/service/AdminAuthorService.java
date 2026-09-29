@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -31,7 +30,7 @@ public class AdminAuthorService {
 
     @Transactional(readOnly = true)
     public AdminAuthorsResponse findAuthors() {
-        log.atInfo().addKeyValue(OPERATION, "admin.author.findAll").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors")
                 .log("관리자 작가 목록을 조회합니다.");
         List<Author> authors = authorRepository.findAllByOrderByIdAsc();
         if (authors.isEmpty()) {
@@ -49,7 +48,7 @@ public class AdminAuthorService {
     }
 
     private void logSuccess(int resultCount) {
-        log.atInfo().addKeyValue(OPERATION, "admin.author.findAll").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.author.findAuthors").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue("resultCount", resultCount).log("관리자 작가 목록을 조회했습니다.");
     }
 

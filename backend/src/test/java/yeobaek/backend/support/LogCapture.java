@@ -35,10 +35,17 @@ public final class LogCapture extends ListAppender<ILoggingEvent> implements Aut
         if (event.getKeyValuePairs() == null) {
             return null;
         }
-        return event.getKeyValuePairs().stream()
-                .filter(pair -> pair.key.equals(key))
-                .map(pair -> pair.value)
-                .findFirst().orElse(null);
+        for (var pair : event.getKeyValuePairs()) {
+            if (pair.key.equals(key)) {
+                return pair.value;
+            }
+        }
+        return null;
+    }
+
+    public boolean hasField(ILoggingEvent event, String key) {
+        return event.getKeyValuePairs() != null
+                && event.getKeyValuePairs().stream().anyMatch(pair -> pair.key.equals(key));
     }
 
     public String structuredText() {

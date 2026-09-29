@@ -1,6 +1,5 @@
 package yeobaek.backend.support.analytics;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
@@ -31,7 +30,6 @@ final class PostHogAnalyticsTracker implements AnalyticsTracker {
     public void track(Long memberId, AnalyticsEvent event) {
         LOGGER.atInfo()
                 .addKeyValue(OPERATION, "analytics.track")
-                .addKeyValue(PHASE, ATTEMPT)
                 .addKeyValue(MEMBER_ID, memberId)
                 .addKeyValue("eventName", event.name())
                 .log("분석 이벤트 전송을 시작합니다.");

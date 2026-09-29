@@ -1,6 +1,5 @@
 package yeobaek.backend.member.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
@@ -31,7 +30,7 @@ public class MemberService {
 
     @Transactional
     public MemberCreateResponse create(Nickname nickname) {
-        log.atInfo().addKeyValue(OPERATION, "member.create").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "member.create")
                 .log("회원을 생성합니다.");
         Member member = new Member(nickname);
         if (memberRepository.existsByNickname(member.getNickname())) {
@@ -48,7 +47,7 @@ public class MemberService {
 
     @Transactional
     public void delete(Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "member.delete")
                 .addKeyValue(MEMBER_ID, memberId).log("회원을 삭제합니다.");
         deleteComments(memberId);
         deleteClubMemberships(memberId);
@@ -58,25 +57,25 @@ public class MemberService {
     }
 
     private void deleteComments(Long memberId) {
-        logPersistenceAttempt("member.delete.comments", memberId);
+        logPersistenceAttempt("member.deleteComments", memberId);
         commentRepository.deleteAllByMemberId(memberId);
-        logPersistenceSuccess("member.delete.comments", memberId);
+        logPersistenceSuccess("member.deleteComments", memberId);
     }
 
     private void deleteClubMemberships(Long memberId) {
-        logPersistenceAttempt("member.delete.clubMemberships", memberId);
+        logPersistenceAttempt("member.deleteClubMemberships", memberId);
         clubMemberRepository.deleteAllByMemberId(memberId);
-        logPersistenceSuccess("member.delete.clubMemberships", memberId);
+        logPersistenceSuccess("member.deleteClubMemberships", memberId);
     }
 
     private void deleteMember(Long memberId) {
-        logPersistenceAttempt("member.delete.member", memberId);
+        logPersistenceAttempt("member.deleteMember", memberId);
         memberRepository.deleteById(memberId);
-        logPersistenceSuccess("member.delete.member", memberId);
+        logPersistenceSuccess("member.deleteMember", memberId);
     }
 
     private void logPersistenceAttempt(String operation, Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, operation)
                 .addKeyValue(MEMBER_ID, memberId).log("회원 삭제 영속성 작업을 시작합니다.");
     }
 

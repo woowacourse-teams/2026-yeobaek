@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.controller;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -31,7 +30,7 @@ public class AdminBookCoverController {
             description = "발급된 URL로 requiredHeaders를 포함한 PUT 요청을 전송한 뒤 coverImageKey를 도서 API에 전달한다.")
     @PostMapping("/api/admin/book-covers/upload-url")
     public BookCoverUploadUrlResponse issueUploadUrl(@Valid @RequestBody BookCoverUploadUrlRequest request) {
-        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl")
                 .log("표지 업로드 URL 발급 API 처리를 시작합니다.");
         BookCoverUploadUrlResponse response = bookCoverUploadService.issueUploadUrl(request);
         log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(PHASE, SUCCESS)

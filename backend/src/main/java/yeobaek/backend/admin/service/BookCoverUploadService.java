@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.REASON;
@@ -43,7 +42,7 @@ public class BookCoverUploadService {
     }
 
     public BookCoverUploadUrlResponse issueUploadUrl(BookCoverUploadUrlRequest request) {
-        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl")
                 .addKeyValue("contentTypeProvided", request.contentType() != null)
                 .addKeyValue("contentLength", request.contentLength())
                 .log("표지 업로드 URL을 발급합니다.");
@@ -66,14 +65,14 @@ public class BookCoverUploadService {
     }
 
     private PresignedPutObjectRequest presign(PutObjectRequest putObjectRequest) {
-        log.atInfo().addKeyValue(OPERATION, "s3.presignPutObject").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "s3.presign")
                 .log("S3 서명 URL 발급 요청을 시작합니다.");
         try {
             var response = s3Presigner.presignPutObject(PutObjectPresignRequest.builder()
                     .signatureDuration(UPLOAD_URL_TTL)
                     .putObjectRequest(putObjectRequest)
                     .build());
-            log.atInfo().addKeyValue(OPERATION, "s3.presignPutObject").addKeyValue(PHASE, SUCCESS)
+            log.atInfo().addKeyValue(OPERATION, "s3.presign").addKeyValue(PHASE, SUCCESS)
                     .log("S3 서명 URL 발급 요청을 완료했습니다.");
             return response;
         } catch (SdkException exception) {

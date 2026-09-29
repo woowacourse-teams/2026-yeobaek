@@ -1,6 +1,5 @@
 package yeobaek.backend.support;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -35,8 +34,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         MDC.put(TRACE_ID, traceId);
         MDC.remove(MEMBER_ID);
         LOGGER.atInfo()
-                .addKeyValue(OPERATION, "http.request")
-                .addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(OPERATION, "http.doFilterInternal")
                 .addKeyValue("httpMethod", request.getMethod())
                 .log("HTTP 요청을 시작합니다.");
         boolean completed = false;
@@ -60,7 +58,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private void logCompletion(HttpServletRequest request, int status, long startedAt, Exception failure) {
         var event = status >= 500 ? LOGGER.atError() : LOGGER.atInfo();
-        event.addKeyValue(OPERATION, "http.request")
+        event.addKeyValue(OPERATION, "http.doFilterInternal")
                 .addKeyValue(PHASE, status >= 500 ? "failure" : SUCCESS)
                 .addKeyValue("httpMethod", request.getMethod())
                 .addKeyValue("route", route(request))

@@ -1,6 +1,5 @@
 package yeobaek.backend.book.controller;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
@@ -42,13 +41,13 @@ public class PassageController {
                                          @RequestParam int from,
                                          @Parameter(description = "끝 본문의 전체 순서 (양 끝 포함, to-from+1 ≤ 100)")
                                          @RequestParam int to) {
-        log.atInfo().addKeyValue(OPERATION, "passage.findRange").addKeyValue(PHASE, ATTEMPT).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(MEMBER_ID, memberId)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue("from", from).addKeyValue("to", to)
                 .log("본문 범위 API 처리를 시작합니다.");
         PassagesResponse response = passageService.findPassages(memberId, clubId, from, to);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.passagesView(clubId, from, to, response.passages().size()));
-        log.atInfo().addKeyValue(OPERATION, "passage.findRange").addKeyValue(PHASE, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(PHASE, SUCCESS).addKeyValue(MEMBER_ID, memberId)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue("resultCount", response.passages().size())
                 .log("본문 범위 API 처리를 완료했습니다.");
         return response;

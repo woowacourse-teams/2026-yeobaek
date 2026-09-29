@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
@@ -32,10 +31,10 @@ public class AdminBookService {
 
     @Transactional(readOnly = true)
     public AdminBooksResponse findBooks() {
-        logAttempt("admin.book.findAll", null);
+        logAttempt("admin.book.findBooks", null);
         List<Book> books = bookManagementRepository.findAllByOrderByIdAsc();
         if (books.isEmpty()) {
-            logSuccess("admin.book.findAll", null, 0);
+            logSuccess("admin.book.findBooks", null, 0);
             return new AdminBooksResponse(List.of());
         }
         Map<Long, List<AdminBookAuthorResponse>> authorsByBookId = authorsByBookId(
@@ -46,7 +45,7 @@ public class AdminBookService {
                         authorsByBookId.getOrDefault(book.getId(), List.of()),
                         bookCoverUrlResolver.resolve(book.getCoverImageKey())))
                 .toList());
-        logSuccess("admin.book.findAll", null, response.books().size());
+        logSuccess("admin.book.findBooks", null, response.books().size());
         return response;
     }
 
@@ -54,21 +53,21 @@ public class AdminBookService {
     public void delete(Long bookId) {
         logAttempt("admin.book.delete", bookId);
         bookManagementRepository.delete(bookId);
-        logSuccess("admin.book.delete", bookId, 1);
+        logSuccess("admin.book.delete", bookId);
     }
 
     @Transactional
     public void replaceCoverImage(Long bookId, String coverImageKey) {
-        logAttempt("admin.book.replaceCover", bookId);
+        logAttempt("admin.book.replaceCoverImage", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);
-        logSuccess("admin.book.replaceCover", bookId, 1);
+        logSuccess("admin.book.replaceCoverImage", bookId);
     }
 
     @Transactional
     public void removeCoverImage(Long bookId) {
-        logAttempt("admin.book.removeCover", bookId);
+        logAttempt("admin.book.removeCoverImage", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).removeCoverImage();
-        logSuccess("admin.book.removeCover", bookId, 1);
+        logSuccess("admin.book.removeCoverImage", bookId);
     }
 
     private Map<Long, List<AdminBookAuthorResponse>> authorsByBookId(List<Long> bookIds) {
@@ -81,7 +80,7 @@ public class AdminBookService {
     }
 
     private void logAttempt(String operation, Long bookId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, operation)
                 .addKeyValue(BOOK_ID, bookId).log("관리자 도서 작업을 시작합니다.");
     }
 
@@ -89,5 +88,10 @@ public class AdminBookService {
         log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).addKeyValue("resultCount", resultCount)
                 .log("관리자 도서 작업을 완료했습니다.");
+    }
+
+    private void logSuccess(String operation, Long bookId) {
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, bookId).log("관리자 도서 작업을 완료했습니다.");
     }
 }

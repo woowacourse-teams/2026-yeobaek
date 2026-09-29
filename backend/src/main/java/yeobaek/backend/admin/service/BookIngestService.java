@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
@@ -68,7 +67,7 @@ public class BookIngestService {
     @Transactional
     public BookUploadResponse upload(BookUploadRequest request) {
         int chapterCount = request.chapters() == null ? 0 : request.chapters().size();
-        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.book.upload")
                 .addKeyValue("chapterCount", chapterCount).log("도서 업로드를 시작합니다.");
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
@@ -77,14 +76,7 @@ public class BookIngestService {
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
-        logPersistenceAttempt("admin.book.upload.saveAuthors", authors.asList().size());
-        for (Author author : authors.asList()) {
-            if (author.getId() == null) {
-                authorRepository.save(author);
-            }
-            authorBookRepository.save(new AuthorBook(author, book));
-        }
-        logPersistenceSuccess("admin.book.upload.saveAuthors", authors.asList().size());
+        saveAuthors(book, authors);
         saveChapters(book, request.chapters());
         var response = new BookUploadResponse(book.getId(), book.getTitle().value(),
                 bookCoverUrlResolver.resolve(book.getCoverImageKey()), book.getPassageCount().value());
@@ -92,6 +84,17 @@ public class BookIngestService {
                 .addKeyValue(BOOK_ID, book.getId()).addKeyValue("chapterCount", chapterCount)
                 .addKeyValue("passageCount", book.getPassageCount().value()).log("도서 업로드를 완료했습니다.");
         return response;
+    }
+
+    private void saveAuthors(Book book, Authors authors) {
+        logPersistenceAttempt("admin.book.saveAuthors", authors.asList().size());
+        for (Author author : authors.asList()) {
+            if (author.getId() == null) {
+                authorRepository.save(author);
+            }
+            authorBookRepository.save(new AuthorBook(author, book));
+        }
+        logPersistenceSuccess("admin.book.saveAuthors", authors.asList().size());
     }
 
     private void validateStructure(BookUploadRequest request) {
@@ -217,7 +220,7 @@ public class BookIngestService {
     }
 
     private void saveChapters(Book book, List<ChapterUploadRequest> chapters) {
-        logPersistenceAttempt("admin.book.upload.saveContent", chapters.size());
+        logPersistenceAttempt("admin.book.saveChapters", chapters.size());
         int passageSequence = 1;
         int chapterSequence = 1;
         for (ChapterUploadRequest chapterRequest : chapters) {
@@ -230,11 +233,11 @@ public class BookIngestService {
                 passageSequence++;
             }
         }
-        logPersistenceSuccess("admin.book.upload.saveContent", chapters.size());
+        logPersistenceSuccess("admin.book.saveChapters", chapters.size());
     }
 
     private void logPersistenceAttempt(String operation, int itemCount) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, operation)
                 .addKeyValue("itemCount", itemCount).log("도서 업로드 영속성 작업을 시작합니다.");
     }
 

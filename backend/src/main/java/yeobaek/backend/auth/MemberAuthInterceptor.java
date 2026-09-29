@@ -1,6 +1,5 @@
 package yeobaek.backend.auth;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
@@ -31,7 +30,7 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        log.atInfo().addKeyValue(OPERATION, "auth.member.validate").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "auth.member.preHandle")
                 .log("회원 인증을 시작합니다.");
         String header = request.getHeader(MEMBER_ID_HEADER);
         if (header == null || header.isBlank()) {
@@ -48,7 +47,7 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
         request.setAttribute(MEMBER_ID_ATTRIBUTE, memberId);
         MDC.put(RequestLoggingFilter.MEMBER_ID, Long.toString(memberId));
         log.atInfo()
-                .addKeyValue(OPERATION, "auth.member.validate")
+                .addKeyValue(OPERATION, "auth.member.preHandle")
                 .addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId)
                 .log("회원 인증에 성공했습니다.");

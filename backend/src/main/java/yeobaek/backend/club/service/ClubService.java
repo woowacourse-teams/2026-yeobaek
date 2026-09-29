@@ -1,6 +1,5 @@
 package yeobaek.backend.club.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
@@ -108,7 +107,7 @@ public class ClubService {
 
     @Transactional(readOnly = true)
     public MyClubsResponse findMyClubs(Long memberId) {
-        logAttempt("club.findMine", memberId, null, null);
+        logAttempt("club.findMyClubs", memberId, null, null);
         ClubMembers myClubMemberships = new ClubMembers(
                 clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(memberId));
         Map<Long, Long> memberCounts = clubMemberRepository
@@ -125,7 +124,7 @@ public class ClubService {
                             toMyProgress(clubMember));
                 })
                 .toList());
-        log.atInfo().addKeyValue(OPERATION, "club.findMine").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue("resultCount", response.clubs().size())
                 .log("내 모임 목록을 조회했습니다.");
         return response;
@@ -183,7 +182,7 @@ public class ClubService {
             JoinCode code = JoinCode.generate();
             if (!clubRepository.existsByJoinCode(code.value())) {
                 if (attempt > 0) {
-                    log.atWarn().addKeyValue(OPERATION, "club.generateJoinCode").addKeyValue(PHASE, RECOVERED)
+                    log.atWarn().addKeyValue(OPERATION, "club.generateUniqueJoinCode").addKeyValue(PHASE, RECOVERED)
                             .addKeyValue("retryCount", attempt).log("참여 코드 충돌을 재시도해 복구했습니다.");
                 }
                 return code;
@@ -209,7 +208,7 @@ public class ClubService {
     }
 
     private void logAttempt(String operation, Long memberId, Long clubId, Long bookId) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, operation)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).addKeyValue(BOOK_ID, bookId)
                 .log("모임 작업을 시작합니다.");
     }

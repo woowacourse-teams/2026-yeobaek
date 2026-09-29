@@ -1,6 +1,5 @@
 package yeobaek.backend.admin.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.PHASE;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -30,7 +29,7 @@ public class AdminBookDashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardBooksResponse findBooksWithClubCounts() {
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.books").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts")
                 .log("관리자 도서 현황을 조회합니다.");
         Books books = new Books(bookManagementRepository.findAll());
         if (books.isEmpty()) {
@@ -53,7 +52,7 @@ public class AdminBookDashboardService {
     }
 
     private void logSuccess(int resultCount) {
-        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.books").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue("resultCount", resultCount).log("관리자 도서 현황을 조회했습니다.");
     }
 }

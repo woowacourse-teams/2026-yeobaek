@@ -1,6 +1,5 @@
 package yeobaek.backend.club.service;
 
-import static yeobaek.backend.support.LogField.ATTEMPT;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
@@ -45,7 +44,7 @@ public class ProgressService {
 
     @Transactional
     public ProgressResponse updateProgress(Long memberId, Long clubId, Long passageId) {
-        log.atInfo().addKeyValue(OPERATION, "progress.update").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress")
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("passageId", passageId).log("진도를 갱신합니다.");
         Club club = clubRepository.findById(clubId)
@@ -74,7 +73,7 @@ public class ProgressService {
         clubMember.updateProgress(passage, LocalDateTime.now());
         var response = new ProgressResponse(
                 passage.getSequence().value(), clubMember.progressRate(), clubMember.getLastReadAt());
-        log.atInfo().addKeyValue(OPERATION, "progress.update").addKeyValue(PHASE, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(PHASE, SUCCESS)
                 .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("progressRate", response.progressRate()).log("진도를 갱신했습니다.");
         return response;
@@ -82,7 +81,7 @@ public class ProgressService {
 
     @Transactional(readOnly = true)
     public Optional<LastReadingResponse> findLastReading(Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(PHASE, ATTEMPT)
+        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading")
                 .addKeyValue(MEMBER_ID, memberId).log("최근 독서를 조회합니다.");
         List<ClubMember> readings = clubMemberRepository.findAllJoinedWithLastReadingByMemberId(memberId);
         if (readings.isEmpty()) {
