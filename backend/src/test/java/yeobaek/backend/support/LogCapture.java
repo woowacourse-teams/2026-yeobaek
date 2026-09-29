@@ -1,10 +1,11 @@
 package yeobaek.backend.support;
 
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.LoggerFactory;
 
 /** Captures MDC while the request still owns the thread, and always detaches the appender. */
@@ -29,6 +30,20 @@ public final class LogCapture extends ListAppender<ILoggingEvent> implements Aut
 
     public List<ILoggingEvent> events() {
         return List.copyOf(list);
+    }
+
+    public List<ILoggingEvent> events(String operation) {
+        return list.stream()
+                .filter(event -> Objects.equals(field(event, "operation"), operation))
+                .toList();
+    }
+
+    public ILoggingEvent event(String operation, String result) {
+        return events(operation).stream()
+                .filter(event -> Objects.equals(field(event, "result"), result))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "로그 이벤트를 찾을 수 없습니다: operation=" + operation + ", result=" + result));
     }
 
     public Object field(ILoggingEvent event, String key) {

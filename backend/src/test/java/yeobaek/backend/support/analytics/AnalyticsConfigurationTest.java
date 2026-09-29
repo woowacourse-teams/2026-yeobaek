@@ -26,9 +26,8 @@ class AnalyticsConfigurationTest {
         assertThat(tracker).isSameAs(NoOpAnalyticsTracker.INSTANCE);
         try (var logs = new LogCapture(NoOpAnalyticsTracker.class.getName())) {
             tracker.track(1L, AnalyticsEvent.memberCreate());
-            assertThat(logs.events()).hasSize(2);
-            assertThat(logs.field(logs.events().getLast(), "result")).isEqualTo("success");
-            assertThat(logs.field(logs.events().getLast(), "enabled")).isEqualTo(false);
+            var event = logs.event("analytics.track", "success");
+            assertThat(logs.field(event, "enabled")).isEqualTo(false);
         }
     }
 

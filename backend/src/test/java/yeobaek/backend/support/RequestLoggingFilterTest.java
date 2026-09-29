@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.ServletException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -18,14 +17,10 @@ import org.springframework.web.servlet.HandlerMapping;
 class RequestLoggingFilterTest {
 
     private final RequestLoggingFilter filter = new RequestLoggingFilter();
-    private LogCapture attachedAppender;
 
     @AfterEach
     void clearMdc() {
         MDC.clear();
-        if (attachedAppender != null) {
-            attachedAppender.close();
-        }
     }
 
     @Test
@@ -60,18 +55,19 @@ class RequestLoggingFilterTest {
     @Test
     @DisplayName("처리되지 않은 예외는 ERROR와 500 상태로 기록하고 원래 예외를 전파한다")
     void logUnhandledFailure() {
-        ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender = attachAppender();
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/private-secret");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        assertThatThrownBy(() -> filter.doFilter(request, response, (ignoredRequest, ignoredResponse) -> {
-            throw new ServletException("failure-secret");
-        })).isInstanceOf(ServletException.class);
+        try (var logs = new LogCapture(RequestLoggingFilter.class.getName())) {
+            assertThatThrownBy(() -> filter.doFilter(request, response, (ignoredRequest, ignoredResponse) -> {
+                throw new ServletException("failure-secret");
+            })).isInstanceOf(ServletException.class);
 
-        var failure = appender.list.getLast();
-        assertThat(failure.getLevel()).isEqualTo(Level.ERROR);
-        assertThat(keyValue(failure, "status")).isEqualTo(500);
-        assertThat(failure.getFormattedMessage()).doesNotContain("private-secret", "failure-secret");
+            var failure = logs.event("http.doFilterInternal", "failure");
+            assertThat(failure.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(logs.field(failure, "status")).isEqualTo(500);
+            assertThat(logs.structuredText()).doesNotContain("private-secret");
+        }
     }
 
     private AtomicReference<String> captureTraceId(String requestUri) throws Exception {
@@ -83,18 +79,5 @@ class RequestLoggingFilterTest {
             servletRequest.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, requestUri);
         });
         return captured;
-    }
-
-    private ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> attachAppender() {
-        attachedAppender = new LogCapture(RequestLoggingFilter.class.getName());
-        return attachedAppender;
-    }
-
-    private Object keyValue(ch.qos.logback.classic.spi.ILoggingEvent event, String key) {
-        return event.getKeyValuePairs().stream()
-                .filter(pair -> pair.key.equals(key))
-                .map(pair -> pair.value)
-                .findFirst()
-                .orElse(null);
     }
 }

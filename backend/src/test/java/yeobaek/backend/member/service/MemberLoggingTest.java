@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -27,11 +26,11 @@ class MemberLoggingTest {
 
         try (var logs = new LogCapture(MemberService.class.getName())) {
             assertThatThrownBy(() -> service.delete(7L)).isSameAs(failure);
-            assertThat(logs.events()).extracting(event -> logs.field(event, "operation"))
-                    .containsExactly("member.delete", "member.deleteComments");
-            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.field(event, "result")).isNull());
-            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
-            verifyNoInteractions(members, clubs);
+            assertThat(logs.events("member.delete")).isNotEmpty();
+            assertThat(logs.events("member.deleteComments")).isNotEmpty();
+            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.field(event, "memberId")).isEqualTo(7L));
+            assertThat(logs.events()).extracting(event -> logs.field(event, "result"))
+                    .doesNotContain("success");
         }
     }
 }

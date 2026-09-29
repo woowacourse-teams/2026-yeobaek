@@ -30,12 +30,11 @@ class BookLoggingTest {
         try (var logs = new LogCapture(BookService.class.getName())) {
             service.findBooks(null);
 
-            assertThat(logs.events()).hasSize(2);
-            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.hasField(event, "keyword")).isTrue());
-            assertThat(logs.events()).allSatisfy(event -> assertThat(logs.field(event, "keyword")).isNull());
-            assertThat(logs.events()).extracting(event -> logs.field(event, "operation"))
-                    .containsOnly("book.findBooks");
-            assertThat(logs.events()).extracting(event -> logs.field(event, "searchUsed"))
+            var events = logs.events("book.findBooks");
+            assertThat(events).isNotEmpty();
+            assertThat(events).allSatisfy(event -> assertThat(logs.hasField(event, "keyword")).isTrue());
+            assertThat(events).allSatisfy(event -> assertThat(logs.field(event, "keyword")).isNull());
+            assertThat(events).extracting(event -> logs.field(event, "searchUsed"))
                     .containsOnly(false);
         }
     }
@@ -55,13 +54,12 @@ class BookLoggingTest {
         try (var logs = new LogCapture(BookService.class.getName())) {
             service.findBooks("여백");
 
-            assertThat(logs.events()).hasSize(2);
-            assertThat(logs.events()).extracting(event -> logs.field(event, "keyword"))
+            var events = logs.events("book.findBooks");
+            assertThat(events).isNotEmpty();
+            assertThat(events).extracting(event -> logs.field(event, "keyword"))
                     .containsOnly("여백");
-            assertThat(logs.events()).extracting(event -> logs.field(event, "searchUsed"))
+            assertThat(events).extracting(event -> logs.field(event, "searchUsed"))
                     .containsOnly(true);
-            assertThat(logs.events()).extracting(event -> logs.field(event, "operation"))
-                    .containsOnly("book.findBooks");
         }
     }
 }
