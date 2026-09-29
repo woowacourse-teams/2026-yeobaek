@@ -5,4 +5,5 @@ import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 data class OnboardingUiState(
     val selectedBookUiState: SelectedBookUiState = SelectedBookUiState(),
     val bookUiModelList: List<OnboardingBookUiModel> = emptyList(),
+    val initBookState: InitBookState = InitBookState.Idle,
 )

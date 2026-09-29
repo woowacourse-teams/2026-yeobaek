@@ -1,24 +1,35 @@
 package com.yeobaek.feature.onboarding.selectbook
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -38,7 +49,30 @@ fun OnboardingScreen(
     onClickCreateRoom: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var isLoading by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState()
+
+    LaunchedEffect(uiState.initBookState) {
+        when (uiState.initBookState) {
+            is InitBookState.Loading -> {
+                isLoading = true
+            }
+
+            is InitBookState.Success -> {
+                isLoading = false
+            }
+
+            is InitBookState.Failure -> {
+                isLoading = false
+                snackbarHostState.showSnackbar(
+                    message = (uiState.initBookState).message,
+                )
+            }
+
+            is InitBookState.Idle -> return@LaunchedEffect
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -55,6 +89,9 @@ fun OnboardingScreen(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize(),
@@ -104,6 +141,19 @@ fun OnboardingScreen(
                 )
             }
         }
+    }
+    if (isLoading) {
+        LoadingIndicator()
+    }
+}
+
+@Composable
+private fun LoadingIndicator() {
+    Box(
+        modifier = Modifier.fillMaxSize().background(color = Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator()
     }
 }
 

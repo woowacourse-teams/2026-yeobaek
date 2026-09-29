@@ -11,6 +11,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 import com.yeobaek.feature.onboarding.selectbook.model.toUiModel
+import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
@@ -24,11 +25,22 @@ class OnboardingViewModel(
     }
 
     fun initList() {
+        uiState = uiState.copy(
+            initBookState = InitBookState.Loading,
+        )
+
         viewModelScope.launch {
-            val bookList = bookRepository.getBooks()
-            uiState = uiState.copy(
-                bookUiModelList = bookList.map { it.toUiModel() },
-            )
+            try {
+                val bookList = bookRepository.getBooks()
+                uiState = uiState.copy(
+                    bookUiModelList = bookList.map { it.toUiModel() },
+                    initBookState = InitBookState.Success,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(initBookState = InitBookState.Failure(e.message ?: "알 수 없는 오류"))
+            }
         }
     }
 
@@ -98,4 +110,11 @@ class OnboardingViewModel(
             ),
         )
     }
+}
+
+sealed class InitBookState {
+    data object Idle : InitBookState()
+    data object Loading : InitBookState()
+    data object Success : InitBookState()
+    data class Failure(val message: String) : InitBookState()
 }
