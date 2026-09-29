@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.env.MockEnvironment;
+import yeobaek.backend.support.LogCapture;
 
 class AnalyticsConfigurationTest {
 
@@ -23,6 +24,12 @@ class AnalyticsConfigurationTest {
         AnalyticsTracker tracker = configuration.analyticsTracker(provider, new MockEnvironment());
 
         assertThat(tracker).isSameAs(NoOpAnalyticsTracker.INSTANCE);
+        try (var logs = new LogCapture(NoOpAnalyticsTracker.class.getName())) {
+            tracker.track(1L, AnalyticsEvent.memberCreate());
+            assertThat(logs.events()).hasSize(2);
+            assertThat(logs.field(logs.events().getLast(), "phase")).isEqualTo("success");
+            assertThat(logs.field(logs.events().getLast(), "enabled")).isEqualTo(false);
+        }
     }
 
     @Test

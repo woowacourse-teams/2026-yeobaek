@@ -1,5 +1,12 @@
 package yeobaek.backend.support.analytics;
 
+import static yeobaek.backend.support.LogField.ATTEMPT;
+import static yeobaek.backend.support.LogField.MEMBER_ID;
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.RECOVERED;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import com.posthog.server.PostHogCaptureOptions;
 import com.posthog.server.PostHogInterface;
 import java.util.LinkedHashMap;
@@ -22,13 +29,28 @@ final class PostHogAnalyticsTracker implements AnalyticsTracker {
 
     @Override
     public void track(Long memberId, AnalyticsEvent event) {
+        LOGGER.atInfo()
+                .addKeyValue(OPERATION, "analytics.track")
+                .addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(MEMBER_ID, memberId)
+                .addKeyValue("eventName", event.name())
+                .log("분석 이벤트 전송을 시작합니다.");
         try {
             postHog.capture(memberId.toString(), event.name(), captureOptions(event));
+            LOGGER.atInfo()
+                    .addKeyValue(OPERATION, "analytics.track")
+                    .addKeyValue(PHASE, SUCCESS)
+                    .addKeyValue(MEMBER_ID, memberId)
+                    .addKeyValue("eventName", event.name())
+                    .log("분석 이벤트 전송 요청에 성공했습니다.");
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("PostHog 이벤트 전송 요청에 실패했습니다. event={}, cause={}",
-                        event.name(), exception.getClass().getSimpleName());
-            }
+            LOGGER.atWarn()
+                    .addKeyValue(OPERATION, "analytics.track")
+                    .addKeyValue(PHASE, RECOVERED)
+                    .addKeyValue(MEMBER_ID, memberId)
+                    .addKeyValue("eventName", event.name())
+                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
+                    .log("분석 이벤트 전송 실패를 복구하고 요청 처리를 계속합니다.");
         }
     }
 

@@ -1,5 +1,6 @@
 package yeobaek.backend.support;
 
+import java.util.Map;
 import lombok.Getter;
 
 /**
@@ -9,9 +10,15 @@ import lombok.Getter;
 public class NotFoundException extends RuntimeException {
 
     private final ErrorCode code;
+    private final Map<String, String> logContext;
 
     public NotFoundException(ErrorCode code, String message) {
+        this(code, message, Map.of());
+    }
+
+    public NotFoundException(ErrorCode code, String message, Map<String, String> logContext) {
         super(message);
         this.code = code;
+        this.logContext = Map.copyOf(logContext);
     }
 }

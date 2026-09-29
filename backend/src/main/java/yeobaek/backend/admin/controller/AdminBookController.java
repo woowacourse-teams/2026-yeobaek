@@ -1,10 +1,17 @@
 package yeobaek.backend.admin.controller;
 
+import static yeobaek.backend.support.LogField.ATTEMPT;
+import static yeobaek.backend.support.LogField.BOOK_ID;
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +32,7 @@ import yeobaek.backend.admin.service.BookIngestService;
 @SecurityRequirement(name = "adminToken")
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class AdminBookController {
 
     private final BookIngestService bookIngestService;
@@ -33,7 +41,12 @@ public class AdminBookController {
     @Operation(summary = "업로드된 도서 목록 조회", description = "삭제된 도서를 포함해 도서 ID 순으로 반환한다.")
     @GetMapping("/api/admin/books")
     public AdminBooksResponse findBooks() {
-        return adminBookService.findBooks();
+        log.atInfo().addKeyValue(OPERATION, "admin.book.findAll").addKeyValue(PHASE, ATTEMPT)
+                .log("관리자 도서 목록 API 처리를 시작합니다.");
+        AdminBooksResponse response = adminBookService.findBooks();
+        log.atInfo().addKeyValue(OPERATION, "admin.book.findAll").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue("resultCount", response.books().size()).log("관리자 도서 목록 API 처리를 완료했습니다.");
+        return response;
     }
 
     @Operation(summary = "도서 업로드 (인제스트 규격 JSON)",
@@ -41,27 +54,44 @@ public class AdminBookController {
     @PostMapping("/api/admin/books")
     @ResponseStatus(HttpStatus.CREATED)
     public BookUploadResponse upload(@Valid @RequestBody BookUploadRequest request) {
-        return bookIngestService.upload(request);
+        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(PHASE, ATTEMPT)
+                .log("도서 업로드 API 처리를 시작합니다.");
+        BookUploadResponse response = bookIngestService.upload(request);
+        log.atInfo().addKeyValue(OPERATION, "admin.book.upload").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, response.bookId()).log("도서 업로드 API 처리를 완료했습니다.");
+        return response;
     }
 
     @Operation(summary = "도서 삭제", description = "도서를 소프트 삭제한다. 연결된 모임과 댓글은 보존한다.")
     @DeleteMapping("/api/admin/books/{bookId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long bookId) {
+        log.atInfo().addKeyValue(OPERATION, "admin.book.delete").addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(BOOK_ID, bookId).log("도서 삭제 API 처리를 시작합니다.");
         adminBookService.delete(bookId);
+        log.atInfo().addKeyValue(OPERATION, "admin.book.delete").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, bookId).log("도서 삭제 API 처리를 완료했습니다.");
     }
 
     @Operation(summary = "도서 표지 교체", description = "기존 S3 객체는 삭제하지 않고 새 객체 키로 교체한다.")
     @PutMapping("/api/admin/books/{bookId}/cover")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void replaceCoverImage(@PathVariable Long bookId, @Valid @RequestBody BookCoverUpdateRequest request) {
+        log.atInfo().addKeyValue(OPERATION, "admin.book.replaceCover").addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(BOOK_ID, bookId).log("표지 교체 API 처리를 시작합니다.");
         adminBookService.replaceCoverImage(bookId, request.coverImageKey());
+        log.atInfo().addKeyValue(OPERATION, "admin.book.replaceCover").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, bookId).log("표지 교체 API 처리를 완료했습니다.");
     }
 
     @Operation(summary = "도서 표지 제거", description = "도서의 표지 키만 제거하며 기존 S3 객체는 삭제하지 않는다.")
     @DeleteMapping("/api/admin/books/{bookId}/cover")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeCoverImage(@PathVariable Long bookId) {
+        log.atInfo().addKeyValue(OPERATION, "admin.book.removeCover").addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(BOOK_ID, bookId).log("표지 제거 API 처리를 시작합니다.");
         adminBookService.removeCoverImage(bookId);
+        log.atInfo().addKeyValue(OPERATION, "admin.book.removeCover").addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, bookId).log("표지 제거 API 처리를 완료했습니다.");
     }
 }

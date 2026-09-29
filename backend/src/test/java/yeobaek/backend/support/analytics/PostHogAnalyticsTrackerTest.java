@@ -13,6 +13,8 @@ import com.posthog.server.PostHogInterface;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import ch.qos.logback.classic.Level;
+import yeobaek.backend.support.LogCapture;
 
 class PostHogAnalyticsTrackerTest {
 
@@ -44,7 +46,12 @@ class PostHogAnalyticsTrackerTest {
         doThrow(new IllegalStateException("capture failed"))
                 .when(postHog).capture(eq("1"), eq("backend_member_create"), any());
 
-        assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreate()))
-                .doesNotThrowAnyException();
+        try (var logs = new LogCapture(PostHogAnalyticsTracker.class.getName())) {
+            assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreate()))
+                    .doesNotThrowAnyException();
+            assertThat(logs.events().getLast().getLevel()).isEqualTo(Level.WARN);
+            assertThat(logs.field(logs.events().getLast(), "phase")).isEqualTo("recovered");
+            assertThat(logs.structuredText()).doesNotContain("capture failed");
+        }
     }
 }

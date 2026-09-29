@@ -1,9 +1,16 @@
 package yeobaek.backend.admin.service;
 
+import static yeobaek.backend.support.LogField.ATTEMPT;
+import static yeobaek.backend.support.LogField.BOOK_ID;
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.PHASE;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
@@ -16,6 +23,7 @@ import yeobaek.backend.book.service.BookCoverUrlResolver;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AdminBookService {
 
     private final BookManagementRepository bookManagementRepository;
@@ -24,33 +32,43 @@ public class AdminBookService {
 
     @Transactional(readOnly = true)
     public AdminBooksResponse findBooks() {
+        logAttempt("admin.book.findAll", null);
         List<Book> books = bookManagementRepository.findAllByOrderByIdAsc();
         if (books.isEmpty()) {
+            logSuccess("admin.book.findAll", null, 0);
             return new AdminBooksResponse(List.of());
         }
         Map<Long, List<AdminBookAuthorResponse>> authorsByBookId = authorsByBookId(
                 books.stream().map(Book::getId).toList());
-        return new AdminBooksResponse(books.stream()
+        var response = new AdminBooksResponse(books.stream()
                 .map(book -> AdminBookResponse.of(
                         book,
                         authorsByBookId.getOrDefault(book.getId(), List.of()),
                         bookCoverUrlResolver.resolve(book.getCoverImageKey())))
                 .toList());
+        logSuccess("admin.book.findAll", null, response.books().size());
+        return response;
     }
 
     @Transactional
     public void delete(Long bookId) {
+        logAttempt("admin.book.delete", bookId);
         bookManagementRepository.delete(bookId);
+        logSuccess("admin.book.delete", bookId, 1);
     }
 
     @Transactional
     public void replaceCoverImage(Long bookId, String coverImageKey) {
+        logAttempt("admin.book.replaceCover", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);
+        logSuccess("admin.book.replaceCover", bookId, 1);
     }
 
     @Transactional
     public void removeCoverImage(Long bookId) {
+        logAttempt("admin.book.removeCover", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).removeCoverImage();
+        logSuccess("admin.book.removeCover", bookId, 1);
     }
 
     private Map<Long, List<AdminBookAuthorResponse>> authorsByBookId(List<Long> bookIds) {
@@ -60,5 +78,16 @@ public class AdminBookService {
                         Collectors.mapping(
                                 authorBook -> AdminBookAuthorResponse.from(authorBook.getAuthor()),
                                 Collectors.toList())));
+    }
+
+    private void logAttempt(String operation, Long bookId) {
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, ATTEMPT)
+                .addKeyValue(BOOK_ID, bookId).log("관리자 도서 작업을 시작합니다.");
+    }
+
+    private void logSuccess(String operation, Long bookId, int resultCount) {
+        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(PHASE, SUCCESS)
+                .addKeyValue(BOOK_ID, bookId).addKeyValue("resultCount", resultCount)
+                .log("관리자 도서 작업을 완료했습니다.");
     }
 }

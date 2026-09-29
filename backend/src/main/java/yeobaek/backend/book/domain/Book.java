@@ -11,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.AccessLevel;
@@ -90,7 +91,8 @@ public class Book {
         if (status != BookStatus.ACTIVE) {
             throw new BadRequestException(
                     ErrorCode.BOOK_NOT_AVAILABLE,
-                    "더 이상 이용할 수 없는 도서입니다.");
+                    "더 이상 이용할 수 없는 도서입니다.",
+                    Map.of("bookStatus", status.name()));
         }
     }
 
