@@ -3,6 +3,7 @@ package com.yeobaek.feature.onboarding.create
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
@@ -52,6 +55,7 @@ fun CreateGroupScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var isLoading by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     PlatformBackHandler(
         enabled = true,
@@ -106,7 +110,11 @@ fun CreateGroupScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().pointerInput(Unit) {
+            detectTapGestures {
+                focusManager.clearFocus()
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
