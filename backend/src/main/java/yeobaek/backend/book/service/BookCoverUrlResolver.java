@@ -1,15 +1,9 @@
 package yeobaek.backend.book.service;
 
-import static yeobaek.backend.support.LogField.OPERATION;
-import static yeobaek.backend.support.LogField.RESULT;
-import static yeobaek.backend.support.LogField.SUCCESS;
-
 import org.springframework.stereotype.Component;
-import lombok.extern.slf4j.Slf4j;
 import yeobaek.backend.support.storage.S3StorageProperties;
 
 @Component
-@Slf4j
 public class BookCoverUrlResolver {
 
     private final String publicBaseUrl;
@@ -19,17 +13,10 @@ public class BookCoverUrlResolver {
     }
 
     public String resolve(String coverImageKey) {
-        log.atInfo().addKeyValue(OPERATION, "bookCover.resolve")
-                .addKeyValue("coverPresent", coverImageKey != null).log("도서 표지 URL을 해석합니다.");
         if (coverImageKey == null) {
-            log.atInfo().addKeyValue(OPERATION, "bookCover.resolve").addKeyValue(RESULT, SUCCESS)
-                    .addKeyValue("coverPresent", false).log("도서 표지 URL을 해석했습니다.");
             return null;
         }
-        String resolved = publicBaseUrl + "/" + coverImageKey;
-        log.atInfo().addKeyValue(OPERATION, "bookCover.resolve").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue("coverPresent", true).log("도서 표지 URL을 해석했습니다.");
-        return resolved;
+        return publicBaseUrl + "/" + coverImageKey;
     }
 
     private String stripTrailingSlash(String url) {

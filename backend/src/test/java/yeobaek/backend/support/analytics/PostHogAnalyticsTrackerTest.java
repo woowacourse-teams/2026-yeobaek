@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import ch.qos.logback.classic.Level;
 import com.posthog.server.PostHogCaptureOptions;
 import com.posthog.server.PostHogInterface;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,8 +50,9 @@ class PostHogAnalyticsTrackerTest {
             tracker.track(1L, AnalyticsEvent.memberCreate());
             var event = logs.event("analytics.track", "recovered");
             assertThat(event.getLevel()).isEqualTo(Level.WARN);
-            assertThat(logs.field(event, "memberId")).isEqualTo(1L);
-            assertThat(logs.field(event, "eventName")).isEqualTo("backend_member_create");
+            assertThat(List.of(logs.field(event, "analyticsMemberId"), logs.field(event, "eventName")))
+                    .containsExactly(1L, "backend_member_create");
+            assertThat(logs.hasField(event, "memberId")).isFalse();
             assertThat(event.getThrowableProxy()).isNull();
             assertThat(logs.structuredText()).doesNotContain("capture failed");
         }

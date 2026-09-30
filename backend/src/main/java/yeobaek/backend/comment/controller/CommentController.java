@@ -2,7 +2,6 @@ package yeobaek.backend.comment.controller;
 
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -54,11 +53,11 @@ public class CommentController {
     public CommentsResponse findComments(@AuthMember Long memberId,
                                          @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                          @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
-        logCommentAttempt("comment.findComments", memberId, clubId, sentenceId);
+        logCommentAttempt("comment.findComments", clubId, sentenceId);
         CommentsResponse response = commentService.findComments(memberId, clubId, sentenceId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentsViewFromDeprecatedGet(
                 clubId, sentenceId, response.comments().size()));
-        logCommentSuccess("comment.findComments", memberId, clubId, sentenceId, response.comments().size());
+        logCommentSuccess("comment.findComments", clubId, sentenceId, response.comments().size());
         return response;
     }
 
@@ -67,11 +66,11 @@ public class CommentController {
     public CommentsResponse findCommentDetails(@AuthMember Long memberId,
                                                @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                                @Parameter(description = "문장 ID") @PathVariable Long sentenceId) {
-        logCommentAttempt("comment.findCommentDetails", memberId, clubId, sentenceId);
+        logCommentAttempt("comment.findCommentDetails", clubId, sentenceId);
         CommentsResponse response = commentService.findComments(memberId, clubId, sentenceId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentsViewFromExplicitPost(
                 clubId, sentenceId, response.comments().size()));
-        logCommentSuccess("comment.findCommentDetails", memberId, clubId, sentenceId, response.comments().size());
+        logCommentSuccess("comment.findCommentDetails", clubId, sentenceId, response.comments().size());
         return response;
     }
 
@@ -82,13 +81,13 @@ public class CommentController {
             @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
             @RequestParam("currentPassageId") Long currentPassageId) {
         log.atInfo().addKeyValue(OPERATION, "comment.countNewComments")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("passageId", currentPassageId).log("새 댓글 수 API 처리를 시작합니다.");
         NewCommentCountResponse response = commentService.countNewComments(memberId, clubId, currentPassageId);
         analyticsTracker.track(memberId, AnalyticsEvent.newCommentCountView(
                 clubId, currentPassageId, response.newCommentCount()));
         log.atInfo().addKeyValue(OPERATION, "comment.countNewComments").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.newCommentCount()).log("새 댓글 수 API 처리를 완료했습니다.");
         return response;
     }
@@ -100,14 +99,14 @@ public class CommentController {
             @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
             @RequestParam("currentPassageId") Long currentPassageId) {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("passageId", currentPassageId).log("댓글 문장 목록 API 처리를 시작합니다.");
         CommentedSentencesResponse response = commentService.findCommentedSentences(
                 memberId, clubId, currentPassageId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentedSentencesView(
                 clubId, currentPassageId, response.commentedSentences().size()));
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.commentedSentences().size()).log("댓글 문장 목록 API 처리를 완료했습니다.");
         return response;
     }
@@ -119,11 +118,11 @@ public class CommentController {
                                   @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
                                   @Parameter(description = "문장 ID") @PathVariable Long sentenceId,
                                   @Valid @RequestBody CommentCreateRequest request) {
-        logCommentAttempt("comment.create", memberId, clubId, sentenceId);
+        logCommentAttempt("comment.create", clubId, sentenceId);
         CommentResponse response = commentService.create(memberId, clubId, sentenceId, request.content());
         analyticsTracker.track(memberId,
                 AnalyticsEvent.commentCreate(clubId, sentenceId, response.commentId()));
-        logCommentSuccess("comment.create", memberId, clubId, sentenceId, null);
+        logCommentSuccess("comment.create", clubId, sentenceId, null);
         return response;
     }
 
@@ -133,11 +132,11 @@ public class CommentController {
                                   @Parameter(description = "댓글 ID") @PathVariable Long commentId,
                                   @Valid @RequestBody CommentUpdateRequest request) {
         log.atInfo().addKeyValue(OPERATION, "comment.update")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 시작합니다.");
+                .addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 시작합니다.");
         CommentResponse response = commentService.update(memberId, commentId, request.content());
         analyticsTracker.track(memberId, AnalyticsEvent.commentUpdate(response.commentId()));
         log.atInfo().addKeyValue(OPERATION, "comment.update").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 완료했습니다.");
+                .addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 완료했습니다.");
         return response;
     }
 
@@ -145,44 +144,44 @@ public class CommentController {
     @DeleteMapping("/api/comments/{commentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
-        logCommentMutationAttempt("comment.delete", memberId, commentId);
+        logCommentMutationAttempt("comment.delete", commentId);
         commentService.delete(memberId, commentId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentDelete(commentId));
-        logCommentMutationSuccess("comment.delete", memberId, commentId);
+        logCommentMutationSuccess("comment.delete", commentId);
     }
 
     @Operation(summary = "댓글 신고", description = "같은 회원의 동일 댓글 재신고는 새 신고를 만들지 않는다.")
     @PostMapping("/api/comments/{commentId}/reports")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void report(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
-        logCommentMutationAttempt("comment.report", memberId, commentId);
+        logCommentMutationAttempt("comment.report", commentId);
         commentService.report(memberId, commentId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentReport(commentId));
-        logCommentMutationSuccess("comment.report", memberId, commentId);
+        logCommentMutationSuccess("comment.report", commentId);
     }
 
-    private void logCommentAttempt(String operation, Long memberId, Long clubId, Long sentenceId) {
+    private void logCommentAttempt(String operation, Long clubId, Long sentenceId) {
         log.atInfo().addKeyValue(OPERATION, operation)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).addKeyValue("sentenceId", sentenceId)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("sentenceId", sentenceId)
                 .log("댓글 API 처리를 시작합니다.");
     }
 
-    private void logCommentSuccess(String operation, Long memberId, Long clubId, Long sentenceId, Integer resultCount) {
+    private void logCommentSuccess(String operation, Long clubId, Long sentenceId, Integer resultCount) {
         var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).addKeyValue("sentenceId", sentenceId);
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("sentenceId", sentenceId);
         if (resultCount != null) {
             event = event.addKeyValue("resultCount", resultCount);
         }
         event.log("댓글 API 처리를 완료했습니다.");
     }
 
-    private void logCommentMutationAttempt(String operation, Long memberId, Long commentId) {
+    private void logCommentMutationAttempt(String operation, Long commentId) {
         log.atInfo().addKeyValue(OPERATION, operation)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 API 처리를 시작합니다.");
+                .addKeyValue(COMMENT_ID, commentId).log("댓글 API 처리를 시작합니다.");
     }
 
-    private void logCommentMutationSuccess(String operation, Long memberId, Long commentId) {
+    private void logCommentMutationSuccess(String operation, Long commentId) {
         log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId).log("댓글 API 처리를 완료했습니다.");
+                .addKeyValue(COMMENT_ID, commentId).log("댓글 API 처리를 완료했습니다.");
     }
 }

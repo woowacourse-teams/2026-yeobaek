@@ -37,6 +37,7 @@
 | `JOIN_CODE_NOT_FOUND` | 400 | 참여 코드에 해당하는 모임 없음 |
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
 | `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
+| `SENTENCE_NOT_IN_CLUB_BOOK` | 400 | 문장은 존재하지만 해당 모임 도서 소속이 아님 |
 | `COMMENT_NOT_FOUND` | 400 | 대상 댓글이 없거나 신고자에게 보이지 않음 |
 | `CANNOT_REPORT_OWN_COMMENT` | 400 | 본인이 작성한 댓글 신고 시도 |
 | `CANNOT_BLOCK_SELF` | 400 | 자기 자신을 차단하려는 시도 |
@@ -417,7 +418,8 @@
 경로에 공개방 댓글을 전달하는 경우의 권한과 오류는 10.9절에서 정의한다 (구현 예정).
 
 댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
-(`SENTENCE_NOT_FOUND`)을 반환한다.
+(`SENTENCE_NOT_FOUND`), 문장은 존재하지만 모임 도서에 속하지 않으면 `400`
+(`SENTENCE_NOT_IN_CLUB_BOOK`)을 반환한다.
 
 댓글은 요청 회원마다 다음 조회 상태를 갖는다.
 
@@ -553,8 +555,8 @@
 - 모임에서 탈퇴했지만 계정은 유지 중인 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반
   댓글과 동일하게 반환한다.
 - 존재하지 않는 모임은 `400` (`CLUB_NOT_FOUND`), 모임 미소속 회원은 `403`
-  (`NOT_CLUB_MEMBER`), 존재하지 않거나 모임 도서에 속하지 않는 문장은 `400`
-  (`SENTENCE_NOT_FOUND`)을 반환한다.
+  (`NOT_CLUB_MEMBER`), 존재하지 않는 문장은 `400` (`SENTENCE_NOT_FOUND`), 문장은 존재하지만
+  모임 도서에 속하지 않으면 `400` (`SENTENCE_NOT_IN_CLUB_BOOK`)을 반환한다.
 - 모임 도서가 삭제된 경우 보존된 댓글을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 문장의 댓글 목록 — deprecated 호환 API

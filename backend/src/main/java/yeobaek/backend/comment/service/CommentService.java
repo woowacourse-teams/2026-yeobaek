@@ -2,9 +2,10 @@ package yeobaek.backend.comment.service;
 
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
+import static yeobaek.backend.support.LogField.CURRENT_PASSAGE_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
+import static yeobaek.backend.support.LogField.SENTENCE_ID;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.Comparator;
@@ -60,7 +61,9 @@ public class CommentService {
 
     @Transactional
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
-        logAttempt("comment.findComments", memberId, clubId, sentenceId, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.findComments")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
+                .log("댓글 목록을 조회합니다.");
         validateSentenceContext(memberId, clubId, sentenceId);
         Comments comments = new Comments(
                 commentRepository.findAllVisibleWithWriterByClubIdAndSentenceId(memberId, clubId, sentenceId));
@@ -68,35 +71,47 @@ public class CommentService {
         var response = new CommentsResponse(comments.asList().stream()
                 .map(comment -> CommentResponse.of(comment, memberId))
                 .toList());
-        logSuccess("comment.findComments", memberId, clubId, sentenceId, null, response.comments().size());
+        log.atInfo().addKeyValue(OPERATION, "comment.findComments").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
+                .addKeyValue("resultCount", response.comments().size()).log("댓글 목록을 조회했습니다.");
         return response;
     }
 
     @Transactional
     public CommentResponse create(Long memberId, Long clubId, Long sentenceId, CommentContent content) {
-        logAttempt("comment.create", memberId, clubId, sentenceId, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.create")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
+                .log("댓글을 작성합니다.");
         SentenceContext context = validateSentenceContext(memberId, clubId, sentenceId);
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
         var response = CommentResponse.of(comment, memberId);
-        logSuccess("comment.create", memberId, clubId, sentenceId, response.commentId(), null);
+        log.atInfo().addKeyValue(OPERATION, "comment.create").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
+                .addKeyValue(COMMENT_ID, response.commentId()).log("댓글을 작성했습니다.");
         return response;
     }
 
     @Transactional(readOnly = true)
     public NewCommentCountResponse countNewComments(Long memberId, Long clubId, Long currentPassageId) {
-        logAttempt("comment.countNewComments", memberId, clubId, null, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.countNewComments")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .log("새 댓글 수를 조회합니다.");
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
                 memberId, clubId, currentPassage.getSequence().value());
         var response = new NewCommentCountResponse(count);
-        logSuccess("comment.countNewComments", memberId, clubId, null, null, count);
+        log.atInfo().addKeyValue(OPERATION, "comment.countNewComments").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .addKeyValue("resultCount", count).log("새 댓글 수를 조회했습니다.");
         return response;
     }
 
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findCommentedSentences(Long memberId, Long clubId, Long currentPassageId) {
-        logAttempt("comment.findCommentedSentences", memberId, clubId, null, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .log("댓글이 있는 문장 목록을 조회합니다.");
         Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
         int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
@@ -105,44 +120,51 @@ public class CommentService {
                 .sorted(commentedSentenceComparator())
                 .toList();
         var response = new CommentedSentencesResponse(responses);
-        logSuccess("comment.findCommentedSentences", memberId, clubId, null, null, responses.size());
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .addKeyValue("resultCount", responses.size()).log("댓글이 있는 문장 목록을 조회했습니다.");
         return response;
     }
 
     @Transactional
     public CommentResponse update(Long memberId, Long commentId, CommentContent content) {
-        logAttempt("comment.update", memberId, null, null, commentId);
+        log.atInfo().addKeyValue(OPERATION, "comment.update").addKeyValue(COMMENT_ID, commentId)
+                .log("댓글을 수정합니다.");
         Comment comment = findOwnComment(memberId, commentId, "수정");
         comment.ensureBookAvailable();
         comment.updateContent(content);
         var response = CommentResponse.of(comment, memberId);
-        logSuccess("comment.update", memberId, null, null, commentId, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.update").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(COMMENT_ID, commentId).log("댓글을 수정했습니다.");
         return response;
     }
 
     @Transactional
     public void delete(Long memberId, Long commentId) {
-        logAttempt("comment.delete", memberId, null, null, commentId);
+        log.atInfo().addKeyValue(OPERATION, "comment.delete").addKeyValue(COMMENT_ID, commentId)
+                .log("댓글을 삭제합니다.");
         Comment comment = findOwnComment(memberId, commentId, "삭제");
         comment.ensureBookAvailable();
         commentRepository.delete(comment);
-        logSuccess("comment.delete", memberId, null, null, commentId, null);
+        log.atInfo().addKeyValue(OPERATION, "comment.delete").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(COMMENT_ID, commentId).log("댓글을 삭제했습니다.");
     }
 
     @Transactional
     public void report(Long memberId, Long commentId) {
-        logAttempt("comment.report", memberId, null, null, commentId);
+        log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(COMMENT_ID, commentId)
+                .log("댓글을 신고합니다.");
         Comment comment = commentRepository.findVisibleWithContextById(memberId, commentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.COMMENT_NOT_FOUND,
                         "신고할 댓글이 존재하지 않거나 요청자에게 보이지 않습니다: commentId=" + commentId,
-                        commentContext(memberId, commentId)));
+                        commentContext(commentId)));
         comment.ensureReportableBy(memberId);
         if (!clubMemberRepository.existsJoinedByMemberIdAndCommentId(memberId, commentId)) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
                     "모임에 참여 중인 회원만 댓글을 신고할 수 있습니다: commentId=" + commentId,
-                    commentContext(memberId, commentId));
+                    commentContext(commentId));
         }
         comment.ensureBookAvailable();
         boolean reportCreated = !commentReportRepository.existsByReporterIdAndCommentId(memberId, commentId);
@@ -150,7 +172,7 @@ public class CommentService {
             commentReportRepository.save(new CommentReport(memberRepository.getReferenceById(memberId), comment));
         }
         log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(COMMENT_ID, commentId)
+                .addKeyValue(COMMENT_ID, commentId)
                 .addKeyValue("reportCreated", reportCreated)
                 .log("댓글 작업을 완료했습니다.");
     }
@@ -160,18 +182,18 @@ public class CommentService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.COMMENT_NOT_FOUND,
                         action + "할 댓글이 존재하지 않습니다: commentId=" + commentId,
-                        commentContext(memberId, commentId)));
+                        commentContext(commentId)));
         if (!comment.isWrittenBy(memberId)) {
             throw new ForbiddenException(
                     ErrorCode.NOT_COMMENT_OWNER,
                     "본인의 댓글만 " + action + "할 수 있습니다: commentId=" + commentId,
-                    commentContext(memberId, commentId));
+                    commentContext(commentId));
         }
         if (!comment.isWriterJoined()) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
                     "모임에 참여 중인 작성자만 댓글을 " + action + "할 수 있습니다: commentId=" + commentId,
-                    commentContext(memberId, commentId));
+                    commentContext(commentId));
         }
         return comment;
     }
@@ -181,22 +203,22 @@ public class CommentService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
                         "댓글을 조회하거나 작성할 모임이 존재하지 않습니다: clubId=" + clubId,
-                        sentenceContext(memberId, clubId, sentenceId)));
+                        sentenceContext(clubId, sentenceId)));
         ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
                         "모임에 참여 중인 회원만 댓글을 조회하거나 작성할 수 있습니다: clubId=" + clubId,
-                        sentenceContext(memberId, clubId, sentenceId)));
+                        sentenceContext(clubId, sentenceId)));
         Sentence sentence = sentenceRepository.findById(sentenceId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.SENTENCE_NOT_FOUND,
                         "댓글을 조회하거나 작성할 문장이 존재하지 않습니다: sentenceId=" + sentenceId,
-                        sentenceContext(memberId, clubId, sentenceId)));
+                        sentenceContext(clubId, sentenceId)));
         if (!club.isReading(sentence)) {
             throw new NotFoundException(
-                    ErrorCode.SENTENCE_NOT_FOUND,
+                    ErrorCode.SENTENCE_NOT_IN_CLUB_BOOK,
                     "해당 모임에서 읽는 문장이 아닙니다: clubId=" + clubId + ", sentenceId=" + sentenceId,
-                    sentenceContext(memberId, clubId, sentenceId));
+                    sentenceContext(clubId, sentenceId));
         }
         club.ensureBookAvailable();
         return new SentenceContext(clubMember, sentence);
@@ -210,23 +232,23 @@ public class CommentService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
                         "댓글 발견 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId,
-                        passageContext(memberId, clubId, passageId)));
+                        passageContext(clubId, passageId)));
         clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
                         "모임에 참여 중인 회원만 댓글 발견 정보를 조회할 수 있습니다: clubId=" + clubId,
-                        passageContext(memberId, clubId, passageId)));
+                        passageContext(clubId, passageId)));
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new BadRequestException(
                         ErrorCode.INVALID_REQUEST,
                         "현재 문단이 존재하지 않습니다: passageId=" + passageId,
-                        passageContext(memberId, clubId, passageId)));
+                        passageContext(clubId, passageId)));
         if (!club.isReading(passage)) {
             throw new BadRequestException(
                     ErrorCode.INVALID_REQUEST,
                     "현재 문단이 해당 모임의 도서에 속하지 않습니다: clubId=" + clubId
                             + ", passageId=" + passageId,
-                    passageContext(memberId, clubId, passageId));
+                    passageContext(clubId, passageId));
         }
         club.ensureBookAvailable();
         return passage;
@@ -273,35 +295,15 @@ public class CommentService {
         return response.future() ? 1 : 0;
     }
 
-    private void logAttempt(String operation, Long memberId, Long clubId, Long sentenceId, Long commentId) {
-        log.atInfo().addKeyValue(OPERATION, operation)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
-                .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId)
-                .log("댓글 작업을 시작합니다.");
+    private Map<String, String> commentContext(Long commentId) {
+        return Map.of(COMMENT_ID, commentId.toString());
     }
 
-    private void logSuccess(String operation, Long memberId, Long clubId, Long sentenceId,
-                            Long commentId, Number resultCount) {
-        var event = log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
-                .addKeyValue("sentenceId", sentenceId).addKeyValue(COMMENT_ID, commentId);
-        if (resultCount != null) {
-            event = event.addKeyValue("resultCount", resultCount);
-        }
-        event.log("댓글 작업을 완료했습니다.");
+    private Map<String, String> sentenceContext(Long clubId, Long sentenceId) {
+        return Map.of(CLUB_ID, clubId.toString(), SENTENCE_ID, sentenceId.toString());
     }
 
-    private Map<String, String> commentContext(Long memberId, Long commentId) {
-        return Map.of(MEMBER_ID, memberId.toString(), COMMENT_ID, commentId.toString());
-    }
-
-    private Map<String, String> sentenceContext(Long memberId, Long clubId, Long sentenceId) {
-        return Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString(),
-                "sentenceId", sentenceId.toString());
-    }
-
-    private Map<String, String> passageContext(Long memberId, Long clubId, Long passageId) {
-        return Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString(),
-                "passageId", passageId.toString());
+    private Map<String, String> passageContext(Long clubId, Long passageId) {
+        return Map.of(CLUB_ID, clubId.toString(), "passageId", passageId.toString());
     }
 }

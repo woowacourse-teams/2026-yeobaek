@@ -1,7 +1,6 @@
 package yeobaek.backend.book.service;
 
 import static yeobaek.backend.support.LogField.CLUB_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
@@ -45,7 +44,7 @@ public class PassageService {
 
     public PassagesResponse findPassages(Long memberId, Long clubId, int from, int to) {
         log.atInfo().addKeyValue(OPERATION, "passage.findPassages")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("from", from).addKeyValue("to", to).log("본문 범위를 조회합니다.");
         PassageRange range = new PassageRange(from, to);
         validateRangeSize(range);
@@ -53,12 +52,12 @@ public class PassageService {
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
                         "본문을 조회할 모임이 존재하지 않습니다: clubId=" + clubId,
-                        Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString())));
+                        Map.of(CLUB_ID, clubId.toString())));
         if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
                     "모임에 참여 중인 회원만 본문을 조회할 수 있습니다: clubId=" + clubId,
-                    Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString()));
+                    Map.of(CLUB_ID, clubId.toString()));
         }
         club.ensureBookAvailable();
         List<Passage> passages = passageRepository.findRangeByBookId(
@@ -76,7 +75,7 @@ public class PassageService {
                         .toList()))
                 .toList());
         log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.passages().size()).log("본문 범위를 조회했습니다.");
         return response;
     }

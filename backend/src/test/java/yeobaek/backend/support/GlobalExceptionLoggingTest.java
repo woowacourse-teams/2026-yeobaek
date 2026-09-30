@@ -27,6 +27,22 @@ class GlobalExceptionLoggingTest {
     }
 
     @Test
+    @DisplayName("모임 도서에 속하지 않는 문장은 전용 오류 코드로 기록한다")
+    void distinguishSentenceOutsideClubBook() {
+        try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
+            handler.handleNotFound(new NotFoundException(
+                    ErrorCode.SENTENCE_NOT_IN_CLUB_BOOK, "sensitive-message",
+                    Map.of("clubId", "5", "sentenceId", "13")));
+
+            var event = logs.event("exception.handleNotFound", "rejected");
+            assertThat(event.getLevel()).isEqualTo(Level.INFO);
+            assertThat(logs.field(event, "errorCode")).isEqualTo("SENTENCE_NOT_IN_CLUB_BOOK");
+            assertThat(logs.field(event, "clubId")).isEqualTo("5");
+            assertThat(logs.field(event, "sentenceId")).isEqualTo("13");
+        }
+    }
+
+    @Test
     @DisplayName("인증 거절 로그는 안전한 사유를 포함하고 원문 토큰을 제외한다")
     void logSafeAuthenticationRejection() {
         try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {

@@ -416,7 +416,7 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임의 도서에 속하지 않는 문장에는 댓글을 달 수 없다")
+    @DisplayName("모임의 도서에 속하지 않는 문장은 SENTENCE_NOT_IN_CLUB_BOOK으로 구분한다")
     void rejectPassageOfOtherBook() {
         Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
@@ -425,7 +425,7 @@ class CommentServiceTest extends IntegrationTest {
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(),
                 otherPassage.getSentences().getFirst().getId(), new CommentContent("댓글")))
                 .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.SENTENCE_NOT_FOUND);
+                .extracting("code").isEqualTo(ErrorCode.SENTENCE_NOT_IN_CLUB_BOOK);
     }
 
     @Nested

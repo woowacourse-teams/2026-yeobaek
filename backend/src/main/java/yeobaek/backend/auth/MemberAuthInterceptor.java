@@ -1,7 +1,7 @@
 package yeobaek.backend.auth;
 
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.REQUESTED_MEMBER_ID;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -42,14 +42,13 @@ public class MemberAuthInterceptor implements HandlerInterceptor {
             throw new NotFoundException(
                     ErrorCode.MEMBER_NOT_FOUND,
                     "X-Member-Id가 가리키는 회원이 존재하지 않습니다: memberId=" + memberId,
-                    Map.of(MEMBER_ID, Long.toString(memberId)));
+                    Map.of(REQUESTED_MEMBER_ID, Long.toString(memberId)));
         }
         request.setAttribute(MEMBER_ID_ATTRIBUTE, memberId);
         MDC.put(RequestLoggingFilter.MEMBER_ID, Long.toString(memberId));
         log.atInfo()
                 .addKeyValue(OPERATION, "auth.member.preHandle")
                 .addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId)
                 .log("회원 인증에 성공했습니다.");
         return true;
     }

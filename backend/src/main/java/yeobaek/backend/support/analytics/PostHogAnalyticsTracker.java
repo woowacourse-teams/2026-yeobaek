@@ -1,6 +1,6 @@
 package yeobaek.backend.support.analytics;
 
-import static yeobaek.backend.support.LogField.MEMBER_ID;
+import static yeobaek.backend.support.LogField.ANALYTICS_MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.RECOVERED;
@@ -30,7 +30,7 @@ final class PostHogAnalyticsTracker implements AnalyticsTracker {
     public void track(Long memberId, AnalyticsEvent event) {
         LOGGER.atInfo()
                 .addKeyValue(OPERATION, "analytics.track")
-                .addKeyValue(MEMBER_ID, memberId)
+                .addKeyValue(ANALYTICS_MEMBER_ID, memberId)
                 .addKeyValue("eventName", event.name())
                 .log("분석 이벤트 전송을 시작합니다.");
         try {
@@ -38,14 +38,14 @@ final class PostHogAnalyticsTracker implements AnalyticsTracker {
             LOGGER.atInfo()
                     .addKeyValue(OPERATION, "analytics.track")
                     .addKeyValue(RESULT, SUCCESS)
-                    .addKeyValue(MEMBER_ID, memberId)
+                    .addKeyValue(ANALYTICS_MEMBER_ID, memberId)
                     .addKeyValue("eventName", event.name())
                     .log("분석 이벤트 전송 요청에 성공했습니다.");
         } catch (IllegalArgumentException | IllegalStateException exception) {
             LOGGER.atWarn()
                     .addKeyValue(OPERATION, "analytics.track")
                     .addKeyValue(RESULT, RECOVERED)
-                    .addKeyValue(MEMBER_ID, memberId)
+                    .addKeyValue(ANALYTICS_MEMBER_ID, memberId)
                     .addKeyValue("eventName", event.name())
                     .addKeyValue("exceptionType", exception.getClass().getSimpleName())
                     .log("분석 이벤트 전송 실패를 복구하고 요청 처리를 계속합니다.");

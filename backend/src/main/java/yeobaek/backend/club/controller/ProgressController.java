@@ -1,7 +1,6 @@
 package yeobaek.backend.club.controller;
 
 import static yeobaek.backend.support.LogField.CLUB_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -45,13 +44,13 @@ public class ProgressController {
                                            @Parameter(description = "모임 ID") @PathVariable Long clubId,
                                            @Valid @RequestBody ProgressUpdateRequest request) {
         log.atInfo().addKeyValue(OPERATION, "progress.updateProgress")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("passageId", request.passageId()).log("진도 갱신 API 처리를 시작합니다.");
         ProgressResponse response = progressService.updateProgress(memberId, clubId, request.passageId());
         analyticsTracker.track(memberId, AnalyticsEvent.progressUpdate(
                 clubId, request.passageId(), response.lastReadPassageSequence(), response.progressRate()));
         log.atInfo().addKeyValue(OPERATION, "progress.updateProgress").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("progressRate", response.progressRate()).log("진도 갱신 API 처리를 완료했습니다.");
         return response;
     }
@@ -60,8 +59,7 @@ public class ProgressController {
             description = "전 모임 중 마지막으로 읽은 시간이 가장 최근인 모임. 읽기 기록이 없으면 204.")
     @GetMapping("/api/members/me/last-reading")
     public ResponseEntity<LastReadingResponse> findLastReading(@AuthMember Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading")
-                .addKeyValue(MEMBER_ID, memberId).log("최근 독서 API 처리를 시작합니다.");
+        log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").log("최근 독서 API 처리를 시작합니다.");
         Optional<LastReadingResponse> lastReading = progressService.findLastReading(memberId);
         lastReading.ifPresentOrElse(
                 response -> analyticsTracker.track(memberId, AnalyticsEvent.lastReadingView(
@@ -69,7 +67,7 @@ public class ProgressController {
                         response.lastReadPassageSequence(), response.progressRate())),
                 () -> analyticsTracker.track(memberId, AnalyticsEvent.lastReadingView()));
         log.atInfo().addKeyValue(OPERATION, "progress.findLastReading").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue("found", lastReading.isPresent())
+                .addKeyValue("found", lastReading.isPresent())
                 .log("최근 독서 API 처리를 완료했습니다.");
         return lastReading
                 .map(ResponseEntity::ok)

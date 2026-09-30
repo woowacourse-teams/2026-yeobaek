@@ -1,7 +1,7 @@
 package yeobaek.backend.member.controller;
 
 import static yeobaek.backend.support.LogField.BLOCKED_MEMBER_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
+import static yeobaek.backend.support.LogField.CREATED_MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -52,7 +52,7 @@ public class MemberController {
         MemberCreateResponse response = memberService.create(request.nickname());
         analyticsTracker.track(response.memberId(), AnalyticsEvent.memberCreate());
         log.atInfo().addKeyValue(OPERATION, "member.createMember").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, response.memberId())
+                .addKeyValue(CREATED_MEMBER_ID, response.memberId())
                 .log("회원 생성 API 처리를 완료했습니다.");
         return response;
     }
@@ -61,12 +61,12 @@ public class MemberController {
     @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
     @GetMapping("/api/members/me/blocks")
     public BlockedMembersResponse findBlockedMembers(@AuthMember Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.findBlockedMembers").addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "member.findBlockedMembers")
                 .log("차단 목록 API 처리를 시작합니다.");
         BlockedMembersResponse response = memberBlockService.findBlockedMembers(memberId);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.blockedMembersView(response.blockedMembers().size()));
-        log.atInfo().addKeyValue(OPERATION, "member.findBlockedMembers").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "member.findBlockedMembers").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("resultCount", response.blockedMembers().size()).log("차단 목록 API 처리를 완료했습니다.");
         return response;
     }
@@ -77,11 +77,11 @@ public class MemberController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void block(@AuthMember Long blockerId,
                       @Parameter(description = "차단할 회원 ID") @PathVariable Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.block").addKeyValue(MEMBER_ID, blockerId)
+        log.atInfo().addKeyValue(OPERATION, "member.block")
                 .addKeyValue(BLOCKED_MEMBER_ID, memberId).log("회원 차단 API 처리를 시작합니다.");
         memberBlockService.block(blockerId, memberId);
         analyticsTracker.track(blockerId, AnalyticsEvent.memberBlock());
-        log.atInfo().addKeyValue(OPERATION, "member.block").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, blockerId)
+        log.atInfo().addKeyValue(OPERATION, "member.block").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BLOCKED_MEMBER_ID, memberId).log("회원 차단 API 처리를 완료했습니다.");
     }
 
@@ -91,11 +91,11 @@ public class MemberController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unblock(@AuthMember Long blockerId,
                         @Parameter(description = "차단 해제할 회원 ID") @PathVariable Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.unblock").addKeyValue(MEMBER_ID, blockerId)
+        log.atInfo().addKeyValue(OPERATION, "member.unblock")
                 .addKeyValue(BLOCKED_MEMBER_ID, memberId).log("회원 차단 해제 API 처리를 시작합니다.");
         memberBlockService.unblock(blockerId, memberId);
         analyticsTracker.track(blockerId, AnalyticsEvent.memberUnblock());
-        log.atInfo().addKeyValue(OPERATION, "member.unblock").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, blockerId)
+        log.atInfo().addKeyValue(OPERATION, "member.unblock").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BLOCKED_MEMBER_ID, memberId).log("회원 차단 해제 API 처리를 완료했습니다.");
     }
 
@@ -105,11 +105,11 @@ public class MemberController {
     @DeleteMapping("/api/members/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMember(@AuthMember Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.deleteMember").addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "member.deleteMember")
                 .log("회원 삭제 API 처리를 시작합니다.");
         memberService.delete(memberId);
         analyticsTracker.track(memberId, AnalyticsEvent.memberDelete());
-        log.atInfo().addKeyValue(OPERATION, "member.deleteMember").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "member.deleteMember").addKeyValue(RESULT, SUCCESS)
                 .log("회원 삭제 API 처리를 완료했습니다.");
     }
 }

@@ -1,5 +1,7 @@
 package yeobaek.backend.comment.domain;
 
+import static yeobaek.backend.support.LogField.COMMENT_ID;
+
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -80,7 +82,7 @@ public class Comment {
             throw new BadRequestException(
                     ErrorCode.CANNOT_REPORT_OWN_COMMENT,
                     "본인이 작성한 댓글은 신고할 수 없습니다.",
-                    Map.of("memberId", memberId.toString()));
+                    id == null ? Map.of() : Map.of(COMMENT_ID, id.toString()));
         }
     }
 

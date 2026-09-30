@@ -1,7 +1,6 @@
 package yeobaek.backend.book.controller;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -40,13 +39,13 @@ public class BookController {
             @AuthMember Long memberId,
             @Parameter(description = "제목 또는 작가 이름 부분 일치 검색어. 미지정·공백이면 전체 목록")
             @RequestParam(required = false) String keyword) {
-        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBooks")
                 .addKeyValue("keyword", keyword)
                 .addKeyValue("searchUsed", keyword != null && !keyword.isBlank()).log("도서 목록 API 처리를 시작합니다.");
         BooksResponse response = bookService.findBooks(keyword);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.booksView(keyword != null && !keyword.isBlank(), response.books().size()));
-        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBooks").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue("keyword", keyword)
                 .addKeyValue("searchUsed", keyword != null && !keyword.isBlank())
                 .addKeyValue("resultCount", response.books().size()).log("도서 목록 API 처리를 완료했습니다.");
@@ -57,12 +56,12 @@ public class BookController {
     @GetMapping("/api/books/{bookId}")
     public BookDetailResponse findBook(@AuthMember Long memberId,
                                        @Parameter(description = "도서 ID") @PathVariable Long bookId) {
-        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBook")
                 .addKeyValue(BOOK_ID, bookId).log("도서 상세 API 처리를 시작합니다.");
         BookDetailResponse response = bookService.findBook(bookId);
         analyticsTracker.track(memberId,
                 AnalyticsEvent.bookView(response.bookId(), response.passageCount(), response.chapters().size()));
-        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(RESULT, SUCCESS).addKeyValue(MEMBER_ID, memberId)
+        log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("도서 상세 API 처리를 완료했습니다.");
         return response;
     }

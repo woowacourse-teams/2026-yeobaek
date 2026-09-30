@@ -2,7 +2,6 @@ package yeobaek.backend.club.controller;
 
 import static yeobaek.backend.support.LogField.BOOK_ID;
 import static yeobaek.backend.support.LogField.CLUB_ID;
-import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
@@ -49,12 +48,12 @@ public class ClubController {
     @ResponseStatus(HttpStatus.CREATED)
     public ClubCreateResponse create(@AuthMember Long memberId, @Valid @RequestBody ClubCreateRequest request) {
         log.atInfo().addKeyValue(OPERATION, "club.create")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(BOOK_ID, request.bookId())
+                .addKeyValue(BOOK_ID, request.bookId())
                 .log("모임 생성 API 처리를 시작합니다.");
         ClubCreateResponse response = clubService.create(memberId, request.name(), request.bookId());
         analyticsTracker.track(memberId, AnalyticsEvent.clubCreate(response.clubId(), response.book().bookId()));
         log.atInfo().addKeyValue(OPERATION, "club.create").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, response.clubId())
+                .addKeyValue(CLUB_ID, response.clubId())
                 .log("모임 생성 API 처리를 완료했습니다.");
         return response;
     }
@@ -63,12 +62,11 @@ public class ClubController {
             description = "형식이 잘못된 코드는 400(INVALID_REQUEST), 존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
     @PostMapping("/api/clubs/join")
     public ClubJoinResponse join(@AuthMember Long memberId, @Valid @RequestBody ClubJoinRequest request) {
-        log.atInfo().addKeyValue(OPERATION, "club.join")
-                .addKeyValue(MEMBER_ID, memberId).log("모임 참여 API 처리를 시작합니다.");
+        log.atInfo().addKeyValue(OPERATION, "club.join").log("모임 참여 API 처리를 시작합니다.");
         ClubJoinResponse response = clubService.join(memberId, request.joinCode());
         analyticsTracker.track(memberId, AnalyticsEvent.clubJoin(response.clubId(), response.book().bookId()));
         log.atInfo().addKeyValue(OPERATION, "club.join").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, response.clubId())
+                .addKeyValue(CLUB_ID, response.clubId())
                 .log("모임 참여 API 처리를 완료했습니다.");
         return response;
     }
@@ -79,22 +77,21 @@ public class ClubController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leave(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
         log.atInfo().addKeyValue(OPERATION, "club.leave")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 시작합니다.");
+                .addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 시작합니다.");
         clubService.leave(memberId, clubId);
         analyticsTracker.track(memberId, AnalyticsEvent.clubLeave(clubId));
         log.atInfo().addKeyValue(OPERATION, "club.leave").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 완료했습니다.");
+                .addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 완료했습니다.");
     }
 
     @Operation(summary = "내 모임 목록 조회")
     @GetMapping("/api/clubs")
     public MyClubsResponse findMyClubs(@AuthMember Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs")
-                .addKeyValue(MEMBER_ID, memberId).log("내 모임 목록 API 처리를 시작합니다.");
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").log("내 모임 목록 API 처리를 시작합니다.");
         MyClubsResponse response = clubService.findMyClubs(memberId);
         analyticsTracker.track(memberId, AnalyticsEvent.clubsView(response.clubs().size()));
         log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue("resultCount", response.clubs().size())
+                .addKeyValue("resultCount", response.clubs().size())
                 .log("내 모임 목록 API 처리를 완료했습니다.");
         return response;
     }
@@ -104,14 +101,14 @@ public class ClubController {
     @GetMapping("/api/clubs/{clubId}")
     public ClubDetailResponse findDetail(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
         log.atInfo().addKeyValue(OPERATION, "club.findDetail")
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId).log("모임 상세 API 처리를 시작합니다.");
+                .addKeyValue(CLUB_ID, clubId).log("모임 상세 API 처리를 시작합니다.");
         ClubDetailResponse response = clubService.findDetail(memberId, clubId);
         Integer progressRate = response.myProgress() == null ? null : response.myProgress().progressRate();
         analyticsTracker.track(memberId, AnalyticsEvent.clubView(
                 response.clubId(), response.book().bookId(), response.members().size(),
                 progressRate, response.book().status().name()));
         log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue(MEMBER_ID, memberId).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("memberCount", response.members().size()).log("모임 상세 API 처리를 완료했습니다.");
         return response;
     }
