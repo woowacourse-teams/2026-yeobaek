@@ -30,6 +30,7 @@ fun SelectBookCard(
     coverUrl: String?,
     selectOtherBook: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -62,6 +63,7 @@ fun SelectBookCard(
                 }
                 TextButton(
                     onClick = selectOtherBook,
+                    enabled = enabled,
                 ) {
                     Text("다른 책 고르기", style = MaterialTheme.typography.bodyMedium)
                 }

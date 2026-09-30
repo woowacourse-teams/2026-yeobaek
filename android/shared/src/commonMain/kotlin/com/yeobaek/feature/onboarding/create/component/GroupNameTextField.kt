@@ -23,6 +23,7 @@ fun GroupNameTextField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    enabled: Boolean = true,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -52,6 +53,7 @@ fun GroupNameTextField(
                     Text("모임 이름을 입력해주세요")
                 },
                 singleLine = true,
+                enabled = enabled,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(

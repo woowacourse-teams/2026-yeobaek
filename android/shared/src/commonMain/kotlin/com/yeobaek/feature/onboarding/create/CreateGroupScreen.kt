@@ -123,6 +123,7 @@ fun CreateGroupScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = onClickBack,
+                        enabled = !isLoading,
                     ) {
                         Icon(
                             painter = painterResource(Res.drawable.ic_back_arrow),
@@ -163,17 +164,20 @@ fun CreateGroupScreen(
                     authors = uiState.selectBookUiModel.authors,
                     coverUrl = uiState.selectBookUiModel.coverUrl,
                     selectOtherBook = selectOtherBook,
+                    enabled = !isLoading,
                 )
                 GroupNameTextField(
                     value = uiState.groupName,
                     onValueChange = onValueChangeGroupName,
                     isError = !uiState.isGroupNameValid,
+                    enabled = !isLoading,
                 )
             }
             YeobaekButton(
                 text = "모임 만들기",
                 onClick = onClickCreateGroup,
-                enabled = uiState.isGroupNameValid && uiState.createGroupState !is CreateGroupState.Success,
+                enabled =
+                    uiState.isGroupNameValid && !isLoading && uiState.createGroupState !is CreateGroupState.Success,
             )
         }
     }
