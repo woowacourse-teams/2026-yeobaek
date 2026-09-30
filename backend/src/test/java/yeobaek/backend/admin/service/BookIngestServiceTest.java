@@ -35,6 +35,7 @@ import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 
 class BookIngestServiceTest extends IntegrationTest {
 
@@ -57,6 +58,9 @@ class BookIngestServiceTest extends IntegrationTest {
 
     @Autowired
     private PassageRepository passageRepository;
+
+    @Autowired
+    private PublicRoomRepository publicRoomRepository;
 
     @Test
     @DisplayName("업로드하면 본문 순서가 배열 순서대로 책 전체 기준 1..N으로 부여된다")
@@ -81,6 +85,16 @@ class BookIngestServiceTest extends IntegrationTest {
         assertThat(first.getSentences()).extracting("sequence", "content")
                 .containsExactly(tuple(new ContentSequence(1), "첫 문장. "),
                         tuple(new ContentSequence(2), "둘째 문장."));
+    }
+
+    @Test
+    @DisplayName("도서를 업로드하면 같은 트랜잭션에서 공개방을 하나 생성한다")
+    void uploadCreatesPublicRoom() {
+        BookUploadResponse response = bookIngestService.upload(new BookUploadRequest(
+                new BookTitle("공개방 도서"), null, null, null,
+                authorsOfUnknown(), chaptersWithOnePassage()));
+
+        assertThat(publicRoomRepository.findByBookId(response.bookId())).isPresent();
     }
 
     @Test

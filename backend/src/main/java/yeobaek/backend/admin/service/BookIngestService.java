@@ -44,6 +44,8 @@ import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.InvalidRequestException;
 
 /**
@@ -63,6 +65,7 @@ public class BookIngestService {
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
     private final BookCoverUrlResolver bookCoverUrlResolver;
+    private final PublicRoomRepository publicRoomRepository;
 
     @Transactional
     public BookUploadResponse upload(BookUploadRequest request) {
@@ -76,6 +79,7 @@ public class BookIngestService {
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
+        publicRoomRepository.save(new PublicRoom(book));
         saveAuthors(book, authors);
         saveChapters(book, request.chapters());
         var response = new BookUploadResponse(book.getId(), book.getTitle().value(),

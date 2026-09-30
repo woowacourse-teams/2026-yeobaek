@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,8 @@ import yeobaek.backend.member.dto.MemberCreateRequest;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.service.MemberBlockService;
 import yeobaek.backend.member.service.MemberService;
+import yeobaek.backend.publicroom.dto.RecentReadingResponse;
+import yeobaek.backend.publicroom.service.RecentReadingService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 
@@ -42,6 +45,7 @@ public class MemberController {
     private final MemberService memberService;
     private final MemberBlockService memberBlockService;
     private final AnalyticsTracker analyticsTracker;
+    private final RecentReadingService recentReadingService;
 
     @Operation(summary = "회원 생성", description = "닉네임 입력만으로 회원을 생성하고 ID를 발급한다. 헤더 불필요(최초 진입).")
     @PostMapping("/api/members")
@@ -111,5 +115,12 @@ public class MemberController {
         analyticsTracker.track(memberId, AnalyticsEvent.memberDelete());
         log.atInfo().addKeyValue(OPERATION, "member.deleteMember").addKeyValue(RESULT, SUCCESS)
                 .log("회원 삭제 API 처리를 완료했습니다.");
+    }
+
+    @GetMapping("/api/members/me/recent-reading")
+    public ResponseEntity<RecentReadingResponse> findRecentReading(@AuthMember Long memberId) {
+        return recentReadingService.findRecent(memberId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

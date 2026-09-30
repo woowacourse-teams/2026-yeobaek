@@ -25,6 +25,7 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.LogCapture;
 
 class CommentLoggingTest {
@@ -46,7 +47,7 @@ class CommentLoggingTest {
         given(comments.countNewVisibleCommentsWithinProgress(7L, 5L, 4)).willReturn(3L);
         var service = new CommentService(comments, mock(CommentReportRepository.class),
                 mock(CommentViewRepository.class), clubs, memberships, mock(SentenceRepository.class),
-                passages, mock(MemberRepository.class));
+                passages, mock(MemberRepository.class), mock(PublicRoomRepository.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {
@@ -72,13 +73,14 @@ class CommentLoggingTest {
         var memberships = mock(ClubMemberRepository.class);
         var members = mock(MemberRepository.class);
         var comment = mock(Comment.class);
+        given(comments.findByIdForUpdate(11L)).willReturn(Optional.of(comment));
         given(comments.findVisibleWithContextById(7L, 11L)).willReturn(Optional.of(comment));
         given(memberships.existsJoinedByMemberIdAndCommentId(7L, 11L)).willReturn(true);
         given(reports.existsByReporterIdAndCommentId(7L, 11L)).willReturn(alreadyReported);
         given(members.getReferenceById(7L)).willReturn(mock(Member.class));
         var service = new CommentService(comments, reports, mock(CommentViewRepository.class),
                 mock(ClubRepository.class), memberships, mock(SentenceRepository.class),
-                mock(PassageRepository.class), members);
+                mock(PassageRepository.class), members, mock(PublicRoomRepository.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {

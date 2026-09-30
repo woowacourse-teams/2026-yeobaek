@@ -40,6 +40,8 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.comment.repository.CommentedSentenceSummary;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
@@ -58,6 +60,7 @@ public class CommentService {
     private final SentenceRepository sentenceRepository;
     private final PassageRepository passageRepository;
     private final MemberRepository memberRepository;
+    private final PublicRoomRepository publicRoomRepository;
 
     @Transactional
     public CommentsResponse findComments(Long memberId, Long clubId, Long sentenceId) {
@@ -90,6 +93,49 @@ public class CommentService {
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
                 .addKeyValue(COMMENT_ID, response.commentId()).log("댓글을 작성했습니다.");
         return response;
+    }
+
+    @Transactional
+    public CommentsResponse findPublicRoomComments(Long memberId, Long publicRoomId, Long sentenceId) {
+        PublicRoom room = validatePublicRoomSentenceContext(publicRoomId, sentenceId);
+        Comments comments = new Comments(commentRepository.findAllVisibleInPublicRoom(
+                memberId, room.getId(), sentenceId));
+        markAsViewed(memberId, comments);
+        return new CommentsResponse(comments.asList().stream()
+                .map(comment -> CommentResponse.of(comment, memberId))
+                .toList());
+    }
+
+    @Transactional
+    public CommentResponse createInPublicRoom(Long memberId, Long publicRoomId, Long sentenceId,
+                                               CommentContent content) {
+        PublicRoom room = validatePublicRoomSentenceContext(publicRoomId, sentenceId);
+        Comment comment = commentRepository.save(new Comment(room,
+                memberRepository.getReferenceById(memberId),
+                sentenceRepository.getReferenceById(sentenceId), content));
+        commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
+        return CommentResponse.of(comment, memberId);
+    }
+
+    @Transactional(readOnly = true)
+    public NewCommentCountResponse countNewPublicRoomComments(Long memberId, Long publicRoomId,
+                                                               Long currentPassageId) {
+        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
+        long count = commentRepository.countNewVisibleCommentsInPublicRoom(
+                memberId, publicRoomId, passage.getSequence().value());
+        return new NewCommentCountResponse(count);
+    }
+
+    @Transactional(readOnly = true)
+    public CommentedSentencesResponse findPublicRoomCommentedSentences(Long memberId, Long publicRoomId,
+                                                                       Long currentPassageId) {
+        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
+        int currentPassageSequence = passage.getSequence().value();
+        return new CommentedSentencesResponse(commentRepository
+                .findPublicRoomCommentedSentenceSummaries(memberId, publicRoomId).stream()
+                .map(summary -> toResponse(summary, currentPassageSequence))
+                .sorted(commentedSentenceComparator())
+                .toList());
     }
 
     @Transactional(readOnly = true)
@@ -154,13 +200,19 @@ public class CommentService {
     public void report(Long memberId, Long commentId) {
         log.atInfo().addKeyValue(OPERATION, "comment.report").addKeyValue(COMMENT_ID, commentId)
                 .log("댓글을 신고합니다.");
+        commentRepository.findByIdForUpdate(commentId)
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.COMMENT_NOT_FOUND,
+                        "신고할 댓글이 존재하지 않습니다: commentId=" + commentId,
+                        commentContext(commentId)));
         Comment comment = commentRepository.findVisibleWithContextById(memberId, commentId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.COMMENT_NOT_FOUND,
                         "신고할 댓글이 존재하지 않거나 요청자에게 보이지 않습니다: commentId=" + commentId,
                         commentContext(commentId)));
         comment.ensureReportableBy(memberId);
-        if (!clubMemberRepository.existsJoinedByMemberIdAndCommentId(memberId, commentId)) {
+        if (!comment.isPublicRoomComment()
+                && !clubMemberRepository.existsJoinedByMemberIdAndCommentId(memberId, commentId)) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
                     "모임에 참여 중인 회원만 댓글을 신고할 수 있습니다: commentId=" + commentId,
@@ -252,6 +304,45 @@ public class CommentService {
         }
         club.ensureBookAvailable();
         return passage;
+    }
+
+    private PublicRoom validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Sentence sentence = sentenceRepository.findById(sentenceId)
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.SENTENCE_NOT_FOUND,
+                        "댓글을 조회하거나 작성할 문장이 존재하지 않습니다: sentenceId=" + sentenceId));
+        if (!room.isReading(sentence)) {
+            throw new NotFoundException(
+                    ErrorCode.SENTENCE_NOT_FOUND,
+                    "해당 공개방에서 읽는 문장이 아닙니다: publicRoomId=" + publicRoomId
+                            + ", sentenceId=" + sentenceId);
+        }
+        room.ensureBookAvailable();
+        return room;
+    }
+
+    private Passage validatePublicRoomPassageContext(Long publicRoomId, Long passageId) {
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage passage = passageRepository.findById(passageId)
+                .orElseThrow(() -> new BadRequestException(
+                        ErrorCode.INVALID_REQUEST,
+                        "현재 문단이 존재하지 않습니다: passageId=" + passageId));
+        if (!room.isReading(passage)) {
+            throw new BadRequestException(
+                    ErrorCode.INVALID_REQUEST,
+                    "현재 문단이 해당 공개방의 도서에 속하지 않습니다: publicRoomId=" + publicRoomId
+                            + ", passageId=" + passageId);
+        }
+        room.ensureBookAvailable();
+        return passage;
+    }
+
+    private PublicRoom findPublicRoom(Long publicRoomId) {
+        return publicRoomRepository.findWithBookById(publicRoomId)
+                .orElseThrow(() -> new NotFoundException(
+                        ErrorCode.PUBLIC_ROOM_NOT_FOUND,
+                        "공개방이 존재하지 않습니다: publicRoomId=" + publicRoomId));
     }
 
     private void markAsViewed(Long memberId, Comments comments) {

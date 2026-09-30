@@ -6,6 +6,7 @@ import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,8 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
 import yeobaek.backend.support.InvalidRequestException;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final CommentRepository commentRepository;
     private final ClubMemberRepository clubMemberRepository;
+    private final PublicRoomActivityRepository publicRoomActivityRepository;
 
     @Transactional
     public MemberCreateResponse create(Nickname nickname) {
@@ -49,6 +51,7 @@ public class MemberService {
     public void delete(Long memberId) {
         log.atInfo().addKeyValue(OPERATION, "member.delete").log("회원을 삭제합니다.");
         deleteComments(memberId);
+        deletePublicRoomActivities(memberId);
         deleteClubMemberships(memberId);
         deleteMember(memberId);
         log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(RESULT, SUCCESS)
@@ -59,6 +62,12 @@ public class MemberService {
         logPersistenceAttempt("member.deleteComments");
         commentRepository.deleteAllByMemberId(memberId);
         logPersistenceSuccess("member.deleteComments");
+    }
+
+    private void deletePublicRoomActivities(Long memberId) {
+        logPersistenceAttempt("member.deletePublicRoomActivities");
+        publicRoomActivityRepository.deleteAllByMemberId(memberId);
+        logPersistenceSuccess("member.deletePublicRoomActivities");
     }
 
     private void deleteClubMemberships(Long memberId) {
