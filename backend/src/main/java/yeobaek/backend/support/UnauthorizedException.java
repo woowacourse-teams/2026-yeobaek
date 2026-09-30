@@ -1,17 +1,17 @@
 package yeobaek.backend.support;
 
-import lombok.Getter;
+import java.util.Map;
 
 /**
  * 인증 실패(관리자 토큰 누락·불일치). HTTP 401로 응답한다 (API.md 0장).
  */
-@Getter
-public class UnauthorizedException extends RuntimeException {
-
-    private final ErrorCode code;
+public class UnauthorizedException extends LogContextException {
 
     public UnauthorizedException(ErrorCode code, String message) {
-        super(message);
-        this.code = code;
+        super(code, message);
+    }
+
+    public UnauthorizedException(ErrorCode code, String message, Map<String, String> logContext) {
+        super(code, message, logContext);
     }
 }

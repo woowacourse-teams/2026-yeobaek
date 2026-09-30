@@ -3,6 +3,7 @@ package yeobaek.backend.book.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,19 @@ class BookTest {
         assertThatThrownBy(book::delete)
                 .isInstanceOf(BadRequestException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    @Test
+    @DisplayName("이용할 수 없는 저장 도서는 예외 로그 컨텍스트에 도서 ID와 상태를 제공한다")
+    void unavailableBookHasLogContext() {
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        ReflectionTestUtils.setField(book, "id", 3L);
+        book.delete();
+
+        assertThatThrownBy(book::ensureAvailable)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("logContext")
+                .isEqualTo(Map.of("bookId", "3", "bookStatus", "DELETED"));
     }
 
     @Test
