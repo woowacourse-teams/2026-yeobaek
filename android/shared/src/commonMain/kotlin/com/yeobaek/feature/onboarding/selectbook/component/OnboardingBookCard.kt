@@ -1,6 +1,5 @@
 package com.yeobaek.feature.onboarding.selectbook.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,13 +26,12 @@ fun OnboardingBookCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier.clickable {
-            onClick()
-        },
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraSmall,
         colors = CardDefaults.cardColors().copy(
             containerColor = Color.Transparent,
         ),
+        onClick = onClick,
     ) {
         BookCoverImage(
             imageUrl = coverUrl,
