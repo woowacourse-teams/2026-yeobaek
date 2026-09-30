@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
-fun PublicRoomBookItem(
+fun BookItem(
     title: String,
     authors: String,
     coverUrl: String?,
@@ -71,9 +71,9 @@ fun PublicRoomBookItem(
 
 @Preview(showBackground = true, name = "공개방 책 카드")
 @Composable
-private fun PublicRoomBookItemPreview() {
+private fun BookItemPreview() {
     YeobaekTheme {
-        PublicRoomBookItem(
+        BookItem(
             title = "테스트",
             authors = "테스트",
             coverUrl = null,

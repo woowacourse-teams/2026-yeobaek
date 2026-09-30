@@ -28,7 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.yeobaek.core.designsystem.component.PublicRoomBookItem
+import com.yeobaek.core.designsystem.component.BookItem
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -124,7 +124,7 @@ private fun CreateBookSelectionContent(
                         items = books,
                         key = SelectBookUiModel::id,
                     ) { book ->
-                        PublicRoomBookItem(
+                        BookItem(
                             title = book.title,
                             authors = book.authors,
                             coverUrl = book.coverUrl,

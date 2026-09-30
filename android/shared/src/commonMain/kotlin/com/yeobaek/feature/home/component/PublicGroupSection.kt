@@ -25,7 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.common.ScreenState
-import com.yeobaek.core.designsystem.component.PublicRoomBookItem
+import com.yeobaek.core.designsystem.component.BookItem
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.PublicRoomTabUiState
 import com.yeobaek.feature.home.model.PublicRoomBookUiModel
@@ -106,7 +106,7 @@ private fun PublicRoomGrid(
                 items = publicRooms,
                 key = PublicRoomBookUiModel::publicRoomId,
             ) { publicRoom ->
-                PublicRoomBookItem(
+                BookItem(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
@@ -144,7 +144,7 @@ private fun VisitedPublicRoomRow(
                 items = publicRooms,
                 key = PublicRoomBookUiModel::publicRoomId,
             ) { publicRoom ->
-                PublicRoomBookItem(
+                BookItem(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
