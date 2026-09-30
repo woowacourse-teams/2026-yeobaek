@@ -56,7 +56,7 @@ fun CreateScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             YeobaekTopAppBar(
-                title = "새 모임 만들기",
+                title = "모임 만들기",
                 onBackClick = onBackClick,
             )
         },
