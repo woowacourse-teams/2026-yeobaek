@@ -36,6 +36,7 @@ import com.yeobaek.feature.home.component.GroupFabMenu
 import com.yeobaek.feature.home.component.GroupTab
 import com.yeobaek.feature.home.component.GroupTabBar
 import com.yeobaek.feature.home.component.PublicGroupSection
+import com.yeobaek.feature.reader.ReaderTarget
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -45,7 +46,7 @@ fun HomeScreen(
     navigateToJoin: () -> Unit,
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
-    navigateToReader: (Long) -> Unit,
+    navigateToReader: (ReaderTarget) -> Unit,
     onPublicRoomClick: (Long) -> Unit,
     navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,

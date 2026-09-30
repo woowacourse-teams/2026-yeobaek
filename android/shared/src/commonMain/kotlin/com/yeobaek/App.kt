@@ -219,11 +219,9 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(true) {
-                    homeViewModel.initCurrentlyBook()
-                    homeViewModel.initGroups()
-                }
+                LaunchedEffect(true) { homeViewModel.initGroups() }
                 LifecycleEventEffect(Lifecycle.Event.ON_START) {
+                    homeViewModel.initCurrentlyBook()
                     homeViewModel.initPublicRooms()
                 }
 
@@ -244,14 +242,22 @@ fun App(
                         appContainer.analyticsTracker.track(GroupCreateInitiated)
                         navController.navigate(Create)
                     },
-                    navigateToReader = {
-                        appContainer.analyticsTracker.track(
-                            ReaderOpened(
-                                groupId = it,
-                                bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
-                            ),
-                        )
-                        navController.navigate(Reader(groupId = it))
+                    navigateToReader = { readerTarget ->
+                        when (readerTarget) {
+                            is ReaderTarget.Group -> {
+                                appContainer.analyticsTracker.track(
+                                    ReaderOpened(
+                                        groupId = readerTarget.id,
+                                        bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
+                                    ),
+                                )
+                                navController.navigate(Reader(groupId = readerTarget.id))
+                            }
+
+                            is ReaderTarget.PublicRoom -> {
+                                navController.navigate(PublicRoomReader(publicRoomId = readerTarget.id))
+                            }
+                        }
                     },
                     onPublicRoomClick = { publicRoomId ->
                         navController.navigate(PublicRoomReader(publicRoomId))
