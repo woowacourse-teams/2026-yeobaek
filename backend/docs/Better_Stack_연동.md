@@ -22,10 +22,12 @@ Live tail에서 수신을 확인한다. 콘솔 출력만으로 원격 수신 성
   따르며, 설정이 없는 병합 전에도 이 연결 설정에서는 `logstash`를 기본값으로 사용한다.
 - `traceId`와 `memberId`는 각각 `meta.traceId`(문자열), `meta.memberId`(정수)로 전송한다.
   MDC가 없는 시작·백그라운드 로그에는 해당 필드가 없다.
-- 공식 appender는 SLF4J `addKeyValue` 값을 독립 JSON 필드로 직렬화하지 않는다.
-  `%kvp`를 사용해 `operation`, `result` 등의 값을 원격 `message` 문자열에 포함한다.
-  콘솔 JSON에는 PR #207의 구조화 필드가 그대로 유지된다. Better Stack에서 이 값들을
-  별도 필드로 조회하려면 추가 파싱 또는 별도 변환 구현이 필요하며 이번 변경에는 포함하지 않는다.
+- `StructuredLogtailAppender`는 공식 appender의 전송 JSON에 SLF4J `addKeyValue` 값을
+  최상위 필드로 추가한다. `operation`, `result`, `enabled`, `eventName` 등을 필드명으로
+  조회할 수 있고 숫자·불리언 값은 원래 타입으로 전송한다. appender가 이미 사용하는
+  `dt`, `level`, `app`, `message`, `meta`, `runtime`, `args`, `throwable`과 이름이 같은
+  키는 기존 전송 필드를 덮어쓰지 않는다.
+- 원격 `message`에는 로그 문장만 전송한다. 콘솔 JSON에는 기존 구조화 필드가 그대로 유지된다.
 - 예외는 appender의 `throwable` 필드로 전송한다. `%nopex`는 메시지에 스택을 중복 출력하지 않는다.
 
 배치·재시도·종료 시 flush는 공식 appender 기본값을 사용한다. 전송 성공을 보장하는 영속 큐는
