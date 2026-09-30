@@ -1,6 +1,5 @@
 package com.yeobaek.data.api
 
-import com.yeobaek.data.dto.LastReadingResponse
 import com.yeobaek.data.dto.RecentReadingResponse
 import com.yeobaek.data.dto.UserRequest
 import com.yeobaek.data.dto.UserResponse
@@ -19,9 +18,6 @@ interface UserApi {
     suspend fun createUser(
         @Body request: UserRequest,
     ): Response<UserResponse>
-
-    @GET("api/members/me/last-reading")
-    suspend fun getLastReading(): Response<LastReadingResponse>
 
     @GET("api/members/me/recent-reading")
     suspend fun getRecentReading(): Response<RecentReadingResponse>
