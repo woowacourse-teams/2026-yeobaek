@@ -41,12 +41,12 @@ fun PublicGroupSection(
     when (uiState.screenState) {
         is ScreenState.Loading -> PublicRoomStatusMessage(
             message = uiState.screenState.message,
-            modifier = modifier,
+            modifier = modifier.fillMaxSize(),
         )
 
         is ScreenState.Error -> PublicRoomStatusMessage(
             message = uiState.screenState.message,
-            modifier = modifier,
+            modifier = modifier.fillMaxSize(),
         )
 
         ScreenState.Success -> PublicRoomGrid(
@@ -77,7 +77,10 @@ private fun PublicRoomGrid(
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             if (visitedPublicRooms.isEmpty()) {
-                EmptyPublicRoomMessage(message = "아직 방문한 공개방이 없어요.")
+                PublicRoomStatusMessage(
+                    message = "아직 방문한 공개방이 없어요.",
+                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                )
             } else {
                 VisitedPublicRoomRow(
                     publicRooms = visitedPublicRooms,
@@ -93,7 +96,10 @@ private fun PublicRoomGrid(
         }
         if (publicRooms.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyPublicRoomMessage(message = "현재 방문할 수 있는 공개방이 없어요.")
+                PublicRoomStatusMessage(
+                    message = "현재 방문할 수 있는 공개방이 없어요.",
+                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                )
             }
         } else {
             gridItems(
@@ -166,29 +172,12 @@ private fun PublicRoomSectionTitle(
 }
 
 @Composable
-private fun EmptyPublicRoomMessage(
-    message: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxWidth().height(96.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun PublicRoomStatusMessage(
     message: String,
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
         Text(
