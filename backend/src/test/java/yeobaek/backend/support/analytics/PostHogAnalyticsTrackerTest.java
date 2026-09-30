@@ -1,18 +1,20 @@
 package yeobaek.backend.support.analytics;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
 import com.posthog.server.PostHogCaptureOptions;
 import com.posthog.server.PostHogInterface;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import yeobaek.backend.support.LogCapture;
 
 class PostHogAnalyticsTrackerTest {
 
@@ -44,7 +46,15 @@ class PostHogAnalyticsTrackerTest {
         doThrow(new IllegalStateException("capture failed"))
                 .when(postHog).capture(eq("1"), eq("backend_member_create"), any());
 
-        assertThatCode(() -> tracker.track(1L, AnalyticsEvent.memberCreate()))
-                .doesNotThrowAnyException();
+        try (var logs = new LogCapture(PostHogAnalyticsTracker.class.getName())) {
+            tracker.track(1L, AnalyticsEvent.memberCreate());
+            var event = logs.event("analytics.track", "recovered");
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(List.of(logs.field(event, "analyticsMemberId"), logs.field(event, "eventName")))
+                    .containsExactly(1L, "backend_member_create");
+            assertThat(logs.hasField(event, "memberId")).isFalse();
+            assertThat(event.getThrowableProxy()).isNull();
+            assertThat(logs.structuredText()).doesNotContain("capture failed");
+        }
     }
 }
