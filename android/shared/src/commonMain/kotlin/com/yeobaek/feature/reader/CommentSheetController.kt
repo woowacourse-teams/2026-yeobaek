@@ -10,6 +10,7 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.CommentModel
+import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
@@ -21,7 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class CommentSheetController(
-    private val groupId: Long,
+    private val commentSpace: CommentSpace,
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
     private val scope: CoroutineScope,
@@ -102,7 +103,7 @@ class CommentSheetController(
         loadJob = scope.launch {
             try {
                 val comments = commentRepository.getComments(
-                    clubId = groupId,
+                    space = commentSpace,
                     sentenceId = sentenceId,
                 ).comments.map(CommentModel::toUiModel)
 
@@ -243,7 +244,7 @@ class CommentSheetController(
 
         scope.launch {
             try {
-                commentRepository.deleteComment(commentId = commentId)
+                commentRepository.deleteComment(commentId)
 
                 updateSheet(
                     sentenceId = sheet.sentenceId,
@@ -308,15 +309,12 @@ class CommentSheetController(
             try {
                 val savedComment = if (editingCommentId == null) {
                     commentRepository.createComment(
-                        clubId = groupId,
+                        space = commentSpace,
                         sentenceId = sheet.sentenceId,
                         content = content,
                     )
                 } else {
-                    commentRepository.updateComment(
-                        commentId = editingCommentId,
-                        content = content,
-                    )
+                    commentRepository.updateComment(editingCommentId, content)
                 }.toUiModel()
 
                 updateSheet(

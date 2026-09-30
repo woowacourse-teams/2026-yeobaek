@@ -25,7 +25,7 @@ fun BookCoverImage(
             contentDescription = "책 표지",
             modifier = modifier
                 .clip(shape = MaterialTheme.shapes.extraSmall)
-                .aspectRatio(9f / 16f),
+                .aspectRatio(2f / 3f),
             contentScale = ContentScale.Crop,
         )
     } else {
@@ -34,7 +34,7 @@ fun BookCoverImage(
             contentDescription = "책 표지 불러오기 실패",
             modifier = modifier
                 .clip(shape = MaterialTheme.shapes.extraSmall)
-                .aspectRatio(9f / 16f),
+                .aspectRatio(2f / 3f),
             contentScale = ContentScale.Crop,
         )
     }

@@ -10,6 +10,7 @@ enum class TrackedScreen(
     GROUP_JOIN("group_join"),
     GROUP_CREATE("group_create"),
     READER("reader"),
+    PUBLIC_ROOM_READER("public_room_reader"),
     COMMENT_COLLECTION("comment_collection"),
     MY_PAGE("my_page"),
 }

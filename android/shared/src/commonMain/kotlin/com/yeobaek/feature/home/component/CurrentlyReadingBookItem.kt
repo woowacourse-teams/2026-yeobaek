@@ -22,13 +22,16 @@ import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
+import com.yeobaek.feature.reader.ReaderTarget
 
 @Composable
 fun CurrentlyReadingBookItem(
     bookUiModel: CurrentlyReadingBookUiModel,
+    onClick: (ReaderTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
+        onClick = { onClick(bookUiModel.readerTarget) },
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -37,23 +40,27 @@ fun CurrentlyReadingBookItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(
+                    horizontal = 12.dp,
+                    vertical = 8.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BookCoverImage(
                 imageUrl = bookUiModel.coverImageUrl,
-                modifier = Modifier.width(52.dp),
+                modifier = Modifier.width(41.dp),
             )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 20.dp),
             ) {
-                GroupName(name = bookUiModel.groupName)
+                ReadingSpaceName(name = bookUiModel.readingSpaceName)
                 Spacer(modifier = Modifier.height(8.dp))
                 BookTitle(title = bookUiModel.title)
+                Spacer(modifier = Modifier.height(2.dp))
                 BookAuthors(authors = bookUiModel.authors)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 ReadingProgressIndicator(progressRate = bookUiModel.progressRate)
             }
         }
@@ -61,7 +68,7 @@ fun CurrentlyReadingBookItem(
 }
 
 @Composable
-private fun GroupName(
+private fun ReadingSpaceName(
     name: String,
     modifier: Modifier = Modifier,
 ) {
@@ -86,6 +93,7 @@ private fun BookTitle(
         modifier = modifier.fillMaxWidth(),
         maxLines = 1,
         style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = 16.sp,
             letterSpacing = 2.sp,
         ),
     )
@@ -113,15 +121,36 @@ private fun CurrentlyReadingBookItemPreview() {
     YeobaekTheme {
         CurrentlyReadingBookItem(
             bookUiModel = CurrentlyReadingBookUiModel(
-                groupName = "고전 읽는 오후 모임",
+                readerTarget = ReaderTarget.Group(id = 1L),
+                bookId = 1L,
+                readingSpaceName = "고전 읽는 오후 모임",
                 title = "데미안",
                 coverImageUrl =
                     "https://minumsa.minumsa.com/wp-content/uploads/bookcover/" +
                         "044_%EB%8D%B0%EB%AF%B8%EC%95%88-500x840.jpg",
                 authors = "헤르만 헤세",
                 progressRate = 12,
-                clubId = 0,
             ),
+            onClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "공개방에서 읽고 있는 책")
+@Composable
+private fun CurrentlyReadingPublicRoomBookItemPreview() {
+    YeobaekTheme {
+        CurrentlyReadingBookItem(
+            bookUiModel = CurrentlyReadingBookUiModel(
+                readerTarget = ReaderTarget.PublicRoom(id = 1L),
+                bookId = 1L,
+                readingSpaceName = "공개방",
+                title = "데미안",
+                coverImageUrl = null,
+                authors = "헤르만 헤세",
+                progressRate = 31,
+            ),
+            onClick = {},
         )
     }
 }

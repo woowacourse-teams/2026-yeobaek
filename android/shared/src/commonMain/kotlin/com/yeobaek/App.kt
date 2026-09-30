@@ -42,6 +42,7 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.feature.group.create.CreateScreen
+import com.yeobaek.feature.group.create.CreateStep
 import com.yeobaek.feature.group.create.CreateViewModel
 import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
@@ -62,12 +63,14 @@ import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
+import com.yeobaek.feature.navigation.PublicRoomReader
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
+import com.yeobaek.feature.reader.ReaderTarget
 import com.yeobaek.feature.reader.ReaderViewModel
 
 @Composable
@@ -211,13 +214,15 @@ fun App(
                     factory = HomeViewModel.homeViewModelFactory(
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
+                        publicRoomRepository = appContainer.publicRoomRepository,
                         crashReporter = appContainer.crashReporter,
                     ),
                 )
 
-                LaunchedEffect(true) {
+                LaunchedEffect(true) { homeViewModel.initGroups() }
+                LifecycleEventEffect(Lifecycle.Event.ON_START) {
                     homeViewModel.initCurrentlyBook()
-                    homeViewModel.initGroups()
+                    homeViewModel.initPublicRooms()
                 }
 
                 HomeScreen(
@@ -237,19 +242,39 @@ fun App(
                         appContainer.analyticsTracker.track(GroupCreateInitiated)
                         navController.navigate(Create)
                     },
-                    navigateToReader = {
-                        appContainer.analyticsTracker.track(
-                            ReaderOpened(
-                                groupId = it,
-                                bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
-                            ),
-                        )
-                        navController.navigate(Reader(groupId = it))
+                    navigateToReader = { readerTarget ->
+                        when (readerTarget) {
+                            is ReaderTarget.Group -> {
+                                appContainer.analyticsTracker.track(
+                                    ReaderOpened(
+                                        groupId = readerTarget.id,
+                                        bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
+                                    ),
+                                )
+                                navController.navigate(Reader(groupId = readerTarget.id))
+                            }
+
+                            is ReaderTarget.PublicRoom -> {
+                                navController.navigate(PublicRoomReader(publicRoomId = readerTarget.id))
+                            }
+                        }
+                    },
+                    onPublicRoomClick = { publicRoomId ->
+                        navController.navigate(PublicRoomReader(publicRoomId))
                     },
                     navigateToMyPage = {
                         appContainer.analyticsTracker.track(MyPageOpened)
                         navController.navigate(MyPage)
                     },
+                )
+            }
+            composable<PublicRoomReader> { backStackEntry ->
+                val route = backStackEntry.toRoute<PublicRoomReader>()
+                ReaderRoute(
+                    readerTarget = ReaderTarget.PublicRoom(route.publicRoomId),
+                    trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
+                    appContainer = appContainer,
+                    onBackClick = navController::popBackStack,
                 )
             }
             composable<Detail> { backStackEntry ->
@@ -322,86 +347,11 @@ fun App(
             }
             composable<Reader> { backStackEntry ->
                 val route = backStackEntry.toRoute<Reader>()
-                val readerViewModel = viewModel<ReaderViewModel>(
-                    factory = ReaderViewModel.readerViewModelFactory(
-                        groupId = route.groupId,
-                        bookRepository = appContainer.bookRepository,
-                        groupRepository = appContainer.groupRepository,
-                        readerRepository = appContainer.readerRepository,
-                        readerPreferences = appContainer.readerPreferences,
-                        commentRepository = appContainer.commentRepository,
-                        crashReporter = appContainer.crashReporter,
-                        analyticsTracker = appContainer.analyticsTracker,
-                    ),
-                )
-                TrackScreen(
-                    crashReporter = appContainer.crashReporter,
-                    analyticsTracker = appContainer.analyticsTracker,
-                    screen = if (readerViewModel.uiState.isCommentCollectionsVisible) {
-                        TrackedScreen.COMMENT_COLLECTION
-                    } else {
-                        TrackedScreen.READER
-                    },
-                )
-                LifecycleEventEffect(Lifecycle.Event.ON_START) {
-                    readerViewModel.onScreenStarted()
-                }
-                LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
-                    readerViewModel.onScreenStopped()
-                }
-                val commentSheet = readerViewModel.commentSheet
-                val actions = remember(readerViewModel, navController) {
-                    ReaderActions(
-                        onBackClick = {
-                            readerViewModel.finishReadingSession()
-                            readerViewModel.saveReadingProgress(
-                                onComplete = navController::popBackStack,
-                            )
-                        },
-                        onSentenceClick = readerViewModel::openSentenceComments,
-                        onTableOfContentsClick = readerViewModel::openTableOfContents,
-                        onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
-                        onChapterClick = readerViewModel::selectChapter,
-                        onTextSettingClick = readerViewModel::toggleTextSettingMenu,
-                        onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
-                        onFontSizeChange = readerViewModel::updateFontSize,
-                        onProgressChange = readerViewModel::selectProgress,
-                        onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
-                        onLoadPrevious = readerViewModel::loadPreviousPassages,
-                        onLoadNext = readerViewModel::loadNextPassages,
-                        onVisiblePassageChange = readerViewModel::updateReadingPassage,
-                        onTargetPassageReached = readerViewModel::completeMoveToPassage,
-                        onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
-                        onCommentCollectionsClick = readerViewModel::openCommentCollections,
-                        onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
-                        onCommentCollectionsRetry = readerViewModel::getCommentCollections,
-                        onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
-                        onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
-                        onMoveToComment = readerViewModel::moveToSelectedComment,
-                        onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
-                    )
-                }
-                val commentSheetActions = remember(commentSheet) {
-                    CommentSheetActions(
-                        onDismiss = commentSheet::dismiss,
-                        onRetry = commentSheet::retryLoad,
-                        onInputChange = commentSheet::updateInput,
-                        onSubmit = commentSheet::submit,
-                        onEdit = commentSheet::startEditing,
-                        onEditCancel = commentSheet::cancelEditing,
-                        onDelete = commentSheet::requestDelete,
-                        onDeleteCancel = commentSheet::cancelDelete,
-                        onDeleteConfirm = commentSheet::confirmDelete,
-                        onReport = commentSheet::report,
-                        onReportResultConsumed = commentSheet::consumeReportResult,
-                    )
-                }
-
-                ReaderScreen(
-                    uiState = readerViewModel.uiState,
-                    commentSheet = commentSheet.uiState,
-                    actions = actions,
-                    commentSheetActions = commentSheetActions,
+                ReaderRoute(
+                    readerTarget = ReaderTarget.Group(route.groupId),
+                    trackedScreen = TrackedScreen.READER,
+                    appContainer = appContainer,
+                    onBackClick = navController::popBackStack,
                 )
             }
             composable<Join> {
@@ -476,20 +426,28 @@ fun App(
                     uiState = createViewModel.uiState,
                     updateGroupNameValue = createViewModel::updateGroupNameValue,
                     selectBook = createViewModel::selectBook,
-                    onBookListScrolled = createViewModel::onBookListScrolled,
+                    onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,
+                    onNextStep = createViewModel::moveToGroupName,
+                    onSelectOtherBook = createViewModel::moveToBookSelection,
                     onBackClick = {
-                        appContainer.analyticsTracker.track(
-                            GroupCreateAbandoned(
-                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
-                                hasBook = createViewModel.uiState.bookList.any { it.selected },
-                                bookList = createViewModel.bookListExposure(),
-                            ),
-                        )
-                        navController.popBackStack()
+                        when (createViewModel.uiState.step) {
+                            CreateStep.GroupName -> createViewModel.moveToBookSelection()
+
+                            CreateStep.BookSelection -> {
+                                appContainer.analyticsTracker.track(
+                                    GroupCreateAbandoned(
+                                        hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
+                                        hasBook = createViewModel.uiState.selectedBook != null,
+                                        bookList = createViewModel.bookListExposure(),
+                                    ),
+                                )
+                                navController.popBackStack()
+                            }
+                        }
                     },
                     onCreateGroup = {
                         if (createViewModel.createConditionCheck()) {
-                            val reason = if (createViewModel.uiState.groupNameCondition) {
+                            val reason = if (!createViewModel.uiState.isGroupNameValid) {
                                 InvalidReason.NAME_BLANK
                             } else {
                                 InvalidReason.BOOK_NOT_SELECTED
@@ -553,6 +511,95 @@ fun App(
             }
         }
     }
+}
+
+@Composable
+private fun ReaderRoute(
+    readerTarget: ReaderTarget,
+    trackedScreen: TrackedScreen,
+    appContainer: AppContainer,
+    onBackClick: () -> Unit,
+) {
+    val readerViewModel = viewModel<ReaderViewModel>(
+        factory = ReaderViewModel.readerViewModelFactory(
+            readerTarget = readerTarget,
+            bookRepository = appContainer.bookRepository,
+            groupRepository = appContainer.groupRepository,
+            publicRoomRepository = appContainer.publicRoomRepository,
+            readerRepository = appContainer.readerRepository,
+            readerPreferences = appContainer.readerPreferences,
+            commentRepository = appContainer.commentRepository,
+            crashReporter = appContainer.crashReporter,
+            analyticsTracker = appContainer.analyticsTracker,
+        ),
+    )
+    TrackScreen(
+        crashReporter = appContainer.crashReporter,
+        analyticsTracker = appContainer.analyticsTracker,
+        screen = if (readerViewModel.uiState.isCommentCollectionsVisible) {
+            TrackedScreen.COMMENT_COLLECTION
+        } else {
+            trackedScreen
+        },
+    )
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        readerViewModel.onScreenStarted()
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        readerViewModel.onScreenStopped()
+    }
+    val commentSheet = readerViewModel.commentSheet
+    val actions = remember(readerViewModel, onBackClick) {
+        ReaderActions(
+            onBackClick = {
+                readerViewModel.finishReadingSession()
+                readerViewModel.saveReadingProgress(onComplete = onBackClick)
+            },
+            onSentenceClick = readerViewModel::openSentenceComments,
+            onTableOfContentsClick = readerViewModel::openTableOfContents,
+            onTableOfContentsDismiss = readerViewModel::dismissTableOfContents,
+            onChapterClick = readerViewModel::selectChapter,
+            onTextSettingClick = readerViewModel::toggleTextSettingMenu,
+            onTextSettingDismiss = readerViewModel::dismissTextSettingMenu,
+            onFontSizeChange = readerViewModel::updateFontSize,
+            onProgressChange = readerViewModel::selectProgress,
+            onProgressChangeFinished = readerViewModel::moveToSelectedProgress,
+            onLoadPrevious = readerViewModel::loadPreviousPassages,
+            onLoadNext = readerViewModel::loadNextPassages,
+            onVisiblePassageChange = readerViewModel::updateReadingPassage,
+            onTargetPassageReached = readerViewModel::completeMoveToPassage,
+            onTargetPassageNotFound = readerViewModel::cancelMoveToPassage,
+            onCommentCollectionsClick = readerViewModel::openCommentCollections,
+            onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
+            onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+            onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
+            onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
+            onMoveToComment = readerViewModel::moveToSelectedComment,
+            onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
+        )
+    }
+    val commentSheetActions = remember(commentSheet) {
+        CommentSheetActions(
+            onDismiss = commentSheet::dismiss,
+            onRetry = commentSheet::retryLoad,
+            onInputChange = commentSheet::updateInput,
+            onSubmit = commentSheet::submit,
+            onEdit = commentSheet::startEditing,
+            onEditCancel = commentSheet::cancelEditing,
+            onDelete = commentSheet::requestDelete,
+            onDeleteCancel = commentSheet::cancelDelete,
+            onDeleteConfirm = commentSheet::confirmDelete,
+            onReport = commentSheet::report,
+            onReportResultConsumed = commentSheet::consumeReportResult,
+        )
+    }
+
+    ReaderScreen(
+        uiState = readerViewModel.uiState,
+        commentSheet = commentSheet.uiState,
+        actions = actions,
+        commentSheetActions = commentSheetActions,
+    )
 }
 
 @Composable
