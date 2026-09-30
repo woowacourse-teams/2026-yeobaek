@@ -2,7 +2,6 @@ package com.yeobaek.data.dto
 
 import com.yeobaek.data.model.ReadingSpaceModel
 import com.yeobaek.data.model.RecentReadingBookModel
-import com.yeobaek.data.model.RecentReadingBookStatus
 import com.yeobaek.data.model.RecentReadingModel
 import kotlinx.serialization.Serializable
 
@@ -30,7 +29,6 @@ data class RecentReadingBook(
     val authors: List<String>,
     val coverImageUrl: String?,
     val passageCount: Int,
-    val status: String,
 )
 
 fun RecentReadingResponse.toModel(): RecentReadingModel = RecentReadingModel(
@@ -60,9 +58,4 @@ private fun RecentReadingBook.toModel(): RecentReadingBookModel = RecentReadingB
     authors = authors,
     coverImageUrl = coverImageUrl,
     passageCount = passageCount,
-    status = when (status) {
-        "ACTIVE" -> RecentReadingBookStatus.ACTIVE
-        "DELETED" -> RecentReadingBookStatus.DELETED
-        else -> RecentReadingBookStatus.UNSUPPORTED
-    },
 )

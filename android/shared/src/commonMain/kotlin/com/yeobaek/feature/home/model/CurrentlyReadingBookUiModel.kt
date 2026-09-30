@@ -1,7 +1,6 @@
 package com.yeobaek.feature.home.model
 
 import com.yeobaek.data.model.ReadingSpaceModel
-import com.yeobaek.data.model.RecentReadingBookStatus
 import com.yeobaek.data.model.RecentReadingModel
 import com.yeobaek.feature.reader.ReaderTarget
 
@@ -13,7 +12,6 @@ data class CurrentlyReadingBookUiModel(
     val coverImageUrl: String?,
     val authors: String,
     val progressRate: Int,
-    val canResumeReading: Boolean,
 )
 
 fun RecentReadingModel.toCurrentlyReadingBookUiModel(): CurrentlyReadingBookUiModel {
@@ -30,6 +28,5 @@ fun RecentReadingModel.toCurrentlyReadingBookUiModel(): CurrentlyReadingBookUiMo
         coverImageUrl = book.coverImageUrl,
         authors = book.authors.joinToString(", "),
         progressRate = progressRate,
-        canResumeReading = book.status == RecentReadingBookStatus.ACTIVE,
     )
 }

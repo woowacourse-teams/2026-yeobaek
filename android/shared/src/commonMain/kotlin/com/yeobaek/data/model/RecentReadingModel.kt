@@ -25,11 +25,4 @@ data class RecentReadingBookModel(
     val authors: List<String>,
     val coverImageUrl: String?,
     val passageCount: Int,
-    val status: RecentReadingBookStatus,
 )
-
-enum class RecentReadingBookStatus {
-    ACTIVE,
-    DELETED,
-    UNSUPPORTED,
-}

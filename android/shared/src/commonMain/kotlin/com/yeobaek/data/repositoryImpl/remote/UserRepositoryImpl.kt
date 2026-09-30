@@ -3,6 +3,7 @@ package com.yeobaek.data.repositoryImpl.remote
 import com.yeobaek.data.api.UserApi
 import com.yeobaek.data.dto.UserRequest
 import com.yeobaek.data.dto.toModel
+import com.yeobaek.data.dto.toRecentReadingModel
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.model.LastReadingModel
 import com.yeobaek.data.model.RecentReadingModel
@@ -50,10 +51,10 @@ class UserRepositoryImpl(
     }
 
     override suspend fun getRecentReading(): RecentReadingModel? {
-        val response = userApi.getRecentReading()
+        val response = userApi.getLastReading()
 
         return when (response.status) {
-            OK -> response.body()?.toModel()
+            OK -> response.body()?.toRecentReadingModel()
                 ?: throw IllegalArgumentException("최근에 읽은 책 정보가 없네요")
 
             NoContent -> null
