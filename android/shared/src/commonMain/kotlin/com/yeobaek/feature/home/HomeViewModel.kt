@@ -14,12 +14,9 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
-import com.yeobaek.data.model.LastReadingModel
-import com.yeobaek.data.model.VisitedPublicRoomModel
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.UserRepository
-import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 import com.yeobaek.feature.home.model.GroupUiModel
 import com.yeobaek.feature.home.model.toCurrentlyReadingBookUiModel
 import com.yeobaek.feature.home.model.toUiModel
@@ -40,43 +37,19 @@ class HomeViewModel(
     fun initCurrentlyBook() {
         viewModelScope.launch {
             try {
-                val (lastGroupReading, visitedPublicRooms) = coroutineScope {
-                    val lastGroupReading = async { loadLastGroupReading() }
-                    val visitedPublicRooms = async { loadVisitedPublicRooms() }
-
-                    lastGroupReading.await() to visitedPublicRooms.await()
-                }
-                val latestReading = buildList {
-                    lastGroupReading?.let { reading ->
-                        add(
-                            ReadingCandidate(
-                                lastReadAt = reading.lastReadAt,
-                                book = reading.toCurrentlyReadingBookUiModel(),
-                            ),
-                        )
-                    }
-                    visitedPublicRooms.forEach { visitedRoom ->
-                        val progress = visitedRoom.publicRoom.myProgress ?: return@forEach
-                        val book = visitedRoom.toCurrentlyReadingBookUiModel() ?: return@forEach
-                        add(
-                            ReadingCandidate(
-                                lastReadAt = progress.lastReadAt,
-                                book = book,
-                            ),
-                        )
-                    }
-                }.maxByOrNull(ReadingCandidate::lastReadAt)
+                val recentReading = userRepository.getRecentReading()
+                val currentlyReadingBook = recentReading?.toCurrentlyReadingBookUiModel()
 
                 uiState = uiState.copy(
-                    currentlyReadingBookUiModel = latestReading?.book,
+                    currentlyReadingBookUiModel = currentlyReadingBook,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
                         screen = TrackedScreen.HOME,
                         operation = CrashOperation.HOME_LAST_READING_LOADED,
-                        bookId = latestReading?.book?.bookId,
-                        itemCount = if (latestReading == null) 0 else 1,
+                        bookId = currentlyReadingBook?.bookId,
+                        itemCount = if (currentlyReadingBook == null) 0 else 1,
                     ),
                 )
             } catch (e: io.ktor.utils.io.CancellationException) {
@@ -209,33 +182,4 @@ class HomeViewModel(
         screen = TrackedScreen.HOME,
         operation = operation,
     )
-
-    private suspend fun loadLastGroupReading(): LastReadingModel? = try {
-        userRepository.getLastReading()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        crashReporter.recordException(
-            throwable = e,
-            context = crashContext(CrashOperation.HOME_LAST_READING_FAILED),
-        )
-        null
-    }
-
-    private suspend fun loadVisitedPublicRooms(): List<VisitedPublicRoomModel> = try {
-        publicRoomRepository.getVisitedPublicRooms()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        crashReporter.recordException(
-            throwable = e,
-            context = crashContext(CrashOperation.HOME_PUBLIC_ROOMS_FAILED),
-        )
-        emptyList()
-    }
 }
-
-private data class ReadingCandidate(
-    val lastReadAt: String,
-    val book: CurrentlyReadingBookUiModel,
-)

@@ -32,6 +32,7 @@ fun CurrentlyReadingBookItem(
 ) {
     Card(
         onClick = { onClick(bookUiModel.readerTarget) },
+        enabled = bookUiModel.canResumeReading,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -130,6 +131,7 @@ private fun CurrentlyReadingBookItemPreview() {
                         "044_%EB%8D%B0%EB%AF%B8%EC%95%88-500x840.jpg",
                 authors = "헤르만 헤세",
                 progressRate = 12,
+                canResumeReading = true,
             ),
             onClick = {},
         )
@@ -149,6 +151,7 @@ private fun CurrentlyReadingPublicRoomBookItemPreview() {
                 coverImageUrl = null,
                 authors = "헤르만 헤세",
                 progressRate = 31,
+                canResumeReading = true,
             ),
             onClick = {},
         )

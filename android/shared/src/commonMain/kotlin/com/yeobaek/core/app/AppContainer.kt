@@ -17,6 +17,7 @@ import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.fake.FakePublicRoomRepository
+import com.yeobaek.data.repositoryImpl.fake.FakeUserRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
@@ -48,9 +49,12 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val userRepository: UserRepository = UserRepositoryImpl(
+    private val remoteUserRepository: UserRepository = UserRepositoryImpl(
         userApi = apiProvider.userApi,
         userPreferences = userPreferences,
+    )
+    val userRepository: UserRepository = FakeUserRepository(
+        delegate = remoteUserRepository,
     )
     val bookRepository: BookRepository = BookRepositoryImpl(
         bookApi = apiProvider.bookApi,
