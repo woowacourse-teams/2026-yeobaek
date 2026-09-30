@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """번역본(마크다운) → 문장 단위 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
 
-최종 보관용 ZIP에는 표지 브리프와 검수를 통과한 표지 산출물도 함께 보관한다.
+최종 보관용 ZIP에는 원문 파일, 표지 브리프와 검수를 통과한 표지 산출물도 함께 보관한다.
 표지 생성·검증 자체는 `표지_하네스.md`와 `표지_시안_준비.py`가 담당한다.
 
 번역본 형식(번역_지침.md의 [4. 구조 보존 규칙]):
@@ -847,10 +847,24 @@ def list_chapters(original, chapter_re, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRA
           f"추정 토큰 {max_tokens:,}개")
 
 
-def create_archive(zip_output, book_dir, ingest_path, meta_path):
-    """최종 보관용 ZIP을 만든다. 원문과 표지 작업 파일은 포함하지 않는다."""
+def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
+    """원문과 최종 산출물을 포함한 보관용 ZIP을 만든다."""
     book_dir = book_dir.resolve()
     zip_output = zip_output.resolve()
+    original_path = original_path.resolve()
+    if not original_path.is_file():
+        raise FileNotFoundError(
+            f"보관용 ZIP에 포함할 원문 파일이 없습니다: {original_path}"
+        )
+    conflicting_outputs = {
+        zip_output: "ZIP 출력",
+        ingest_path.resolve(): "인제스트 JSON",
+        meta_path.resolve(): "메타데이터",
+    }
+    if original_path in conflicting_outputs:
+        raise ValueError(
+            f"원문 파일과 {conflicting_outputs[original_path]} 경로는 달라야 합니다."
+        )
     cover_dir = book_dir / "표지"
     required_cover_files = [
         book_dir / "표지_브리프.json",
@@ -876,29 +890,40 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path):
         book_dir / "리뷰",
     ]
 
-    zip_output.parent.mkdir(parents=True, exist_ok=True)
-    seen = set()
-    with zipfile.ZipFile(zip_output, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for path in fixed_files:
-            if not path or not path.exists() or not path.is_file():
+    archive_entries = [(original_path, f"원문/{original_path.name}")]
+    seen_paths = {original_path}
+    seen_arcnames = {archive_entries[0][1]}
+    for path in fixed_files:
+        if not path or not path.exists() or not path.is_file():
+            continue
+        resolved = path.resolve()
+        arcname = resolved.relative_to(book_dir).as_posix()
+        if arcname in seen_arcnames:
+            raise ValueError(f"ZIP 내부 경로가 충돌합니다: {arcname}")
+        archive_entries.append((resolved, arcname))
+        seen_paths.add(resolved)
+        seen_arcnames.add(arcname)
+
+    for directory in output_dirs:
+        if not directory.exists() or not directory.is_dir():
+            continue
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file():
                 continue
             resolved = path.resolve()
-            arcname = resolved.relative_to(book_dir).as_posix()
-            zf.write(resolved, arcname)
-            seen.add(resolved)
-
-        for directory in output_dirs:
-            if not directory.exists() or not directory.is_dir():
+            if resolved in seen_paths:
                 continue
-            for path in sorted(directory.rglob("*")):
-                if not path.is_file():
-                    continue
-                resolved = path.resolve()
-                if resolved in seen:
-                    continue
-                arcname = resolved.relative_to(book_dir).as_posix()
-                zf.write(resolved, arcname)
-                seen.add(resolved)
+            arcname = resolved.relative_to(book_dir).as_posix()
+            if arcname in seen_arcnames:
+                raise ValueError(f"ZIP 내부 경로가 충돌합니다: {arcname}")
+            archive_entries.append((resolved, arcname))
+            seen_paths.add(resolved)
+            seen_arcnames.add(arcname)
+
+    zip_output.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_output, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for resolved, arcname in archive_entries:
+            zf.write(resolved, arcname)
 
 
 def default_archive_name(title, fallback):
@@ -1093,20 +1118,38 @@ def main():
         print("[부분 검증 통과] 전체 완료 후 --partial 없이 실행하면 JSON이 생성됩니다.")
         return
 
+    if not args.original or not args.original.is_file():
+        sys.exit(
+            f"[오류] 최종 보관용 ZIP에 포함할 --original 원문 파일이 필요합니다: "
+            f"{args.original}"
+        )
+
     if (errors or not counts_ok) and not args.force:
         sys.exit("\n검증 실패 — JSON을 출력하지 않았습니다. 무시하고 출력하려면 --force")
+
+    output = args.output or args.meta.parent / "ingest.json"
+    zip_output = args.zip_output or Path(default_archive_name(meta.get("title", ""), output.parent.name))
+    if not zip_output.is_absolute():
+        zip_output = output.parent / zip_output
+    original_resolved = args.original.resolve()
+    conflicting_outputs = {
+        output.resolve(): "인제스트 JSON",
+        args.meta.resolve(): "메타데이터",
+        zip_output.resolve(): "ZIP 출력",
+    }
+    if original_resolved in conflicting_outputs:
+        sys.exit(
+            f"[오류] 원문 파일과 {conflicting_outputs[original_resolved]} 경로는 "
+            "달라야 합니다."
+        )
 
     if not validate_cover_artifacts(args.meta):
         sys.exit("\n표지 검증 실패 — ingest.json과 ZIP을 출력하지 않았습니다.")
 
-    output = args.output or args.meta.parent / "ingest.json"
     output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"저장 완료: {output}")
 
-    zip_output = args.zip_output or Path(default_archive_name(meta.get("title", ""), output.parent.name))
-    if not zip_output.is_absolute():
-        zip_output = output.parent / zip_output
-    create_archive(zip_output, output.parent, output, args.meta)
+    create_archive(zip_output, output.parent, output, args.meta, args.original)
     print(f"ZIP 저장 완료: {zip_output}")
 
 
