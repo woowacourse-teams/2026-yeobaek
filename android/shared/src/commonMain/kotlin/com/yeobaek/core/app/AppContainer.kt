@@ -8,6 +8,7 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
@@ -28,6 +29,7 @@ class AppContainer(
     private val settings = Settings()
 
     val userPreferences = UserPreferences(settings)
+    val readerPreferences = ReaderPreferences(settings)
 
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 
@@ -67,10 +69,19 @@ class AppContainer(
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )
+        analyticsClient.register(
+            mapOf(ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION),
+        )
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 
     fun close() {
         networkProvider.close()
+    }
+
+    companion object {
+        private const val ENVIRONMENT_PROPERTY = "environment"
+        private const val ENVIRONMENT_DEVELOPMENT = "development"
+        private const val ENVIRONMENT_PRODUCTION = "production"
     }
 }

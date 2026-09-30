@@ -8,6 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.BookListExposure
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupCreateBookSelected
+import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -23,6 +28,7 @@ class CreateViewModel(
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
     private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState by mutableStateOf(CreateUiState())
         private set
@@ -81,6 +87,23 @@ class CreateViewModel(
         )
     }
 
+    // 스크롤마다 이벤트를 보내지 않고, 가장 아래까지 본 위치만 기억했다가 화면을 떠날 때 함께 보낸다.
+    private var maxSeenBookPosition = 0
+
+    fun onBookListScrolled(lastVisibleIndex: Int) {
+        maxSeenBookPosition = maxOf(maxSeenBookPosition, lastVisibleIndex + 1)
+    }
+
+    fun bookListExposure(): BookListExposure? {
+        val bookCount = uiState.bookList.size
+        if (bookCount == 0) return null
+
+        return BookListExposure(
+            bookCount = bookCount,
+            maxSeenBookPosition = maxSeenBookPosition,
+        )
+    }
+
     fun selectBook(index: Int) {
         uiState = uiState.copy(
             bookList = uiState.bookList.mapIndexed { i, book ->
@@ -92,10 +115,19 @@ class CreateViewModel(
             },
             selectedBookCondition = false,
         )
+        uiState.bookList.getOrNull(index)?.takeIf { it.selected }?.let { book ->
+            analyticsTracker.track(
+                GroupCreateBookSelected(
+                    bookId = book.id,
+                    bookTitle = book.title,
+                ),
+            )
+        }
     }
 
     fun createGroup() {
-        val selectedBookId = uiState.bookList.find { it.selected }?.id
+        val selectedBook = uiState.bookList.find { it.selected }
+        val selectedBookId = selectedBook?.id
 
         if (uiState.createState is CreateState.Loading) return
 
@@ -132,6 +164,14 @@ class CreateViewModel(
                         bookId = bookId,
                     ),
                 )
+                analyticsTracker.track(
+                    GroupCreateSubmitted(
+                        result = EventResult.SUCCESS,
+                        bookId = bookId,
+                        bookTitle = selectedBook?.title,
+                        bookList = bookListExposure(),
+                    ),
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -141,6 +181,14 @@ class CreateViewModel(
                         screen = TrackedScreen.GROUP_CREATE,
                         operation = CrashOperation.GROUP_CREATE_FAILED,
                         bookId = selectedBookId,
+                    ),
+                )
+                analyticsTracker.track(
+                    GroupCreateSubmitted(
+                        result = EventResult.FAILURE,
+                        bookId = selectedBookId,
+                        bookTitle = selectedBook?.title,
+                        bookList = bookListExposure(),
                     ),
                 )
                 uiState = uiState.copy(
@@ -179,12 +227,14 @@ class CreateViewModel(
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
             crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
                     crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }

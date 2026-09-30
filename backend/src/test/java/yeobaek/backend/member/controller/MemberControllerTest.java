@@ -15,15 +15,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.Optional;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.BlockedMemberResponse;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.dto.MemberCreateResponse;
@@ -32,6 +34,11 @@ import yeobaek.backend.member.service.MemberService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
+import yeobaek.backend.publicroom.dto.PublicRoomReadingSpaceResponse;
+import yeobaek.backend.publicroom.dto.RecentReadingResponse;
+import yeobaek.backend.publicroom.service.RecentReadingService;
+import yeobaek.backend.club.dto.ClubBookResponse;
+import yeobaek.backend.book.domain.BookStatus;
 
 @WebMvcTest(MemberController.class)
 class MemberControllerTest extends ControllerTest {
@@ -45,11 +52,47 @@ class MemberControllerTest extends ControllerTest {
     @MockitoBean
     private AnalyticsTracker analyticsTracker;
 
+    @MockitoBean
+    private RecentReadingService recentReadingService;
+
+    @Test
+    @DisplayName("통합 최근 읽기가 없으면 204를 반환한다")
+    void findNoRecentReading() throws Exception {
+        givenValidMember(1L);
+        given(recentReadingService.findRecent(1L)).willReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", "1"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(recentReadingService).findRecent(1L);
+    }
+
+    @Test
+    @DisplayName("통합 최근 읽기의 공간·도서·진도 계약을 반환한다")
+    void findRecentReading() throws Exception {
+        givenValidMember(1L);
+        var response = new RecentReadingResponse(new PublicRoomReadingSpaceResponse(3L),
+                new ClubBookResponse(2L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE),
+                4, 40, LocalDateTime.of(2026, 9, 30, 10, 0));
+        given(recentReadingService.findRecent(1L)).willReturn(Optional.of(response));
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space.type").value("PUBLIC_ROOM"))
+                .andExpect(jsonPath("$.space.publicRoomId").value(3))
+                .andExpect(jsonPath("$.book.bookId").value(2))
+                .andExpect(jsonPath("$.lastReadPassageSequence").value(4))
+                .andExpect(jsonPath("$.progressRate").value(40));
+
+        verify(recentReadingService).findRecent(1L);
+    }
+
     @Test
     @DisplayName("회원 생성 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
     void createMember() throws Exception {
         var response = new MemberCreateResponse(7L, "민서");
-        given(memberService.create("민서")).willReturn(response);
+        given(memberService.create(new Nickname("민서"))).willReturn(response);
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -61,7 +104,7 @@ class MemberControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.memberId").value(7))
                 .andExpect(jsonPath("$.nickname").value("민서"));
 
-        verify(memberService, times(1)).create("민서");
+        verify(memberService, times(1)).create(new Nickname("민서"));
         verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreate());
     }
 
@@ -150,7 +193,7 @@ class MemberControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertInstanceOf(HttpMessageNotReadableException.class, result.getResolvedException()));
 
         verifyNoInteractions(memberService);
     }
@@ -159,7 +202,7 @@ class MemberControllerTest extends ControllerTest {
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
         var serviceException = new IllegalArgumentException("회원 생성 실패");
-        given(memberService.create("중복 닉네임")).willThrow(serviceException);
+        given(memberService.create(new Nickname("중복 닉네임"))).willThrow(serviceException);
 
         var result = mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,7 +213,22 @@ class MemberControllerTest extends ControllerTest {
 
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
-        verify(memberService, times(1)).create("중복 닉네임");
+        verify(memberService, times(1)).create(new Nickname("중복 닉네임"));
         verifyNoInteractions(analyticsTracker);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"nickname\":null}", "{\"nickname\":\" \"}"})
+    @DisplayName("nickname VO를 만들 수 없는 요청은 서비스 호출 전에 거부한다")
+    void rejectInvalidNicknameOnPost(String body) throws Exception {
+
+        mockMvc.perform(post("/api/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(memberService, analyticsTracker);
     }
 }

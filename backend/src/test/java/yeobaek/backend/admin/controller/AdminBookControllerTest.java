@@ -1,5 +1,6 @@
 package yeobaek.backend.admin.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
@@ -25,14 +26,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import yeobaek.backend.admin.dto.AuthorEntryRequest;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
 import yeobaek.backend.admin.dto.AdminBookResponse;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
+import yeobaek.backend.admin.dto.AuthorEntryRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
@@ -41,6 +42,12 @@ import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
 import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.Publisher;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -152,7 +159,8 @@ class AdminBookControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOfAny(
+                        MethodArgumentNotValidException.class, HttpMessageNotReadableException.class));
 
         verifyNoInteractions(adminBookService);
     }
@@ -188,19 +196,18 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("도서 업로드 JSON 전체를 서비스에 전달하고 생성 응답 계약을 반환한다")
     void uploadBook() throws Exception {
-        var request = new BookUploadRequest(
-                "운수 좋은 날",
+        var request = new BookUploadRequest(new BookTitle("운수 좋은 날"),
                 null,
                 1924,
                 "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
                 List.of(
-                        new AuthorEntryRequest(null, "현진건", "0000 0001 2345 964X"),
+                        new AuthorEntryRequest(null, new AuthorName("현진건"), new Isni("0000 0001 2345 964X")),
                         new AuthorEntryRequest(12L, null, null)),
                 List.of(
-                        new ChapterUploadRequest("1장", List.of(
+                        new ChapterUploadRequest(new ChapterTitle("1장"), List.of(
                                 passage("첫 본문"),
                                 passage("둘째 본문"))),
-                        new ChapterUploadRequest("2장", List.of(
+                        new ChapterUploadRequest(new ChapterTitle("2장"), List.of(
                                 passage("셋째 본문")))));
         var response = new BookUploadResponse(3L, "운수 좋은 날",
                 "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
@@ -247,7 +254,7 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("표지가 없는 도서 업로드 응답은 coverImageUrl을 null로 포함한다")
     void uploadBookWithoutCover() throws Exception {
-        var request = new BookUploadRequest("표지 없는 책", null, null, null, List.of(), List.of());
+        var request = new BookUploadRequest(new BookTitle("표지 없는 책"), null, null, null, List.of(), List.of());
         given(bookIngestService.upload(request))
                 .willReturn(new BookUploadResponse(4L, "표지 없는 책", null, 0));
 
@@ -285,7 +292,8 @@ class AdminBookControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOfAny(
+                        MethodArgumentNotValidException.class, HttpMessageNotReadableException.class));
 
         verifyNoInteractions(bookIngestService);
     }
@@ -293,14 +301,11 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("서비스 예외를 변경하지 않고 전파한다")
     void propagateServiceException() throws Exception {
-        var request = new BookUploadRequest(
-                "새 도서",
-                "출판사",
+        var request = new BookUploadRequest(new BookTitle("새 도서"), new Publisher("출판사"),
                 2026,
                 null,
                 List.of(new AuthorEntryRequest(999L, null, null)),
-                List.of(new ChapterUploadRequest(
-                        "1장",
+                List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
                         List.of(passage("본문")))));
         var serviceException = new NotFoundException(
                 ErrorCode.AUTHOR_NOT_FOUND,
@@ -327,7 +332,29 @@ class AdminBookControllerTest extends ControllerTest {
     }
 
     private PassageUploadRequest passage(String content) {
-        return new PassageUploadRequest(List.of(new SentenceUploadRequest(content)));
+        return new PassageUploadRequest(List.of(new SentenceUploadRequest(new SentenceContent(content))));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"name\":null}", "{\"name\":\" \"}",
+            "{\"name\":\" \",\"isni\":\"000000012345964X\"}",
+            "{\"name\":\"작가\",\"isni\":\"invalid\"}"})
+    @DisplayName("작가 VO 검증 실패는 ISNI 조회 전 INVALID_REQUEST로 거부한다")
+    void rejectInvalidAuthorValue(String author) throws Exception {
+        String body = """
+                {"title":"도서","authors":[AUTHOR_ENTRY],"chapters":[
+                  {"title":"1장","passages":[{"sentences":[{"content":"본문"}]}]}
+                ]}
+                """.replace("AUTHOR_ENTRY", author);
+
+        mockMvc.perform(post("/api/admin/books")
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(bookIngestService, adminBookService);
     }
 
     private static Stream<Arguments> invalidRequiredUploadFields() {

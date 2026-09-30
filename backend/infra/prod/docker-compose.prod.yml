@@ -10,6 +10,9 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      LOGGING_CONFIG: ${LOGGING_CONFIG:-}
+      BETTER_STACK_SOURCE_TOKEN: ${BETTER_STACK_SOURCE_TOKEN:-}
+      BETTER_STACK_INGEST_URL: ${BETTER_STACK_INGEST_URL:-}
       DB_URL: jdbc:mysql://mysql:3306/yeobaek
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}

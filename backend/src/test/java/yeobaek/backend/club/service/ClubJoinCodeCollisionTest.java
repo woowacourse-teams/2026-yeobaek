@@ -22,12 +22,14 @@ import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.support.LogCapture;
 
 @ExtendWith(MockitoExtension.class)
 class ClubJoinCodeCollisionTest {
@@ -77,10 +79,15 @@ class ClubJoinCodeCollisionTest {
         given(authorBookRepository.findAllWithAuthorByBookIdIn(List.of(BOOK_ID))).willReturn(List.of());
 
         ClubCreateResponse response;
-        try (MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
+        try (var logs = new LogCapture(ClubService.class.getName());
+                MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
             mockedJoinCode.when(JoinCode::generate)
                     .thenReturn(new JoinCode("TAKEN1"), new JoinCode("TAKEN1"), new JoinCode("FRESH1"));
-            response = clubService.create(MEMBER_ID, "새 모임", BOOK_ID);
+            response = clubService.create(MEMBER_ID, new ClubName("새 모임"), BOOK_ID);
+
+            var recovered = logs.event("club.generateUniqueJoinCode", "recovered");
+            assertThat(logs.field(recovered, "retryCount")).isEqualTo(2);
+            assertThat(logs.structuredText()).doesNotContain("TAKEN1", "FRESH1");
         }
 
         assertThat(response.joinCode()).isEqualTo("FRESH1");
@@ -95,7 +102,7 @@ class ClubJoinCodeCollisionTest {
         try (MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
             mockedJoinCode.when(JoinCode::generate).thenReturn(new JoinCode("TAKEN1"));
 
-            assertThatThrownBy(() -> clubService.create(MEMBER_ID, "새 모임", BOOK_ID))
+            assertThatThrownBy(() -> clubService.create(MEMBER_ID, new ClubName("새 모임"), BOOK_ID))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

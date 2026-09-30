@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
 data object Nickname
 
 @Serializable
-data object Guide
+data class Guide(
+    val fromMyPage: Boolean = false,
+)
 
 @Serializable
 data object Home

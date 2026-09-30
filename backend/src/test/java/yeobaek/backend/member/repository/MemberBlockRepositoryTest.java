@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.support.IntegrationTest;
 
 class MemberBlockRepositoryTest extends IntegrationTest {
@@ -21,10 +22,10 @@ class MemberBlockRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("차단 목록은 닉네임과 회원 ID 오름차순으로 조회된다")
     void findAllOrdered() {
-        Member blocker = memberRepository.save(new Member("민서"));
-        Member sameNicknameFirst = memberRepository.save(new Member("가람"));
-        Member laterNickname = memberRepository.save(new Member("하늘"));
-        Member sameNicknameSecond = memberRepository.save(new Member("가람"));
+        Member blocker = memberRepository.save(new Member(new Nickname("민서")));
+        Member sameNicknameFirst = memberRepository.save(new Member(new Nickname("가람")));
+        Member laterNickname = memberRepository.save(new Member(new Nickname("하늘")));
+        Member sameNicknameSecond = memberRepository.save(new Member(new Nickname("가람")));
         memberBlockRepository.saveAll(List.of(
                 new MemberBlock(blocker, laterNickname),
                 new MemberBlock(blocker, sameNicknameSecond),
@@ -39,8 +40,8 @@ class MemberBlockRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("차단자 계정이 삭제되면 DB cascade로 차단 관계가 삭제된다")
     void deleteByBlockerCascade() {
-        Member blocker = memberRepository.save(new Member("민서"));
-        Member blocked = memberRepository.save(new Member("지수"));
+        Member blocker = memberRepository.save(new Member(new Nickname("민서")));
+        Member blocked = memberRepository.save(new Member(new Nickname("지수")));
         memberBlockRepository.saveAndFlush(new MemberBlock(blocker, blocked));
 
         memberRepository.deleteById(blocker.getId());
@@ -52,8 +53,8 @@ class MemberBlockRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("차단당한 회원 계정이 삭제되면 DB cascade로 차단 관계가 삭제된다")
     void deleteByBlockedCascade() {
-        Member blocker = memberRepository.save(new Member("민서"));
-        Member blocked = memberRepository.save(new Member("지수"));
+        Member blocker = memberRepository.save(new Member(new Nickname("민서")));
+        Member blocked = memberRepository.save(new Member(new Nickname("지수")));
         memberBlockRepository.saveAndFlush(new MemberBlock(blocker, blocked));
 
         memberRepository.deleteById(blocked.getId());

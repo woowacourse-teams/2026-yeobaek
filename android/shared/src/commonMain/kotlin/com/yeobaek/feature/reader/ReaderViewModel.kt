@@ -8,11 +8,24 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.ChapterSelected
+import com.yeobaek.core.analytics.CommentCollectionEnd
+import com.yeobaek.core.analytics.CommentPassageJumped
+import com.yeobaek.core.analytics.FontSizeChanged
+import com.yeobaek.core.analytics.ProgressSeeked
+import com.yeobaek.core.analytics.ReaderPositionCleared
+import com.yeobaek.core.analytics.ReaderPositionReturned
+import com.yeobaek.core.analytics.ReaderSessionEnd
+import com.yeobaek.core.analytics.ReadingPositionClearedBy
+import com.yeobaek.core.analytics.TableOfContentsOpened
+import com.yeobaek.core.analytics.TextSettingOpened
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.model.toUiModel
 import com.yeobaek.data.repository.BookRepository
@@ -35,11 +48,26 @@ class ReaderViewModel(
     private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
     private val readerRepository: ReaderRepository,
+    private val readerPreferences: ReaderPreferences,
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
-    var uiState by mutableStateOf(ReaderUiState())
+    var uiState by mutableStateOf(
+        ReaderUiState(
+            fontSize = readerPreferences.getFontSize()
+                ?.takeIf { fontSize -> fontSize in ReaderFontSize.options }
+                ?: ReaderFontSize.DEFAULT,
+        ),
+    )
         private set
+
+    private val readingSession = ReadingSessionTracker(analyticsTracker = analyticsTracker)
+    private val commentCollectionSession = CommentCollectionSessionTracker(analyticsTracker = analyticsTracker)
+
+    // 글자 설정 메뉴를 열었을 때의 크기. 메뉴가 닫힐 때 최종 크기와 비교해 한 번만 기록한다.
+    private var fontSizeAtMenuOpen: Int? = null
+    private var isScreenStarted = false
 
     val commentSheet = CommentSheetController(
         groupId = groupId,
@@ -80,6 +108,13 @@ class ReaderViewModel(
                 getCommentCollections()
             }
         },
+        analytics = CommentSheetAnalytics(
+            analyticsTracker = analyticsTracker,
+            readingSession = readingSession,
+            bookId = { currentBookId },
+            passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
+            isAfterJump = { uiState.returnPassageSequence != null },
+        ),
         onCommentsViewed = ::handleCommentsViewed,
     )
 
@@ -90,6 +125,7 @@ class ReaderViewModel(
     private var newCommentCountJob: Job? = null
 
     private var currentBookId: Long? = null
+    private var lastSavedPassageId: Long? = null
 
     init {
         loadReader()
@@ -144,6 +180,7 @@ class ReaderViewModel(
                     itemCount = passageModels.size,
                 )
                 refreshNewCommentStatus()
+                startReadingSessionIfReady()
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -240,14 +277,19 @@ class ReaderViewModel(
         }
 
         uiState = uiState.copy(readingSequence = passage.sequence)
+        readingSession.onPassageReached(passage.sequence)
         crashReporter.updateContext(
             readerContext(CrashOperation.READER_POSITION_UPDATED, passageSequence = passage.sequence),
         )
     }
 
-    fun saveReadingProgress(onComplete: () -> Unit) {
-        if (saveReadingProgressJob?.isActive == true) {
-            onComplete()
+    fun saveReadingProgress(onComplete: () -> Unit = {}) {
+        val runningJob = saveReadingProgressJob
+        if (runningJob?.isActive == true) {
+            viewModelScope.launch {
+                runningJob.join()
+                onComplete()
+            }
             return
         }
 
@@ -258,12 +300,23 @@ class ReaderViewModel(
             return
         }
 
+        if (readingPassage.passageId == lastSavedPassageId) {
+            track(
+                operation = CrashOperation.READER_PROGRESS_SAVE_SKIPPED,
+                level = CrashLogLevel.DEBUG,
+                passageSequence = readingPassage.sequence,
+            )
+            onComplete()
+            return
+        }
+
         saveReadingProgressJob = viewModelScope.launch {
             try {
                 readerRepository.updatePassage(
                     clubId = groupId,
                     passageId = readingPassage.passageId,
                 )
+                lastSavedPassageId = readingPassage.passageId
                 track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = readingPassage.sequence)
             } catch (exception: CancellationException) {
                 throw exception
@@ -286,6 +339,7 @@ class ReaderViewModel(
             moveToPassageJob?.cancel()
             cancelPaginationLoads()
         }
+        trackReadingPositionCleared(ReadingPositionClearedBy.PROGRESS_BAR)
 
         uiState = uiState.copy(
             mode = ReaderMode.SelectingProgress(
@@ -301,10 +355,22 @@ class ReaderViewModel(
             progress = selectingProgress.progress,
             totalPassageCount = uiState.totalPassageCount,
         )
+        val bookId = currentBookId
+        if (bookId != null && targetSequence != uiState.readingSequence) {
+            analyticsTracker.track(
+                ProgressSeeked(
+                    bookId = bookId,
+                    fromProgress = uiState.readingProgress,
+                    toProgress = selectingProgress.progress,
+                ),
+            )
+        }
         moveToPassage(targetSequence)
     }
 
     fun openTableOfContents() {
+        commitFontSizeChange()
+        analyticsTracker.track(TableOfContentsOpened(bookId = currentBookId))
         uiState = uiState.copy(
             isTableOfContentsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -317,11 +383,18 @@ class ReaderViewModel(
 
     fun selectChapter(chapter: ChapterUiModel) {
         val targetSequence = chapter.startPassageSequence
+        analyticsTracker.track(
+            ChapterSelected(
+                bookId = currentBookId,
+                chapterSequence = chapter.sequence,
+            ),
+        )
         track(
             operation = CrashOperation.READER_CHAPTER_SELECTED,
             passageSequence = targetSequence,
             chapterSequence = chapter.sequence,
         )
+        trackReadingPositionCleared(ReadingPositionClearedBy.TABLE_OF_CONTENTS)
         uiState = uiState.copy(
             isTableOfContentsVisible = false,
             returnPassageSequence = null,
@@ -426,10 +499,11 @@ class ReaderViewModel(
                         CommentedSentenceMode.None
                     },
                 )
+                commentCollectionSession.onLoaded(uiState.commentedSentences.sentences)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                recordFailure(e, CrashOperation.COMMENTS_LOAD_FAILED)
+                recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
                 uiState = uiState.copy(
                     commentedSentenceMode = CommentedSentenceMode.Failed(
                         message = "댓글을 불러오지 못했습니다.",
@@ -444,6 +518,10 @@ class ReaderViewModel(
         if (!movingTo.isTargetLoaded || passage.sequence != movingTo.targetSequence) return
 
         moveToPassageJob = null
+        readingSession.onPassageJumped(
+            fromSequence = uiState.readingSequence,
+            toSequence = passage.sequence,
+        )
         uiState = uiState.copy(
             readingSequence = passage.sequence,
             mode = ReaderMode.Idle,
@@ -469,15 +547,28 @@ class ReaderViewModel(
         uiState = uiState.copy(
             isTextSettingMenuExpanded = !uiState.isTextSettingMenuExpanded,
         )
+        if (uiState.isTextSettingMenuExpanded) {
+            fontSizeAtMenuOpen = uiState.fontSize
+            analyticsTracker.track(TextSettingOpened)
+        } else {
+            commitFontSizeChange()
+        }
     }
 
     fun dismissTextSettingMenu() {
+        commitFontSizeChange()
         uiState = uiState.copy(
             isTextSettingMenuExpanded = false,
         )
     }
 
     fun openCommentCollections() {
+        commitFontSizeChange()
+        commentCollectionSession.open(
+            bookId = currentBookId,
+            hasNewComments = uiState.isNewComment,
+        )
+        readingSession.onCommentCollectionOpened()
         uiState = uiState.copy(
             isCommentCollectionsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -486,6 +577,7 @@ class ReaderViewModel(
     }
 
     fun dismissCommentCollections() {
+        commentCollectionSession.end(CommentCollectionEnd.CLOSE)
         commentCollectionsJob?.cancel()
         commentCollectionsJob = null
         uiState = uiState.copy(
@@ -494,7 +586,9 @@ class ReaderViewModel(
     }
 
     fun updateFontSize(fontSize: Int) {
-        if (fontSize !in ReaderFontSize.options) return
+        if (fontSize !in ReaderFontSize.options || fontSize == uiState.fontSize) return
+
+        readerPreferences.saveFontSize(fontSize)
 
         uiState = uiState.copy(
             fontSize = fontSize,
@@ -502,11 +596,14 @@ class ReaderViewModel(
     }
 
     fun openSentenceComments(sentence: SentenceUiModel) {
+        commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.open(sentence)
     }
 
     fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
+        commentCollectionSession.onCardClicked()
+        commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
         commentSheet.openFromCollection(sentence)
     }
@@ -519,6 +616,17 @@ class ReaderViewModel(
                 sequence in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount && sequence != targetSequence
             }
 
+        analyticsTracker.track(
+            CommentPassageJumped(
+                bookId = currentBookId,
+                fromProgress = uiState.readingProgress,
+                toProgress = sequenceToProgress(
+                    sequence = targetSequence,
+                    totalPassageCount = uiState.totalPassageCount,
+                ),
+            ),
+        )
+        commentCollectionSession.end(CommentCollectionEnd.JUMP)
         commentSheet.dismiss()
         uiState = uiState.copy(
             isCommentCollectionsVisible = false,
@@ -529,7 +637,42 @@ class ReaderViewModel(
 
     fun returnToReadingAnchor() {
         val targetSequence = uiState.returnPassageSequence ?: return
+        analyticsTracker.track(
+            ReaderPositionReturned(
+                bookId = currentBookId,
+                savedProgress = uiState.returnProgress ?: return,
+                currentProgress = uiState.readingProgress,
+            ),
+        )
         moveToPassage(targetSequence)
+    }
+
+    private fun commitFontSizeChange() {
+        val fromFontSize = fontSizeAtMenuOpen ?: return
+        fontSizeAtMenuOpen = null
+        if (fromFontSize == uiState.fontSize) return
+
+        analyticsTracker.track(
+            FontSizeChanged(
+                fromFontSize = fromFontSize,
+                fontSize = uiState.fontSize,
+            ),
+        )
+    }
+
+    fun onCommentSentenceRevealed() {
+        commentCollectionSession.onSentenceRevealed()
+    }
+
+    private fun trackReadingPositionCleared(clearedBy: ReadingPositionClearedBy) {
+        if (uiState.returnPassageSequence == null) return
+
+        analyticsTracker.track(
+            ReaderPositionCleared(
+                bookId = currentBookId,
+                clearedBy = clearedBy,
+            ),
+        )
     }
 
     private fun returnAnchorAfterFailedMove(targetSequence: Int): Int? =
@@ -555,12 +698,55 @@ class ReaderViewModel(
                     currentPassageId = currentPassageId,
                 ).newCommentCount
                 uiState = uiState.copy(isNewComment = newCommentCount > 0)
+                if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                recordFailure(exception, CrashOperation.NEW_COMMENT_STATUS_LOAD_FAILED)
                 // 새 댓글 강조 조회 실패가 본문 읽기를 막아서는 안 된다.
             }
         }
+    }
+
+    fun onScreenStarted() {
+        isScreenStarted = true
+        startReadingSessionIfReady()
+        commentCollectionSession.resume()
+    }
+
+    fun onScreenStopped() {
+        isScreenStarted = false
+        commitFontSizeChange()
+        if (uiState.isTextSettingMenuExpanded) {
+            fontSizeAtMenuOpen = uiState.fontSize
+        }
+        commentCollectionSession.pause()
+        readingSession.end(
+            progress = uiState.readingProgress,
+            endedBy = ReaderSessionEnd.BACKGROUND,
+        )
+        saveReadingProgress()
+    }
+
+    fun finishReadingSession() {
+        commitFontSizeChange()
+        readingSession.end(
+            progress = uiState.readingProgress,
+            endedBy = ReaderSessionEnd.BACK,
+        )
+    }
+
+    private fun startReadingSessionIfReady() {
+        val bookId = currentBookId ?: return
+        if (!isScreenStarted || uiState.loadState != ReaderLoadState.Success) return
+
+        readingSession.start(
+            bookId = bookId,
+            bookTitle = uiState.title,
+            readingSequence = uiState.readingSequence,
+            progress = uiState.readingProgress,
+        )
+        if (uiState.isNewComment) readingSession.onNewCommentBadgeShown()
     }
 
     private fun cancelPaginationLoads() {
@@ -638,8 +824,10 @@ class ReaderViewModel(
             bookRepository: BookRepository,
             groupRepository: GroupRepository,
             readerRepository: ReaderRepository,
+            readerPreferences: ReaderPreferences,
             commentRepository: CommentRepository,
             crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ReaderViewModel(
@@ -647,8 +835,10 @@ class ReaderViewModel(
                     bookRepository = bookRepository,
                     groupRepository = groupRepository,
                     readerRepository = readerRepository,
+                    readerPreferences = readerPreferences,
                     commentRepository = commentRepository,
                     crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }

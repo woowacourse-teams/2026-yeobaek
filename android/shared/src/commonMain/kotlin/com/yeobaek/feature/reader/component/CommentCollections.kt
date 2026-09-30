@@ -38,21 +38,18 @@ fun CommentCollectionContents(
     commentedSentences: CommentedSentencesUiModel,
     mode: CommentedSentenceMode,
     onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
+    onSentenceReveal: () -> Unit,
     onRetry: () -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     var revealedSentenceIds by remember { mutableStateOf(emptySet<Long>()) }
-    val sortedSentences = commentedSentences.sentences.sortedWith(
-        compareBy(
-            CommentedSentenceUiModel::passageSequence,
-            CommentedSentenceUiModel::sentenceSequence,
-        ),
-    )
+    val displayedSentences = commentedSentences.sentences
+    val sentenceOrder = displayedSentences.map(CommentedSentenceUiModel::sentenceId)
 
-    LaunchedEffect(sortedSentences.size) {
-        if (sortedSentences.isNotEmpty()) {
+    LaunchedEffect(sentenceOrder) {
+        if (displayedSentences.isNotEmpty()) {
             listState.scrollToItem(0)
         }
     }
@@ -106,7 +103,7 @@ fun CommentCollectionContents(
                         state = listState,
                     ) {
                         items(
-                            items = sortedSentences,
+                            items = displayedSentences,
                             key = { it.sentenceId },
                         ) { sentence ->
                             CommentCollectionContent(
@@ -115,6 +112,7 @@ fun CommentCollectionContents(
                                 onCommentCardClick = onCommentCardClick,
                                 onReveal = {
                                     revealedSentenceIds += sentence.sentenceId
+                                    onSentenceReveal()
                                 },
                             )
                         }

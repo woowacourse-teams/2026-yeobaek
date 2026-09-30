@@ -46,8 +46,11 @@ public class Club {
     @AttributeOverride(name = "value", column = @Column(name = "join_code", nullable = false, length = 10))
     private JoinCode joinCode;
 
-    public Club(String name, Book book, JoinCode joinCode) {
-        this.name = new ClubName(name);
+    public Club(ClubName name, Book book, JoinCode joinCode) {
+        if (name == null) {
+            throw new IllegalArgumentException("모임 이름은 필수입니다.");
+        }
+        this.name = name;
         this.book = book;
         this.joinCode = joinCode;
     }

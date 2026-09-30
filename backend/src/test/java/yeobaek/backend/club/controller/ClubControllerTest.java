@@ -1,5 +1,6 @@
 package yeobaek.backend.club.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.BDDMockito.given;
@@ -21,9 +22,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.club.domain.vo.ClubName;
+import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.ClubCreateResponse;
 import yeobaek.backend.club.dto.ClubDetailResponse;
@@ -32,7 +36,6 @@ import yeobaek.backend.club.dto.ClubMemberResponse;
 import yeobaek.backend.club.dto.MyClubResponse;
 import yeobaek.backend.club.dto.MyClubsResponse;
 import yeobaek.backend.club.dto.MyProgressResponse;
-import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.club.service.ClubService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
@@ -59,7 +62,7 @@ class ClubControllerTest extends ControllerTest {
                 "A3F9KQ",
                 new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"),
                         "https://covers.example/cover.jpg", 312, BookStatus.ACTIVE));
-        given(clubService.create(1L, "교환독서 1기", 5L)).willReturn(response);
+        given(clubService.create(1L, new ClubName("교환독서 1기"), 5L)).willReturn(response);
 
         mockMvc.perform(post("/api/clubs")
                         .header("X-Member-Id", "1")
@@ -82,7 +85,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
-        verify(clubService, times(1)).create(1L, "교환독서 1기", 5L);
+        verify(clubService, times(1)).create(1L, new ClubName("교환독서 1기"), 5L);
         verify(analyticsTracker, times(1)).track(1L, AnalyticsEvent.clubCreate(10L, 5L));
     }
 
@@ -95,7 +98,7 @@ class ClubControllerTest extends ControllerTest {
                 "교환독서 1기",
                 new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건", "공동 저자"), null,
                         312, BookStatus.ACTIVE));
-        given(clubService.join(2L, "A3F9KQ")).willReturn(response);
+        given(clubService.join(2L, new JoinCode("A3F9KQ"))).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/join")
                         .header("X-Member-Id", "2")
@@ -118,7 +121,7 @@ class ClubControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.book.passageCount").value(312))
                 .andExpect(jsonPath("$.book.status").value("ACTIVE"));
 
-        verify(clubService, times(1)).join(2L, "A3F9KQ");
+        verify(clubService, times(1)).join(2L, new JoinCode("A3F9KQ"));
         verify(analyticsTracker, times(1)).track(2L, AnalyticsEvent.clubJoin(10L, 5L));
     }
 
@@ -273,7 +276,8 @@ class ClubControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOfAny(
+                        MethodArgumentNotValidException.class, HttpMessageNotReadableException.class));
 
         verifyNoInteractions(clubService);
     }
@@ -305,7 +309,8 @@ class ClubControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(content))
                 .andExpect(status().isBadRequest())
-                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+                .andExpect(result -> assertThat(result.getResolvedException()).isInstanceOfAny(
+                        MethodArgumentNotValidException.class, HttpMessageNotReadableException.class));
 
         verifyNoInteractions(clubService);
     }
@@ -326,5 +331,39 @@ class ClubControllerTest extends ControllerTest {
         assertSame(serviceException, result.getResolvedException(),
                 "컨트롤러는 서비스 예외 인스턴스를 변경하지 않아야 한다");
         verify(clubService, times(1)).findDetail(7L, 999L);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"name\":null}", "{\"name\":\" \"}"})
+    @DisplayName("name VO를 만들 수 없는 요청은 서비스 호출 전에 거부한다")
+    void rejectInvalidNameOnPost(String body) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(post("/api/clubs")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService, analyticsTracker);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"joinCode\":null}", "{\"joinCode\":\" \"}", "{\"joinCode\":\"invalid\"}"})
+    @DisplayName("joinCode VO를 만들 수 없는 요청은 서비스 호출 전에 거부한다")
+    void rejectInvalidJoinCodeOnPost(String body) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(post("/api/clubs/join")
+                        .header("X-Member-Id", "1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(clubService, analyticsTracker);
     }
 }

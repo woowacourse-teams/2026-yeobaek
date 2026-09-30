@@ -41,6 +41,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     uiState: DetailUiState,
+    onInviteCodeCopy: () -> Unit,
+    onExitRequest: () -> Unit,
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
     onExitClick: () -> Unit,
@@ -125,6 +127,7 @@ fun DetailScreen(
                 },
                 onBackClick = onBackClick,
                 onExitClick = {
+                    onExitRequest()
                     showDeleteDialog = true
                 },
             )
@@ -166,6 +169,7 @@ fun DetailScreen(
             InviteCodeCard(
                 groupCode = uiState.groupUiModel.groupCode,
                 onClick = {
+                    onInviteCodeCopy()
                     coroutineScope.launch {
                         clipboard.setClipEntry(uiState.groupUiModel.groupCode.toClipEntry())
                         snackbarHostState.currentSnackbarData?.dismiss()
@@ -224,6 +228,8 @@ private fun DetailScreenPreview() {
         DetailScreen(
             uiState = DetailUiState(),
             onBackClick = {},
+            onInviteCodeCopy = {},
+            onExitRequest = {},
             onReadClick = {},
             onExitClick = {},
             onBlockUser = {},

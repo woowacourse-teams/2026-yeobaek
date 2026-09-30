@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.feature.group.create.component.CreateBookChooseCard
 import com.yeobaek.feature.group.create.component.CreateGroupNameCard
 
@@ -27,12 +28,15 @@ fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
     selectBook: (Int) -> Unit,
+    onBookListScrolled: (lastVisibleIndex: Int) -> Unit,
     onBackClick: () -> Unit,
     onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+
+    PlatformBackHandler(onBack = onBackClick)
 
     LaunchedEffect(uiState.createState) {
         when (uiState.createState) {
@@ -88,6 +92,7 @@ fun CreateScreen(
                 subTitle = if (uiState.selectedBookCondition) "책을 선택해주세요." else "함께 읽을 책을 선택해주세요.",
                 isError = uiState.selectedBookCondition,
                 bookState = uiState.bookState,
+                onBookListScrolled = onBookListScrolled,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
@@ -102,6 +107,7 @@ private fun CreateScreenPreview() {
             uiState = CreateUiState(),
             updateGroupNameValue = {},
             selectBook = {},
+            onBookListScrolled = {},
             onBackClick = {},
             onCreateGroup = {},
             navigateToHome = {},

@@ -17,10 +17,25 @@ class AdminPageControllerTest extends IntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    @DisplayName("별도 통계 페이지는 관리자 토큰 입력과 영역별 조회 화면을 제공한다")
+    void serveDashboardUi() throws Exception {
+        mockMvc.perform(get("/admin/dashboard"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"admin-token\"")))
+                .andExpect(content().string(containsString("id=\"refresh-clubs\"")))
+                .andExpect(content().string(containsString("id=\"refresh-books\"")))
+                .andExpect(content().string(containsString("id=\"refresh-members\"")))
+                .andExpect(content().string(containsString("id=\"distribution\"")))
+                .andExpect(content().string(containsString("src=\"/admin-dashboard.js\"")))
+                .andExpect(content().string(containsString("href=\"/admin\"")));
+    }
+
+    @Test
     @DisplayName("관리자 페이지는 책 목록 조회와 표시된 결과의 CSV 저장 동작을 제공한다")
     void serveBookInventoryUi() throws Exception {
         mockMvc.perform(get("/admin"))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/admin/dashboard\"")))
                 .andExpect(content().string(containsString("id=\"load-books\"")))
                 .andExpect(content().string(containsString("id=\"download-books-csv\" disabled")))
                 .andExpect(content().string(containsString("id=\"books-table\" hidden")))

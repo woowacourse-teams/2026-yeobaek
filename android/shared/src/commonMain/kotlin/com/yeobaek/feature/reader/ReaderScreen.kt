@@ -141,6 +141,7 @@ fun ReaderScreen(
                 commentedSentences = uiState.commentedSentences,
                 mode = uiState.commentedSentenceMode,
                 onCommentCardClick = actions.onCommentCardClick,
+                onSentenceReveal = actions.onCommentSentenceReveal,
                 onRetry = actions.onCommentCollectionsRetry,
                 onDismissRequest = actions.onCommentCollectionsDismiss,
                 modifier = Modifier.zIndex(2f),
@@ -187,6 +188,7 @@ class ReaderActions(
     val onCommentCollectionsDismiss: () -> Unit,
     val onCommentCollectionsRetry: () -> Unit,
     val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
+    val onCommentSentenceReveal: () -> Unit,
     val onMoveToComment: () -> Unit,
     val onReturnToPreviousReadingPosition: () -> Unit,
 )
@@ -368,6 +370,7 @@ private fun ReaderScreenPreview() {
                 onCommentCollectionsDismiss = {},
                 onCommentCollectionsRetry = {},
                 onCommentCardClick = {},
+                onCommentSentenceReveal = {},
                 onMoveToComment = {},
                 onReturnToPreviousReadingPosition = {},
             ),

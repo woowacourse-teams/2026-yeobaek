@@ -1,9 +1,16 @@
 package yeobaek.backend.book.service;
 
+import static yeobaek.backend.support.LogField.CLUB_ID;
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.RESULT;
+import static yeobaek.backend.support.LogField.REASON;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Passage;
@@ -20,9 +27,11 @@ import yeobaek.backend.comment.repository.SentenceCommentCount;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.InvalidRequestException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class PassageService {
 
@@ -34,16 +43,21 @@ public class PassageService {
     private final CommentRepository commentRepository;
 
     public PassagesResponse findPassages(Long memberId, Long clubId, int from, int to) {
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages")
+                .addKeyValue(CLUB_ID, clubId)
+                .addKeyValue("from", from).addKeyValue("to", to).log("본문 범위를 조회합니다.");
         PassageRange range = new PassageRange(from, to);
         validateRangeSize(range);
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new NotFoundException(
                         ErrorCode.CLUB_NOT_FOUND,
-                        "본문을 조회할 모임이 존재하지 않습니다: clubId=" + clubId));
+                        "본문을 조회할 모임이 존재하지 않습니다: clubId=" + clubId,
+                        Map.of(CLUB_ID, clubId.toString())));
         if (!clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, clubId)) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
-                    "모임에 참여 중인 회원만 본문을 조회할 수 있습니다: clubId=" + clubId);
+                    "모임에 참여 중인 회원만 본문을 조회할 수 있습니다: clubId=" + clubId,
+                    Map.of(CLUB_ID, clubId.toString()));
         }
         club.ensureBookAvailable();
         List<Passage> passages = passageRepository.findRangeByBookId(
@@ -53,13 +67,17 @@ public class PassageService {
                 .map(sentence -> sentence.getId())
                 .toList();
         Map<Long, Long> commentCounts = countComments(memberId, clubId, sentenceIds);
-        return new PassagesResponse(passages.stream()
+        var response = new PassagesResponse(passages.stream()
                 .map(passage -> new PassageResponse(passage.getId(), passage.getSequence().value(),
                         passage.getChapter().getId(), passage.getSentences().stream()
                         .map(sentence -> new SentenceResponse(sentence.getId(), sentence.getSequence().value(),
                                 sentence.getContent(), commentCounts.getOrDefault(sentence.getId(), 0L)))
                         .toList()))
                 .toList());
+        log.atInfo().addKeyValue(OPERATION, "passage.findPassages").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId)
+                .addKeyValue("resultCount", response.passages().size()).log("본문 범위를 조회했습니다.");
+        return response;
     }
 
     private Map<Long, Long> countComments(Long memberId, Long clubId, List<Long> sentenceIds) {
@@ -73,7 +91,9 @@ public class PassageService {
 
     private void validateRangeSize(PassageRange range) {
         if (range.size() > MAX_RANGE_SIZE) {
-            throw new IllegalArgumentException("본문은 한 번에 최대 " + MAX_RANGE_SIZE + "개까지 조회할 수 있습니다.");
+            throw new InvalidRequestException(
+                    "본문은 한 번에 최대 " + MAX_RANGE_SIZE + "개까지 조회할 수 있습니다.",
+                    Map.of(REASON, "passage_range_too_large", "rangeSize", Integer.toString(range.size())));
         }
     }
 }

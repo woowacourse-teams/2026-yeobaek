@@ -5,13 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,12 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.book.domain.vo.Publisher;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -32,12 +37,15 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
@@ -81,15 +89,13 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제 상태와 공동 작가 및 nullable 정보를 포함해 모든 도서를 ID 순으로 조회한다")
     void findBooks() {
-        Book first = bookRepository.save(new Book("표지 없는 책", null, null, 1, null));
-        Book second = bookRepository.save(new Book(
-                "함께 쓴 책",
-                "여백 출판",
+        Book first = bookRepository.save(new Book(new BookTitle("표지 없는 책"), null, null, 1, null));
+        Book second = bookRepository.save(new Book(new BookTitle("함께 쓴 책"), new Publisher("여백 출판"),
                 2026,
                 42,
                 COVER_KEY));
-        Author firstAuthor = authorRepository.save(new Author("첫 작가", new Isni("000000012345964X")));
-        Author secondAuthor = authorRepository.save(new Author("둘째 작가"));
+        Author firstAuthor = authorRepository.save(new Author(new AuthorName("첫 작가"), new Isni("000000012345964X")));
+        Author secondAuthor = authorRepository.save(new Author(new AuthorName("둘째 작가")));
         authorBookRepository.save(new AuthorBook(firstAuthor, second));
         authorBookRepository.save(new AuthorBook(secondAuthor, second));
         bookRepository.delete(second.getId());
@@ -129,15 +135,15 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("도서를 삭제해도 기존 모임과 독서 활동 기록의 연결은 보존된다")
     void preservesExistingClubAndActivityRecords() {
-        Book book = bookRepository.save(new Book("운수 좋은 날", null, 1924, 1, null));
-        Author author = authorRepository.save(new Author("현진건"));
+        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null));
+        Author author = authorRepository.save(new Author(new AuthorName("현진건")));
         AuthorBook authorBook = authorBookRepository.save(new AuthorBook(author, book));
-        Chapter chapter = chapterRepository.save(new Chapter(book, "1장", 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList("본문")));
-        Member member = memberRepository.save(new Member("민서"));
-        Club club = clubRepository.save(new Club("1기", book, new JoinCode("CODE01")));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문"))));
+        Member member = memberRepository.save(new Member(new Nickname("민서")));
+        Club club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
         ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
-        Comment comment = commentRepository.save(new Comment(membership, passage.getSentences().getFirst(), "댓글"));
+        Comment comment = commentRepository.save(new Comment(membership, passage.getSentences().getFirst(), new CommentContent("댓글")));
 
         adminBookService.delete(book.getId());
 
@@ -160,7 +166,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 다시 삭제할 수 없다")
     void cannotDeleteBookTwice() {
-        Book book = bookRepository.save(new Book("제목", null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("제목"), null, null, 1, null));
         adminBookService.delete(book.getId());
 
         assertThatThrownBy(() -> adminBookService.delete(book.getId()))
@@ -171,7 +177,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("동시에 같은 도서를 삭제하면 한 요청만 성공한다")
     void allowOnlyOneConcurrentDeletion() throws Exception {
-        Book book = bookRepository.save(new Book("동시 삭제", null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("동시 삭제"), null, null, 1, null));
         CyclicBarrier start = new CyclicBarrier(2);
         Callable<String> deletion = () -> {
             start.await();
@@ -195,7 +201,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("활성 도서의 표지를 교체하고 제거한다")
     void replaceAndRemoveCoverImage() {
-        Book book = bookRepository.save(new Book("표지 도서", null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("표지 도서"), null, null, 1, null));
 
         adminBookService.replaceCoverImage(book.getId(), COVER_KEY);
         assertThat(bookRepository.getById(book.getId()).getCoverImageKey()).isEqualTo(COVER_KEY);
@@ -207,7 +213,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서의 표지는 교체할 수 없다")
     void cannotReplaceCoverOfDeletedBook() {
-        Book book = bookRepository.save(new Book("삭제 표지 도서", null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("삭제 표지 도서"), null, null, 1, null));
         adminBookService.delete(book.getId());
 
         assertThatThrownBy(() -> adminBookService.replaceCoverImage(book.getId(), COVER_KEY))

@@ -2,10 +2,10 @@ package com.yeobaek.core.analytics
 
 sealed interface AnalyticsEvent {
     val name: String
-    val properties: Map<String, String>
+    val properties: Map<String, Any>
 
     data object UserCreated : AnalyticsEvent {
         override val name = "user_created"
-        override val properties = emptyMap<String, String>()
+        override val properties = emptyMap<String, Any>()
     }
 }

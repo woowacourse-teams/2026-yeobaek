@@ -19,6 +19,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 
 @Entity
 @Table(name = "passages")
@@ -43,7 +44,7 @@ public class Passage {
     @OrderBy("sequence.value ASC")
     private List<Sentence> sentences = new ArrayList<>();
 
-    public Passage(Chapter chapter, int sequence, List<String> sentenceContents) {
+    public Passage(Chapter chapter, int sequence, List<SentenceContent> sentenceContents) {
         validate(sentenceContents);
         this.chapter = chapter;
         this.sequence = new ContentSequence(sequence);
@@ -52,7 +53,7 @@ public class Passage {
         }
     }
 
-    private void validate(List<String> sentenceContents) {
+    private void validate(List<SentenceContent> sentenceContents) {
         if (sentenceContents == null || sentenceContents.isEmpty()) {
             throw new IllegalArgumentException("문단에는 최소 1개의 문장이 있어야 합니다.");
         }
