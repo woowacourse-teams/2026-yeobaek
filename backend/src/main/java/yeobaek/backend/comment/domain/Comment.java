@@ -18,6 +18,8 @@ import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -31,9 +33,17 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "club_member_id")
     private ClubMember clubMember;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "public_room_id")
+    private PublicRoom publicRoom;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "writer_id")
+    private Member writer;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "sentence_id")
@@ -51,6 +61,17 @@ public class Comment {
     public Comment(ClubMember clubMember, Sentence sentence, CommentContent content) {
         this.clubMember = clubMember;
         this.sentence = sentence;
+        setContentOnCreate(content);
+    }
+
+    public Comment(PublicRoom publicRoom, Member writer, Sentence sentence, CommentContent content) {
+        this.publicRoom = publicRoom;
+        this.writer = writer;
+        this.sentence = sentence;
+        setContentOnCreate(content);
+    }
+
+    private void setContentOnCreate(CommentContent content) {
         if (content == null) {
             throw new IllegalArgumentException("댓글 내용은 필수입니다.");
         }
@@ -67,11 +88,11 @@ public class Comment {
     }
 
     public boolean isWrittenBy(Long memberId) {
-        return clubMember.isOwnedBy(memberId);
+        return getWriter().getId().equals(memberId);
     }
 
     public boolean isWriterJoined() {
-        return clubMember.isJoined();
+        return publicRoom != null || clubMember.isJoined();
     }
 
     public void ensureReportableBy(Long memberId) {
@@ -83,7 +104,19 @@ public class Comment {
     }
 
     public void ensureBookAvailable() {
+        if (publicRoom != null) {
+            publicRoom.ensureBookAvailable();
+            return;
+        }
         clubMember.ensureBookAvailable();
+    }
+
+    public boolean isPublicRoomComment() {
+        return publicRoom != null;
+    }
+
+    public Member getWriter() {
+        return writer == null ? clubMember.getMember() : writer;
     }
 
     public String getContent() {

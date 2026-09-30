@@ -15,9 +15,9 @@ public record CommentResponse(
 ) {
 
     public static CommentResponse of(Comment comment, Long requesterId) {
-        Long writerId = comment.getClubMember().getMember().getId();
+        Long writerId = comment.getWriter().getId();
         return new CommentResponse(comment.getId(), writerId,
-                comment.getClubMember().getMember().getNickname(), comment.getContent(),
+                comment.getWriter().getNickname(), comment.getContent(),
                 comment.getCreatedAt(), comment.getUpdatedAt(), comment.isWrittenBy(requesterId));
     }
 }

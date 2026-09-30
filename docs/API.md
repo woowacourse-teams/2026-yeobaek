@@ -3,9 +3,7 @@
 > 기반 문서: [`PRD.md`](PRD.md) · 상태: **구현 계약**
 > 이 문서는 백엔드 구현과 Android 연동이 따르는 API 계약의 기준이다. 런타임 OpenAPI 스펙(`/v3/api-docs`)과 Swagger UI(`/docs`)도 이 계약을 따른다.
 
-> **공개방 선행 명세:** 10절은 Android 병렬 개발을 위한 **구현 예정 계약**이다. 이 문서 변경으로
-> 서버 기능이나 런타임 OpenAPI가 추가되는 것은 아니다. 10절의 신규 API와 기존 API 확장은
-> 후속 구현·배포 이후 사용할 수 있으며, 기존 모임 API의 요청·응답과 구버전 지원은 유지한다.
+> **공개방 구현 계약:** 10절의 신규 API와 기존 API 확장을 구현했다. 운영 환경에서는 공개방 스키마 전환과 서버 배포 이후 사용할 수 있다. 기존 모임 API의 요청·응답과 구버전 지원은 유지한다.
 
 ## 0. 공통 규약
 
@@ -33,7 +31,7 @@
 | `BOOK_NOT_FOUND` | 400 | 대상 도서 없음 |
 | `BOOK_NOT_AVAILABLE` | 400 | 대상 도서가 삭제되어 더 이상 이용할 수 없음 |
 | `CLUB_NOT_FOUND` | 400 | 대상 모임 없음 |
-| `PUBLIC_ROOM_NOT_FOUND` | 400 | 대상 공개방 없음 (10절 구현 예정 계약) |
+| `PUBLIC_ROOM_NOT_FOUND` | 400 | 대상 공개방 없음 |
 | `JOIN_CODE_NOT_FOUND` | 400 | 참여 코드에 해당하는 모임 없음 |
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
 | `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
@@ -100,7 +98,7 @@
 ### 계정 삭제
 `DELETE /api/members/me`
 
-공개방 도입 후의 방문·진도·댓글 데이터 삭제 범위는 10.9절에서 이 계약을 확장한다 (구현 예정).
+공개방 도입 후의 방문·진도·댓글 데이터 삭제 범위는 10.9절에서 이 계약을 확장한다.
 
 요청 본문은 없다.
 
@@ -380,7 +378,7 @@
 `GET /api/members/me/last-reading`
 
 구버전 지원을 위해 모임 전용 계약을 유지한다. 공개방·모임 통합 조회는 10절의
-`GET /api/members/me/recent-reading`을 사용한다 (구현 예정).
+`GET /api/members/me/recent-reading`을 사용한다.
 
 응답 `200` — 전 모임 중 `lastReadAt`이 가장 최근인 것:
 ```json
@@ -414,7 +412,7 @@
 ## 5. 댓글
 
 이 절의 모임 소속·탈퇴 조건은 모임 댓글에 적용한다. 공개방 도입 후 공통 댓글 수정·삭제·신고
-경로에 공개방 댓글을 전달하는 경우의 권한과 오류는 10.9절에서 정의한다 (구현 예정).
+경로에 공개방 댓글을 전달하는 경우의 권한과 오류는 10.9절에서 정의한다.
 
 댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
 (`SENTENCE_NOT_FOUND`)을 반환한다.
@@ -899,8 +897,7 @@
 
 ## 7. Android 개발자 변경 안내
 
-이번 변경은 공개방을 위한 **구현 예정 API 계약**이다. 신규 API와 기존 공통 API의 공개방 확장은
-후속 서버 구현·배포 이후 사용할 수 있다. 상세 요청·응답과 호출 흐름은 10절을 따른다.
+공개방 신규 API와 기존 공통 API의 공개방 확장을 구현했다. 운영 환경에서는 스키마 전환과 서버 배포 이후 사용할 수 있다. 상세 요청·응답과 호출 흐름은 10절을 따른다.
 
 ### 공개방 목록과 정렬
 
@@ -943,7 +940,7 @@
 
 ## 8. 엔드포인트 요약
 
-아래는 기존 API 목록이다. 구현 예정인 공개방 신규 API 11개는 [10.2절](#102-신규-api-목록),
+아래는 기존 API 목록이다. 공개방 신규 API 11개는 [10.2절](#102-신규-api-목록),
 기존 공통 API의 공개방 확장은 [10.9절](#109-공통-api의-공개방-적용)에 정리한다.
 
 | 메서드 | 경로 | 설명 |
@@ -1001,7 +998,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 - [Apple App Review Guidelines 1.2 — User-Generated Content](https://developer.apple.com/app-store/review/guidelines/)
 - [Apple — Offering account deletion in your app](https://developer.apple.com/support/offering-account-deletion-in-your-app/)
 
-## 10. 공개방 선행 계약 (구현 예정)
+## 10. 공개방 계약
 
 기능 범위는 [P-156 공개방](https://linear.app/yeobaek/issue/P-156/공개방)과 2026-09-23 API 계약
 논의를 따른다. [P-269 구조 개편](https://linear.app/yeobaek/issue/P-269/스키마-and-코드-구조-개편)과
@@ -1028,7 +1025,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 
 ### 10.2 신규 API 목록
 
-아래 API는 모두 구현 예정이다. 기존 모임 경로는 유지한다.
+아래 공개방 API를 제공하며 기존 모임 경로는 유지한다.
 
 | 메서드 | 경로 | 기능 |
 |---|---|---|
@@ -1268,8 +1265,9 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
   `sentenceSequence`, `future`, `commentCount`, `unreadCommentCount`, `contentVisibility`,
   `latestCommentCreatedAt`을 모두 포함한다.
 - 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
-  확인한 문장 순이며, 그룹 안에서는 `latestCommentCreatedAt` 내림차순, 동률이면 `sentenceId`
-  내림차순이다. 받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
+  확인한 문장 순이며, 그룹 안에서는 `passageSequence` 오름차순, `sentenceSequence` 오름차순,
+  두 순번이 같으면 `sentenceId` 내림차순이다. `latestCommentCreatedAt`은 정렬에 사용하지 않는다.
+  받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
 - `future=true`이고 `unreadCommentCount>0`일 때 `contentVisibility=REVEAL_REQUIRED`, 그 외에는
   `VISIBLE`이다. 가림 상태여도 `content`는 포함한다. 클라이언트는 이 정책 값을 따르며, 화면에서
   가림을 해제하는 것만으로 서버의 댓글 확인 상태는 바뀌지 않는다.
@@ -1284,7 +1282,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 
 ### 10.9 공통 API의 공개방 적용
 
-아래 확장은 공개방 구현 이후 적용한다. 기존 모임 댓글의 요청·응답·권한은 유지한다.
+아래 공통 API는 공개방에도 적용한다. 기존 모임 댓글의 요청·응답·권한은 유지한다.
 
 | 기존 API | 공개방에 적용할 계약 |
 |---|---|

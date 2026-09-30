@@ -37,6 +37,8 @@ import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 
 /**
  * 인제스트 규격 JSON(API.md 6장) 업로드. 단일 트랜잭션이므로 실패 시 아무것도 저장되지 않는다.
@@ -54,6 +56,7 @@ public class BookIngestService {
     private final ChapterRepository chapterRepository;
     private final PassageRepository passageRepository;
     private final BookCoverUrlResolver bookCoverUrlResolver;
+    private final PublicRoomRepository publicRoomRepository;
 
     @Transactional
     public BookUploadResponse upload(BookUploadRequest request) {
@@ -64,6 +67,7 @@ public class BookIngestService {
         rejectDuplicateBook(book, authors);
 
         bookManagementRepository.save(book);
+        publicRoomRepository.save(new PublicRoom(book));
         for (Author author : authors.asList()) {
             if (author.getId() == null) {
                 authorRepository.save(author);

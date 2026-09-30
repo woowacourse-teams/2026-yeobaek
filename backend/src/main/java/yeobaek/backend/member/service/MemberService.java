@@ -9,6 +9,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +18,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final CommentRepository commentRepository;
     private final ClubMemberRepository clubMemberRepository;
+    private final PublicRoomActivityRepository publicRoomActivityRepository;
 
     @Transactional
     public MemberCreateResponse create(Nickname nickname) {
@@ -32,6 +34,7 @@ public class MemberService {
     @Transactional
     public void delete(Long memberId) {
         commentRepository.deleteAllByMemberId(memberId);
+        publicRoomActivityRepository.deleteAllByMemberId(memberId);
         clubMemberRepository.deleteAllByMemberId(memberId);
         memberRepository.deleteById(memberId);
     }
