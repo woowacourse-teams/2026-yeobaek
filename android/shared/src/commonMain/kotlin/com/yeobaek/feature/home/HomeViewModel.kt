@@ -35,6 +35,10 @@ class HomeViewModel(
         private set
 
     fun initCurrentlyBook() {
+        uiState = uiState.copy(
+            currentlyBookState = CurrentlyBookState.Loading,
+        )
+
         viewModelScope.launch {
             try {
                 val recentReading = userRepository.getRecentReading()
@@ -42,6 +46,7 @@ class HomeViewModel(
 
                 uiState = uiState.copy(
                     currentlyReadingBookUiModel = currentlyReadingBook,
+                    currentlyBookState = CurrentlyBookState.Success,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
@@ -61,6 +66,7 @@ class HomeViewModel(
                 )
                 uiState = uiState.copy(
                     currentlyReadingBookUiModel = null,
+                    currentlyBookState = CurrentlyBookState.Error(e.message ?: "최근 읽은 책 정보를 가져오는데 실패했습니다."),
                 )
             }
         }
@@ -96,6 +102,7 @@ class HomeViewModel(
                         itemCount = groups.size,
                     ),
                 )
+                updateMovePublicRoomIfReady()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -144,6 +151,7 @@ class HomeViewModel(
                         itemCount = publicRooms.size,
                     ),
                 )
+                updateMovePublicRoomIfReady()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -160,6 +168,19 @@ class HomeViewModel(
         }
     }
 
+    private fun updateMovePublicRoomIfReady() {
+        val isGroupsLoaded = uiState.screenState is ScreenState.Success
+        val isPublicRoomsLoaded =
+            uiState.publicRoomTab.screenState is ScreenState.Success
+
+        if (!isGroupsLoaded || !isPublicRoomsLoaded) return
+
+        uiState = uiState.copy(
+            isMovePublicRoom =
+                uiState.groups.isEmpty() &&
+                    uiState.publicRoomTab.visitedPublicRooms.isNotEmpty(),
+        )
+    }
     companion object {
         fun homeViewModelFactory(
             userRepository: UserRepository,

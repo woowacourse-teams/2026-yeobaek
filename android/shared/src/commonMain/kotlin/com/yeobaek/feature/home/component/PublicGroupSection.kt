@@ -73,7 +73,7 @@ private fun PublicRoomGrid(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            PublicRoomSectionTitle(title = "최근에 방문한 공개방")
+            PublicRoomSectionTitle(title = "참여한 공개방")
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             if (visitedPublicRooms.isEmpty()) {

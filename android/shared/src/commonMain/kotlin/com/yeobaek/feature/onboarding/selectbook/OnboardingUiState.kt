@@ -6,4 +6,5 @@ data class OnboardingUiState(
     val selectedBookUiState: SelectedBookUiState = SelectedBookUiState(),
     val bookUiModelList: List<OnboardingBookUiModel> = emptyList(),
     val initBookState: InitBookState = InitBookState.Idle,
+    val publicRoomState: PublicRoomState = PublicRoomState.Idle,
 )

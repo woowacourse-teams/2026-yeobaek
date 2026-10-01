@@ -29,38 +29,16 @@ fun OnboardingBottomSheetContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text("\"$title\"을 어떻게 읽을까요?", style = MaterialTheme.typography.titleLarge)
-//        OnboardingActionCard(
-//            title = "공개방에 참여하기",
-//            content = "같은 책을 읽는 사람들과 바로 시작해요.",
-//            onClick = onClickPublicRoom,
-//        )
-        PreparingActionCard()
+        OnboardingActionCard(
+            title = "공개방에 참여하기",
+            content = "같은 책을 읽는 사람들과 바로 시작해요.",
+            onClick = onClickPublicRoom,
+        )
         OnboardingActionCard(
             title = "새 모임 만들기",
             content = "친구와 읽을 모임을 만들고 코드를 공유해요.",
             onClick = onClickCreateRoom,
         )
-    }
-}
-
-@Composable
-private fun PreparingActionCard(
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors().copy(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.error),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-        ) {
-            Text("공개방은 준비중", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("아직 완성되지 않은 기능입니다.", style = MaterialTheme.typography.bodyMedium)
-        }
     }
 }
 

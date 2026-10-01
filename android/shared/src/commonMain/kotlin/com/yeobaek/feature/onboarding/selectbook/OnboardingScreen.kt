@@ -36,6 +36,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBottomSheetContent
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingJoinCard
+import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,8 +46,9 @@ fun OnboardingScreen(
     navigateToJoin: () -> Unit,
     onSelectBook: (Long) -> Unit,
     onDismissBottomSheet: () -> Unit,
-    onClickPublicRoom: () -> Unit,
+    onClickPublicRoom: (Long) -> Unit,
     onClickCreateRoom: (Long) -> Unit,
+    closeBottomSheet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isLoading by remember { mutableStateOf(false) }
@@ -71,6 +73,29 @@ fun OnboardingScreen(
             }
 
             is InitBookState.Idle -> return@LaunchedEffect
+        }
+    }
+
+    LaunchedEffect(uiState.publicRoomState) {
+        when (uiState.publicRoomState) {
+            is PublicRoomState.Loading -> {
+                isLoading = true
+            }
+
+            is PublicRoomState.Success -> {
+                isLoading = false
+                closeBottomSheet()
+                navigateToHome()
+            }
+
+            is PublicRoomState.Failure -> {
+                isLoading = false
+                snackbarHostState.showSnackbar(
+                    message = (uiState.publicRoomState).message,
+                )
+            }
+
+            is PublicRoomState.Idle -> return@LaunchedEffect
         }
     }
 
@@ -133,7 +158,9 @@ fun OnboardingScreen(
             ) {
                 OnboardingBottomSheetContent(
                     title = uiState.selectedBookUiState.selectedBook?.title ?: "제목없음",
-                    onClickPublicRoom = onClickPublicRoom,
+                    onClickPublicRoom = {
+                        onClickPublicRoom(uiState.selectedBookUiState.selectedBook?.id ?: 0L)
+                    },
                     onClickCreateRoom = {
                         onClickCreateRoom(uiState.selectedBookUiState.selectedBook?.id ?: 0L)
                     },
@@ -162,7 +189,34 @@ private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
             uiState = OnboardingUiState(
-                bookUiModelList = OnboardingViewModel.mockBookList,
+                bookUiModelList = listOf(
+                    OnboardingBookUiModel(
+                        id = 0L,
+                        title = "The Great Gatsby",
+                        authors = "F. Scott Fitzgerald",
+                        coverUrl = "https://template.canva.com/EAF8mKE9JzY/1/0/1003w-F9EPCH-Tgf0.jpg",
+                    ),
+                    OnboardingBookUiModel(
+                        id = 1L,
+                        title = "To Kill a Mockingbird",
+                        authors = "Harper Lee",
+                    ),
+                    OnboardingBookUiModel(
+                        id = 2L,
+                        title = "1984",
+                        authors = "George Orwell",
+                    ),
+                    OnboardingBookUiModel(
+                        id = 3L,
+                        title = "Pride and Prejudice",
+                        authors = "Jane Austen",
+                    ),
+                    OnboardingBookUiModel(
+                        id = 4L,
+                        title = "The Catcher in the Rye",
+                        authors = "J.D. Salinger",
+                    ),
+                ),
             ),
             navigateToHome = {},
             navigateToJoin = {},
@@ -170,6 +224,7 @@ private fun OnboardingScreenPreview() {
             onDismissBottomSheet = {},
             onClickPublicRoom = {},
             onClickCreateRoom = {},
+            closeBottomSheet = {},
         )
     }
 }
