@@ -1,12 +1,12 @@
 package com.yeobaek.feature.home.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +39,7 @@ fun CurrentlyReadingBookItem(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth().height(80.dp)
                 .padding(
                     horizontal = 12.dp,
                     vertical = 8.dp,
@@ -48,19 +48,17 @@ fun CurrentlyReadingBookItem(
         ) {
             BookCoverImage(
                 imageUrl = bookUiModel.coverImageUrl,
-                modifier = Modifier.width(41.dp),
+                modifier = Modifier,
             )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(start = 20.dp),
+                verticalArrangement = Arrangement.SpaceEvenly,
             ) {
                 ReadingSpaceName(name = bookUiModel.readingSpaceName)
-                Spacer(modifier = Modifier.height(8.dp))
                 BookTitle(title = bookUiModel.title)
-                Spacer(modifier = Modifier.height(2.dp))
                 BookAuthors(authors = bookUiModel.authors)
-                Spacer(modifier = Modifier.height(8.dp))
                 ReadingProgressIndicator(progressRate = bookUiModel.progressRate)
             }
         }
