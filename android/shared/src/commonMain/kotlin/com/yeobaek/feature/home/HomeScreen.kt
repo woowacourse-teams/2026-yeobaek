@@ -61,8 +61,8 @@ fun HomeScreen(
         mutableStateOf(GroupTab.MyGroups)
     }
 
-    LaunchedEffect(uiState.screenState, uiState.currentlyBookState) {
-        if (uiState.screenState is ScreenState.Success && uiState.currentlyBookState is CurrentlyBookState.Success) {
+    LaunchedEffect(uiState.isMovePublicRoom) {
+        if (uiState.isMovePublicRoom) {
             selectedGroupTab = GroupTab.PublicRooms
         }
     }

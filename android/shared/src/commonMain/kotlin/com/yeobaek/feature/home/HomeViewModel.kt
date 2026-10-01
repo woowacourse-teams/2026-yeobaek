@@ -102,6 +102,7 @@ class HomeViewModel(
                         itemCount = groups.size,
                     ),
                 )
+                updateMovePublicRoomIfReady()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -150,6 +151,7 @@ class HomeViewModel(
                         itemCount = publicRooms.size,
                     ),
                 )
+                updateMovePublicRoomIfReady()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -166,14 +168,19 @@ class HomeViewModel(
         }
     }
 
-    fun checkMovePublicRoom() {
-        viewModelScope.launch {
-            uiState = uiState.copy(
-                isMovePublicRoom = uiState.publicRoomTab.visitedPublicRooms.isNotEmpty() && uiState.groups.isEmpty(),
-            )
-        }
-    }
+    private fun updateMovePublicRoomIfReady() {
+        val isGroupsLoaded = uiState.screenState is ScreenState.Success
+        val isPublicRoomsLoaded =
+            uiState.publicRoomTab.screenState is ScreenState.Success
 
+        if (!isGroupsLoaded || !isPublicRoomsLoaded) return
+
+        uiState = uiState.copy(
+            isMovePublicRoom =
+                uiState.groups.isEmpty() &&
+                    uiState.publicRoomTab.visitedPublicRooms.isNotEmpty(),
+        )
+    }
     companion object {
         fun homeViewModelFactory(
             userRepository: UserRepository,
