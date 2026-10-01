@@ -10,6 +10,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -17,7 +19,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
@@ -77,8 +79,8 @@ public class Book {
         return Objects.equals(id, other.getId());
     }
 
-    public BookDuplicateCriteria duplicateCriteria(Set<Long> authorIds) {
-        return new BookDuplicateCriteria(title, publisher, publishedYear, authorIds);
+    public BookDeduplicationKey deduplicationKey(Set<Long> authorIds) {
+        return new BookDeduplicationKey(title, publisher, publishedYear, authorIds);
     }
 
     public void delete() {
@@ -90,7 +92,8 @@ public class Book {
         if (status != BookStatus.ACTIVE) {
             throw new BadRequestException(
                     ErrorCode.BOOK_NOT_AVAILABLE,
-                    "더 이상 이용할 수 없는 도서입니다.");
+                    "더 이상 이용할 수 없는 도서입니다.",
+                    availabilityLogContext());
         }
     }
 
@@ -129,5 +132,14 @@ public class Book {
                 || !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches())) {
             throw new IllegalArgumentException("유효하지 않은 표지 이미지 키입니다.");
         }
+    }
+
+    private Map<String, String> availabilityLogContext() {
+        Map<String, String> context = new HashMap<>();
+        if (id != null) {
+            context.put("bookId", id.toString());
+        }
+        context.put("bookStatus", status.name());
+        return context;
     }
 }

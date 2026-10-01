@@ -38,4 +38,9 @@ data class Reader(
 )
 
 @Serializable
+data class PublicRoomReader(
+    val publicRoomId: Long,
+)
+
+@Serializable
 data object MyPage

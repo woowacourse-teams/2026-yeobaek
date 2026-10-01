@@ -1,18 +1,19 @@
 package com.yeobaek.data.repository
 
 import com.yeobaek.data.model.CommentModel
+import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.CommentedSentencesModel
 import com.yeobaek.data.model.CommentsModel
 import com.yeobaek.data.model.NewCommentCountModel
 
 interface CommentRepository {
     suspend fun getComments(
-        clubId: Long,
+        space: CommentSpace,
         sentenceId: Long,
     ): CommentsModel
 
     suspend fun createComment(
-        clubId: Long,
+        space: CommentSpace,
         sentenceId: Long,
         content: String,
     ): CommentModel
@@ -27,12 +28,12 @@ interface CommentRepository {
     suspend fun reportComment(commentId: Long)
 
     suspend fun getNewCommentCount(
-        clubId: Long,
+        space: CommentSpace,
         currentPassageId: Long,
     ): NewCommentCountModel
 
     suspend fun getCommentedSentences(
-        clubId: Long,
+        space: CommentSpace,
         currentPassageId: Long,
     ): CommentedSentencesModel
 }

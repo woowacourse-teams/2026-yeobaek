@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <springProperty name="appName" source="spring.application.name" defaultValue="backend"/>
+    <springProperty name="sourceToken" source="better.stack.source.token" defaultValue=""/>
+    <springProperty name="ingestUrl" source="better.stack.ingest.url" defaultValue=""/>
+    <springProperty name="consoleFormat" source="logging.structured.format.console" defaultValue="logstash"/>
+    <property name="CONSOLE_LOG_STRUCTURED_FORMAT" value="${consoleFormat}"/>
+    <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+
+    <appender name="BETTER_STACK" class="yeobaek.backend.support.logging.StructuredLogtailAppender">
+        <appName>${appName}</appName>
+        <sourceToken>${sourceToken}</sourceToken>
+        <ingestUrl>${ingestUrl}</ingestUrl>
+        <mdcFields>traceId,memberId</mdcFields>
+        <mdcTypes>string,long</mdcTypes>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <charset>UTF-8</charset>
+            <pattern>%msg%nopex</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="BETTER_STACK"/>
+    </root>
+</configuration>

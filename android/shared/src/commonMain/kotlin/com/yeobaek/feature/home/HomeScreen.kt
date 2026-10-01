@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -18,6 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,7 +32,11 @@ import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
-import com.yeobaek.feature.home.component.GroupButtonSection
+import com.yeobaek.feature.home.component.GroupFabMenu
+import com.yeobaek.feature.home.component.GroupTab
+import com.yeobaek.feature.home.component.GroupTabBar
+import com.yeobaek.feature.home.component.PublicGroupSection
+import com.yeobaek.feature.reader.ReaderTarget
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -38,10 +46,20 @@ fun HomeScreen(
     navigateToJoin: () -> Unit,
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
-    navigateToReader: (Long) -> Unit,
+    navigateToReader: (ReaderTarget) -> Unit,
+    onPublicRoomClick: (Long) -> Unit,
     navigateToMyPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var selectedGroupTab by rememberSaveable(
+        stateSaver = Saver(
+            save = { tab -> tab.name },
+            restore = { name -> GroupTab.valueOf(name) },
+        ),
+    ) {
+        mutableStateOf(GroupTab.MyGroups)
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -50,11 +68,10 @@ fun HomeScreen(
                 navigateToMyPage = navigateToMyPage,
             )
         },
-        bottomBar = {
-            GroupButtonSection(
+        floatingActionButton = {
+            GroupFabMenu(
                 navigateToJoin = navigateToJoin,
                 navigateToCreate = navigateToCreate,
-                modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
     ) { innerPadding ->
@@ -62,21 +79,41 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
             uiState.currentlyReadingBookUiModel?.let { book ->
-                Spacer(modifier = Modifier.height(36.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
                     navigateToReader = navigateToReader,
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 8.dp,
+                        bottom = 16.dp,
+                    ),
+                )
+            }
+            GroupTabBar(
+                selectedTab = selectedGroupTab,
+                onTabSelected = { selectedGroupTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            when (selectedGroupTab) {
+                GroupTab.MyGroups -> CurrentlyGroupSection(
+                    groupUiModelList = uiState.groups,
+                    emptyMessage = "모임을 만들거나 참여해 보세요!",
+                    navigateToDetail = navigateToDetail,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+
+                GroupTab.PublicRooms -> PublicGroupSection(
+                    uiState = uiState.publicRoomTab,
+                    onPublicRoomClick = onPublicRoomClick,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-            Spacer(modifier = Modifier.height(32.dp))
-            CurrentlyGroupSection(
-                title = "내 모임",
-                groupUiModelList = uiState.groups,
-                navigateToDetail = navigateToDetail,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            if (uiState.screenState != ScreenState.Success) {
+            if (
+                selectedGroupTab == GroupTab.MyGroups &&
+                uiState.screenState != ScreenState.Success
+            ) {
                 Text(
                     text = when (uiState.screenState) {
                         is ScreenState.Error -> uiState.screenState.message
@@ -112,7 +149,7 @@ private fun AppTitle(
                 onClick = {
                     navigateToMyPage()
                 },
-                modifier = Modifier.size(50.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_person_circle),
@@ -142,6 +179,7 @@ private fun HomeScreenPreview() {
             navigateToDetail = {},
             navigateToCreate = {},
             navigateToReader = {},
+            onPublicRoomClick = {},
             navigateToMyPage = {},
         )
     }

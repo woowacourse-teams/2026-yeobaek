@@ -25,6 +25,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import yeobaek.backend.admin.dto.BookCoverUploadUrlRequest;
 import yeobaek.backend.admin.dto.BookCoverUploadUrlResponse;
+import yeobaek.backend.support.LogCapture;
 import yeobaek.backend.support.storage.S3StorageProperties;
 
 class BookCoverUploadServiceTest {
@@ -75,6 +76,21 @@ class BookCoverUploadServiceTest {
                         put -> put.cacheControl(), put -> put.contentLength())
                 .containsExactly("cover-bucket", response.coverImageKey(), "image/webp",
                         BookCoverUploadService.CACHE_CONTROL, null);
+    }
+
+    @Test
+    @DisplayName("표지 업로드 URL 완료 로그는 파일 형식과 크기를 포함하고 서명 URL을 제외한다")
+    void logSafeUploadMetadata() throws Exception {
+        stubSuccessfulPresign(Instant.parse("2026-08-26T12:10:00Z"));
+
+        try (var logs = new LogCapture(BookCoverUploadService.class.getName())) {
+            service.issueUploadUrl(new BookCoverUploadUrlRequest("image/webp", 1024L));
+
+            var event = logs.event("admin.bookCover.issueUploadUrl", "success");
+            assertThat(logs.field(event, "contentType")).isEqualTo("image/webp");
+            assertThat(logs.field(event, "contentLength")).isEqualTo(1024L);
+            assertThat(logs.structuredText()).doesNotContain("https://s3.example/upload");
+        }
     }
 
     @Test

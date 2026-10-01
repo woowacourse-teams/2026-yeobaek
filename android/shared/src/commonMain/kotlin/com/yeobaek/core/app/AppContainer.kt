@@ -14,8 +14,10 @@ import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
+import com.yeobaek.data.repositoryImpl.fake.FakePublicRoomRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
@@ -61,6 +63,7 @@ class AppContainer(
     val groupRepository: GroupRepository = GroupRepositoryImpl(
         clubApi = apiProvider.clubApi,
     )
+    val publicRoomRepository: PublicRoomRepository = FakePublicRoomRepository()
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
         readerApi = apiProvider.readerApi,
     )

@@ -709,16 +709,154 @@ class CreateArchiveCoverTests(unittest.TestCase):
             extra.write_bytes(b"unlisted-cover")
 
             zip_path = book_dir / "테스트책.zip"
-            create_archive(zip_path, book_dir, ingest, meta)
+            original = book_dir / "사용자 지정 원문.dat"
+            original_bytes = b"\x00source-data\xff"
+            original.write_bytes(original_bytes)
+            create_archive(zip_path, book_dir, ingest, meta, original)
 
             with zipfile.ZipFile(zip_path) as archive:
                 names = set(archive.namelist())
+                archived_original = archive.read("원문/사용자 지정 원문.dat")
 
+            self.assertEqual(archived_original, original_bytes)
             self.assertIn("표지_브리프.json", names)
             self.assertIn("표지/A.png", names)
             self.assertIn("표지/프롬프트/A.txt", names)
             self.assertNotIn("표지/작업/A_실패.png", names)
             self.assertNotIn("표지/H.jpg", names)
+
+    def test_archive_uses_canonical_path_for_external_original(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            book_dir = root / "책"
+            external_dir = root / "외부"
+            (book_dir / "표지" / "프롬프트").mkdir(parents=True)
+            external_dir.mkdir()
+            ingest = book_dir / "ingest.json"
+            meta = book_dir / "메타데이터.json"
+            original = external_dir / "ingest.json"
+            ingest.write_bytes(b"generated-ingest")
+            meta.write_text("{}", encoding="utf-8")
+            original.write_bytes(b"external-original")
+            (book_dir / "표지_브리프.json").write_text("{}", encoding="utf-8")
+            (book_dir / "표지" / "시안_목록.json").write_text("{}", encoding="utf-8")
+            (book_dir / "표지" / "표지_검수.json").write_text("{}", encoding="utf-8")
+            for variant_id in "ABCDEFG":
+                (book_dir / "표지" / f"{variant_id}.png").write_bytes(b"png")
+                (book_dir / "표지" / "프롬프트" / f"{variant_id}.txt").write_text(
+                    "prompt", encoding="utf-8"
+                )
+
+            zip_path = book_dir / "책.zip"
+            create_archive(zip_path, book_dir, ingest, meta, original)
+
+            with zipfile.ZipFile(zip_path) as archive:
+                self.assertEqual(archive.read("ingest.json"), b"generated-ingest")
+                self.assertEqual(
+                    archive.read("원문/ingest.json"), b"external-original"
+                )
+
+    def test_archive_rejects_missing_original_without_creating_zip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp)
+            zip_path = book_dir / "책.zip"
+
+            with self.assertRaisesRegex(FileNotFoundError, "원문 파일이 없습니다"):
+                create_archive(
+                    zip_path,
+                    book_dir,
+                    book_dir / "ingest.json",
+                    book_dir / "메타데이터.json",
+                    book_dir / "사라진-원문.txt",
+                )
+
+            self.assertFalse(zip_path.exists())
+
+    def test_archive_rejects_original_and_zip_path_collision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp)
+            original_and_zip = book_dir / "원문.zip"
+            original_and_zip.write_bytes(b"source")
+
+            with self.assertRaisesRegex(ValueError, "원문 파일과 ZIP 출력 경로"):
+                create_archive(
+                    original_and_zip,
+                    book_dir,
+                    book_dir / "ingest.json",
+                    book_dir / "메타데이터.json",
+                    original_and_zip,
+                )
+
+            self.assertEqual(original_and_zip.read_bytes(), b"source")
+
+    def test_final_rejects_original_and_ingest_path_collision_before_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp) / "경로충돌"
+            book_dir.mkdir()
+            original, translation, meta_path, _meta = self._write_book_inputs(
+                book_dir, "경로 충돌 책"
+            )
+            original_bytes = original.read_bytes()
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("인제스트_변환.py")),
+                    str(translation),
+                    "--original",
+                    str(original),
+                    "--meta",
+                    str(meta_path),
+                    "--no-verify",
+                    "--output",
+                    str(original),
+                ],
+                cwd=book_dir,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+
+            combined_output = completed.stdout + completed.stderr
+            self.assertNotEqual(completed.returncode, 0, combined_output)
+            self.assertIn("원문 파일과 인제스트 JSON 경로", combined_output)
+            self.assertEqual(original.read_bytes(), original_bytes)
+
+    def test_final_no_verify_requires_original_before_writing_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp) / "원문없음"
+            book_dir.mkdir()
+            original, translation, meta_path, _meta = self._write_book_inputs(
+                book_dir, "원문 없는 책"
+            )
+            original.unlink()
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("인제스트_변환.py")),
+                    str(translation),
+                    "--original",
+                    str(original),
+                    "--meta",
+                    str(meta_path),
+                    "--no-verify",
+                ],
+                cwd=book_dir,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+
+            combined_output = completed.stdout + completed.stderr
+            self.assertNotEqual(completed.returncode, 0, combined_output)
+            self.assertIn("최종 보관용 ZIP에 포함할 --original", combined_output)
+            self.assertFalse((book_dir / "ingest.json").exists())
+            self.assertFalse((book_dir / "원문_없는_책.zip").exists())
 
     def test_final_conversion_rejects_missing_covers_before_writing_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -860,6 +998,8 @@ class CreateArchiveCoverTests(unittest.TestCase):
             self.assertTrue(zip_path.is_file())
             with zipfile.ZipFile(zip_path) as archive:
                 names = set(archive.namelist())
+                archived_original = archive.read(f"원문/{original.name}")
+            self.assertEqual(archived_original, original.read_bytes())
             self.assertIn("표지/A.png", names)
             self.assertIn("표지/프롬프트/G.txt", names)
             self.assertIn("표지/표지_검수.json", names)

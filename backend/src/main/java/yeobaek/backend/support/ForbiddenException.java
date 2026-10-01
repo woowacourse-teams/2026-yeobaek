@@ -1,14 +1,14 @@
 package yeobaek.backend.support;
 
-import lombok.Getter;
+import java.util.Map;
 
-@Getter
-public class ForbiddenException extends RuntimeException {
-
-    private final ErrorCode code;
+public class ForbiddenException extends LogContextException {
 
     public ForbiddenException(ErrorCode code, String message) {
-        super(message);
-        this.code = code;
+        super(code, message);
+    }
+
+    public ForbiddenException(ErrorCode code, String message, Map<String, String> logContext) {
+        super(code, message, logContext);
     }
 }

@@ -3,11 +3,12 @@ package yeobaek.backend.book.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.book.domain.vo.BookDuplicateCriteria;
+import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
@@ -47,6 +48,19 @@ class BookTest {
     }
 
     @Test
+    @DisplayName("이용할 수 없는 저장 도서는 예외 로그 컨텍스트에 도서 ID와 상태를 제공한다")
+    void unavailableBookHasLogContext() {
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        ReflectionTestUtils.setField(book, "id", 3L);
+        book.delete();
+
+        assertThatThrownBy(book::ensureAvailable)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("logContext")
+                .isEqualTo(Map.of("bookId", "3", "bookStatus", "DELETED"));
+    }
+
+    @Test
     @DisplayName("같은 id를 가진 도서는 동일한 도서로 판단한다")
     void isSameWhenIdMatches() {
         Book book = new Book(new BookTitle("제목"), null, null, 1, null);
@@ -70,11 +84,11 @@ class BookTest {
 
     @Test
     @DisplayName("도서의 중복 판단 기준을 제목·출판사·출판연도·작가로 구성한다")
-    void duplicateCriteria() {
+    void deduplicationKey() {
         Book book = new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null);
 
-        assertThat(book.duplicateCriteria(Set.of(1L, 2L)))
-                .isEqualTo(new BookDuplicateCriteria(
+        assertThat(book.deduplicationKey(Set.of(1L, 2L)))
+                .isEqualTo(new BookDeduplicationKey(
                         new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924,
                         Set.of(1L, 2L)));
     }

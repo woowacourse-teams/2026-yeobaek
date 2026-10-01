@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.Optional;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,6 +34,11 @@ import yeobaek.backend.member.service.MemberService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
+import yeobaek.backend.publicroom.dto.PublicRoomReadingSpaceResponse;
+import yeobaek.backend.publicroom.dto.RecentReadingResponse;
+import yeobaek.backend.publicroom.service.RecentReadingService;
+import yeobaek.backend.club.dto.ClubBookResponse;
+import yeobaek.backend.book.domain.BookStatus;
 
 @WebMvcTest(MemberController.class)
 class MemberControllerTest extends ControllerTest {
@@ -44,6 +51,42 @@ class MemberControllerTest extends ControllerTest {
 
     @MockitoBean
     private AnalyticsTracker analyticsTracker;
+
+    @MockitoBean
+    private RecentReadingService recentReadingService;
+
+    @Test
+    @DisplayName("통합 최근 읽기가 없으면 204를 반환한다")
+    void findNoRecentReading() throws Exception {
+        givenValidMember(1L);
+        given(recentReadingService.findRecent(1L)).willReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", "1"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(recentReadingService).findRecent(1L);
+    }
+
+    @Test
+    @DisplayName("통합 최근 읽기의 공간·도서·진도 계약을 반환한다")
+    void findRecentReading() throws Exception {
+        givenValidMember(1L);
+        var response = new RecentReadingResponse(new PublicRoomReadingSpaceResponse(3L),
+                new ClubBookResponse(2L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE),
+                4, 40, LocalDateTime.of(2026, 9, 30, 10, 0));
+        given(recentReadingService.findRecent(1L)).willReturn(Optional.of(response));
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space.type").value("PUBLIC_ROOM"))
+                .andExpect(jsonPath("$.space.publicRoomId").value(3))
+                .andExpect(jsonPath("$.book.bookId").value(2))
+                .andExpect(jsonPath("$.lastReadPassageSequence").value(4))
+                .andExpect(jsonPath("$.progressRate").value(40));
+
+        verify(recentReadingService).findRecent(1L);
+    }
 
     @Test
     @DisplayName("회원 생성 요청을 서비스에 전달하고 전체 응답 계약을 반환한다")
