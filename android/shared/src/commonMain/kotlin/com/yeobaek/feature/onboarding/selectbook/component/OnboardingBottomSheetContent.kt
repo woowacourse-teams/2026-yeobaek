@@ -43,27 +43,6 @@ fun OnboardingBottomSheetContent(
 }
 
 @Composable
-private fun PreparingActionCard(
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors().copy(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.error),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-        ) {
-            Text("공개방은 준비중", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("아직 완성되지 않은 기능입니다.", style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
 private fun OnboardingActionCard(
     title: String,
     content: String,
