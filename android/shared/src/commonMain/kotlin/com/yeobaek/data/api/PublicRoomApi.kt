@@ -39,12 +39,12 @@ interface PublicRoomApi {
         @Path("publicRoomId") publicRoomId: Long,
         @Query("from") from: Int,
         @Query("to") to: Int,
-    ): PassagesResponse
+    ): Response<PassagesResponse>
 
     @Headers("Content-Type: application/json")
     @PUT("api/public-rooms/{publicRoomId}/progress")
     suspend fun updatePassage(
         @Path("publicRoomId") publicRoomId: Long,
         @Body request: UpdatePassageRequest,
-    ): MyProgress
+    ): Response<MyProgress>
 }
