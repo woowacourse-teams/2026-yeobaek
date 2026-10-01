@@ -35,6 +35,10 @@ class HomeViewModel(
         private set
 
     fun initCurrentlyBook() {
+        uiState = uiState.copy(
+            currentlyBookState = CurrentlyBookState.Loading,
+        )
+
         viewModelScope.launch {
             try {
                 val recentReading = userRepository.getRecentReading()
@@ -42,6 +46,7 @@ class HomeViewModel(
 
                 uiState = uiState.copy(
                     currentlyReadingBookUiModel = currentlyReadingBook,
+                    currentlyBookState = CurrentlyBookState.Success,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
@@ -61,6 +66,7 @@ class HomeViewModel(
                 )
                 uiState = uiState.copy(
                     currentlyReadingBookUiModel = null,
+                    currentlyBookState = CurrentlyBookState.Error(e.message ?: "최근 읽은 책 정보를 가져오는데 실패했습니다."),
                 )
             }
         }
@@ -157,6 +163,14 @@ class HomeViewModel(
                     ),
                 )
             }
+        }
+    }
+
+    fun checkMovePublicRoom() {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                isMovePublicRoom = uiState.publicRoomTab.visitedPublicRooms.isNotEmpty() && uiState.groups.isEmpty(),
+            )
         }
     }
 

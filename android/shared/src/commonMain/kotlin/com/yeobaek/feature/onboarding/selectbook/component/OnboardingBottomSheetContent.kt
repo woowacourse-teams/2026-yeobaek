@@ -29,12 +29,11 @@ fun OnboardingBottomSheetContent(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text("\"$title\"을 어떻게 읽을까요?", style = MaterialTheme.typography.titleLarge)
-//        OnboardingActionCard(
-//            title = "공개방에 참여하기",
-//            content = "같은 책을 읽는 사람들과 바로 시작해요.",
-//            onClick = onClickPublicRoom,
-//        )
-        PreparingActionCard()
+        OnboardingActionCard(
+            title = "공개방에 참여하기",
+            content = "같은 책을 읽는 사람들과 바로 시작해요.",
+            onClick = onClickPublicRoom,
+        )
         OnboardingActionCard(
             title = "새 모임 만들기",
             content = "친구와 읽을 모임을 만들고 코드를 공유해요.",

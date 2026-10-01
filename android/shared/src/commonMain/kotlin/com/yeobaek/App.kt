@@ -246,6 +246,7 @@ fun App(
                 val onBoardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
                         bookRepository = appContainer.bookRepository,
+                        publicRoomRepository = appContainer.publicRoomRepository,
                     ),
                 )
 
@@ -273,13 +274,14 @@ fun App(
                     },
                     onSelectBook = onBoardingViewModel::onSelectBook,
                     onDismissBottomSheet = onBoardingViewModel::dismissDialog,
-                    onClickPublicRoom = {
-                        TODO("공개방 API가 나오면 구현할 계획")
+                    onClickPublicRoom = { bookId ->
+                        onBoardingViewModel.onClickJoinPublicRoom(bookId = bookId)
                     },
                     onClickCreateRoom = { bookId ->
                         onBoardingViewModel.dismissDialog()
                         navController.navigate(OnboardingCreate(bookId = bookId))
                     },
+                    closeBottomSheet = onBoardingViewModel::closeBottomSheet,
                 )
             }
             composable<OnboardingCreate> {
@@ -332,8 +334,8 @@ fun App(
                     ),
                 )
 
-                LaunchedEffect(true) { homeViewModel.initGroups() }
                 LifecycleEventEffect(Lifecycle.Event.ON_START) {
+                    homeViewModel.initGroups()
                     homeViewModel.initCurrentlyBook()
                     homeViewModel.initPublicRooms()
                 }
