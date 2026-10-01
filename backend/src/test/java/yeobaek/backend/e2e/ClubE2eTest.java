@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 
 import io.restassured.response.ValidatableResponse;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,9 +15,15 @@ class ClubE2eTest extends E2eTest {
     @Test
     @DisplayName("참여 코드로 기존 독서 모임에 참여하고 책 본문을 읽는다")
     void joinExistingClubAndRead() {
+        String firstPassageContent = "첫 번째 문단입니다.";
+        List<String> passageContents = List.of(
+                firstPassageContent,
+                "두 번째 문단입니다.",
+                "세 번째 문단입니다.",
+                "네 번째 문단입니다.");
         long ownerId = createMember("모임장");
         long readerId = createMember("참여 독자");
-        long bookId = createBook("참여할 모임의 책");
+        long bookId = createBook("참여할 모임의 책", passageContents);
         ClubFixture club = createClub(ownerId, bookId, "기존 독서 모임");
 
         memberRequest(readerId)
@@ -50,22 +57,28 @@ class ClubE2eTest extends E2eTest {
 
         memberRequest(readerId)
                 .queryParam("from", 1)
-                .queryParam("to", 4)
+                .queryParam("to", passageContents.size())
                 .when()
                 .get("/api/clubs/{clubId}/passages", club.clubId())
                 .then()
                 .log().ifValidationFails()
                 .statusCode(200)
-                .body("passages", hasSize(4))
+                .body("passages", hasSize(passageContents.size()))
                 .body("passages[0].sequence", equalTo(1))
-                .body("passages[0].sentences[0].content", equalTo("첫 번째 문단입니다."));
+                .body("passages[0].sentences[0].content", equalTo(firstPassageContent));
     }
 
     @Test
     @DisplayName("도서 목록에서 책을 선택해 새 독서 모임을 만들고 책 본문을 읽는다")
     void chooseBookCreateClubAndRead() {
+        String fourthPassageContent = "네 번째 문단입니다.";
+        List<String> passageContents = List.of(
+                "첫 번째 문단입니다.",
+                "두 번째 문단입니다.",
+                "세 번째 문단입니다.",
+                fourthPassageContent);
         long memberId = createMember("새 모임 독자");
-        long bookId = createBook("새 모임의 책");
+        long bookId = createBook("새 모임의 책", passageContents);
 
         memberRequest(memberId)
                 .when()
@@ -76,7 +89,7 @@ class ClubE2eTest extends E2eTest {
                 .body("books", hasSize(1))
                 .body("books[0].bookId", equalTo(Math.toIntExact(bookId)))
                 .body("books[0].title", equalTo("새 모임의 책"))
-                .body("books[0].passageCount", equalTo(4));
+                .body("books[0].passageCount", equalTo(passageContents.size()));
 
         ValidatableResponse createdClub = memberRequest(memberId)
                 .body(Map.of("name", "새 독서 모임", "bookId", bookId))
@@ -112,22 +125,28 @@ class ClubE2eTest extends E2eTest {
 
         memberRequest(memberId)
                 .queryParam("from", 1)
-                .queryParam("to", 4)
+                .queryParam("to", passageContents.size())
                 .when()
                 .get("/api/clubs/{clubId}/passages", clubId)
                 .then()
                 .log().ifValidationFails()
                 .statusCode(200)
-                .body("passages", hasSize(4))
+                .body("passages", hasSize(passageContents.size()))
                 .body("passages[3].sequence", equalTo(4))
-                .body("passages[3].sentences[0].content", equalTo("네 번째 문단입니다."));
+                .body("passages[3].sentences[0].content", equalTo(fourthPassageContent));
     }
 
     @Test
     @DisplayName("이미 참여한 독서 모임은 이전 진도율과 마지막 위치에서 이어 읽는다")
     void resumeParticipatedClubFromPreviousProgress() {
+        String secondPassageContent = "두 번째 문단입니다.";
+        List<String> passageContents = List.of(
+                "첫 번째 문단입니다.",
+                secondPassageContent,
+                "세 번째 문단입니다.",
+                "네 번째 문단입니다.");
         long memberId = createMember("이어 읽는 독자");
-        long bookId = createBook("이어 읽을 모임의 책");
+        long bookId = createBook("이어 읽을 모임의 책", passageContents);
         ClubFixture club = createClub(memberId, bookId, "이어 읽기 모임");
         ReadingIds reading = findClubReadingIds(memberId, club.clubId());
 
@@ -163,14 +182,14 @@ class ClubE2eTest extends E2eTest {
 
         memberRequest(memberId)
                 .queryParam("from", 2)
-                .queryParam("to", 4)
+                .queryParam("to", passageContents.size())
                 .when()
                 .get("/api/clubs/{clubId}/passages", club.clubId())
                 .then()
                 .log().ifValidationFails()
                 .statusCode(200)
-                .body("passages", hasSize(3))
+                .body("passages", hasSize(passageContents.size() - 1))
                 .body("passages[0].sequence", equalTo(2))
-                .body("passages[0].sentences[0].content", equalTo("두 번째 문단입니다."));
+                .body("passages[0].sentences[0].content", equalTo(secondPassageContent));
     }
 }

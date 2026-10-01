@@ -64,11 +64,17 @@ abstract class E2eTest {
     }
 
     protected long createBook(String title) {
-        List<Map<String, Object>> passages = List.of(
-                passage("첫 번째 문단입니다."),
-                passage("두 번째 문단입니다."),
-                passage("세 번째 문단입니다."),
-                passage("네 번째 문단입니다."));
+        return createBook(title, List.of(
+                "첫 번째 문단입니다.",
+                "두 번째 문단입니다.",
+                "세 번째 문단입니다.",
+                "네 번째 문단입니다."));
+    }
+
+    protected long createBook(String title, List<String> passageContents) {
+        List<Map<String, Object>> passages = passageContents.stream()
+                .map(this::passage)
+                .toList();
         Map<String, Object> body = Map.of(
                 "title", title,
                 "authors", List.of(Map.of("name", "테스트 작가")),
@@ -83,7 +89,7 @@ abstract class E2eTest {
                 .log().ifValidationFails()
                 .statusCode(201)
                 .body("title", equalTo(title))
-                .body("passageCount", equalTo(4))
+                .body("passageCount", equalTo(passageContents.size()))
                 .extract().jsonPath().getLong("bookId");
     }
 
