@@ -5,6 +5,7 @@ enum class TrackedScreen(
 ) {
     NICKNAME("nickname"),
     GUIDE("guide"),
+    ONBOARDING("onboarding"),
     HOME("home"),
     GROUP_DETAIL("group_detail"),
     GROUP_JOIN("group_join"),

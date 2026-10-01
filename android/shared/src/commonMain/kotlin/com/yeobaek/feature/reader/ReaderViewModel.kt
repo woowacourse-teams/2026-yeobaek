@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.ChapterSelected
 import com.yeobaek.core.analytics.CommentCollectionEnd
@@ -67,8 +68,19 @@ class ReaderViewModel(
     )
         private set
 
-    private val readingSession = ReadingSessionTracker(analyticsTracker = analyticsTracker)
-    private val commentCollectionSession = CommentCollectionSessionTracker(analyticsTracker = analyticsTracker)
+    private val readingProperties: Map<String, Any> = when (readerTarget) {
+        is ReaderTarget.Group -> mapOf("reading_space" to "group")
+
+        is ReaderTarget.PublicRoom -> mapOf(
+            "reading_space" to "public_room",
+            "public_room_id" to readerTarget.id,
+        )
+    }
+    private val trackReaderEvent: (AnalyticsEvent) -> Unit = { event ->
+        analyticsTracker.track(event, readingProperties)
+    }
+    private val readingSession = ReadingSessionTracker(trackEvent = trackReaderEvent)
+    private val commentCollectionSession = CommentCollectionSessionTracker(trackEvent = trackReaderEvent)
 
     // 글자 설정 메뉴를 열었을 때의 크기. 메뉴가 닫힐 때 최종 크기와 비교해 한 번만 기록한다.
     private var fontSizeAtMenuOpen: Int? = null
@@ -119,7 +131,7 @@ class ReaderViewModel(
             }
         },
         analytics = CommentSheetAnalytics(
-            analyticsTracker = analyticsTracker,
+            trackEvent = trackReaderEvent,
             readingSession = readingSession,
             bookId = { currentBookId },
             passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
@@ -377,7 +389,7 @@ class ReaderViewModel(
         )
         val bookId = currentBookId
         if (bookId != null && targetSequence != uiState.readingSequence) {
-            analyticsTracker.track(
+            trackReaderEvent(
                 ProgressSeeked(
                     bookId = bookId,
                     fromProgress = uiState.readingProgress,
@@ -390,7 +402,7 @@ class ReaderViewModel(
 
     fun openTableOfContents() {
         commitFontSizeChange()
-        analyticsTracker.track(TableOfContentsOpened(bookId = currentBookId))
+        trackReaderEvent(TableOfContentsOpened(bookId = currentBookId))
         uiState = uiState.copy(
             isTableOfContentsVisible = true,
             isTextSettingMenuExpanded = false,
@@ -403,7 +415,7 @@ class ReaderViewModel(
 
     fun selectChapter(chapter: ChapterUiModel) {
         val targetSequence = chapter.startPassageSequence
-        analyticsTracker.track(
+        trackReaderEvent(
             ChapterSelected(
                 bookId = currentBookId,
                 chapterSequence = chapter.sequence,
@@ -568,7 +580,7 @@ class ReaderViewModel(
         )
         if (uiState.isTextSettingMenuExpanded) {
             fontSizeAtMenuOpen = uiState.fontSize
-            analyticsTracker.track(TextSettingOpened)
+            trackReaderEvent(TextSettingOpened)
         } else {
             commitFontSizeChange()
         }
@@ -635,7 +647,7 @@ class ReaderViewModel(
                 sequence in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount && sequence != targetSequence
             }
 
-        analyticsTracker.track(
+        trackReaderEvent(
             CommentPassageJumped(
                 bookId = currentBookId,
                 fromProgress = uiState.readingProgress,
@@ -656,7 +668,7 @@ class ReaderViewModel(
 
     fun returnToReadingAnchor() {
         val targetSequence = uiState.returnPassageSequence ?: return
-        analyticsTracker.track(
+        trackReaderEvent(
             ReaderPositionReturned(
                 bookId = currentBookId,
                 savedProgress = uiState.returnProgress ?: return,
@@ -671,7 +683,7 @@ class ReaderViewModel(
         fontSizeAtMenuOpen = null
         if (fromFontSize == uiState.fontSize) return
 
-        analyticsTracker.track(
+        trackReaderEvent(
             FontSizeChanged(
                 fromFontSize = fromFontSize,
                 fontSize = uiState.fontSize,
@@ -686,7 +698,7 @@ class ReaderViewModel(
     private fun trackReadingPositionCleared(clearedBy: ReadingPositionClearedBy) {
         if (uiState.returnPassageSequence == null) return
 
-        analyticsTracker.track(
+        trackReaderEvent(
             ReaderPositionCleared(
                 bookId = currentBookId,
                 clearedBy = clearedBy,

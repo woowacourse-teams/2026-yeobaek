@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.GroupJoinSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -22,6 +23,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class JoinViewModel(
+    private val entryPoint: GroupJoinEntryPoint,
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
@@ -68,7 +70,7 @@ class JoinViewModel(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.GROUP_JOIN_SUCCEEDED),
                 )
-                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.SUCCESS))
+                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.SUCCESS, entryPoint = entryPoint))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -76,7 +78,7 @@ class JoinViewModel(
                     throwable = e,
                     context = crashContext(CrashOperation.GROUP_JOIN_FAILED),
                 )
-                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE))
+                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE, entryPoint = entryPoint))
                 uiState = uiState.copy(
                     successJoin = false,
                     codeState = true,
@@ -87,6 +89,7 @@ class JoinViewModel(
 
     companion object {
         fun joinViewModelFactory(
+            entryPoint: GroupJoinEntryPoint,
             userRepository: UserRepository,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
@@ -94,6 +97,7 @@ class JoinViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
+                    entryPoint = entryPoint,
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,

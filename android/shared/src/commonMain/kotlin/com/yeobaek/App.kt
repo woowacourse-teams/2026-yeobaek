@@ -21,6 +21,7 @@ import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.GroupDetailOpened
 import com.yeobaek.core.analytics.GroupExitRequested
 import com.yeobaek.core.analytics.GroupJoinAbandoned
+import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.GroupJoinSubmitted
 import com.yeobaek.core.analytics.GuideCompleted
@@ -33,6 +34,8 @@ import com.yeobaek.core.analytics.GuideStarted
 import com.yeobaek.core.analytics.InvalidReason
 import com.yeobaek.core.analytics.InviteCodeCopied
 import com.yeobaek.core.analytics.MyPageOpened
+import com.yeobaek.core.analytics.PublicRoomEntryPoint
+import com.yeobaek.core.analytics.PublicRoomReaderOpened
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
@@ -243,10 +246,16 @@ fun App(
                 )
             }
             composable<Onboarding> {
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.ONBOARDING,
+                )
                 val onBoardingViewModel: OnboardingViewModel = viewModel(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
                         bookRepository = appContainer.bookRepository,
                         publicRoomRepository = appContainer.publicRoomRepository,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
 
@@ -270,7 +279,10 @@ fun App(
                         appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                     },
                     navigateToJoin = {
-                        navController.navigate(Join)
+                        appContainer.analyticsTracker.track(
+                            GroupJoinInitiated(GroupJoinEntryPoint.ONBOARDING),
+                        )
+                        navController.navigate(Join(fromOnboarding = true))
                     },
                     onSelectBook = onBoardingViewModel::onSelectBook,
                     onDismissBottomSheet = onBoardingViewModel::dismissDialog,
@@ -278,19 +290,23 @@ fun App(
                         onBoardingViewModel.onClickJoinPublicRoom(bookId = bookId)
                     },
                     onClickCreateRoom = { bookId ->
+                        val attemptId = onBoardingViewModel.selectGroupCreate(bookId)
+                            ?: return@OnboardingScreen
                         onBoardingViewModel.dismissDialog()
-                        navController.navigate(OnboardingCreate(bookId = bookId))
+                        navController.navigate(OnboardingCreate(bookId = bookId, attemptId = attemptId))
                     },
                     closeBottomSheet = onBoardingViewModel::closeBottomSheet,
                 )
             }
             composable<OnboardingCreate> {
                 val route = it.toRoute<OnboardingCreate>()
-
                 val createGroupViewModel: CreateGroupViewModel = viewModel(
                     factory = CreateGroupViewModel.createGroupViewModelFactory(
+                        bookId = route.bookId,
+                        attemptId = route.attemptId,
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
+                        analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
                 LaunchedEffect(route.bookId) {
@@ -300,9 +316,11 @@ fun App(
                 CreateGroupScreen(
                     uiState = createGroupViewModel.uiState,
                     onClickBack = {
+                        createGroupViewModel.abandon()
                         navController.popBackStack()
                     },
                     selectOtherBook = {
+                        createGroupViewModel.abandon()
                         navController.popBackStack()
                     },
                     onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
@@ -343,9 +361,12 @@ fun App(
                 HomeScreen(
                     appName = appContainer.appName,
                     uiState = homeViewModel.uiState,
+                    onAnalyticsEvent = { event -> appContainer.analyticsTracker.track(event) },
                     navigateToJoin = {
-                        appContainer.analyticsTracker.track(GroupJoinInitiated)
-                        navController.navigate(Join)
+                        appContainer.analyticsTracker.track(
+                            GroupJoinInitiated(GroupJoinEntryPoint.HOME),
+                        )
+                        navController.navigate(Join())
                     },
                     navigateToDetail = { groupId ->
                         appContainer.analyticsTracker.track(
@@ -370,11 +391,20 @@ fun App(
                             }
 
                             is ReaderTarget.PublicRoom -> {
+                                appContainer.analyticsTracker.track(
+                                    PublicRoomReaderOpened(
+                                        publicRoomId = readerTarget.id,
+                                        entryPoint = PublicRoomEntryPoint.CONTINUE_READING,
+                                    ),
+                                )
                                 navController.navigate(PublicRoomReader(publicRoomId = readerTarget.id))
                             }
                         }
                     },
-                    onPublicRoomClick = { publicRoomId ->
+                    onPublicRoomClick = { publicRoomId, entryPoint, listVisitId ->
+                        appContainer.analyticsTracker.track(
+                            PublicRoomReaderOpened(publicRoomId, entryPoint, listVisitId),
+                        )
                         navController.navigate(PublicRoomReader(publicRoomId))
                     },
                     navigateToMyPage = {
@@ -469,7 +499,12 @@ fun App(
                     onBackClick = navController::popBackStack,
                 )
             }
-            composable<Join> {
+            composable<Join> { backStackEntry ->
+                val entryPoint = if (backStackEntry.toRoute<Join>().fromOnboarding) {
+                    GroupJoinEntryPoint.ONBOARDING
+                } else {
+                    GroupJoinEntryPoint.HOME
+                }
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
@@ -477,6 +512,7 @@ fun App(
                 )
                 val joinViewModel: JoinViewModel = viewModel(
                     factory = JoinViewModel.joinViewModelFactory(
+                        entryPoint = entryPoint,
                         userRepository = appContainer.userRepository,
                         groupRepository = appContainer.groupRepository,
                         crashReporter = appContainer.crashReporter,
@@ -515,7 +551,10 @@ fun App(
                     onCodeValueChange = joinViewModel::onCodeValueChange,
                     onBackClick = {
                         appContainer.analyticsTracker.track(
-                            GroupJoinAbandoned(hasCode = joinViewModel.uiState.codeValue.isNotBlank()),
+                            GroupJoinAbandoned(
+                                hasCode = joinViewModel.uiState.codeValue.isNotBlank(),
+                                entryPoint = entryPoint,
+                            ),
                         )
                         navController.popBackStack()
                     },
@@ -525,6 +564,7 @@ fun App(
                             appContainer.analyticsTracker.track(
                                 GroupJoinSubmitted(
                                     result = EventResult.INVALID,
+                                    entryPoint = entryPoint,
                                     reason = InvalidReason.CODE_BLANK,
                                 ),
                             )
