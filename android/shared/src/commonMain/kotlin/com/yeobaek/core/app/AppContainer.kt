@@ -68,9 +68,11 @@ class AppContainer(
         readerApi = apiProvider.readerApi,
     )
 
+    val posthogApiKey = if (isDebug) BuildKonfig.POSTHOG_DEBUG_API_KEY else BuildKonfig.POSTHOG_RELEASE_API_KEY
+
     init {
         analyticsClient.setup(
-            apiKey = BuildKonfig.POSTHOG_API_KEY,
+            apiKey = posthogApiKey,
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )
