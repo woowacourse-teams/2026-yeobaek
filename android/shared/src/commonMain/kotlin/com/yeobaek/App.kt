@@ -63,10 +63,17 @@ import com.yeobaek.feature.navigation.Home
 import com.yeobaek.feature.navigation.Join
 import com.yeobaek.feature.navigation.MyPage
 import com.yeobaek.feature.navigation.Nickname
+import com.yeobaek.feature.navigation.Onboarding
+import com.yeobaek.feature.navigation.OnboardingCreate
 import com.yeobaek.feature.navigation.PublicRoomReader
 import com.yeobaek.feature.navigation.Reader
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
+import com.yeobaek.feature.onboarding.create.CreateGroupScreen
+import com.yeobaek.feature.onboarding.create.CreateGroupState
+import com.yeobaek.feature.onboarding.create.CreateGroupViewModel
+import com.yeobaek.feature.onboarding.selectbook.OnboardingScreen
+import com.yeobaek.feature.onboarding.selectbook.OnboardingViewModel
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderScreen
@@ -79,10 +86,30 @@ fun App(
 ) {
     YeobaekTheme {
         val navController = rememberNavController()
+        val startDestination = if (appContainer.userPreferences.getUserId() == null) {
+            Nickname
+        } else {
+            val isFinishGuide = appContainer.guideOnboardingPreferences.getGuideState()
+            val isFinishOnboarding = appContainer.guideOnboardingPreferences.getOnboardingState()
+
+            when (isFinishGuide) {
+                true if isFinishOnboarding -> {
+                    Home
+                }
+
+                true if !isFinishOnboarding -> {
+                    Onboarding
+                }
+
+                else -> {
+                    Guide(fromMyPage = false)
+                }
+            }
+        }
 
         NavHost(
             navController = navController,
-            startDestination = if (appContainer.userPreferences.getUserId() == null) Nickname else Home,
+            startDestination = startDestination,
         ) {
             composable<Nickname> {
                 TrackScreen(
@@ -128,6 +155,12 @@ fun App(
                 } else {
                     GuideEntryPoint.ONBOARDING
                 }
+                val guideViewModel: GuideViewModel = viewModel(
+                    factory = GuideViewModel.guideViewModelFactory(
+                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
+                    ),
+                )
+
                 TrackScreen(
                     crashReporter = appContainer.crashReporter,
                     analyticsTracker = appContainer.analyticsTracker,
@@ -138,25 +171,30 @@ fun App(
                     appContainer.analyticsTracker.track(GuideStarted(entryPoint = entryPoint))
                 }
 
-                val guideViewModel: GuideViewModel = viewModel(factory = GuideViewModel.guideViewModelFactory())
+                LaunchedEffect(Unit) {
+                    guideViewModel.initGuidePage(route.fromMyPage)
+                    guideViewModel.initSentences()
+                }
 
                 GuideScreen(
                     uiState = guideViewModel.uiState,
-                    navigateToHome = {
-                        val hasHome = navController.currentBackStack.value.any { entry ->
-                            entry.destination.hasRoute<Home>()
-                        }
-                        navController.navigate(Home) {
-                            if (hasHome) {
+                    navigateToRoute = {
+                        if (route.fromMyPage) {
+                            navController.navigate(Home) {
                                 popUpTo<Home> {
                                     inclusive = true
                                 }
-                            } else {
+                            }
+                        } else {
+                            navController.navigate(Onboarding) {
                                 popUpTo<Guide> {
                                     inclusive = true
                                 }
                             }
                         }
+
+                        appContainer.guideOnboardingPreferences.saveGuideState(true)
+                        appContainer.guideOnboardingPreferences.saveGuidePage(1)
                     },
                     onCurrentPage = {
                         guideViewModel.onCurrentPage(it)
@@ -201,6 +239,81 @@ fun App(
                             ),
                         )
                         guideViewModel.onCancel()
+                    },
+                )
+            }
+            composable<Onboarding> {
+                val onBoardingViewModel: OnboardingViewModel = viewModel(
+                    factory = OnboardingViewModel.onboardingViewModelFactory(
+                        bookRepository = appContainer.bookRepository,
+                    ),
+                )
+
+                OnboardingScreen(
+                    uiState = onBoardingViewModel.uiState,
+                    navigateToHome = {
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
+                        }
+                        navController.navigate(Home) {
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                        appContainer.guideOnboardingPreferences.saveOnboardingState(true)
+                    },
+                    navigateToJoin = {
+                        navController.navigate(Join)
+                    },
+                    onSelectBook = onBoardingViewModel::onSelectBook,
+                    onDismissBottomSheet = onBoardingViewModel::dismissDialog,
+                    onClickPublicRoom = {
+                        TODO("공개방 API가 나오면 구현할 계획")
+                    },
+                    onClickCreateRoom = { bookId ->
+                        onBoardingViewModel.dismissDialog()
+                        navController.navigate(OnboardingCreate(bookId = bookId))
+                    },
+                )
+            }
+            composable<OnboardingCreate> {
+                val route = it.toRoute<OnboardingCreate>()
+
+                val createGroupViewModel: CreateGroupViewModel = viewModel(
+                    factory = CreateGroupViewModel.createGroupViewModelFactory(
+                        groupRepository = appContainer.groupRepository,
+                        bookRepository = appContainer.bookRepository,
+                    ),
+                )
+                LaunchedEffect(route.bookId) {
+                    createGroupViewModel.initSelectBook(route.bookId)
+                }
+
+                CreateGroupScreen(
+                    uiState = createGroupViewModel.uiState,
+                    onClickBack = {
+                        navController.popBackStack()
+                    },
+                    selectOtherBook = {
+                        navController.popBackStack()
+                    },
+                    onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
+                    onClickCreateGroup = createGroupViewModel::createGroup,
+                    navigateToHome = {
+                        if (createGroupViewModel.uiState.createGroupState is CreateGroupState.Success) {
+                            navController.navigate(Home) {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
+                            }
+                            appContainer.guideOnboardingPreferences.saveOnboardingState(true)
+                        }
                     },
                 )
             }
@@ -375,10 +488,22 @@ fun App(
 
                 LaunchedEffect(joinViewModel.uiState.successJoin) {
                     if (joinViewModel.uiState.successJoin) {
+                        val hasHome = navController.currentBackStack.value.any { entry ->
+                            entry.destination.hasRoute<Home>()
+                        }
                         navController.navigate(Home) {
-                            popUpTo<Home> {
-                                inclusive = true
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
+                                }
                             }
+                        }
+                        if (!appContainer.guideOnboardingPreferences.getOnboardingState()) {
+                            appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                         }
                     }
                 }
@@ -480,6 +605,7 @@ fun App(
                 )
                 val myPageViewModel: MyPageViewModel = viewModel(
                     factory = MyPageViewModel.myPageViewModelFactory(
+                        guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
                         userRepository = appContainer.userRepository,
                         crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,

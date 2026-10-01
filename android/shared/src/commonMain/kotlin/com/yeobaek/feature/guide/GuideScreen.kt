@@ -28,6 +28,7 @@ import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.guide.component.group.detail.GroupDetailGuideCard
 import com.yeobaek.feature.guide.component.home.HomeGuideCard
+import com.yeobaek.feature.guide.component.publicroom.PublicRoomGuideScreen
 import com.yeobaek.feature.guide.component.reader.ReaderGuideCard
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
@@ -45,7 +46,7 @@ fun GuideScreen(
     onClickCommentSentence: () -> Unit,
     onClickUnCommentSentence: () -> Unit,
     onCancel: () -> Unit,
-    navigateToHome: () -> Unit,
+    navigateToRoute: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,7 +79,7 @@ fun GuideScreen(
 
     LaunchedEffect(uiState.currentPage) {
         onCurrentPage {
-            navigateToHome()
+            navigateToRoute()
         }
     }
 
@@ -91,7 +92,7 @@ fun GuideScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            navigateToHome()
+                            navigateToRoute()
                         },
                     ) {
                         Text("건너뛰기")
@@ -123,7 +124,7 @@ fun GuideScreen(
                     onClick = {
                         onClickNext()
                     },
-                    text = if (isLast) "여백 시작하기" else "다음",
+                    text = if (isLast) "책 읽으러 가기" else "다음",
                     modifier = Modifier.weight(1f),
                     enabled = uiState.nextEnabled,
                 )
@@ -137,8 +138,6 @@ fun GuideScreen(
             Text(currentPageText, color = MaterialTheme.colorScheme.secondary)
             when (uiState.currentPage) {
                 1 -> HomeGuideCard(
-                    onClickJoin = {},
-                    onClickCreate = {},
                     modifier = Modifier.weight(1f),
                 )
 
@@ -147,7 +146,9 @@ fun GuideScreen(
                     modifier = Modifier.weight(1f),
                 )
 
-                3 -> ReaderGuideCard(
+                3 -> PublicRoomGuideScreen()
+
+                4 -> ReaderGuideCard(
                     sentences = uiState.sentences,
                     onClickCommentSentence = {
                         onClickCommentSentence()
@@ -170,7 +171,7 @@ fun GuideScreen(
 private fun GuideScreenPreview() {
     YeobaekTheme {
         GuideScreen(
-            navigateToHome = {},
+            navigateToRoute = {},
             uiState = GuideUiState(),
             onCurrentPage = {},
             onSuccessGuide = {},

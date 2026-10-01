@@ -7,14 +7,25 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.feature.guide.model.SentenceGuideUiModel
 
-class GuideViewModel : ViewModel() {
+class GuideViewModel(
+    private val guideOnboardingPreferences: GuideOnboardingPreferences,
+) : ViewModel() {
     var uiState by mutableStateOf(GuideUiState())
         private set
 
-    init {
-        initSentences()
+    fun initGuidePage(isMyPage: Boolean) {
+        uiState = if (isMyPage) {
+            uiState.copy(
+                currentPage = 1,
+            )
+        } else {
+            uiState.copy(
+                currentPage = guideOnboardingPreferences.getGuidePage() ?: 1,
+            )
+        }
     }
 
     fun initSentences() {
@@ -26,17 +37,29 @@ class GuideViewModel : ViewModel() {
     ) {
         when (uiState.currentPage) {
             1 -> {
-                uiState = uiState.copy(nextEnabled = true)
+                uiState = uiState.copy(
+                    nextEnabled = true,
+                    previousEnabled = false,
+                )
             }
 
             2 -> {
-                uiState = uiState.copy(nextEnabled = true)
+                uiState = uiState.copy(
+                    nextEnabled = true,
+                    previousEnabled = true,
+                )
             }
 
-            3 -> {
+            3 -> uiState = uiState.copy(
+                nextEnabled = true,
+                previousEnabled = true,
+            )
+
+            4 -> {
                 uiState = uiState.copy(
                     isSuccessGuide = false,
                     nextEnabled = false,
+                    previousEnabled = true,
                     isClickCommentSentence = false,
                     isClickUnCommentSentence = false,
                 )
@@ -60,12 +83,14 @@ class GuideViewModel : ViewModel() {
         if (uiState.currentPage > 1) uiState = uiState.copy(currentPage = uiState.currentPage - 1)
         if (uiState.currentPage == 1) uiState = uiState.copy(previousEnabled = false)
         if (uiState.currentPage < TOTAL_PAGES) uiState = uiState.copy(nextEnabled = true)
+        guideOnboardingPreferences.saveGuidePage(uiState.currentPage)
     }
 
     fun onClickNext() {
         uiState = uiState.copy(currentPage = uiState.currentPage + 1)
         if (uiState.currentPage > 1) uiState = uiState.copy(previousEnabled = true)
         if (uiState.currentPage == TOTAL_PAGES) uiState = uiState.copy(nextEnabled = false)
+        guideOnboardingPreferences.saveGuidePage(uiState.currentPage)
     }
 
     fun onClickCommentSentence() {
@@ -85,7 +110,7 @@ class GuideViewModel : ViewModel() {
     fun currentPageText(): String = "${minOf(uiState.currentPage, TOTAL_PAGES)} / $TOTAL_PAGES"
 
     companion object {
-        private const val TOTAL_PAGES = 3
+        private const val TOTAL_PAGES = 4
 
         private val mockSentences = listOf(
             SentenceGuideUiModel(
@@ -110,9 +135,13 @@ class GuideViewModel : ViewModel() {
             ),
         )
 
-        fun guideViewModelFactory(): ViewModelProvider.Factory = viewModelFactory {
+        fun guideViewModelFactory(
+            guideOnboardingPreferences: GuideOnboardingPreferences,
+        ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                GuideViewModel()
+                GuideViewModel(
+                    guideOnboardingPreferences = guideOnboardingPreferences,
+                )
             }
         }
     }
