@@ -26,6 +26,7 @@ class ClubE2eTest extends E2eTest {
         long bookId = createBook("참여할 모임의 책", passageContents);
         ClubFixture club = createClub(ownerId, bookId, "기존 독서 모임");
 
+        // 참여 독자가 기존 독서 모임에 들어간다
         memberRequest(readerId)
                 .body(Map.of("joinCode", club.joinCode()))
                 .when()
@@ -37,6 +38,7 @@ class ClubE2eTest extends E2eTest {
                 .body("name", equalTo("기존 독서 모임"))
                 .body("book.bookId", equalTo(Math.toIntExact(bookId)));
 
+        // 참여한 독서 모임이 내 모임 목록에 반영됐는지 조회한다
         memberRequest(readerId)
                 .when()
                 .get("/api/clubs")
@@ -47,6 +49,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].clubId", equalTo(Math.toIntExact(club.clubId())))
                 .body("clubs[0].memberCount", equalTo(2));
 
+        // 독서 모임 상세에서 참여자 수를 확인한다
         memberRequest(readerId)
                 .when()
                 .get("/api/clubs/{clubId}", club.clubId())
@@ -55,6 +58,7 @@ class ClubE2eTest extends E2eTest {
                 .statusCode(200)
                 .body("members", hasSize(2));
 
+        // 참여한 독서 모임을 통해 책 본문을 읽는다
         memberRequest(readerId)
                 .queryParam("from", 1)
                 .queryParam("to", passageContents.size())
@@ -80,6 +84,7 @@ class ClubE2eTest extends E2eTest {
         long memberId = createMember("새 모임 독자");
         long bookId = createBook("새 모임의 책", passageContents);
 
+        // 새 모임에서 읽을 책을 도서 목록에서 조회한다
         memberRequest(memberId)
                 .when()
                 .get("/api/books")
@@ -91,6 +96,7 @@ class ClubE2eTest extends E2eTest {
                 .body("books[0].title", equalTo("새 모임의 책"))
                 .body("books[0].passageCount", equalTo(passageContents.size()));
 
+        // 선택한 책으로 새 독서 모임을 생성한다
         ValidatableResponse createdClub = memberRequest(memberId)
                 .body(Map.of("name", "새 독서 모임", "bookId", bookId))
                 .when()
@@ -103,6 +109,7 @@ class ClubE2eTest extends E2eTest {
                 .body("book.bookId", equalTo(Math.toIntExact(bookId)));
         long clubId = createdClub.extract().jsonPath().getLong("clubId");
 
+        // 생성한 독서 모임이 내 모임 목록에 반영됐는지 조회한다
         memberRequest(memberId)
                 .when()
                 .get("/api/clubs")
@@ -113,6 +120,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].clubId", equalTo(Math.toIntExact(clubId)))
                 .body("clubs[0].memberCount", equalTo(1));
 
+        // 생성자가 새 독서 모임의 참여자로 등록됐는지 조회한다
         memberRequest(memberId)
                 .when()
                 .get("/api/clubs/{clubId}", clubId)
@@ -123,6 +131,7 @@ class ClubE2eTest extends E2eTest {
                 .body("members[0].memberId", equalTo(Math.toIntExact(memberId)))
                 .body("members[0].mine", equalTo(true));
 
+        // 새 독서 모임을 통해 선택한 책의 본문을 읽는다
         memberRequest(memberId)
                 .queryParam("from", 1)
                 .queryParam("to", passageContents.size())
@@ -150,6 +159,7 @@ class ClubE2eTest extends E2eTest {
         ClubFixture club = createClub(memberId, bookId, "이어 읽기 모임");
         ReadingIds reading = findClubReadingIds(memberId, club.clubId());
 
+        // 두 번째 문단까지 읽은 진도를 독서 모임에 저장한다
         memberRequest(memberId)
                 .body(Map.of("passageId", reading.secondPassageId()))
                 .when()
@@ -160,6 +170,7 @@ class ClubE2eTest extends E2eTest {
                 .body("lastReadPassageSequence", equalTo(2))
                 .body("progressRate", equalTo(50));
 
+        // 내 모임 목록에서 이전 진도율과 마지막 위치를 조회한다
         memberRequest(memberId)
                 .when()
                 .get("/api/clubs")
@@ -171,6 +182,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].myProgress.lastReadPassageSequence", equalTo(2))
                 .body("clubs[0].myProgress.progressRate", equalTo(50));
 
+        // 독서 모임 상세에서 이전 진도율과 마지막 위치를 조회한다
         memberRequest(memberId)
                 .when()
                 .get("/api/clubs/{clubId}", club.clubId())
@@ -180,6 +192,7 @@ class ClubE2eTest extends E2eTest {
                 .body("myProgress.lastReadPassageSequence", equalTo(2))
                 .body("myProgress.progressRate", equalTo(50));
 
+        // 저장된 두 번째 문단부터 책 읽기를 이어간다
         memberRequest(memberId)
                 .queryParam("from", 2)
                 .queryParam("to", passageContents.size())
