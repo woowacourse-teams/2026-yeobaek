@@ -1,0 +1,176 @@
+package yeobaek.backend.e2e;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
+
+import io.restassured.response.ValidatableResponse;
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class ClubE2eTest extends E2eTest {
+
+    @Test
+    @DisplayName("참여 코드로 기존 독서 모임에 참여하고 책 본문을 읽는다")
+    void joinExistingClubAndRead() {
+        long ownerId = createMember("모임장");
+        long readerId = createMember("참여 독자");
+        long bookId = createBook("참여할 모임의 책");
+        ClubFixture club = createClub(ownerId, bookId, "기존 독서 모임");
+
+        memberRequest(readerId)
+                .body(Map.of("joinCode", club.joinCode()))
+                .when()
+                .post("/api/clubs/join")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("clubId", equalTo(Math.toIntExact(club.clubId())))
+                .body("name", equalTo("기존 독서 모임"))
+                .body("book.bookId", equalTo(Math.toIntExact(bookId)));
+
+        memberRequest(readerId)
+                .when()
+                .get("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("clubs", hasSize(1))
+                .body("clubs[0].clubId", equalTo(Math.toIntExact(club.clubId())))
+                .body("clubs[0].memberCount", equalTo(2));
+
+        memberRequest(readerId)
+                .when()
+                .get("/api/clubs/{clubId}", club.clubId())
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("members", hasSize(2));
+
+        memberRequest(readerId)
+                .queryParam("from", 1)
+                .queryParam("to", 4)
+                .when()
+                .get("/api/clubs/{clubId}/passages", club.clubId())
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("passages", hasSize(4))
+                .body("passages[0].sequence", equalTo(1))
+                .body("passages[0].sentences[0].content", equalTo("첫 번째 문단입니다."));
+    }
+
+    @Test
+    @DisplayName("도서 목록에서 책을 선택해 새 독서 모임을 만들고 책 본문을 읽는다")
+    void chooseBookCreateClubAndRead() {
+        long memberId = createMember("새 모임 독자");
+        long bookId = createBook("새 모임의 책");
+
+        memberRequest(memberId)
+                .when()
+                .get("/api/books")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("books", hasSize(1))
+                .body("books[0].bookId", equalTo(Math.toIntExact(bookId)))
+                .body("books[0].title", equalTo("새 모임의 책"))
+                .body("books[0].passageCount", equalTo(4));
+
+        ValidatableResponse createdClub = memberRequest(memberId)
+                .body(Map.of("name", "새 독서 모임", "bookId", bookId))
+                .when()
+                .post("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(201)
+                .body("name", equalTo("새 독서 모임"))
+                .body("joinCode", notNullValue())
+                .body("book.bookId", equalTo(Math.toIntExact(bookId)));
+        long clubId = createdClub.extract().jsonPath().getLong("clubId");
+
+        memberRequest(memberId)
+                .when()
+                .get("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("clubs", hasSize(1))
+                .body("clubs[0].clubId", equalTo(Math.toIntExact(clubId)))
+                .body("clubs[0].memberCount", equalTo(1));
+
+        memberRequest(memberId)
+                .when()
+                .get("/api/clubs/{clubId}", clubId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("members", hasSize(1))
+                .body("members[0].memberId", equalTo(Math.toIntExact(memberId)))
+                .body("members[0].mine", equalTo(true));
+
+        memberRequest(memberId)
+                .queryParam("from", 1)
+                .queryParam("to", 4)
+                .when()
+                .get("/api/clubs/{clubId}/passages", clubId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("passages", hasSize(4))
+                .body("passages[3].sequence", equalTo(4))
+                .body("passages[3].sentences[0].content", equalTo("네 번째 문단입니다."));
+    }
+
+    @Test
+    @DisplayName("이미 참여한 독서 모임은 이전 진도율과 마지막 위치에서 이어 읽는다")
+    void resumeParticipatedClubFromPreviousProgress() {
+        long memberId = createMember("이어 읽는 독자");
+        long bookId = createBook("이어 읽을 모임의 책");
+        ClubFixture club = createClub(memberId, bookId, "이어 읽기 모임");
+        ReadingIds reading = findClubReadingIds(memberId, club.clubId());
+
+        memberRequest(memberId)
+                .body(Map.of("passageId", reading.secondPassageId()))
+                .when()
+                .put("/api/clubs/{clubId}/progress", club.clubId())
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("lastReadPassageSequence", equalTo(2))
+                .body("progressRate", equalTo(50));
+
+        memberRequest(memberId)
+                .when()
+                .get("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("clubs", hasSize(1))
+                .body("clubs[0].clubId", equalTo(Math.toIntExact(club.clubId())))
+                .body("clubs[0].myProgress.lastReadPassageSequence", equalTo(2))
+                .body("clubs[0].myProgress.progressRate", equalTo(50));
+
+        memberRequest(memberId)
+                .when()
+                .get("/api/clubs/{clubId}", club.clubId())
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("myProgress.lastReadPassageSequence", equalTo(2))
+                .body("myProgress.progressRate", equalTo(50));
+
+        memberRequest(memberId)
+                .queryParam("from", 2)
+                .queryParam("to", 4)
+                .when()
+                .get("/api/clubs/{clubId}/passages", club.clubId())
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("passages", hasSize(3))
+                .body("passages[0].sequence", equalTo(2))
+                .body("passages[0].sentences[0].content", equalTo("두 번째 문단입니다."));
+    }
+}
