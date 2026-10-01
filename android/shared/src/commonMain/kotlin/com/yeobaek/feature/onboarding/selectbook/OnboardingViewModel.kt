@@ -14,6 +14,11 @@ import com.yeobaek.core.analytics.ReadingOnboardingBookSelected
 import com.yeobaek.core.analytics.ReadingOnboardingOption
 import com.yeobaek.core.analytics.ReadingOnboardingOptionSelected
 import com.yeobaek.core.analytics.ReadingOnboardingPublicRoomJoinSubmitted
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
+import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.feature.onboarding.selectbook.model.toUiModel
@@ -24,6 +29,7 @@ import kotlinx.coroutines.launch
 class OnboardingViewModel(
     private val bookRepository: BookRepository,
     private val publicRoomRepository: PublicRoomRepository,
+    private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState by mutableStateOf(OnboardingUiState())
@@ -43,6 +49,14 @@ class OnboardingViewModel(
         viewModelScope.launch {
             try {
                 val bookList = bookRepository.getBooks()
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = CrashContext(
+                        screen = TrackedScreen.ONBOARDING,
+                        operation = CrashOperation.ONBOARDING_BOOKS_LOADED,
+                        itemCount = bookList.size,
+                    ),
+                )
                 uiState = uiState.copy(
                     bookUiModelList = bookList.map { it.toUiModel() },
                     initBookState = InitBookState.Success,
@@ -50,6 +64,13 @@ class OnboardingViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = CrashContext(
+                        screen = TrackedScreen.ONBOARDING,
+                        operation = CrashOperation.ONBOARDING_BOOKS_LOAD_FAILED,
+                    ),
+                )
                 uiState = uiState.copy(initBookState = InitBookState.Failure(e.message ?: "알 수 없는 오류"))
             }
         }
@@ -102,21 +123,35 @@ class OnboardingViewModel(
             ReadingOnboardingOptionSelected(bookId, attemptId, ReadingOnboardingOption.PUBLIC_ROOM),
         )
         uiState = uiState.copy(publicRoomState = PublicRoomState.Loading)
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = publicRoomContext(CrashOperation.ONBOARDING_JOIN_STARTED, bookId),
+        )
         viewModelScope.launch {
+            var publicRoomId: Long? = null
             try {
                 val publicRooms = publicRoomRepository.getPublicRooms()
                     .firstOrNull { selectedBook -> selectedBook.book.bookId == bookId }
 
                 if (publicRooms != null) {
-                    val publicRoomId = publicRooms.publicRoomId
-                    publicRoomRepository.visitPublicRoom(publicRoomId)
+                    publicRoomId = publicRooms.publicRoomId
+                    publicRoomRepository.visitPublicRoom(publicRooms.publicRoomId)
+
+                    crashReporter.track(
+                        level = CrashLogLevel.INFO,
+                        context = publicRoomContext(
+                            CrashOperation.ONBOARDING_JOIN_SUCCEEDED,
+                            bookId,
+                            publicRooms.publicRoomId,
+                        ),
+                    )
 
                     analyticsTracker.track(
                         ReadingOnboardingPublicRoomJoinSubmitted(
                             bookId,
                             attemptId,
                             EventResult.SUCCESS,
-                            publicRoomId,
+                            publicRooms.publicRoomId,
                         ),
                     )
 
@@ -124,6 +159,10 @@ class OnboardingViewModel(
                         publicRoomState = PublicRoomState.Success,
                     )
                 } else {
+                    crashReporter.track(
+                        level = CrashLogLevel.WARN,
+                        context = publicRoomContext(CrashOperation.ONBOARDING_PUBLIC_ROOM_NOT_FOUND, bookId),
+                    )
                     analyticsTracker.track(
                         ReadingOnboardingPublicRoomJoinSubmitted(bookId, attemptId, EventResult.FAILURE),
                     )
@@ -134,6 +173,10 @@ class OnboardingViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = publicRoomContext(CrashOperation.ONBOARDING_JOIN_FAILED, bookId, publicRoomId),
+                )
                 analyticsTracker.track(
                     ReadingOnboardingPublicRoomJoinSubmitted(bookId, attemptId, EventResult.FAILURE),
                 )
@@ -150,16 +193,30 @@ class OnboardingViewModel(
         )
     }
 
+    private fun publicRoomContext(
+        operation: CrashOperation,
+        bookId: Long,
+        publicRoomId: Long? = null,
+    ) = CrashContext(
+        screen = TrackedScreen.ONBOARDING,
+        operation = operation,
+        bookId = bookId,
+        publicRoomId = publicRoomId,
+        readingSpace = "public_room",
+    )
+
     companion object {
         fun onboardingViewModelFactory(
             bookRepository: BookRepository,
             publicRoomRepository: PublicRoomRepository,
+            crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 OnboardingViewModel(
                     bookRepository = bookRepository,
                     publicRoomRepository = publicRoomRepository,
+                    crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
                 )
             }

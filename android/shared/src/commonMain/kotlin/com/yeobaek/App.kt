@@ -255,6 +255,7 @@ fun App(
                     factory = OnboardingViewModel.onboardingViewModelFactory(
                         bookRepository = appContainer.bookRepository,
                         publicRoomRepository = appContainer.publicRoomRepository,
+                        crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )
@@ -300,12 +301,19 @@ fun App(
             }
             composable<OnboardingCreate> {
                 val route = it.toRoute<OnboardingCreate>()
+                TrackScreen(
+                    crashReporter = appContainer.crashReporter,
+                    analyticsTracker = appContainer.analyticsTracker,
+                    screen = TrackedScreen.ONBOARDING_CREATE,
+                )
+
                 val createGroupViewModel: CreateGroupViewModel = viewModel(
                     factory = CreateGroupViewModel.createGroupViewModelFactory(
                         bookId = route.bookId,
                         attemptId = route.attemptId,
                         groupRepository = appContainer.groupRepository,
                         bookRepository = appContainer.bookRepository,
+                        crashReporter = appContainer.crashReporter,
                         analyticsTracker = appContainer.analyticsTracker,
                     ),
                 )

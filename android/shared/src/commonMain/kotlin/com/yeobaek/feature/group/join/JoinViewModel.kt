@@ -109,5 +109,6 @@ class JoinViewModel(
     private fun crashContext(operation: CrashOperation) = CrashContext(
         screen = TrackedScreen.GROUP_JOIN,
         operation = operation,
+        entryPoint = entryPoint.value,
     )
 }

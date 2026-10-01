@@ -68,13 +68,14 @@ class ReaderViewModel(
     )
         private set
 
-    private val readingProperties: Map<String, Any> = when (readerTarget) {
-        is ReaderTarget.Group -> mapOf("reading_space" to "group")
-
-        is ReaderTarget.PublicRoom -> mapOf(
-            "reading_space" to "public_room",
-            "public_room_id" to readerTarget.id,
-        )
+    private val readingSpace = when (readerTarget) {
+        is ReaderTarget.Group -> "group"
+        is ReaderTarget.PublicRoom -> "public_room"
+    }
+    private val publicRoomId = (readerTarget as? ReaderTarget.PublicRoom)?.id
+    private val readingProperties: Map<String, Any> = buildMap {
+        put("reading_space", readingSpace)
+        publicRoomId?.let { put("public_room_id", it) }
     }
     private val trackReaderEvent: (AnalyticsEvent) -> Unit = { event ->
         analyticsTracker.track(event, readingProperties)
@@ -895,9 +896,14 @@ class ReaderViewModel(
         chapterSequence: Int? = null,
         itemCount: Int? = null,
     ) = CrashContext(
-        screen = TrackedScreen.READER,
+        screen = when (readerTarget) {
+            is ReaderTarget.Group -> TrackedScreen.READER
+            is ReaderTarget.PublicRoom -> TrackedScreen.PUBLIC_ROOM_READER
+        },
         operation = operation,
         bookId = currentBookId,
+        publicRoomId = publicRoomId,
+        readingSpace = readingSpace,
         chapterSequence = chapterSequence ?: chapterSequenceFor(passageSequence),
         passageSequence = passageSequence,
         itemCount = itemCount,
