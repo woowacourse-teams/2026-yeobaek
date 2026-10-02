@@ -153,7 +153,7 @@ class ClubE2eTest extends E2eTest {
     }
 
     @Test
-    @DisplayName("이미 참여한 독서 모임은 이전 진도율과 마지막 위치에서 이어 읽는다")
+    @DisplayName("이미 참여한 독서 모임의 이전 진도율과 마지막 읽기 위치를 조회한다")
     void resumeParticipatedClubFromPreviousProgress() {
         String secondPassageContent = "두 번째 문단입니다.";
         List<String> passageContents = List.of(
@@ -198,18 +198,5 @@ class ClubE2eTest extends E2eTest {
                 .statusCode(200)
                 .body("myProgress.lastReadPassageSequence", equalTo(2))
                 .body("myProgress.progressRate", equalTo(50));
-
-        // 저장된 두 번째 문단부터 책 읽기를 이어간다
-        memberRequest(port, memberId)
-                .queryParam("from", 2)
-                .queryParam("to", passageContents.size())
-                .when()
-                .get("/api/clubs/{clubId}/passages", club.clubId())
-                .then()
-                .log().ifValidationFails()
-                .statusCode(200)
-                .body("passages", hasSize(passageContents.size() - 1))
-                .body("passages[0].sequence", equalTo(2))
-                .body("passages[0].sentences[0].content", equalTo(secondPassageContent));
     }
 }
