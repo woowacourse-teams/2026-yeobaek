@@ -1,6 +1,6 @@
 package com.yeobaek.feature.reader
 
-import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.CommentDeleteCanceled
 import com.yeobaek.core.analytics.CommentDeleteRequested
 import com.yeobaek.core.analytics.CommentDeleted
@@ -20,7 +20,7 @@ import com.yeobaek.core.analytics.EventResult
  * 책과 구절 정보는 리더가 알고 있으므로 조회 함수로 받고, 읽기 세션의 댓글 활동 횟수도 여기서 함께 갱신한다.
  */
 class CommentSheetAnalytics(
-    private val analyticsTracker: AnalyticsTracker,
+    private val trackEvent: (AnalyticsEvent) -> Unit,
     private val readingSession: ReadingSessionTracker,
     private val bookId: () -> Long?,
     private val passageSequenceOf: (sentenceId: Long) -> Int?,
@@ -34,7 +34,7 @@ class CommentSheetAnalytics(
         hasNewComments: Boolean?,
     ) {
         readingSession.onCommentSheetOpened()
-        analyticsTracker.track(
+        trackEvent(
             CommentSheetOpened(
                 bookId = bookId(),
                 sentenceId = sentenceId,
@@ -59,7 +59,7 @@ class CommentSheetAnalytics(
         if (mode == CommentMode.CREATE && result == EventResult.SUCCESS) {
             readingSession.onCommentWritten()
         }
-        analyticsTracker.track(
+        trackEvent(
             CommentSubmitted(
                 mode = mode,
                 result = result,
@@ -78,7 +78,7 @@ class CommentSheetAnalytics(
         othersCommentCount: Int?,
         didSubmit: Boolean,
     ) {
-        analyticsTracker.track(
+        trackEvent(
             CommentSheetClosed(
                 commentCount = commentCount,
                 othersCommentCount = othersCommentCount,
@@ -88,29 +88,29 @@ class CommentSheetAnalytics(
     }
 
     fun editStarted(commentId: Long) {
-        analyticsTracker.track(CommentEditStarted(commentId = commentId))
+        trackEvent(CommentEditStarted(commentId = commentId))
     }
 
     fun editCanceled() {
-        analyticsTracker.track(CommentEditCanceled)
+        trackEvent(CommentEditCanceled)
     }
 
     fun deleteRequested(commentId: Long) {
-        analyticsTracker.track(CommentDeleteRequested(commentId = commentId))
+        trackEvent(CommentDeleteRequested(commentId = commentId))
     }
 
     fun deleteCanceled() {
-        analyticsTracker.track(CommentDeleteCanceled)
+        trackEvent(CommentDeleteCanceled)
     }
 
     fun deleted(result: EventResult) {
-        analyticsTracker.track(CommentDeleted(result = result))
+        trackEvent(CommentDeleted(result = result))
     }
 
     fun reported(
         commentId: Long,
         result: EventResult,
     ) {
-        analyticsTracker.track(CommentReported(commentId = commentId, result = result))
+        trackEvent(CommentReported(commentId = commentId, result = result))
     }
 }

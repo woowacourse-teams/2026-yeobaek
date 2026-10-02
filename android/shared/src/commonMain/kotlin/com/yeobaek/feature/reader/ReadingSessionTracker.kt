@@ -1,6 +1,6 @@
 package com.yeobaek.feature.reader
 
-import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.ReaderClosed
 import com.yeobaek.core.analytics.ReaderLoaded
 import com.yeobaek.core.analytics.ReaderSessionEnd
@@ -16,7 +16,7 @@ import kotlin.time.TimeSource
  * 읽은 양은 스크롤로 새로 도달한 구절 수만 센다. 건너뛰기로 이동한 구간은 [passagesSeeked]에 따로 쌓는다.
  */
 class ReadingSessionTracker(
-    private val analyticsTracker: AnalyticsTracker,
+    private val trackEvent: (AnalyticsEvent) -> Unit,
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     private var startMark: TimeMark? = null
@@ -53,7 +53,7 @@ class ReadingSessionTracker(
         newCommentBadgeShown = false
         startMark = timeSource.markNow()
 
-        analyticsTracker.track(
+        trackEvent(
             ReaderLoaded(
                 bookId = bookId,
                 bookTitle = bookTitle,
@@ -103,7 +103,7 @@ class ReadingSessionTracker(
         val mark = startMark ?: return
         startMark = null
 
-        analyticsTracker.track(
+        trackEvent(
             ReaderClosed(
                 bookId = bookId,
                 progress = progress,

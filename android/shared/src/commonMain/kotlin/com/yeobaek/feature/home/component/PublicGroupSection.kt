@@ -13,17 +13,20 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.designsystem.component.BookItem
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -35,7 +38,10 @@ import androidx.compose.foundation.lazy.items as rowItems
 @Composable
 fun PublicGroupSection(
     uiState: PublicRoomTabUiState,
-    onPublicRoomClick: (Long) -> Unit,
+    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
+    onListObserved: (Int, Int?) -> Unit,
+    onListUserScrolled: () -> Unit,
+    observationEpoch: Int,
     modifier: Modifier = Modifier,
 ) {
     when (uiState.screenState) {
@@ -53,6 +59,9 @@ fun PublicGroupSection(
             visitedPublicRooms = uiState.visitedPublicRooms,
             publicRooms = uiState.publicRooms,
             onPublicRoomClick = onPublicRoomClick,
+            onListObserved = onListObserved,
+            onListUserScrolled = onListUserScrolled,
+            observationEpoch = observationEpoch,
             modifier = modifier,
         )
     }
@@ -62,11 +71,30 @@ fun PublicGroupSection(
 private fun PublicRoomGrid(
     visitedPublicRooms: List<PublicRoomBookUiModel>,
     publicRooms: List<PublicRoomBookUiModel>,
-    onPublicRoomClick: (Long) -> Unit,
+    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
+    onListObserved: (Int, Int?) -> Unit,
+    onListUserScrolled: () -> Unit,
+    observationEpoch: Int,
     modifier: Modifier = Modifier,
 ) {
+    val gridState = rememberLazyGridState()
+    val roomPositions = publicRooms.mapIndexed { index, room -> room.publicRoomId to index + 1 }.toMap()
+    LaunchedEffect(gridState, roomPositions, observationEpoch) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.map { it.key } }.collect { visibleKeys ->
+            val lastVisiblePosition = visibleKeys.mapNotNull { key -> roomPositions[key] }.maxOrNull()
+            if (lastVisiblePosition != null || (publicRooms.isEmpty() && "public_room_empty" in visibleKeys)) {
+                onListObserved(publicRooms.size, lastVisiblePosition)
+            }
+        }
+    }
+    LaunchedEffect(gridState, observationEpoch) {
+        snapshotFlow { gridState.isScrollInProgress }.collect { isScrolling ->
+            if (isScrolling) onListUserScrolled()
+        }
+    }
     LazyVerticalGrid(
         columns = GridCells.Fixed(PUBLIC_ROOM_COLUMN_COUNT),
+        state = gridState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
         horizontalArrangement = Arrangement.spacedBy(PUBLIC_ROOM_ITEM_SPACING),
@@ -95,7 +123,7 @@ private fun PublicRoomGrid(
             )
         }
         if (publicRooms.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            item(key = "public_room_empty", span = { GridItemSpan(maxLineSpan) }) {
                 PublicRoomStatusMessage(
                     message = "현재 방문할 수 있는 공개방이 없어요.",
                     modifier = Modifier.fillMaxWidth().height(96.dp),
@@ -110,7 +138,7 @@ private fun PublicRoomGrid(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
-                    onClick = { onPublicRoomClick(publicRoom.publicRoomId) },
+                    onClick = { onPublicRoomClick(publicRoom.publicRoomId, PublicRoomEntryPoint.ROOM_LIST) },
                 )
             }
         }
@@ -120,7 +148,7 @@ private fun PublicRoomGrid(
 @Composable
 private fun VisitedPublicRoomRow(
     publicRooms: List<PublicRoomBookUiModel>,
-    onPublicRoomClick: (Long) -> Unit,
+    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -148,7 +176,7 @@ private fun VisitedPublicRoomRow(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
-                    onClick = { onPublicRoomClick(publicRoom.publicRoomId) },
+                    onClick = { onPublicRoomClick(publicRoom.publicRoomId, PublicRoomEntryPoint.RECENT_ROOMS) },
                     modifier = Modifier.width(itemWidth),
                 )
             }
@@ -198,7 +226,10 @@ private fun PublicGroupSectionPreview() {
                 publicRooms = previewPublicRooms,
                 screenState = ScreenState.Success,
             ),
-            onPublicRoomClick = {},
+            onPublicRoomClick = { _, _ -> },
+            onListObserved = { _, _ -> },
+            onListUserScrolled = {},
+            observationEpoch = 0,
         )
     }
 }

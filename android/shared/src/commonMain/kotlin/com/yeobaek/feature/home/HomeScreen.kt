@@ -19,7 +19,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -28,6 +30,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.HomeReadingSpace
+import com.yeobaek.core.analytics.HomeReadingTabSelected
+import com.yeobaek.core.analytics.PublicRoomEntryPoint
+import com.yeobaek.core.analytics.PublicRoomListEnd
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -48,8 +57,9 @@ fun HomeScreen(
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
     navigateToReader: (ReaderTarget) -> Unit,
-    onPublicRoomClick: (Long) -> Unit,
+    onPublicRoomClick: (Long, PublicRoomEntryPoint, String?) -> Unit,
     navigateToMyPage: () -> Unit,
+    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selectedGroupTab by rememberSaveable(
@@ -59,6 +69,15 @@ fun HomeScreen(
         ),
     ) {
         mutableStateOf(GroupTab.MyGroups)
+    }
+    val listVisitTracker = remember { PublicRoomListVisitTracker(onAnalyticsEvent) }
+    var observationEpoch by remember { mutableIntStateOf(0) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        observationEpoch++
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        listVisitTracker.close(PublicRoomListEnd.BACKGROUND)
     }
 
     LaunchedEffect(uiState.isMovePublicRoom) {
@@ -72,13 +91,22 @@ fun HomeScreen(
         topBar = {
             AppTitle(
                 title = "$appName | ${uiState.username}",
-                navigateToMyPage = navigateToMyPage,
+                navigateToMyPage = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToMyPage()
+                },
             )
         },
         floatingActionButton = {
             GroupFabMenu(
-                navigateToJoin = navigateToJoin,
-                navigateToCreate = navigateToCreate,
+                navigateToJoin = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToJoin()
+                },
+                navigateToCreate = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToCreate()
+                },
             )
         },
     ) { innerPadding ->
@@ -88,7 +116,10 @@ fun HomeScreen(
             uiState.currentlyReadingBookUiModel?.let { book ->
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
-                    navigateToReader = navigateToReader,
+                    navigateToReader = { target ->
+                        listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                        navigateToReader(target)
+                    },
                     modifier = Modifier.padding(
                         start = 16.dp,
                         end = 16.dp,
@@ -99,7 +130,23 @@ fun HomeScreen(
             }
             GroupTabBar(
                 selectedTab = selectedGroupTab,
-                onTabSelected = { selectedGroupTab = it },
+                onTabSelected = { tab ->
+                    if (tab != selectedGroupTab) {
+                        if (selectedGroupTab == GroupTab.PublicRooms) {
+                            listVisitTracker.close(PublicRoomListEnd.TAB_SWITCH)
+                        }
+                        selectedGroupTab = tab
+                        onAnalyticsEvent(
+                            HomeReadingTabSelected(
+                                if (tab == GroupTab.PublicRooms) {
+                                    HomeReadingSpace.PUBLIC_ROOM
+                                } else {
+                                    HomeReadingSpace.GROUP
+                                },
+                            ),
+                        )
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -107,13 +154,30 @@ fun HomeScreen(
                 GroupTab.MyGroups -> CurrentlyGroupSection(
                     groupUiModelList = uiState.groups,
                     emptyMessage = "모임을 만들거나 참여해 보세요!",
-                    navigateToDetail = navigateToDetail,
+                    navigateToDetail = { groupId ->
+                        listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                        navigateToDetail(groupId)
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
 
                 GroupTab.PublicRooms -> PublicGroupSection(
                     uiState = uiState.publicRoomTab,
-                    onPublicRoomClick = onPublicRoomClick,
+                    onPublicRoomClick = { publicRoomId, entryPoint ->
+                        val listVisitId = if (entryPoint == PublicRoomEntryPoint.ROOM_LIST) {
+                            val rooms = uiState.publicRoomTab.publicRooms
+                            val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoomId } + 1
+                            listVisitTracker.observe(rooms.size, selectedPosition.takeIf { it > 0 })
+                            listVisitTracker.selectRoom()
+                        } else {
+                            listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                            null
+                        }
+                        onPublicRoomClick(publicRoomId, entryPoint, listVisitId)
+                    },
+                    onListObserved = listVisitTracker::observe,
+                    onListUserScrolled = listVisitTracker::onUserScrolled,
+                    observationEpoch = observationEpoch,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -186,7 +250,7 @@ private fun HomeScreenPreview() {
             navigateToDetail = {},
             navigateToCreate = {},
             navigateToReader = {},
-            onPublicRoomClick = {},
+            onPublicRoomClick = { _, _, _ -> },
             navigateToMyPage = {},
         )
     }

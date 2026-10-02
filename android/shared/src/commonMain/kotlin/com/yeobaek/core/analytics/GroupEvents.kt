@@ -48,18 +48,27 @@ data class GroupCreateSubmitted(
     }
 }
 
-data object GroupJoinInitiated : AnalyticsEvent {
+enum class GroupJoinEntryPoint(val value: String) {
+    ONBOARDING("onboarding"),
+    HOME("home"),
+}
+
+data class GroupJoinInitiated(
+    val entryPoint: GroupJoinEntryPoint,
+) : AnalyticsEvent {
     override val name = "group_join_initiated"
-    override val properties = emptyMap<String, Any>()
+    override val properties = mapOf(KEY_ENTRY_POINT to entryPoint.value)
 }
 
 data class GroupJoinSubmitted(
     val result: EventResult,
+    val entryPoint: GroupJoinEntryPoint,
     val reason: InvalidReason? = null,
 ) : AnalyticsEvent {
     override val name = "group_join_submitted"
     override val properties = buildMap {
         put(KEY_RESULT, result.value)
+        put(KEY_ENTRY_POINT, entryPoint.value)
         reason?.let { put(KEY_REASON, it.value) }
     }
 }
@@ -110,11 +119,10 @@ data class GroupCreateAbandoned(
 
 data class GroupJoinAbandoned(
     val hasCode: Boolean,
+    val entryPoint: GroupJoinEntryPoint,
 ) : AnalyticsEvent {
     override val name = "group_join_abandoned"
-    override val properties = mapOf(
-        KEY_HAS_CODE to hasCode,
-    )
+    override val properties = mapOf(KEY_HAS_CODE to hasCode, KEY_ENTRY_POINT to entryPoint.value)
 }
 
 data class GroupExitRequested(
@@ -149,6 +157,7 @@ data class MemberUnblocked(
 }
 
 private const val KEY_GROUP_ID = "group_id"
+private const val KEY_ENTRY_POINT = "entry_point"
 private const val KEY_RESULT = "result"
 private const val KEY_REASON = "reason"
 private const val KEY_BOOK_ID = "book_id"

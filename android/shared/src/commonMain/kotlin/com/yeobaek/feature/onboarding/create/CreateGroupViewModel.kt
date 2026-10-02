@@ -8,6 +8,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.ReadingOnboardingGroupCreateAbandoned
+import com.yeobaek.core.analytics.ReadingOnboardingGroupCreateSubmitted
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
+import com.yeobaek.core.crashlytics.CrashLogLevel
+import com.yeobaek.core.crashlytics.CrashOperation
+import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.onboarding.create.model.toUiModel
@@ -15,8 +25,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class CreateGroupViewModel(
+    private val bookId: Long,
+    private val attemptId: String,
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
+    private val crashReporter: CrashReporter,
+    private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState by mutableStateOf(CreateGroupUiState())
         private set
@@ -35,6 +49,10 @@ class CreateGroupViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = createContext(CrashOperation.ONBOARDING_SELECTED_BOOK_LOAD_FAILED),
+                )
                 uiState = uiState.copy(initSelectBookState = InitSelectBookState.Failure(e.message ?: "알 수 없는 오류"))
             }
         }
@@ -51,39 +69,92 @@ class CreateGroupViewModel(
 
     fun createGroup() {
         if (!checkGroupName()) {
+            analyticsTracker.track(
+                ReadingOnboardingGroupCreateSubmitted(
+                    bookId,
+                    attemptId,
+                    EventResult.INVALID,
+                    InvalidReason.NAME_BLANK,
+                ),
+            )
             uiState = uiState.copy(
                 isGroupNameValid = false,
             )
             return
         }
-        if (uiState.createGroupState is CreateGroupState.Loading) return
+        if (
+            uiState.createGroupState is CreateGroupState.Loading ||
+            uiState.createGroupState is CreateGroupState.Success
+        ) {
+            return
+        }
 
         uiState = uiState.copy(createGroupState = CreateGroupState.Loading)
+        crashReporter.track(
+            level = CrashLogLevel.INFO,
+            context = createContext(CrashOperation.GROUP_CREATE_STARTED),
+        )
 
         viewModelScope.launch {
             try {
                 groupRepository.createGroup(
                     groupName = uiState.groupName,
-                    bookId = uiState.selectBookUiModel.id,
+                    bookId = bookId,
+                )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = createContext(CrashOperation.GROUP_CREATE_SUCCEEDED),
+                )
+                analyticsTracker.track(
+                    ReadingOnboardingGroupCreateSubmitted(bookId, attemptId, EventResult.SUCCESS),
                 )
                 uiState = uiState.copy(createGroupState = CreateGroupState.Success)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = createContext(CrashOperation.GROUP_CREATE_FAILED),
+                )
+                analyticsTracker.track(
+                    ReadingOnboardingGroupCreateSubmitted(bookId, attemptId, EventResult.FAILURE),
+                )
                 uiState = uiState.copy(createGroupState = CreateGroupState.Failure(e.message ?: "알 수 없는 오류"))
             }
         }
     }
 
+    fun abandon() {
+        if (uiState.createGroupState is CreateGroupState.Success) return
+        analyticsTracker.track(
+            ReadingOnboardingGroupCreateAbandoned(bookId, attemptId, uiState.groupName.isNotBlank()),
+        )
+    }
+
+    private fun createContext(operation: CrashOperation) = CrashContext(
+        screen = TrackedScreen.ONBOARDING_CREATE,
+        operation = operation,
+        bookId = bookId,
+        readingSpace = "group",
+    )
+
     companion object {
         fun createGroupViewModelFactory(
+            bookId: Long,
+            attemptId: String,
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
+            crashReporter: CrashReporter,
+            analyticsTracker: AnalyticsTracker,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateGroupViewModel(
+                    bookId = bookId,
+                    attemptId = attemptId,
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
+                    crashReporter = crashReporter,
+                    analyticsTracker = analyticsTracker,
                 )
             }
         }
