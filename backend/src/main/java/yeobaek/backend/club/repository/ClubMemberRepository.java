@@ -14,7 +14,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     String MEMBER_ID = "memberId";
 
     @Modifying
-    @Query("delete from ClubMember cm where cm.member.id = :memberId")
+    @Query("delete from ClubMember cm where cm.memberId = :memberId")
     void deleteAllByMemberId(@Param(MEMBER_ID) Long memberId);
 
     boolean existsByMemberIdAndClubIdAndStatus(Long memberId, Long clubId, ClubMemberStatus status);
@@ -25,11 +25,19 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
     @Query("""
             select count(cm) > 0 from ClubMember cm
-            where cm.member.id = :memberId
+            where cm.memberId = :memberId and cm.club.spaceId = :spaceId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-              and cm.club.id = (
-                  select comment.clubMember.club.id from Comment comment where comment.id = :commentId
-              )
+            """)
+    boolean existsJoinedByMemberIdAndSpaceId(@Param(MEMBER_ID) Long memberId,
+                                             @Param("spaceId") Long spaceId);
+
+    @Query("""
+            select count(cm) > 0 from ClubMember cm
+            join Comment comment on comment.id = :commentId
+            where cm.memberId = :memberId
+              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
+              and exists (select ctx.appreciationId from AppreciationContextJpaEntity ctx
+                where ctx.appreciationId = comment.id and cm.club.spaceId = ctx.spaceId)
             """)
     boolean existsJoinedByMemberIdAndCommentId(@Param(MEMBER_ID) Long memberId,
                                                @Param("commentId") Long commentId);
@@ -42,27 +50,13 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
         return findByMemberIdAndClubIdAndStatus(memberId, clubId, ClubMemberStatus.JOINED);
     }
 
-    @Query("""
+@Query("""
             select cm from ClubMember cm
             join fetch cm.club c
-            join fetch c.book
-            join fetch cm.lastReadPassage
-            where cm.member.id = :memberId
-              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-              and cm.lastReadAt is not null
-            order by cm.lastReadAt desc
-            """)
-    List<ClubMember> findAllJoinedWithLastReadingByMemberId(@Param(MEMBER_ID) Long memberId);
-
-    @Query("""
-            select cm from ClubMember cm
-            join fetch cm.club c
-            join fetch c.book
-            left join fetch cm.lastReadPassage
-            where cm.member.id = :memberId
+            where cm.memberId = :memberId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             """)
-    List<ClubMember> findAllJoinedWithClubAndBookByMemberId(@Param(MEMBER_ID) Long memberId);
+    List<ClubMember> findAllJoinedWithClubByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
             select cm.club.id as clubId, count(cm) as memberCount
@@ -74,21 +68,19 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     List<ClubMemberCount> countJoinedMembersByClubIds(@Param("clubIds") List<Long> clubIds);
 
     @Query("""
-            select cm.member.id as memberId, count(cm) as clubCount
+            select cm.memberId as memberId, count(cm) as clubCount
             from ClubMember cm
-            where cm.member.id in :memberIds
+            where cm.memberId in :memberIds
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-            group by cm.member.id
+            group by cm.memberId
             """)
     List<MemberClubCount> countJoinedClubsByMemberIds(@Param("memberIds") List<Long> memberIds);
 
     @Query("""
             select cm from ClubMember cm
-            join fetch cm.member
-            left join fetch cm.lastReadPassage
             where cm.club.id = :clubId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             order by cm.id asc
             """)
-    List<ClubMember> findAllJoinedWithMemberByClubId(@Param("clubId") Long clubId);
+    List<ClubMember> findAllJoinedByClubId(@Param("clubId") Long clubId);
 }

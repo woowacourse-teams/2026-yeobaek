@@ -36,7 +36,7 @@ import yeobaek.backend.club.dto.ClubMemberResponse;
 import yeobaek.backend.club.dto.MyClubResponse;
 import yeobaek.backend.club.dto.MyClubsResponse;
 import yeobaek.backend.club.dto.MyProgressResponse;
-import yeobaek.backend.club.service.ClubService;
+import yeobaek.backend.web.compatibility.ClubService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;

@@ -14,6 +14,11 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import yeobaek.backend.appreciation.api.CommentFailure;
+import yeobaek.backend.application.appreciation.CommentPolicyFailure;
+import yeobaek.backend.content.api.ContentUnavailableFailure;
+import yeobaek.backend.content.api.ContentNotFoundFailure;
+import yeobaek.backend.content.api.ContentBodyUnsupportedFailure;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -84,6 +89,58 @@ public class GlobalExceptionHandler {
         logExpected("exception.handleForbidden", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(CommentFailure.class)
+    public ResponseEntity<ErrorResponse> handleCommentFailure(CommentFailure e) {
+        ErrorCode code = switch (e.reason()) {
+            case NOT_FOUND, NOT_VISIBLE -> ErrorCode.COMMENT_NOT_FOUND;
+            case NOT_OWNER -> ErrorCode.NOT_COMMENT_OWNER;
+            case CANNOT_REPORT_OWN_COMMENT -> ErrorCode.CANNOT_REPORT_OWN_COMMENT;
+        };
+        HttpStatus status = e.reason() == CommentFailure.Reason.NOT_OWNER
+                ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
+        Map<String, String> context = Map.of("commentId", Long.toString(e.commentId()));
+        logExpected("exception.handleCommentFailure", code, context);
+        return ResponseEntity.status(status).body(ErrorResponse.of(code, e.getMessage()));
+    }
+
+    @ExceptionHandler(CommentPolicyFailure.class)
+    public ResponseEntity<ErrorResponse> handleCommentPolicyFailure(CommentPolicyFailure e) {
+        if (e.reason() == CommentPolicyFailure.Reason.SPACE_ACCESS_DENIED) {
+            logExpected("exception.handleCommentPolicyFailure", ErrorCode.NOT_CLUB_MEMBER,
+                    Map.of("reason", e.reason().name()));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ErrorResponse.of(ErrorCode.NOT_CLUB_MEMBER, e.getMessage()));
+        }
+        logExpected("exception.handleCommentPolicyFailure", ErrorCode.INVALID_REQUEST,
+                Map.of("reason", e.reason().name()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getMessage()));
+    }
+
+    @ExceptionHandler(ContentUnavailableFailure.class)
+    public ResponseEntity<ErrorResponse> handleContentUnavailable(ContentUnavailableFailure e) {
+        logExpected("exception.handleContentUnavailable", ErrorCode.BOOK_NOT_AVAILABLE,
+                Map.of("contentId", Long.toString(e.failedContentId())));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.BOOK_NOT_AVAILABLE, e.getMessage()));
+    }
+
+    @ExceptionHandler(ContentNotFoundFailure.class)
+    public ResponseEntity<ErrorResponse> handleContentNotFound(ContentNotFoundFailure e) {
+        logExpected("exception.handleContentNotFound", ErrorCode.BOOK_NOT_FOUND,
+                Map.of("contentId", Long.toString(e.failedContentId())));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.BOOK_NOT_FOUND, e.getMessage()));
+    }
+
+    @ExceptionHandler(ContentBodyUnsupportedFailure.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedContentBody(ContentBodyUnsupportedFailure e) {
+        logExpected("exception.handleUnsupportedContentBody", ErrorCode.INVALID_REQUEST,
+                Map.of("contentId", Long.toString(e.failedContentId())));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getMessage()));
     }
 
     @ExceptionHandler(UnauthorizedException.class)

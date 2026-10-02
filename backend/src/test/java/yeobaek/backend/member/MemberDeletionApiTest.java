@@ -1,5 +1,7 @@
 package yeobaek.backend.member;
 
+import yeobaek.backend.support.CommentFixtures;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -32,11 +34,17 @@ import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.collaboration.persistence.AppreciationContextRepository;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.reading.persistence.ReadingProgressJpaEntity;
+import yeobaek.backend.reading.persistence.ReadingProgressRepository;
 import yeobaek.backend.support.IntegrationTest;
 
 class MemberDeletionApiTest extends IntegrationTest {
@@ -71,37 +79,55 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Autowired
     private CommentReportRepository commentReportRepository;
 
+    @Autowired
+    private SpaceContentBindingApi bindingApi;
+
+    @Autowired
+    private ReadingProgressRepository readingProgressRepository;
+
+    @Autowired
+    private AppreciationContextRepository appreciationContextRepository;
+
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
-        Book book = bookRepository.save(new Book(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("첫 문장."))));
+        Passage passage = passageRepository.save(newPassage(chapter, 1, List.of(new SentenceContent("첫 문장."))));
         Member targetMember = memberRepository.save(new Member(new Nickname("탈퇴 회원")));
         Member remainingMember = memberRepository.save(new Member(new Nickname("잔여 회원")));
-        Club sharedClub = clubRepository.save(new Club(new ClubName("공유 모임"), book, new JoinCode("DELETE")));
-        Club leftClub = clubRepository.save(new Club(new ClubName("탈퇴한 모임"), book, new JoinCode("LEFT01")));
+        Club sharedClub = clubRepository.save(newClub(new ClubName("공유 모임"), new JoinCode("DELETE")));
+        Club leftClub = clubRepository.save(newClub(new ClubName("탈퇴한 모임"), new JoinCode("LEFT01")));
+        ContentId contentId = new ContentId(book.getContentId());
+        bindingApi.bind(new SpaceId(sharedClub.getSpaceId()), contentId);
+        bindingApi.bind(new SpaceId(leftClub.getSpaceId()), contentId);
 
-        ClubMember progressedMembership = new ClubMember(targetMember, sharedClub);
-        progressedMembership.updateProgress(passage, LocalDateTime.of(2026, 9, 3, 10, 0));
+        ClubMember progressedMembership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(targetMember.getId()), sharedClub);
         progressedMembership = clubMemberRepository.save(progressedMembership);
-        ClubMember leftMembership = new ClubMember(targetMember, leftClub);
+        readingProgressRepository.save(new ReadingProgressJpaEntity(targetMember.getId(),
+                sharedClub.getSpaceId(), contentId.value(), passage.getLocationId(),
+                LocalDateTime.of(2026, 9, 3, 10, 0)));
+        ClubMember leftMembership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(targetMember.getId()), leftClub);
         leftMembership.leave();
         leftMembership = clubMemberRepository.save(leftMembership);
-        ClubMember remainingMembership = clubMemberRepository.save(new ClubMember(remainingMember, sharedClub));
+        ClubMember remainingMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(remainingMember.getId()), sharedClub));
         memberBlockRepository.saveAll(List.of(
                 new MemberBlock(targetMember, remainingMember),
                 new MemberBlock(remainingMember, targetMember)));
 
         Comment targetComment = commentRepository.save(
-                new Comment(progressedMembership, passage.getSentences().getFirst(), new CommentContent("삭제될 댓글")));
+                newClubComment(progressedMembership, passage.getSentences().getFirst(), new CommentContent("삭제될 댓글")));
         Comment leftTargetComment = commentRepository.save(
-                new Comment(leftMembership, passage.getSentences().getFirst(), new CommentContent("탈퇴 모임의 삭제될 댓글")));
+                newClubComment(leftMembership, passage.getSentences().getFirst(), new CommentContent("탈퇴 모임의 삭제될 댓글")));
         Comment remainingComment = commentRepository.save(
-                new Comment(remainingMembership, passage.getSentences().getFirst(), new CommentContent("남을 댓글")));
+                newClubComment(remainingMembership, passage.getSentences().getFirst(), new CommentContent("남을 댓글")));
+        appreciationContextRepository.saveAll(List.of(
+                CommentFixtures.contextOf(targetComment),
+                CommentFixtures.contextOf(leftTargetComment),
+                CommentFixtures.contextOf(remainingComment)));
         commentReportRepository.saveAllAndFlush(List.of(
-                new CommentReport(remainingMember, targetComment),
-                new CommentReport(targetMember, remainingComment)));
+                new CommentReport(remainingMember.getId(), targetComment.getId()),
+                new CommentReport(targetMember.getId(), remainingComment.getId())));
 
         mockMvc.perform(delete("/api/members/me")
                         .header("X-Member-Id", targetMember.getId()))

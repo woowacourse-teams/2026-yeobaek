@@ -19,20 +19,13 @@ public final class ClubMembers {
 
     public List<Long> memberIds() {
         return values.stream()
-                .map(clubMember -> clubMember.getMember().getId())
+                .map(ClubMember::getMemberId)
                 .toList();
     }
 
     public List<Long> clubIds() {
         return values.stream()
                 .map(clubMember -> clubMember.getClub().getId())
-                .toList();
-    }
-
-    public List<Long> bookIds() {
-        return values.stream()
-                .map(clubMember -> clubMember.getClub().getBook().getId())
-                .distinct()
                 .toList();
     }
 

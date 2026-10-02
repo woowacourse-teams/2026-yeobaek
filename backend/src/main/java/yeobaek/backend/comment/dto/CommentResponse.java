@@ -2,7 +2,7 @@ package yeobaek.backend.comment.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
-import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.member.domain.MemberProfile;
 
 public record CommentResponse(
         @Schema(description = "댓글 ID") Long commentId,
@@ -14,10 +14,8 @@ public record CommentResponse(
         @Schema(description = "요청자 본인 작성 여부") boolean mine
 ) {
 
-    public static CommentResponse of(Comment comment, Long requesterId) {
-        Long writerId = comment.getWriter().getId();
-        return new CommentResponse(comment.getId(), writerId,
-                comment.getWriter().getNickname(), comment.getContent(),
-                comment.getCreatedAt(), comment.getUpdatedAt(), comment.isWrittenBy(requesterId));
+    public static CommentResponse of(yeobaek.backend.appreciation.domain.Comment comment, MemberProfile author) {
+        return new CommentResponse(comment.id().value(), author.id().value(), author.nickname(),
+                comment.content(), comment.createdAt(), comment.updatedAt(), true);
     }
 }

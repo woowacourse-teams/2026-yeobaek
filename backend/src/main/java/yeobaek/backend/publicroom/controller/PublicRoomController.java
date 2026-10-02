@@ -19,14 +19,14 @@ import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
-import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.publicroom.dto.PublicRoomDetailResponse;
 import yeobaek.backend.publicroom.dto.PublicRoomProgressResponse;
 import yeobaek.backend.publicroom.dto.PublicRoomProgressUpdateRequest;
 import yeobaek.backend.publicroom.dto.PublicRoomSort;
 import yeobaek.backend.publicroom.dto.PublicRoomsResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomsResponse;
-import yeobaek.backend.publicroom.service.PublicRoomService;
+import yeobaek.backend.web.compatibility.CommentService;
+import yeobaek.backend.web.compatibility.PublicRoomService;
 
 @RestController
 @RequiredArgsConstructor

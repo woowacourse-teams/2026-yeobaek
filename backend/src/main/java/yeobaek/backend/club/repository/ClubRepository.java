@@ -9,20 +9,14 @@ import yeobaek.backend.club.domain.Club;
 
 public interface ClubRepository extends JpaRepository<Club, Long> {
 
-    @Query("""
-            select c from Club c
-            join fetch c.book
-            order by c.id asc
-            """)
-    List<Club> findAllWithBookByOrderByIdAsc();
+    @Query("select c from Club c where c.spaceId = :spaceId")
+    Optional<Club> findBySpaceRootId(@Param("spaceId") Long spaceId);
 
     @Query("""
-            select c.book.id as bookId, count(c) as clubCount
-            from Club c
-            where c.book.id in :bookIds
-            group by c.book.id
+            select c from Club c
+            order by c.id asc
             """)
-    List<BookClubCount> countClubsByBookIds(@Param("bookIds") List<Long> bookIds);
+    List<Club> findAllByOrderByIdAsc();
 
     @Query("select (count(c) > 0) from Club c where c.joinCode.value = :joinCode")
     boolean existsByJoinCode(@Param("joinCode") String joinCode);

@@ -1,5 +1,7 @@
 package yeobaek.backend.comment.service;
 
+import yeobaek.backend.support.CommentFixtures;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -34,16 +36,22 @@ import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
+import yeobaek.backend.collaboration.persistence.AppreciationContextRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.reading.persistence.ReadingProgressRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.web.compatibility.CommentService;
 
 class CommentServiceTest extends IntegrationTest {
 
@@ -58,6 +66,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentViewRepository commentViewRepository;
+
+    @Autowired
+    private AppreciationContextRepository appreciationContextRepository;
 
     @Autowired
     private BookManagementRepository bookRepository;
@@ -80,6 +91,12 @@ class CommentServiceTest extends IntegrationTest {
     @Autowired
     private ClubMemberRepository clubMemberRepository;
 
+    @Autowired
+    private SpaceContentBindingApi bindingApi;
+
+    @Autowired
+    private ReadingProgressRepository readingProgressRepository;
+
     private Member writer;
     private Book book;
     private Member other;
@@ -90,16 +107,18 @@ class CommentServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 2, null));
+        book = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), null, 1924, 2, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
+        passage = passageRepository.save(newPassage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
         sentence = passage.getSentences().getFirst();
         writer = memberRepository.save(new Member(new Nickname("민서")));
         other = memberRepository.save(new Member(new Nickname("지수")));
-        club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        otherClub = clubRepository.save(new Club(new ClubName("2기"), book, new JoinCode("CODE02")));
-        clubMemberRepository.save(new ClubMember(writer, club));
-        clubMemberRepository.save(new ClubMember(other, club));
+        club = clubRepository.save(newClub(new ClubName("1기"), new JoinCode("CODE01")));
+        otherClub = clubRepository.save(newClub(new ClubName("2기"), new JoinCode("CODE02")));
+        bindingApi.bind(new SpaceId(club.getSpaceId()), new ContentId(book.getContentId()));
+        bindingApi.bind(new SpaceId(otherClub.getSpaceId()), new ContentId(book.getContentId()));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(writer.getId()), club));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(other.getId()), club));
     }
 
     @Test
@@ -118,8 +137,8 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("기능 도입 전에 존재한 본인 댓글은 조회 기록이 없어 NEW로 계산된다")
     void treatExistingOwnCommentAsNew() {
-        ClubMember membership = clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow();
-        commentRepository.save(new Comment(membership, sentence, new CommentContent("기존 댓글")));
+        ClubMember membership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(writer.getId()), club);
+        saveComment(newClubComment(membership, sentence, new CommentContent("기존 댓글")));
 
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isEqualTo(1);
@@ -139,8 +158,8 @@ class CommentServiceTest extends IntegrationTest {
         });
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isEqualTo(1);
-        assertThat(clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow()
-                .getLastReadPassage()).isNull();
+        assertThat(readingProgressRepository.findOne(writer.getId(), club.getSpaceId(),
+                book.getContentId())).isEmpty();
     }
 
     @Test
@@ -148,8 +167,8 @@ class CommentServiceTest extends IntegrationTest {
     void aggregateSafelyWithDuplicateViews() {
         CommentResponse created = commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("새 댓글"));
         Comment comment = commentRepository.findById(created.commentId()).orElseThrow();
-        commentViewRepository.save(new CommentView(writer, comment));
-        commentViewRepository.save(new CommentView(writer, comment));
+        commentViewRepository.save(new CommentView(writer.getId(), comment.getId()));
+        commentViewRepository.save(new CommentView(writer.getId(), comment.getId()));
 
         var item = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
                 .commentedSentences().getFirst();
@@ -165,7 +184,7 @@ class CommentServiceTest extends IntegrationTest {
     void viewOnlyVisibleCommentDetails() {
         CommentResponse visible = commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("보이는 댓글"));
         Member blocked = memberRepository.save(new Member(new Nickname("차단 대상")));
-        clubMemberRepository.save(new ClubMember(blocked, club));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(blocked.getId()), club));
         CommentResponse hidden = commentService.create(blocked.getId(), club.getId(), sentence.getId(), new CommentContent("숨긴 댓글"));
         memberBlockRepository.save(new MemberBlock(writer, blocked));
 
@@ -180,8 +199,8 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("댓글 문장은 현재 미확인, 미래 미확인, 모두 확인 그룹 순서로 정렬된다")
     void sortCommentedSentencesByDiscoveryGroups() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("2장"), 2));
-        Passage futurePassage = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("미래 문장"))));
-        Passage viewedPassage = passageRepository.save(new Passage(chapter, 3, Collections.singletonList(new SentenceContent("확인한 문장"))));
+        Passage futurePassage = passageRepository.save(newPassage(chapter, 2, Collections.singletonList(new SentenceContent("미래 문장"))));
+        Passage viewedPassage = passageRepository.save(newPassage(chapter, 3, Collections.singletonList(new SentenceContent("확인한 문장"))));
         commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("현재 새 댓글"));
         commentService.create(other.getId(), club.getId(), futurePassage.getSentences().getFirst().getId(), new CommentContent("미래 새 댓글"));
         commentService.create(writer.getId(), club.getId(), viewedPassage.getSentences().getFirst().getId(), new CommentContent("확인한 댓글"));
@@ -206,8 +225,8 @@ class CommentServiceTest extends IntegrationTest {
     void findCommentsOrderedAndIsolated() {
         commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("첫 댓글"));
         commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("둘째 댓글"));
-        ClubMember otherClubMembership = clubMemberRepository.save(new ClubMember(writer, otherClub));
-        commentRepository.save(new Comment(otherClubMembership, sentence, new CommentContent("다른 모임 댓글")));
+        ClubMember otherClubMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(writer.getId()), otherClub));
+        saveComment(newClubComment(otherClubMembership, sentence, new CommentContent("다른 모임 댓글")));
 
         CommentsResponse response = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
 
@@ -418,9 +437,46 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않는 문장은 SENTENCE_NOT_IN_CLUB_BOOK으로 구분한다")
     void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null));
+        Book otherBook = bookRepository.save(newBook(new BookTitle("다른 책"), null, null, 1, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
+        Passage otherPassage = passageRepository.save(newPassage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
+
+        assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(),
+                otherPassage.getSentences().getFirst().getId(), new CommentContent("댓글")))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.SENTENCE_NOT_IN_CLUB_BOOK);
+    }
+
+    @Test
+    @DisplayName("모임과 회원과 문장이 모두 잘못되면 CLUB_NOT_FOUND를 먼저 반환한다")
+    void missingClubHasPriorityOverMembershipAndSentence() {
+        Member outsider = memberRepository.save(new Member(new Nickname("우선순위 외부인")));
+
+        assertThatThrownBy(() -> commentService.create(outsider.getId(), Long.MAX_VALUE, Long.MAX_VALUE,
+                new CommentContent("댓글")))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.CLUB_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("미소속 회원과 잘못된 문장이 겹치면 NOT_CLUB_MEMBER를 먼저 반환한다")
+    void membershipHasPriorityOverSentence() {
+        Member outsider = memberRepository.save(new Member(new Nickname("문장보다 회원")));
+
+        assertThatThrownBy(() -> commentService.create(outsider.getId(), club.getId(), Long.MAX_VALUE,
+                new CommentContent("댓글")))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("다른 책 문장과 삭제 도서가 겹치면 SENTENCE_NOT_IN_CLUB_BOOK을 먼저 반환한다")
+    void sentenceOwnershipHasPriorityOverBookAvailability() {
+        Book otherBook = bookRepository.save(newBook(new BookTitle("우선순위 다른 책"), null, null, 1, null));
+        Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("다른 장"), 1));
+        Passage otherPassage = passageRepository.save(newPassage(otherChapter, 1,
+                Collections.singletonList(new SentenceContent("다른 문장"))));
+        bookRepository.delete(book.getId());
 
         assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(),
                 otherPassage.getSentences().getFirst().getId(), new CommentContent("댓글")))
@@ -480,7 +536,7 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Autowired
-    private yeobaek.backend.member.service.MemberService memberService;
+    private yeobaek.backend.web.compatibility.MemberService memberService;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -506,7 +562,7 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("요청 진도 경계와 차단을 적용하고 차단 해제 뒤 새 조회에서 갱신한다")
     void countWithinRequestedProgressAndVisibility() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("미래 장"), 2));
-        Passage future = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("미래 본문"))));
+        Passage future = passageRepository.save(newPassage(chapter, 2, Collections.singletonList(new SentenceContent("미래 본문"))));
         commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("현재"));
         commentService.create(other.getId(), club.getId(), future.getSentences().getFirst().getId(), new CommentContent("미래"));
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
@@ -536,7 +592,7 @@ class CommentServiceTest extends IntegrationTest {
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isEqualTo(1);
         Member newcomer = memberRepository.save(new Member(new Nickname("신규 참여자")));
-        clubMemberRepository.save(new ClubMember(newcomer, club));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(newcomer.getId()), club));
         assertThat(commentService.countNewComments(newcomer.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isEqualTo(2);
     }
@@ -546,8 +602,8 @@ class CommentServiceTest extends IntegrationTest {
     void cascadeCommentViews() {
         CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("삭제 대상"));
         Comment comment = commentRepository.findById(created.commentId()).orElseThrow();
-        commentViewRepository.save(new CommentView(other, comment));
-        commentViewRepository.save(new CommentView(other, comment));
+        commentViewRepository.save(new CommentView(other.getId(), comment.getId()));
+        commentViewRepository.save(new CommentView(other.getId(), comment.getId()));
         commentService.delete(writer.getId(), created.commentId());
         assertThat(commentViewRepository.count()).isZero();
         assertThat(commentService.findCommentedSentences(other.getId(), club.getId(), passage.getId())
@@ -572,7 +628,7 @@ class CommentServiceTest extends IntegrationTest {
     @DisplayName("같은 그룹은 댓글 작성 시각과 관계없이 책의 문단과 문장 순서로 정렬한다")
     void sortSameGroupByBookPosition() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("정렬 장"), 2));
-        Passage laterPassage = passageRepository.save(new Passage(chapter, 2, java.util.List.of(
+        Passage laterPassage = passageRepository.save(newPassage(chapter, 2, java.util.List.of(
                 new SentenceContent("뒤 문단 첫 문장"),
                 new SentenceContent("뒤 문단 둘째 문장"))));
         Sentence laterFirstSentence = laterPassage.getSentences().get(0);
@@ -583,11 +639,11 @@ class CommentServiceTest extends IntegrationTest {
                 other.getId(), club.getId(), laterFirstSentence.getId(), new CommentContent("뒤 문단 첫 댓글"));
         CommentResponse laterSecondComment = commentService.create(
                 other.getId(), club.getId(), laterSecondSentence.getId(), new CommentContent("뒤 문단 둘째 댓글"));
-        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+        jdbcTemplate.update("update appreciations set created_at = ? where id = ?",
                 java.sql.Timestamp.valueOf("2026-09-07 10:00:00"), earlierPassageComment.commentId());
-        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+        jdbcTemplate.update("update appreciations set created_at = ? where id = ?",
                 java.sql.Timestamp.valueOf("2026-09-07 12:00:00"), laterFirstComment.commentId());
-        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+        jdbcTemplate.update("update appreciations set created_at = ? where id = ?",
                 java.sql.Timestamp.valueOf("2026-09-07 13:00:00"), laterSecondComment.commentId());
 
         assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), laterPassage.getId())
@@ -618,9 +674,9 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않거나 다른 책의 현재 문단은 INVALID_REQUEST다")
     void rejectInvalidDiscoveryPassage() {
-        Book anotherBook = bookRepository.save(new Book(new BookTitle("새 책"), null, null, 1, null));
+        Book anotherBook = bookRepository.save(newBook(new BookTitle("새 책"), null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(anotherBook, new ChapterTitle("새 장"), 1));
-        Passage foreign = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("다른 책 본문"))));
+        Passage foreign = passageRepository.save(newPassage(chapter, 1, Collections.singletonList(new SentenceContent("다른 책 본문"))));
         for (Long passageId : java.util.List.of(Long.MAX_VALUE, foreign.getId())) {
             assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), club.getId(), passageId))
                     .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
@@ -666,11 +722,17 @@ class CommentServiceTest extends IntegrationTest {
     void returnEntireListBeyondFormerPageSize() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("전체 목록"), 2));
         var contents = java.util.stream.IntStream.range(0, 25).mapToObj(index -> "문장 " + index).toList();
-        Passage manySentences = passageRepository.save(new Passage(chapter, 2, contents.stream().map(SentenceContent::new).toList()));
-        ClubMember author = clubMemberRepository.findByMemberIdAndClubId(other.getId(), club.getId()).orElseThrow();
-        commentRepository.saveAll(manySentences.getSentences().stream()
-                .map(item -> new Comment(author, item, new CommentContent("댓글"))).toList());
+        Passage manySentences = passageRepository.save(newPassage(chapter, 2, contents.stream().map(SentenceContent::new).toList()));
+        ClubMember author = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(other.getId()), club);
+        manySentences.getSentences().forEach(item ->
+                saveComment(newClubComment(author, item, new CommentContent("댓글"))));
         assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
                 .commentedSentences()).hasSize(25);
+    }
+
+    private Comment saveComment(Comment comment) {
+        Comment saved = commentRepository.save(comment);
+        appreciationContextRepository.save(CommentFixtures.contextOf(saved));
+        return saved;
     }
 }

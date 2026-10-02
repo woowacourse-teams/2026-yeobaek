@@ -23,6 +23,7 @@ import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
+import yeobaek.backend.foundation.identity.ContentId;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
@@ -32,6 +33,8 @@ import yeobaek.backend.support.ErrorCode;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
+    private static final String CONTENT_KIND = "BOOK";
+
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_KEY_PATTERN = Pattern.compile(
             "^[^/]+(?:/[^/]+)*/book-covers/"
@@ -40,6 +43,12 @@ public class Book {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "content_id", nullable = false, unique = true, updatable = false)
+    private Long contentId;
+
+    @Column(name = "content_kind", nullable = false, length = 64, updatable = false)
+    private String contentKind;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "title", nullable = false, length = BookTitle.MAX_LENGTH))
@@ -63,12 +72,18 @@ public class Book {
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
 
-    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey) {
+    public Book(ContentId contentId, BookTitle title, Publisher publisher, Integer publishedYear, int passageCount,
+                String coverImageKey) {
         validateCoverImageKey(coverImageKey);
+        if (contentId == null) {
+            throw new IllegalArgumentException("컨텐츠 식별자는 필수입니다.");
+        }
         if (title == null) {
             throw new IllegalArgumentException("도서 제목은 필수입니다.");
         }
         this.title = title;
+        this.contentId = contentId.value();
+        this.contentKind = CONTENT_KIND;
         this.publisher = publisher;
         this.publishedYear = publishedYear;
         this.passageCount = new PassageCount(passageCount);
@@ -124,6 +139,10 @@ public class Book {
 
     public PassageCount getPassageCount() {
         return passageCount;
+    }
+
+    public Long getContentId() {
+        return contentId;
     }
 
     private void validateCoverImageKey(String coverImageKey) {

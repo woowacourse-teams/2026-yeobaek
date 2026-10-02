@@ -1,9 +1,10 @@
 package yeobaek.backend.club.service;
 
+import yeobaek.backend.web.compatibility.ProgressService;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import jakarta.persistence.EntityManagerFactory;
 import java.util.Collections;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,9 @@ import yeobaek.backend.club.dto.LastReadingResponse;
 import yeobaek.backend.club.dto.ProgressResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -61,7 +65,7 @@ class ProgressServiceTest extends IntegrationTest {
     private ClubMemberRepository clubMemberRepository;
 
     @Autowired
-    private EntityManagerFactory entityManagerFactory;
+    private SpaceContentBindingApi bindingApi;
 
     private Member reader;
     private Book book;
@@ -71,15 +75,16 @@ class ProgressServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 4, null));
+        book = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), null, 1924, 4, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
-        second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
-        passageRepository.save(new Passage(chapter, 3, Collections.singletonList(new SentenceContent("본문 3"))));
-        fourth = passageRepository.save(new Passage(chapter, 4, Collections.singletonList(new SentenceContent("본문 4"))));
+        passageRepository.save(newPassage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
+        second = passageRepository.save(newPassage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
+        passageRepository.save(newPassage(chapter, 3, Collections.singletonList(new SentenceContent("본문 3"))));
+        fourth = passageRepository.save(newPassage(chapter, 4, Collections.singletonList(new SentenceContent("본문 4"))));
         reader = memberRepository.save(new Member(new Nickname("민서")));
-        club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        clubMemberRepository.save(new ClubMember(reader, club));
+        club = clubRepository.save(newClub(new ClubName("1기"), new JoinCode("CODE01")));
+        bind(club, book);
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(reader.getId()), club));
     }
 
     @Test
@@ -141,11 +146,9 @@ class ProgressServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
-    void updateProgressWorksWhenBookIsUninitializedProxy() {
-        Club loadedClub = clubRepository.findById(club.getId()).orElseThrow();
-        assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedClub, "book")).isFalse();
-
+    @DisplayName("모임을 다시 조회해도 정규 콘텐츠 연결을 사용해 진도를 갱신한다")
+    void updateProgressUsesCanonicalBindingAfterReloadingClub() {
+        clubRepository.findById(club.getId()).orElseThrow();
         ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
 
         assertThat(response.lastReadPassageSequence()).isEqualTo(4);
@@ -155,9 +158,9 @@ class ProgressServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않는 본문으로는 진도를 보고할 수 없다")
     void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null));
+        Book otherBook = bookRepository.save(newBook(new BookTitle("다른 책"), null, null, 1, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
+        Passage otherPassage = passageRepository.save(newPassage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
 
         assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), otherPassage.getId()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -172,11 +175,12 @@ class ProgressServiceTest extends IntegrationTest {
     @Test
     @DisplayName("여러 모임 중 가장 최근에 읽은 모임이 마지막 읽던 책으로 조회된다")
     void lastReadingPicksMostRecent() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 2, null));
+        Book otherBook = bookRepository.save(newBook(new BookTitle("다른 책"), null, null, 2, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
-        Club otherClub = clubRepository.save(new Club(new ClubName("2기"), otherBook, new JoinCode("CODE02")));
-        clubMemberRepository.save(new ClubMember(reader, otherClub));
+        Passage otherPassage = passageRepository.save(newPassage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
+        Club otherClub = clubRepository.save(newClub(new ClubName("2기"), new JoinCode("CODE02")));
+        bind(otherClub, otherBook);
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(reader.getId()), otherClub));
 
         progressService.updateProgress(reader.getId(), club.getId(), second.getId());
         progressService.updateProgress(reader.getId(), otherClub.getId(), otherPassage.getId());
@@ -216,5 +220,9 @@ class ProgressServiceTest extends IntegrationTest {
                 .findByMemberIdAndClubId(reader.getId(), club.getId()).orElseThrow();
         membership.leave();
         clubMemberRepository.saveAndFlush(membership);
+    }
+
+    private void bind(Club targetClub, Book targetBook) {
+        bindingApi.bind(new SpaceId(targetClub.getSpaceId()), new ContentId(targetBook.getContentId()));
     }
 }

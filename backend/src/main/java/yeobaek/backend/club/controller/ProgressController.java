@@ -23,7 +23,7 @@ import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.club.dto.LastReadingResponse;
 import yeobaek.backend.club.dto.ProgressResponse;
 import yeobaek.backend.club.dto.ProgressUpdateRequest;
-import yeobaek.backend.club.service.ProgressService;
+import yeobaek.backend.web.compatibility.ProgressService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 

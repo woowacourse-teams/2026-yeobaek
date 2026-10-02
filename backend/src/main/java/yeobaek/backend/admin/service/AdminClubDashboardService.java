@@ -17,8 +17,10 @@ import yeobaek.backend.club.domain.Clubs;
 import yeobaek.backend.club.repository.ClubMemberCount;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.comment.repository.ClubCommentCount;
-import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.readmodel.book.SpaceBookReadModel;
+import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
 
 @Service
 @RequiredArgsConstructor
@@ -27,13 +29,14 @@ public class AdminClubDashboardService {
 
     private final ClubRepository clubRepository;
     private final ClubMemberRepository clubMemberRepository;
-    private final CommentRepository commentRepository;
+    private final AdminClubStatisticsReadModel statisticsReadModel;
+    private final SpaceBookReadModel bookReadModel;
 
     @Transactional(readOnly = true)
     public AdminDashboardClubsResponse findClubsWithMemberAndCommentCounts() {
         log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findClubsWithMemberAndCommentCounts")
                 .log("관리자 모임 현황을 조회합니다.");
-        Clubs clubs = new Clubs(clubRepository.findAllWithBookByOrderByIdAsc());
+        Clubs clubs = new Clubs(clubRepository.findAllByOrderByIdAsc());
         if (clubs.isEmpty()) {
             logSuccess(0);
             return new AdminDashboardClubsResponse(List.of());
@@ -41,17 +44,19 @@ public class AdminClubDashboardService {
         List<Long> clubIds = clubs.ids();
         Map<Long, Long> memberCounts = clubMemberRepository.countJoinedMembersByClubIds(clubIds).stream()
                 .collect(Collectors.toMap(ClubMemberCount::getClubId, ClubMemberCount::getMemberCount));
-        Map<Long, Long> commentCounts = commentRepository.countCommentsByClubIds(clubIds).stream()
-                .collect(Collectors.toMap(ClubCommentCount::getClubId, ClubCommentCount::getCommentCount));
+        Map<Long, Long> commentCounts = statisticsReadModel.countComments(clubIds);
         var response = new AdminDashboardClubsResponse(clubs.asList().stream()
-                .map(club -> new AdminDashboardClubResponse(
+                .map(club -> {
+                    var book = bookReadModel.findBook(new SpaceId(club.getSpaceId())).orElseThrow();
+                    return new AdminDashboardClubResponse(
                         club.getId(),
                         club.getName(),
-                        club.getBook().getId(),
-                        club.getBook().getTitle().value(),
-                        club.getBook().getStatus(),
+                        book.bookId(),
+                        book.title(),
+                        BookStatus.valueOf(book.status()),
                         memberCounts.getOrDefault(club.getId(), 0L),
-                        commentCounts.getOrDefault(club.getId(), 0L)))
+                        commentCounts.getOrDefault(club.getId(), 0L));
+                })
                 .toList());
         logSuccess(response.clubs().size());
         return response;

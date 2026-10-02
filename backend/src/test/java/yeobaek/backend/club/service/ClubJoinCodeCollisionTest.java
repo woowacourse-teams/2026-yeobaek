@@ -6,103 +6,77 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.PassageCount;
-import yeobaek.backend.book.repository.ActiveBookRepository;
-import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.service.BookCoverUrlResolver;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.dto.ClubCreateResponse;
+import yeobaek.backend.club.internal.ClubCommandService;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.LogCapture;
+import yeobaek.backend.space.api.SpaceRootLifecycleApi;
+import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.web.compatibility.ClubService;
 
 @ExtendWith(MockitoExtension.class)
 class ClubJoinCodeCollisionTest {
-
-    private static final Long MEMBER_ID = 1L;
-    private static final Long BOOK_ID = 2L;
 
     @Mock
     private ClubRepository clubRepository;
 
     @Mock
-    private ClubMemberRepository clubMemberRepository;
+    private ClubMemberRepository memberRepository;
 
     @Mock
-    private ActiveBookRepository bookRepository;
+    private SpaceRootLifecycleApi spaceRoots;
 
-    @Mock
-    private AuthorBookRepository authorBookRepository;
-
-    @Mock
-    private MemberRepository memberRepository;
-
-    @Mock
-    private BookCoverUrlResolver bookCoverUrlResolver;
-
-    @Mock
-    private Book book;
-
-    @Mock
-    private Member member;
+    @BeforeEach
+    void setUp() {
+        given(spaceRoots.create("CLUB")).willReturn(new SpaceId(30L));
+    }
 
     @InjectMocks
-    private ClubService clubService;
+    private ClubCommandService commandService;
 
     @Test
     @DisplayName("발급된 코드가 이미 존재하면 재생성해 유일한 코드를 발급한다")
     void regenerateOnCollision() {
-        given(bookRepository.getById(BOOK_ID)).willReturn(book);
-        given(book.getId()).willReturn(BOOK_ID);
-        given(book.getTitle()).willReturn(new BookTitle("운수 좋은 날"));
-        given(book.getPassageCount()).willReturn(new PassageCount(312));
         given(clubRepository.existsByJoinCode("TAKEN1")).willReturn(true);
         given(clubRepository.existsByJoinCode("FRESH1")).willReturn(false);
-        given(clubRepository.save(any(Club.class))).willAnswer(invocation -> invocation.getArgument(0));
-        given(memberRepository.getReferenceById(MEMBER_ID)).willReturn(member);
-        given(clubMemberRepository.save(any(ClubMember.class))).willAnswer(invocation -> invocation.getArgument(0));
-        given(authorBookRepository.findAllWithAuthorByBookIdIn(List.of(BOOK_ID))).willReturn(List.of());
+        given(clubRepository.save(any(Club.class))).willAnswer(invocation -> {
+            Club club = invocation.getArgument(0);
+            ReflectionTestUtils.setField(club, "id", 3L);
+            return club;
+        });
 
-        ClubCreateResponse response;
         try (var logs = new LogCapture(ClubService.class.getName());
-                MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
-            mockedJoinCode.when(JoinCode::generate)
+                MockedStatic<JoinCode> generator = mockStatic(JoinCode.class)) {
+            generator.when(JoinCode::generate)
                     .thenReturn(new JoinCode("TAKEN1"), new JoinCode("TAKEN1"), new JoinCode("FRESH1"));
-            response = clubService.create(MEMBER_ID, new ClubName("새 모임"), BOOK_ID);
+            var club = commandService.create(new ClubName("새 모임"));
 
+            assertThat(club.joinCode()).isEqualTo("FRESH1");
             var recovered = logs.event("club.generateUniqueJoinCode", "recovered");
             assertThat(logs.field(recovered, "retryCount")).isEqualTo(2);
             assertThat(logs.structuredText()).doesNotContain("TAKEN1", "FRESH1");
         }
-
-        assertThat(response.joinCode()).isEqualTo("FRESH1");
     }
 
     @Test
     @DisplayName("5회 연속 충돌하면 서버 에러로 처리한다")
     void failAfterFiveCollisions() {
-        given(bookRepository.getById(BOOK_ID)).willReturn(book);
         given(clubRepository.existsByJoinCode("TAKEN1")).willReturn(true);
-
-        try (MockedStatic<JoinCode> mockedJoinCode = mockStatic(JoinCode.class)) {
-            mockedJoinCode.when(JoinCode::generate).thenReturn(new JoinCode("TAKEN1"));
-
-            assertThatThrownBy(() -> clubService.create(MEMBER_ID, new ClubName("새 모임"), BOOK_ID))
+        try (MockedStatic<JoinCode> generator = mockStatic(JoinCode.class)) {
+            generator.when(JoinCode::generate).thenReturn(new JoinCode("TAKEN1"));
+            assertThatThrownBy(() -> commandService.create(new ClubName("새 모임")))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

@@ -1,5 +1,7 @@
 package yeobaek.backend.club.service;
 
+import yeobaek.backend.web.compatibility.ClubService;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -45,6 +47,11 @@ import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.reading.api.ReadingProgressApi;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.ContentLocationId;
+import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
@@ -83,13 +90,16 @@ class ClubServiceTest extends IntegrationTest {
     @Autowired
     private PassageRepository passageRepository;
 
+    @Autowired
+    private ReadingProgressApi readingProgressApi;
+
     private Member creator;
     private Book book;
 
     @BeforeEach
     void setUp() {
         creator = memberRepository.save(new Member(new Nickname("민서")));
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 312, null));
+        book = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 312, null));
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
         authorBookRepository.save(new AuthorBook(author, book));
     }
@@ -210,13 +220,15 @@ class ClubServiceTest extends IntegrationTest {
     @DisplayName("탈퇴 후 재가입하면 기존 참여 정보와 진도를 복구한다")
     void rejoinRestoresMembershipAndProgress() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 42, Collections.singletonList(new SentenceContent("본문"))));
+        Passage passage = passageRepository.save(newPassage(chapter, 42, Collections.singletonList(new SentenceContent("본문"))));
         ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("교환독서 1기"), book.getId());
         ClubMember membership = clubMemberRepository
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
         LocalDateTime lastReadAt = LocalDateTime.of(2026, 8, 24, 12, 0);
-        membership.updateProgress(passage, lastReadAt);
-        clubMemberRepository.saveAndFlush(membership);
+        var progressClub = clubRepository.findById(created.clubId()).orElseThrow();
+        readingProgressApi.update(new MemberId(creator.getId()), new SpaceId(progressClub.getSpaceId()),
+                new ContentId(book.getContentId()), new ContentLocationId(passage.getLocationId()),
+                lastReadAt);
 
         clubService.leave(creator.getId(), created.clubId());
         clubService.join(creator.getId(), new JoinCode(created.joinCode()));
@@ -225,8 +237,11 @@ class ClubServiceTest extends IntegrationTest {
                 .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
         assertThat(restored.getId()).isEqualTo(membership.getId());
         assertThat(restored.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
-        assertThat(restored.getLastReadPassage().getId()).isEqualTo(passage.getId());
-        assertThat(restored.getLastReadAt()).isEqualTo(lastReadAt);
+        var restoredProgress = readingProgressApi.find(new MemberId(creator.getId()),
+                new SpaceId(progressClub.getSpaceId()),
+                new ContentId(book.getContentId())).orElseThrow();
+        assertThat(restoredProgress.locationId().value()).isEqualTo(passage.getLocationId());
+        assertThat(restoredProgress.lastReadAt()).isEqualTo(lastReadAt);
         assertThat(clubMemberRepository.count()).isEqualTo(1);
     }
 
@@ -253,18 +268,17 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("내 모임 목록에 회원 수와 진도가 함께 조회된다")
     void findMyClubsWithProgress() {
-        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Book smallBook = bookRepository.save(newBook(new BookTitle("작은 책"), null, null, 3, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
+        Passage second = passageRepository.save(newPassage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
         ClubCreateResponse first = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
         ClubCreateResponse secondClub = clubService.create(creator.getId(), new ClubName("2기"), smallBook.getId());
         Member joiner = memberRepository.save(new Member(new Nickname("지수")));
         clubService.join(joiner.getId(), new JoinCode(first.joinCode()));
-        ClubMember myMembership = clubMemberRepository.findAllJoinedWithClubAndBookByMemberId(creator.getId()).stream()
-                .filter(clubMember -> clubMember.getClub().getId().equals(secondClub.clubId()))
-                .findFirst().orElseThrow();
-        myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
-        clubMemberRepository.saveAndFlush(myMembership);
+        var progressTarget = clubRepository.findById(secondClub.clubId()).orElseThrow();
+        readingProgressApi.update(new MemberId(creator.getId()), new SpaceId(progressTarget.getSpaceId()),
+                new ContentId(smallBook.getContentId()),
+                new ContentLocationId(second.getLocationId()), LocalDateTime.of(2026, 8, 5, 14, 30));
 
         MyClubsResponse response = clubService.findMyClubs(creator.getId());
 
@@ -298,17 +312,17 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임 상세에 참여 코드·참여 순서의 회원 목록·내 진도가 함께 조회된다")
     void findDetailWithMembersAndProgress() {
-        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Book smallBook = bookRepository.save(newBook(new BookTitle("작은 책"), null, null, 3, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
-        Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
+        Passage second = passageRepository.save(newPassage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
         ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), smallBook.getId());
         Member joiner = memberRepository.save(new Member(new Nickname("지수")));
         clubService.join(joiner.getId(), new JoinCode(created.joinCode()));
         memberBlockRepository.save(new MemberBlock(creator, joiner));
-        ClubMember myMembership = clubMemberRepository
-                .findByMemberIdAndClubId(creator.getId(), created.clubId()).orElseThrow();
-        myMembership.updateProgress(second, LocalDateTime.of(2026, 8, 5, 14, 30));
-        clubMemberRepository.saveAndFlush(myMembership);
+        var progressClub = clubRepository.findById(created.clubId()).orElseThrow();
+        readingProgressApi.update(new MemberId(creator.getId()), new SpaceId(progressClub.getSpaceId()),
+                new ContentId(smallBook.getContentId()),
+                new ContentLocationId(second.getLocationId()), LocalDateTime.of(2026, 8, 5, 14, 30));
 
         ClubDetailResponse response = clubService.findDetail(creator.getId(), created.clubId());
 

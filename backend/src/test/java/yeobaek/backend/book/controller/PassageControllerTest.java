@@ -22,7 +22,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import yeobaek.backend.book.dto.PassageResponse;
 import yeobaek.backend.book.dto.PassagesResponse;
 import yeobaek.backend.book.dto.SentenceResponse;
-import yeobaek.backend.book.service.PassageService;
+import yeobaek.backend.web.compatibility.PassageService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;

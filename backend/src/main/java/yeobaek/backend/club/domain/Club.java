@@ -4,21 +4,14 @@ import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 
@@ -34,24 +27,30 @@ public class Club {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "space_id", nullable = false, unique = true, updatable = false)
+    private Long spaceId;
+
+    @Column(name = "space_kind", nullable = false, length = 64, updatable = false)
+    private String spaceKind;
+
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "name", nullable = false, length = ClubName.MAX_LENGTH))
     private ClubName name;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "book_id", updatable = false)
-    private Book book;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "join_code", nullable = false, length = 10))
     private JoinCode joinCode;
 
-    public Club(ClubName name, Book book, JoinCode joinCode) {
+    public Club(Long spaceId, ClubName name, JoinCode joinCode) {
+        if (spaceId == null) {
+            throw new IllegalArgumentException("모임 공간은 필수입니다.");
+        }
         if (name == null) {
             throw new IllegalArgumentException("모임 이름은 필수입니다.");
         }
         this.name = name;
-        this.book = book;
+        this.spaceId = spaceId;
+        this.spaceKind = "CLUB";
         this.joinCode = joinCode;
     }
 
@@ -63,19 +62,4 @@ public class Club {
         return joinCode.value();
     }
 
-    public boolean isReading(Passage passage) {
-        return passage.belongsTo(book);
-    }
-
-    public boolean isReading(Sentence sentence) {
-        return sentence.belongsTo(book);
-    }
-
-    public PassageCount totalPassageCount() {
-        return book.getPassageCount();
-    }
-
-    public void ensureBookAvailable() {
-        book.ensureAvailable();
-    }
 }

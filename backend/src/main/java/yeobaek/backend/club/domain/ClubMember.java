@@ -12,13 +12,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.club.domain.vo.ProgressRate;
-import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.foundation.identity.MemberId;
 
 @Entity
 @Table(name = "club_members", uniqueConstraints = {
@@ -32,33 +29,20 @@ public class ClubMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id")
-    private Member member;
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "club_id")
     private Club club;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "last_read_passage_id")
-    private Passage lastReadPassage;
-
-    @Column
-    private LocalDateTime lastReadAt;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "varchar(20) default 'JOINED'")
     private ClubMemberStatus status = ClubMemberStatus.JOINED;
 
-    public ClubMember(Member member, Club club) {
-        this.member = member;
+    public ClubMember(MemberId memberId, Club club) {
+        this.memberId = memberId.value();
         this.club = club;
-    }
-
-    public void updateProgress(Passage passage, LocalDateTime readAt) {
-        this.lastReadPassage = passage;
-        this.lastReadAt = readAt;
     }
 
     public void rejoin() {
@@ -74,17 +58,6 @@ public class ClubMember {
     }
 
     public boolean isOwnedBy(Long memberId) {
-        return member.getId().equals(memberId);
-    }
-
-    /**
-     * 진도율(0~100, 반올림) = 최근 열람 본문의 순서 ÷ 도서의 본문 개수 (PRD 3.4).
-     */
-    public int progressRate() {
-        return ProgressRate.calculate(lastReadPassage.getSequence(), club.totalPassageCount()).roundedPercentage();
-    }
-
-    public void ensureBookAvailable() {
-        club.ensureBookAvailable();
+        return this.memberId.equals(memberId);
     }
 }

@@ -3,6 +3,7 @@ package yeobaek.backend.member.repository;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.member.domain.MemberBlock;
 
@@ -26,4 +27,8 @@ public interface MemberBlockRepository extends JpaRepository<MemberBlock, Long> 
             """)
     List<Long> findBlockedMemberIds(@Param("blockerId") Long blockerId,
                                     @Param("memberIds") List<Long> memberIds);
+
+    @Modifying
+    @Query("delete from MemberBlock mb where mb.blocker.id = :memberId or mb.blocked.id = :memberId")
+    void deleteAllInvolving(@Param("memberId") Long memberId);
 }

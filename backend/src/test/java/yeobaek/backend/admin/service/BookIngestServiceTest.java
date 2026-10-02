@@ -31,6 +31,9 @@ import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
@@ -61,6 +64,9 @@ class BookIngestServiceTest extends IntegrationTest {
 
     @Autowired
     private PublicRoomRepository publicRoomRepository;
+
+    @Autowired
+    private SpaceContentBindingApi bindingApi;
 
     @Test
     @DisplayName("업로드하면 본문 순서가 배열 순서대로 책 전체 기준 1..N으로 부여된다")
@@ -94,7 +100,10 @@ class BookIngestServiceTest extends IntegrationTest {
                 new BookTitle("공개방 도서"), null, null, null,
                 authorsOfUnknown(), chaptersWithOnePassage()));
 
-        assertThat(publicRoomRepository.findByBookId(response.bookId())).isPresent();
+        var room = publicRoomRepository.findAll().getFirst();
+        Book book = bookRepository.getById(response.bookId());
+        assertThat(bindingApi.isBound(new SpaceId(room.getSpaceId()),
+                new ContentId(book.getContentId()))).isTrue();
     }
 
     @Test
@@ -171,7 +180,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도·작가 구성이 동일한 도서는 DUPLICATE_BOOK으로 거부한다")
     void rejectDuplicateBook() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
@@ -188,7 +197,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectDuplicateBookWithReorderedAuthors() {
         Author first = authorRepository.save(new Author(new AuthorName("현진건")));
         Author second = authorRepository.save(new Author(new AuthorName("이효석")));
-        Book existing = bookRepository.save(new Book(new BookTitle("공동 작품"), null, null, 1, null));
+        Book existing = bookRepository.save(newBook(new BookTitle("공동 작품"), null, null, 1, null));
         authorBookRepository.save(new AuthorBook(first, existing));
         authorBookRepository.save(new AuthorBook(second, existing));
 
@@ -208,7 +217,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void allowUploadWithDifferentAuthors() {
         Author existingAuthor = authorRepository.save(new Author(new AuthorName("현진건")));
         Author otherAuthor = authorRepository.save(new Author(new AuthorName("이효석")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
         authorBookRepository.save(new AuthorBook(existingAuthor, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
@@ -222,7 +231,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도가 같아도 새 작가가 포함되면 업로드를 허용한다")
     void allowUploadWithNewAuthor() {
         Author existingAuthor = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
         authorBookRepository.save(new AuthorBook(existingAuthor, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
@@ -236,7 +245,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("출판연도가 다르면 같은 제목·작가라도 업로드를 허용한다")
     void allowSameTitleWithDifferentYear() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1936, null,
@@ -250,7 +259,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("삭제된 도서와 같은 서지·작가 구성의 도서는 새 ID로 다시 등록할 수 있다")
     void canRegisterBibliographicTwinOfDeletedBook() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book deleted = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book deleted = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
         authorBookRepository.save(new AuthorBook(author, deleted));
         bookRepository.delete(deleted.getId());
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,

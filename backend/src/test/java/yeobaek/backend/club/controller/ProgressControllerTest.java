@@ -28,7 +28,7 @@ import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.dto.LastReadingResponse;
 import yeobaek.backend.club.dto.ProgressResponse;
-import yeobaek.backend.club.service.ProgressService;
+import yeobaek.backend.web.compatibility.ProgressService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;

@@ -11,13 +11,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
 import yeobaek.backend.support.InvalidRequestException;
 
 @Service
@@ -26,9 +23,6 @@ import yeobaek.backend.support.InvalidRequestException;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final CommentRepository commentRepository;
-    private final ClubMemberRepository clubMemberRepository;
-    private final PublicRoomActivityRepository publicRoomActivityRepository;
 
     @Transactional
     public MemberCreateResponse create(Nickname nickname) {
@@ -47,47 +41,4 @@ public class MemberService {
         return response;
     }
 
-    @Transactional
-    public void delete(Long memberId) {
-        log.atInfo().addKeyValue(OPERATION, "member.delete").log("회원을 삭제합니다.");
-        deleteComments(memberId);
-        deletePublicRoomActivities(memberId);
-        deleteClubMemberships(memberId);
-        deleteMember(memberId);
-        log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(RESULT, SUCCESS)
-                .log("회원을 삭제했습니다.");
-    }
-
-    private void deleteComments(Long memberId) {
-        logPersistenceAttempt("member.deleteComments");
-        commentRepository.deleteAllByMemberId(memberId);
-        logPersistenceSuccess("member.deleteComments");
-    }
-
-    private void deletePublicRoomActivities(Long memberId) {
-        logPersistenceAttempt("member.deletePublicRoomActivities");
-        publicRoomActivityRepository.deleteAllByMemberId(memberId);
-        logPersistenceSuccess("member.deletePublicRoomActivities");
-    }
-
-    private void deleteClubMemberships(Long memberId) {
-        logPersistenceAttempt("member.deleteClubMemberships");
-        clubMemberRepository.deleteAllByMemberId(memberId);
-        logPersistenceSuccess("member.deleteClubMemberships");
-    }
-
-    private void deleteMember(Long memberId) {
-        logPersistenceAttempt("member.deleteMember");
-        memberRepository.deleteById(memberId);
-        logPersistenceSuccess("member.deleteMember");
-    }
-
-    private void logPersistenceAttempt(String operation) {
-        log.atInfo().addKeyValue(OPERATION, operation).log("회원 삭제 영속성 작업을 시작합니다.");
-    }
-
-    private void logPersistenceSuccess(String operation) {
-        log.atInfo().addKeyValue(OPERATION, operation).addKeyValue(RESULT, SUCCESS)
-                .log("회원 삭제 영속성 작업을 완료했습니다.");
-    }
 }
