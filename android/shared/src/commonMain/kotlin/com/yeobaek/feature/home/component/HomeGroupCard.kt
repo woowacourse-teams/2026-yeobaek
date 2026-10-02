@@ -57,7 +57,6 @@ fun HomeGroupCard(
         ) {
             BookCoverImage(
                 imageUrl = uri,
-                modifier = Modifier.weight(1f),
             )
             Box(
                 modifier = Modifier
