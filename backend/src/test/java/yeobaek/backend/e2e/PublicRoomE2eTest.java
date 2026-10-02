@@ -4,11 +4,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static yeobaek.backend.e2e.utils.BookE2eUtils.createBook;
+import static yeobaek.backend.e2e.utils.E2eRequests.memberRequest;
+import static yeobaek.backend.e2e.utils.MemberE2eUtils.createMember;
+import static yeobaek.backend.e2e.utils.PublicRoomE2eUtils.findPublicRoomId;
+import static yeobaek.backend.e2e.utils.PublicRoomE2eUtils.findPublicRoomReadingIds;
 
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.e2e.utils.ReadingIds;
 
 class PublicRoomE2eTest extends E2eTest {
 
@@ -21,11 +27,11 @@ class PublicRoomE2eTest extends E2eTest {
                 "두 번째 문단입니다.",
                 "세 번째 문단입니다.",
                 "네 번째 문단입니다.");
-        long memberId = createMember("첫 방문 독자");
-        long bookId = createBook("첫 방문 공개방의 책", passageContents);
+        long memberId = createMember(port, "첫 방문 독자");
+        long bookId = createBook(port, "첫 방문 공개방의 책", passageContents);
 
         // 처음 이용할 공개방을 전체 목록에서 선택한다
-        long publicRoomId = memberRequest(memberId)
+        long publicRoomId = memberRequest(port, memberId)
                 .when()
                 .get("/api/public-rooms")
                 .then()
@@ -37,7 +43,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .extract().jsonPath().getLong("publicRooms[0].publicRoomId");
 
         // 선택한 공개방에 처음 방문한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .post("/api/public-rooms/{publicRoomId}/visits", publicRoomId)
                 .then()
@@ -46,7 +52,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body(equalTo(""));
 
         // 첫 방문한 공개방이 내 방문 목록에 추가됐는지 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/members/me/public-rooms")
                 .then()
@@ -56,7 +62,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body("publicRooms[0].publicRoomId", equalTo(Math.toIntExact(publicRoomId)));
 
         // 공개방을 통해 책 본문을 읽는다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .queryParam("from", 1)
                 .queryParam("to", passageContents.size())
                 .when()
@@ -78,14 +84,14 @@ class PublicRoomE2eTest extends E2eTest {
                 "두 번째 문단입니다.",
                 "세 번째 문단입니다.",
                 "네 번째 문단입니다.");
-        long memberId = createMember("재방문 독자");
-        createBook("재방문 공개방의 책", passageContents);
-        long publicRoomId = findPublicRoomId(memberId);
+        long memberId = createMember(port, "재방문 독자");
+        createBook(port, "재방문 공개방의 책", passageContents);
+        long publicRoomId = findPublicRoomId(port, memberId);
         // 공개방을 이전에 방문한 상태로 준비한다
         visit(memberId, publicRoomId);
 
         // 내 방문 목록에서 이전에 이용한 공개방을 찾는다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/members/me/public-rooms")
                 .then()
@@ -99,7 +105,7 @@ class PublicRoomE2eTest extends E2eTest {
         visit(memberId, publicRoomId);
 
         // 재방문한 공개방의 상세 정보를 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/public-rooms/{publicRoomId}", publicRoomId)
                 .then()
@@ -109,7 +115,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body("lastVisitedAt", notNullValue());
 
         // 재방문한 공개방을 통해 책 본문을 읽는다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .queryParam("from", 1)
                 .queryParam("to", 1)
                 .when()
@@ -130,15 +136,15 @@ class PublicRoomE2eTest extends E2eTest {
                 secondPassageContent,
                 "세 번째 문단입니다.",
                 "네 번째 문단입니다.");
-        long memberId = createMember("공개방 이어 읽기 독자");
-        createBook("이어 읽을 공개방의 책", passageContents);
-        long publicRoomId = findPublicRoomId(memberId);
+        long memberId = createMember(port, "공개방 이어 읽기 독자");
+        createBook(port, "이어 읽을 공개방의 책", passageContents);
+        long publicRoomId = findPublicRoomId(port, memberId);
         // 이어 읽을 공개방에 방문한 상태로 준비한다
         visit(memberId, publicRoomId);
-        ReadingIds reading = findPublicRoomReadingIds(memberId, publicRoomId);
+        ReadingIds reading = findPublicRoomReadingIds(port, memberId, publicRoomId);
 
         // 두 번째 문단까지 읽은 진도를 공개방에 저장한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .body(Map.of("passageId", reading.secondPassageId()))
                 .when()
                 .put("/api/public-rooms/{publicRoomId}/progress", publicRoomId)
@@ -149,7 +155,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body("progressRate", equalTo(50));
 
         // 내 방문 목록에서 이전 진도율과 마지막 위치를 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/members/me/public-rooms")
                 .then()
@@ -159,7 +165,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body("publicRooms[0].myProgress.progressRate", equalTo(50));
 
         // 공개방 상세에서 이전 진도율과 마지막 위치를 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/public-rooms/{publicRoomId}", publicRoomId)
                 .then()
@@ -172,7 +178,7 @@ class PublicRoomE2eTest extends E2eTest {
         visit(memberId, publicRoomId);
 
         // 저장된 두 번째 문단부터 공개방 책 읽기를 이어간다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .queryParam("from", 2)
                 .queryParam("to", passageContents.size())
                 .when()
@@ -185,7 +191,7 @@ class PublicRoomE2eTest extends E2eTest {
                 .body("passages[0].sentences[0].content", equalTo(secondPassageContent));
 
         // 재방문 뒤에도 이전 진도가 유지되는지 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/public-rooms/{publicRoomId}", publicRoomId)
                 .then()
@@ -197,7 +203,7 @@ class PublicRoomE2eTest extends E2eTest {
 
     private void visit(long memberId, long publicRoomId) {
         // 회원의 공개방 방문 기록을 남긴다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .post("/api/public-rooms/{publicRoomId}/visits", publicRoomId)
                 .then()

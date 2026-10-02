@@ -3,12 +3,19 @@ package yeobaek.backend.e2e;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static yeobaek.backend.e2e.utils.BookE2eUtils.createBook;
+import static yeobaek.backend.e2e.utils.ClubE2eUtils.createClub;
+import static yeobaek.backend.e2e.utils.ClubE2eUtils.findClubReadingIds;
+import static yeobaek.backend.e2e.utils.E2eRequests.memberRequest;
+import static yeobaek.backend.e2e.utils.MemberE2eUtils.createMember;
 
 import io.restassured.response.ValidatableResponse;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.e2e.utils.ClubE2eUtils.ClubFixture;
+import yeobaek.backend.e2e.utils.ReadingIds;
 
 class ClubE2eTest extends E2eTest {
 
@@ -21,13 +28,13 @@ class ClubE2eTest extends E2eTest {
                 "두 번째 문단입니다.",
                 "세 번째 문단입니다.",
                 "네 번째 문단입니다.");
-        long ownerId = createMember("모임장");
-        long readerId = createMember("참여 독자");
-        long bookId = createBook("참여할 모임의 책", passageContents);
-        ClubFixture club = createClub(ownerId, bookId, "기존 독서 모임");
+        long ownerId = createMember(port, "모임장");
+        long readerId = createMember(port, "참여 독자");
+        long bookId = createBook(port, "참여할 모임의 책", passageContents);
+        ClubFixture club = createClub(port, ownerId, bookId, "기존 독서 모임");
 
         // 참여 독자가 기존 독서 모임에 들어간다
-        memberRequest(readerId)
+        memberRequest(port, readerId)
                 .body(Map.of("joinCode", club.joinCode()))
                 .when()
                 .post("/api/clubs/join")
@@ -39,7 +46,7 @@ class ClubE2eTest extends E2eTest {
                 .body("book.bookId", equalTo(Math.toIntExact(bookId)));
 
         // 참여한 독서 모임이 내 모임 목록에 반영됐는지 조회한다
-        memberRequest(readerId)
+        memberRequest(port, readerId)
                 .when()
                 .get("/api/clubs")
                 .then()
@@ -50,7 +57,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].memberCount", equalTo(2));
 
         // 독서 모임 상세에서 참여자 수를 확인한다
-        memberRequest(readerId)
+        memberRequest(port, readerId)
                 .when()
                 .get("/api/clubs/{clubId}", club.clubId())
                 .then()
@@ -59,7 +66,7 @@ class ClubE2eTest extends E2eTest {
                 .body("members", hasSize(2));
 
         // 참여한 독서 모임을 통해 책 본문을 읽는다
-        memberRequest(readerId)
+        memberRequest(port, readerId)
                 .queryParam("from", 1)
                 .queryParam("to", passageContents.size())
                 .when()
@@ -81,11 +88,11 @@ class ClubE2eTest extends E2eTest {
                 "두 번째 문단입니다.",
                 "세 번째 문단입니다.",
                 fourthPassageContent);
-        long memberId = createMember("새 모임 독자");
-        long bookId = createBook("새 모임의 책", passageContents);
+        long memberId = createMember(port, "새 모임 독자");
+        long bookId = createBook(port, "새 모임의 책", passageContents);
 
         // 새 모임에서 읽을 책을 도서 목록에서 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/books")
                 .then()
@@ -97,7 +104,7 @@ class ClubE2eTest extends E2eTest {
                 .body("books[0].passageCount", equalTo(passageContents.size()));
 
         // 선택한 책으로 새 독서 모임을 생성한다
-        ValidatableResponse createdClub = memberRequest(memberId)
+        ValidatableResponse createdClub = memberRequest(port, memberId)
                 .body(Map.of("name", "새 독서 모임", "bookId", bookId))
                 .when()
                 .post("/api/clubs")
@@ -110,7 +117,7 @@ class ClubE2eTest extends E2eTest {
         long clubId = createdClub.extract().jsonPath().getLong("clubId");
 
         // 생성한 독서 모임이 내 모임 목록에 반영됐는지 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/clubs")
                 .then()
@@ -121,7 +128,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].memberCount", equalTo(1));
 
         // 생성자가 새 독서 모임의 참여자로 등록됐는지 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/clubs/{clubId}", clubId)
                 .then()
@@ -132,7 +139,7 @@ class ClubE2eTest extends E2eTest {
                 .body("members[0].mine", equalTo(true));
 
         // 새 독서 모임을 통해 선택한 책의 본문을 읽는다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .queryParam("from", 1)
                 .queryParam("to", passageContents.size())
                 .when()
@@ -154,13 +161,13 @@ class ClubE2eTest extends E2eTest {
                 secondPassageContent,
                 "세 번째 문단입니다.",
                 "네 번째 문단입니다.");
-        long memberId = createMember("이어 읽는 독자");
-        long bookId = createBook("이어 읽을 모임의 책", passageContents);
-        ClubFixture club = createClub(memberId, bookId, "이어 읽기 모임");
-        ReadingIds reading = findClubReadingIds(memberId, club.clubId());
+        long memberId = createMember(port, "이어 읽는 독자");
+        long bookId = createBook(port, "이어 읽을 모임의 책", passageContents);
+        ClubFixture club = createClub(port, memberId, bookId, "이어 읽기 모임");
+        ReadingIds reading = findClubReadingIds(port, memberId, club.clubId());
 
         // 두 번째 문단까지 읽은 진도를 독서 모임에 저장한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .body(Map.of("passageId", reading.secondPassageId()))
                 .when()
                 .put("/api/clubs/{clubId}/progress", club.clubId())
@@ -171,7 +178,7 @@ class ClubE2eTest extends E2eTest {
                 .body("progressRate", equalTo(50));
 
         // 내 모임 목록에서 이전 진도율과 마지막 위치를 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/clubs")
                 .then()
@@ -183,7 +190,7 @@ class ClubE2eTest extends E2eTest {
                 .body("clubs[0].myProgress.progressRate", equalTo(50));
 
         // 독서 모임 상세에서 이전 진도율과 마지막 위치를 조회한다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .when()
                 .get("/api/clubs/{clubId}", club.clubId())
                 .then()
@@ -193,7 +200,7 @@ class ClubE2eTest extends E2eTest {
                 .body("myProgress.progressRate", equalTo(50));
 
         // 저장된 두 번째 문단부터 책 읽기를 이어간다
-        memberRequest(memberId)
+        memberRequest(port, memberId)
                 .queryParam("from", 2)
                 .queryParam("to", passageContents.size())
                 .when()
