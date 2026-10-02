@@ -28,7 +28,7 @@ import yeobaek.backend.club.dto.ClubDetailResponse;
 import yeobaek.backend.club.dto.ClubJoinRequest;
 import yeobaek.backend.club.dto.ClubJoinResponse;
 import yeobaek.backend.club.dto.MyClubsResponse;
-import yeobaek.backend.club.service.ClubService;
+import yeobaek.backend.web.compatibility.ClubService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 

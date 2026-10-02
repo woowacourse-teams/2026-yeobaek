@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.domain.vo.SentenceContent;
+import yeobaek.backend.foundation.identity.ContentLocationId;
 
 @Entity
 @Table(name = "sentences", uniqueConstraints = {
@@ -30,6 +31,12 @@ public class Sentence {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "location_id", nullable = false, unique = true, updatable = false)
+    private Long locationId;
+
+    @Column(name = "location_kind", nullable = false, length = 64, updatable = false)
+    private String locationKind;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "passage_id", nullable = false)
     private Passage passage;
@@ -42,8 +49,13 @@ public class Sentence {
     @AttributeOverride(name = "value", column = @Column(name = "content", columnDefinition = "TEXT", nullable = false))
     private SentenceContent content;
 
-    Sentence(Passage passage, int sequence, SentenceContent content) {
+    Sentence(ContentLocationId locationId, Passage passage, int sequence, SentenceContent content) {
+        if (locationId == null) {
+            throw new IllegalArgumentException("문장 위치 식별자는 필수입니다.");
+        }
         this.passage = passage;
+        this.locationId = locationId.value();
+        this.locationKind = "SENTENCE";
         this.sequence = new ContentSequence(sequence);
         if (content == null) {
             throw new IllegalArgumentException("문장 내용은 필수입니다.");
@@ -61,5 +73,9 @@ public class Sentence {
 
     public boolean belongsTo(Book book) {
         return passage.belongsTo(book);
+    }
+
+    public Long getLocationId() {
+        return locationId;
     }
 }

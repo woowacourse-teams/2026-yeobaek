@@ -50,9 +50,9 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("도서-목차-문단-문장 구조를 저장하고 문장에서 도서까지 연관을 타고 조회할 수 있다")
     void bookChapterPassageMapping() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 2, null));
+        Book book = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 2, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage saved = passageRepository.save(new Passage(chapter, 1, java.util.List.of(new SentenceContent("새침하게 흐린 품이 "), new SentenceContent("눈이 올 듯하더니..."))));
+        Passage saved = passageRepository.save(newPassage(chapter, 1, java.util.List.of(new SentenceContent("새침하게 흐린 품이 "), new SentenceContent("눈이 올 듯하더니..."))));
 
         transactionTemplate.executeWithoutResult(status -> {
             Passage found = passageRepository.findById(saved.getId()).orElseThrow();
@@ -71,7 +71,7 @@ class BookMappingTest extends IntegrationTest {
     @DisplayName("nullable 값 객체를 저장한 뒤 다시 조회한다")
     void reloadsNullableValueObjects() {
         Author author = authorRepository.save(new Author(new AuthorName("작자 미상")));
-        Book book = bookRepository.save(new Book(new BookTitle("출판사 미상"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("출판사 미상"), null, null, 1, null));
 
         transactionTemplate.executeWithoutResult(status -> {
             Author foundAuthor = authorRepository.findById(author.getId()).orElseThrow();
@@ -85,10 +85,10 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("본문 범위 조회는 문단과 문장을 순서대로 fetch join한다")
     void fetchesOrderedSentencesWithPassages() {
-        Book book = bookRepository.save(new Book(new BookTitle("범위 조회 도서"), null, null, 2, null));
+        Book book = bookRepository.save(newBook(new BookTitle("범위 조회 도서"), null, null, 2, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        passageRepository.save(new Passage(chapter, 2, List.of(new SentenceContent("둘째 문단."))));
-        passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("첫 문장. "), new SentenceContent("둘째 문장."))));
+        passageRepository.save(newPassage(chapter, 2, List.of(new SentenceContent("둘째 문단."))));
+        passageRepository.save(newPassage(chapter, 1, List.of(new SentenceContent("첫 문장. "), new SentenceContent("둘째 문장."))));
 
         List<Passage> passages = transactionTemplate.execute(
                 status -> passageRepository.findRangeByBookId(book.getId(), 1, 2));
@@ -104,9 +104,9 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("같은 문단에 중복된 문장 순서를 저장할 수 없다")
     void rejectsDuplicateSentenceSequenceInPassage() {
-        Book book = bookRepository.save(new Book(new BookTitle("문장 순서 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("문장 순서 도서"), null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage passage = new Passage(chapter, 1, List.of(new SentenceContent("첫 문장."), new SentenceContent("둘째 문장.")));
+        Passage passage = newPassage(chapter, 1, List.of(new SentenceContent("첫 문장."), new SentenceContent("둘째 문장.")));
         ReflectionTestUtils.setField(passage.getSentences().get(1), "sequence", new ContentSequence(1));
 
         assertThatThrownBy(() -> passageRepository.saveAndFlush(passage))
@@ -116,9 +116,9 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("문단에서 제거한 문장은 고아로 남지 않고 삭제된다")
     void removesOrphanedSentence() {
-        Book book = bookRepository.save(new Book(new BookTitle("문장 생명주기 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("문장 생명주기 도서"), null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("남길 문장. "), new SentenceContent("삭제할 문장."))));
+        Passage passage = passageRepository.save(newPassage(chapter, 1, List.of(new SentenceContent("남길 문장. "), new SentenceContent("삭제할 문장."))));
         Long removedSentenceId = passage.getSentences().get(1).getId();
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -135,7 +135,7 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("공저를 위해 하나의 도서에 여러 작가를 매핑할 수 있다")
     void coAuthorMapping() {
-        Book book = bookRepository.save(new Book(new BookTitle("공저 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("공저 도서"), null, null, 1, null));
         Author first = authorRepository.save(new Author(new AuthorName("작가1")));
         Author second = authorRepository.save(new Author(new AuthorName("작가2")));
         authorBookRepository.save(new AuthorBook(first, book));
@@ -150,7 +150,7 @@ class BookMappingTest extends IntegrationTest {
     @Test
     @DisplayName("도서의 DELETED 상태를 영속화한다")
     void persistsDeletedStatus() {
-        Book book = bookRepository.save(new Book(new BookTitle("삭제될 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("삭제될 도서"), null, null, 1, null));
         bookRepository.delete(book.getId());
 
         transactionTemplate.executeWithoutResult(status -> {

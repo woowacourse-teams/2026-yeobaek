@@ -30,7 +30,7 @@ import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentUpdateRequest;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
-import yeobaek.backend.comment.service.CommentService;
+import yeobaek.backend.web.compatibility.CommentService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 

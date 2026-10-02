@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.book.dto.PassagesResponse;
-import yeobaek.backend.book.service.PassageService;
+import yeobaek.backend.web.compatibility.PassageService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 

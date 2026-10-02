@@ -28,9 +28,9 @@ import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.dto.MemberCreateRequest;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.service.MemberBlockService;
-import yeobaek.backend.member.service.MemberService;
+import yeobaek.backend.web.compatibility.MemberService;
 import yeobaek.backend.publicroom.dto.RecentReadingResponse;
-import yeobaek.backend.publicroom.service.RecentReadingService;
+import yeobaek.backend.web.compatibility.RecentReadingService;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
 

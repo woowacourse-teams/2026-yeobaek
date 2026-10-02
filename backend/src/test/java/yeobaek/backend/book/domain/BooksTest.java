@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import yeobaek.backend.foundation.identity.ContentId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -71,7 +72,7 @@ class BooksTest {
     }
 
     private Book bookWithId(Long id, String title) {
-        Book book = new Book(new BookTitle(title), new Publisher("출판사"), 2026, 1, null);
+        Book book = new Book(new ContentId(1L), new BookTitle(title), new Publisher("출판사"), 2026, 1, null);
         ReflectionTestUtils.setField(book, "id", id);
         return book;
     }

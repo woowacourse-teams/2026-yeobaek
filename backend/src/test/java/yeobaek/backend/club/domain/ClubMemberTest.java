@@ -2,82 +2,47 @@ package yeobaek.backend.club.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.member.domain.vo.Nickname;
+import yeobaek.backend.foundation.identity.MemberId;
 
 class ClubMemberTest {
 
     @Test
     @DisplayName("모임 참여 정보는 참여 중 상태로 생성된다")
     void statusStartsJoined() {
-        ClubMember clubMember = new ClubMember(
-                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
-
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
-        assertThat(clubMember.isJoined()).isTrue();
+        ClubMember membership = membership();
+        assertThat(membership.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(membership.isJoined()).isTrue();
     }
 
     @Test
     @DisplayName("모임을 탈퇴한 후 재가입할 수 있다")
     void leaveAndRejoin() {
-        ClubMember clubMember = new ClubMember(
-                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
-
-        clubMember.leave();
-
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
-        assertThat(clubMember.isJoined()).isFalse();
-
-        clubMember.rejoin();
-
-        assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
-        assertThat(clubMember.isJoined()).isTrue();
+        ClubMember membership = membership();
+        membership.leave();
+        assertThat(membership.getStatus()).isEqualTo(ClubMemberStatus.LEFT);
+        assertThat(membership.isJoined()).isFalse();
+        membership.rejoin();
+        assertThat(membership.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
+        assertThat(membership.isJoined()).isTrue();
     }
 
     @Test
     @DisplayName("본인의 회원 id를 전달하면 참을 반환한다")
     void isOwnedByWhenIdMatches() {
-        Member member = new Member(new Nickname("민서"));
-        ReflectionTestUtils.setField(member, "id", 1L);
-        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
-
-        assertThat(clubMember.isOwnedBy(1L)).isTrue();
+        assertThat(membership().isOwnedBy(1L)).isTrue();
     }
 
     @Test
     @DisplayName("다른 회원의 id를 전달하면 거짓을 반환한다")
     void isNotOwnedByWhenIdDiffers() {
-        Member member = new Member(new Nickname("민서"));
-        ReflectionTestUtils.setField(member, "id", 1L);
-        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
-
-        assertThat(clubMember.isOwnedBy(2L)).isFalse();
+        assertThat(membership().isOwnedBy(2L)).isFalse();
     }
 
-    @Test
-    @DisplayName("진도율은 최근 열람 본문 순서를 도서의 본문 개수로 나눈 값을 반올림한다")
-    void progressRateDelegatesTotalPassageCountToClub() {
-        Book book = new Book(new BookTitle("제목"), null, null, 4, null);
-        Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
-        Passage passage = new Passage(chapter, 3, Collections.singletonList(new SentenceContent("본문")));
-        Club club = new Club(new ClubName("1기"), book, new JoinCode("CODE01"));
-        ClubMember clubMember = new ClubMember(new Member(new Nickname("민서")), club);
-
-        clubMember.updateProgress(passage, LocalDateTime.now());
-
-        assertThat(clubMember.progressRate()).isEqualTo(75);
+    private ClubMember membership() {
+        return new ClubMember(new MemberId(1L), new Club(1L, new ClubName("1기"), new JoinCode("CODE01")));
     }
 }

@@ -1,5 +1,7 @@
 package yeobaek.backend.admin.service;
 
+import yeobaek.backend.support.CommentFixtures;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -44,6 +46,10 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.collaboration.persistence.AppreciationContextRepository;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -86,11 +92,17 @@ class AdminBookServiceTest extends IntegrationTest {
     @Autowired
     private CommentRepository commentRepository;
 
+    @Autowired
+    private AppreciationContextRepository appreciationContextRepository;
+
+    @Autowired
+    private SpaceContentBindingApi bindingApi;
+
     @Test
     @DisplayName("삭제 상태와 공동 작가 및 nullable 정보를 포함해 모든 도서를 ID 순으로 조회한다")
     void findBooks() {
-        Book first = bookRepository.save(new Book(new BookTitle("표지 없는 책"), null, null, 1, null));
-        Book second = bookRepository.save(new Book(new BookTitle("함께 쓴 책"), new Publisher("여백 출판"),
+        Book first = bookRepository.save(newBook(new BookTitle("표지 없는 책"), null, null, 1, null));
+        Book second = bookRepository.save(newBook(new BookTitle("함께 쓴 책"), new Publisher("여백 출판"),
                 2026,
                 42,
                 COVER_KEY));
@@ -135,24 +147,29 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("도서를 삭제해도 기존 모임과 독서 활동 기록의 연결은 보존된다")
     void preservesExistingClubAndActivityRecords() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("운수 좋은 날"), null, 1924, 1, null));
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
         AuthorBook authorBook = authorBookRepository.save(new AuthorBook(author, book));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문"))));
+        Passage passage = passageRepository.save(newPassage(chapter, 1, Collections.singletonList(new SentenceContent("본문"))));
         Member member = memberRepository.save(new Member(new Nickname("민서")));
-        Club club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
-        Comment comment = commentRepository.save(new Comment(membership, passage.getSentences().getFirst(), new CommentContent("댓글")));
+        Club club = clubRepository.save(newClub(new ClubName("1기"), new JoinCode("CODE01")));
+        bindingApi.bind(new SpaceId(club.getSpaceId()), new ContentId(book.getContentId()));
+        ClubMember membership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(member.getId()), club));
+        Comment comment = newClubComment(membership, passage.getSentences().getFirst(), new CommentContent("댓글"));
+        commentRepository.save(comment);
+        appreciationContextRepository.save(CommentFixtures.contextOf(comment));
 
         adminBookService.delete(book.getId());
 
-        assertThat(bookRepository.findById(book.getId()).orElseThrow().getStatus()).isEqualTo(BookStatus.DELETED);
-        assertThat(clubRepository.findById(club.getId())).get()
-                .extracting(found -> found.getBook().getId()).isEqualTo(book.getId());
-        assertThat(passageRepository.findById(passage.getId())).isPresent();
-        assertThat(commentRepository.findById(comment.getId())).isPresent();
-        assertThat(authorBookRepository.findById(authorBook.getId())).isPresent();
+        assertThat(List.of(
+                bookRepository.findById(book.getId()).orElseThrow().getStatus(),
+                clubRepository.findById(club.getId()).isPresent(),
+                bindingApi.isBound(new SpaceId(club.getSpaceId()), new ContentId(book.getContentId())),
+                passageRepository.findById(passage.getId()).isPresent(),
+                commentRepository.findById(comment.getId()).isPresent(),
+                authorBookRepository.findById(authorBook.getId()).isPresent()))
+                .containsExactly(BookStatus.DELETED, true, true, true, true, true);
     }
 
     @Test
@@ -166,7 +183,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서는 다시 삭제할 수 없다")
     void cannotDeleteBookTwice() {
-        Book book = bookRepository.save(new Book(new BookTitle("제목"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("제목"), null, null, 1, null));
         adminBookService.delete(book.getId());
 
         assertThatThrownBy(() -> adminBookService.delete(book.getId()))
@@ -177,7 +194,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("동시에 같은 도서를 삭제하면 한 요청만 성공한다")
     void allowOnlyOneConcurrentDeletion() throws Exception {
-        Book book = bookRepository.save(new Book(new BookTitle("동시 삭제"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("동시 삭제"), null, null, 1, null));
         CyclicBarrier start = new CyclicBarrier(2);
         Callable<String> deletion = () -> {
             start.await();
@@ -201,7 +218,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("활성 도서의 표지를 교체하고 제거한다")
     void replaceAndRemoveCoverImage() {
-        Book book = bookRepository.save(new Book(new BookTitle("표지 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("표지 도서"), null, null, 1, null));
 
         adminBookService.replaceCoverImage(book.getId(), COVER_KEY);
         assertThat(bookRepository.getById(book.getId()).getCoverImageKey()).isEqualTo(COVER_KEY);
@@ -213,7 +230,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("삭제된 도서의 표지는 교체할 수 없다")
     void cannotReplaceCoverOfDeletedBook() {
-        Book book = bookRepository.save(new Book(new BookTitle("삭제 표지 도서"), null, null, 1, null));
+        Book book = bookRepository.save(newBook(new BookTitle("삭제 표지 도서"), null, null, 1, null));
         adminBookService.delete(book.getId());
 
         assertThatThrownBy(() -> adminBookService.replaceCoverImage(book.getId(), COVER_KEY))

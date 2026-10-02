@@ -14,4 +14,12 @@ public class BadRequestException extends LogContextException {
     public BadRequestException(ErrorCode code, String message, Map<String, String> logContext) {
         super(code, message, logContext);
     }
+
+    public BadRequestException(ErrorCode code, String message, Throwable cause) {
+        super(code, message, Map.of(), cause);
+    }
+
+    public BadRequestException(ErrorCode code, String message, Map<String, String> logContext, Throwable cause) {
+        super(code, message, logContext, cause);
+    }
 }

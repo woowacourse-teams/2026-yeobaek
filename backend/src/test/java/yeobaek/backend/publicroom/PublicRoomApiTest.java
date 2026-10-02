@@ -1,5 +1,7 @@
 package yeobaek.backend.publicroom;
 
+import yeobaek.backend.support.CommentFixtures;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -29,19 +32,29 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.comment.service.CommentService;
+import yeobaek.backend.collaboration.persistence.AppreciationContextRepository;
+import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.club.domain.Club;
+import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
+import yeobaek.backend.club.domain.vo.JoinCode;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.publicroom.service.PublicRoomBackfill;
-import yeobaek.backend.publicroom.service.PublicRoomService;
+import yeobaek.backend.web.compatibility.CommentService;
+import yeobaek.backend.web.compatibility.PublicRoomService;
 import yeobaek.backend.support.IntegrationTest;
-import org.springframework.boot.DefaultApplicationArguments;
+import yeobaek.backend.reading.persistence.PublicRoomVisitRepository;
+import yeobaek.backend.reading.persistence.ReadingProgressRepository;
+import yeobaek.backend.reading.persistence.ReadingProgressJpaEntity;
 
 class PublicRoomApiTest extends IntegrationTest {
 
@@ -64,19 +77,31 @@ class PublicRoomApiTest extends IntegrationTest {
     private PublicRoomRepository publicRoomRepository;
 
     @Autowired
-    private PublicRoomActivityRepository activityRepository;
+    private ClubRepository clubRepository;
+
+    @Autowired
+    private ClubMemberRepository clubMemberRepository;
+
+    @Autowired
+    private PublicRoomVisitRepository visitRepository;
+
+    @Autowired
+    private ReadingProgressRepository readingProgressRepository;
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private AppreciationContextRepository appreciationContextRepository;
+
+    @Autowired
+    private SpaceContentBindingApi bindingService;
 
     @Autowired
     private CommentReportRepository commentReportRepository;
 
     @Autowired
     private PublicRoomService publicRoomService;
-
-    @Autowired
-    private PublicRoomBackfill publicRoomBackfill;
 
     @Autowired
     private CommentService commentService;
@@ -87,7 +112,7 @@ class PublicRoomApiTest extends IntegrationTest {
         ReadingFixture fixture = createRoom("동시 신고 책", 1);
         Member writer = memberRepository.save(new Member(new Nickname("신고 대상")));
         Member reporter = memberRepository.save(new Member(new Nickname("신고자")));
-        Comment comment = commentRepository.save(new Comment(fixture.room(), writer,
+        Comment comment = saveComment(newPublicRoomComment(fixture.room(), writer,
                 fixture.passages().getFirst().getSentences().getFirst(), new CommentContent("댓글")));
         CountDownLatch start = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
@@ -108,17 +133,14 @@ class PublicRoomApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("기존 도서 backfill은 재실행해도 도서마다 공개방 하나를 유지한다")
-    void backfillExistingBooks() {
-        Book first = bookRepository.save(new Book(new BookTitle("기존 책 1"), null, null, 1, null));
-        Book second = bookRepository.save(new Book(new BookTitle("기존 책 2"), null, null, 1, null));
+    @DisplayName("도서만 저장해도 시작 시 공개방을 암묵적으로 생성하지 않는다")
+    void doesNotBackfillExistingBooksAtStartup() {
+        Book first = bookRepository.save(newBook(new BookTitle("기존 책 1"), null, null, 1, null));
+        Book second = bookRepository.save(newBook(new BookTitle("기존 책 2"), null, null, 1, null));
 
-        publicRoomBackfill.run(new DefaultApplicationArguments());
-        publicRoomBackfill.run(new DefaultApplicationArguments());
-
-        assertThat(publicRoomRepository.findByBookId(first.getId())).isPresent();
-        assertThat(publicRoomRepository.findByBookId(second.getId())).isPresent();
-        assertThat(publicRoomRepository.count()).isEqualTo(2);
+        assertThat(bookRepository.findById(first.getId())).isPresent();
+        assertThat(bookRepository.findById(second.getId())).isPresent();
+        assertThat(publicRoomRepository.count()).isZero();
     }
 
     @Test
@@ -142,11 +164,13 @@ class PublicRoomApiTest extends IntegrationTest {
             progress.get(10, TimeUnit.SECONDS);
         }
 
-        var activity = activityRepository.findByMemberIdAndPublicRoomId(
-                member.getId(), fixture.room().getId()).orElseThrow();
-        assertThat(activity.getLastVisitedAt()).isNotNull();
-        assertThat(activity.getLastReadPassage()).isNotNull();
-        assertThat(activityRepository.count()).isOne();
+        var visit = visitRepository.findOne(member.getId(), fixture.room().getSpaceId()).orElseThrow();
+        var savedProgress = readingProgressRepository.findOne(member.getId(), fixture.room().getSpaceId(),
+                fixture.book().getContentId()).orElseThrow();
+        assertThat(visit.getLastVisitedAt()).isNotNull();
+        assertThat(savedProgress.getLocationId()).isNotNull();
+        assertThat(visitRepository.count()).isOne();
+        assertThat(readingProgressRepository.count()).isOne();
     }
 
     @Test
@@ -169,7 +193,7 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.publicRooms[0].publicRoomId").value(second.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].publicRoomId").value(first.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].myProgress").value((Object) null));
-        assertThat(activityRepository.count()).isEqualTo(3);
+        assertThat(visitRepository.count()).isEqualTo(3);
 
         Passage lastPassage = first.passages().getLast();
         mockMvc.perform(put("/api/public-rooms/{publicRoomId}/progress", first.room().getId())
@@ -179,6 +203,14 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lastReadPassageSequence").value(2))
                 .andExpect(jsonPath("$.progressRate").value(100));
+
+        mockMvc.perform(put("/api/public-rooms/{publicRoomId}/progress", first.room().getId())
+                        .header("X-Member-Id", member.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"passageId\":" + first.passages().getFirst().getId() + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastReadPassageSequence").value(1))
+                .andExpect(jsonPath("$.progressRate").value(50));
 
         mockMvc.perform(get("/api/members/me/recent-reading")
                         .header("X-Member-Id", member.getId()))
@@ -193,7 +225,7 @@ class PublicRoomApiTest extends IntegrationTest {
                         .header("X-Member-Id", member.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.book.status").value("DELETED"))
-                .andExpect(jsonPath("$.myProgress.lastReadPassageSequence").value(2));
+                .andExpect(jsonPath("$.myProgress.lastReadPassageSequence").value(1));
         mockMvc.perform(get("/api/members/me/recent-reading")
                         .header("X-Member-Id", member.getId()))
                 .andExpect(status().isOk())
@@ -206,6 +238,51 @@ class PublicRoomApiTest extends IntegrationTest {
         mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", member.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.publicRooms.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("최근 독서는 JOINED 모임과 공개방 진도만 경쟁하고 삭제 도서의 최신 진도를 보존한다")
+    void recentReadingUsesJoinedClubAndPublicProgressOnly() throws Exception {
+        Member member = memberRepository.save(new Member(new Nickname("혼합 독자")));
+        ClubReadingFixture joined = createClub("참여 모임", "JOIN01", member, false);
+        ClubReadingFixture left = createClub("탈퇴 모임", "LEFT02", member, true);
+        ReadingFixture progressedRoom = createRoom("진도 공개방", 1);
+        ReadingFixture visitOnlyRoom = createRoom("방문 공개방", 1);
+
+        saveProgress(member, joined.club().getSpaceId(), joined.book(), joined.passage(),
+                LocalDateTime.of(2026, 10, 2, 10, 0));
+        saveProgress(member, progressedRoom.room().getSpaceId(), progressedRoom.book(),
+                progressedRoom.passages().getFirst(), LocalDateTime.of(2026, 10, 2, 11, 0));
+        saveProgress(member, left.club().getSpaceId(), left.book(), left.passage(),
+                LocalDateTime.of(2026, 10, 2, 13, 0));
+        visit(visitOnlyRoom.room(), member);
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space.type").value("PUBLIC_ROOM"))
+                .andExpect(jsonPath("$.space.publicRoomId").value(progressedRoom.room().getId()));
+
+        LocalDateTime tiedAt = LocalDateTime.of(2026, 10, 2, 12, 0);
+        saveProgress(member, joined.club().getSpaceId(), joined.book(), joined.passage(), tiedAt);
+        saveProgress(member, progressedRoom.room().getSpaceId(), progressedRoom.book(),
+                progressedRoom.passages().getFirst(), tiedAt);
+        String tiedResponse = mockMvc.perform(get("/api/members/me/recent-reading")
+                        .header("X-Member-Id", member.getId()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(tiedResponse).satisfiesAnyOf(
+                response -> assertThat(response).contains("\"bookId\":" + joined.book().getId()),
+                response -> assertThat(response).contains("\"bookId\":" + progressedRoom.book().getId()));
+
+        saveProgress(member, joined.club().getSpaceId(), joined.book(), joined.passage(),
+                LocalDateTime.of(2026, 10, 2, 14, 0));
+        bookRepository.delete(joined.book().getId());
+
+        mockMvc.perform(get("/api/members/me/recent-reading").header("X-Member-Id", member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.space.type").value("CLUB"))
+                .andExpect(jsonPath("$.space.clubId").value(joined.club().getId()))
+                .andExpect(jsonPath("$.book.status").value("DELETED"));
     }
 
     @Test
@@ -278,20 +355,21 @@ class PublicRoomApiTest extends IntegrationTest {
     @Test
     @DisplayName("공개방의 같은 댓글 상태 그룹은 최신 댓글 시각보다 책의 문단·문장 순서로 정렬한다")
     void commentedSentencesUseBookOrderWithinGroup() throws Exception {
-        Book book = bookRepository.save(new Book(new BookTitle("댓글 정렬 책"), null, null, 2, null));
+        Book book = bookRepository.save(newBook(new BookTitle("댓글 정렬 책"), null, null, 2, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Passage firstPassage = passageRepository.save(new Passage(chapter, 1,
+        Passage firstPassage = passageRepository.save(newPassage(chapter, 1,
                 List.of(new SentenceContent("앞 문단 첫 문장"), new SentenceContent("앞 문단 둘째 문장"))));
-        Passage secondPassage = passageRepository.save(new Passage(chapter, 2,
+        Passage secondPassage = passageRepository.save(newPassage(chapter, 2,
                 List.of(new SentenceContent("뒤 문단 첫 문장"))));
-        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        PublicRoom room = publicRoomRepository.save(newPublicRoom());
+        bindingService.bind(new SpaceId(room.getSpaceId()), new ContentId(book.getContentId()));
         Member writer = memberRepository.save(new Member(new Nickname("정렬 작성자")));
         Member reader = memberRepository.save(new Member(new Nickname("정렬 독자")));
-        commentRepository.save(new Comment(room, writer,
+        saveComment(newPublicRoomComment(room, writer,
                 firstPassage.getSentences().getFirst(), new CommentContent("가장 먼저 작성된 앞 문단 첫 문장 댓글")));
-        commentRepository.save(new Comment(room, writer,
+        saveComment(newPublicRoomComment(room, writer,
                 firstPassage.getSentences().getLast(), new CommentContent("나중에 작성된 앞 문단 둘째 문장 댓글")));
-        commentRepository.save(new Comment(room, writer,
+        saveComment(newPublicRoomComment(room, writer,
                 secondPassage.getSentences().getFirst(), new CommentContent("가장 나중에 작성된 뒤 문단 댓글")));
 
         mockMvc.perform(get("/api/public-rooms/{publicRoomId}/commented-sentences", room.getId())
@@ -327,8 +405,8 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        assertThat(activityRepository.findAll()).hasSize(1)
-                .allMatch(activity -> activity.getMember().getId().equals(remaining.getId()));
+        assertThat(visitRepository.findAll()).hasSize(1)
+                .allMatch(visit -> visit.getActorId().equals(remaining.getId()));
         assertThat(commentRepository.findAll()).isEmpty();
         assertThat(publicRoomRepository.findAll()).hasSize(1);
     }
@@ -353,14 +431,39 @@ class PublicRoomApiTest extends IntegrationTest {
     }
 
     private ReadingFixture createRoom(String title, int passageCount) {
-        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null));
+        Book book = bookRepository.save(newBook(new BookTitle(title), null, null, passageCount, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         List<Passage> passages = java.util.stream.IntStream.rangeClosed(1, passageCount)
-                .mapToObj(sequence -> passageRepository.save(new Passage(chapter, sequence,
+                .mapToObj(sequence -> passageRepository.save(newPassage(chapter, sequence,
                         List.of(new SentenceContent(sequence + "번 문장")))))
                 .toList();
-        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        PublicRoom room = publicRoomRepository.save(newPublicRoom());
+        bindingService.bind(new SpaceId(room.getSpaceId()), new ContentId(book.getContentId()));
         return new ReadingFixture(book, room, passages);
+    }
+
+    private ClubReadingFixture createClub(String name, String joinCode, Member member, boolean left) {
+        Book book = bookRepository.save(newBook(new BookTitle(name + " 책"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(newPassage(chapter, 1, List.of(new SentenceContent("문장"))));
+        Club club = clubRepository.save(newClub(new ClubName(name), new JoinCode(joinCode)));
+        bindingService.bind(new SpaceId(club.getSpaceId()), new ContentId(book.getContentId()));
+        ClubMember membership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(member.getId()), club);
+        if (left) {
+            membership.leave();
+        }
+        clubMemberRepository.save(membership);
+        return new ClubReadingFixture(book, club, passage);
+    }
+
+    private void saveProgress(Member member, Long spaceId, Book book,
+                              Passage passage, LocalDateTime readAt) {
+        ReadingProgressJpaEntity progress = readingProgressRepository.findOne(
+                        member.getId(), spaceId, book.getContentId())
+                .orElseGet(() -> new ReadingProgressJpaEntity(member.getId(), spaceId,
+                        book.getContentId(), passage.getLocationId(), readAt));
+        progress.update(passage.getLocationId(), readAt);
+        readingProgressRepository.save(progress);
     }
 
     private void await(CountDownLatch latch) {
@@ -372,6 +475,15 @@ class PublicRoomApiTest extends IntegrationTest {
         }
     }
 
+    private Comment saveComment(Comment comment) {
+        Comment saved = commentRepository.save(comment);
+        appreciationContextRepository.save(CommentFixtures.contextOf(saved));
+        return saved;
+    }
+
     private record ReadingFixture(Book book, PublicRoom room, List<Passage> passages) {
+    }
+
+    private record ClubReadingFixture(Book book, Club club, Passage passage) {
     }
 }

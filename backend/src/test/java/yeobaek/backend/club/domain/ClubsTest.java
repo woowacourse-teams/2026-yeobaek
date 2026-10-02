@@ -8,8 +8,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 
@@ -44,8 +42,7 @@ class ClubsTest {
     }
 
     private Club clubWithId(Long id, String name) {
-        Book book = new Book(new BookTitle("도서"), null, null, 1, null);
-        Club club = new Club(new ClubName(name), book, new JoinCode("CLUB01"));
+        Club club = new Club(1L, new ClubName(name), new JoinCode("CLUB01"));
         ReflectionTestUtils.setField(club, "id", id);
         return club;
     }
