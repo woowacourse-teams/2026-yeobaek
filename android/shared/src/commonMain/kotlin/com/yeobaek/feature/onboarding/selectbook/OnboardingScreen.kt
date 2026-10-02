@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBottomSheetContent
@@ -133,7 +134,7 @@ fun OnboardingScreen(
             )
             Text("책 목록", style = MaterialTheme.typography.headlineMedium)
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(getGridCount()),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {

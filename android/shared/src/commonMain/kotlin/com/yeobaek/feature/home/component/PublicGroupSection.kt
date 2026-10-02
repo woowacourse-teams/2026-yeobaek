@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.component.BookItem
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.PublicRoomTabUiState
@@ -93,7 +94,7 @@ private fun PublicRoomGrid(
         }
     }
     LazyVerticalGrid(
-        columns = GridCells.Fixed(PUBLIC_ROOM_COLUMN_COUNT),
+        columns = GridCells.Fixed(getGridCount()),
         state = gridState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
@@ -161,8 +162,8 @@ private fun VisitedPublicRoomRow(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val itemWidth = (maxWidth - PUBLIC_ROOM_ITEM_SPACING * (PUBLIC_ROOM_COLUMN_COUNT - 1)) /
-            PUBLIC_ROOM_COLUMN_COUNT
+        val itemWidth = (maxWidth - PUBLIC_ROOM_ITEM_SPACING * (getGridCount() - 1)) /
+            getGridCount()
 
         LazyRow(
             state = listState,
@@ -261,5 +262,4 @@ private val previewPublicRooms = listOf(
     ),
 )
 
-private const val PUBLIC_ROOM_COLUMN_COUNT = 3
 private val PUBLIC_ROOM_ITEM_SPACING = 12.dp
