@@ -44,6 +44,7 @@ import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 fun OnboardingScreen(
     uiState: OnboardingUiState,
     navigateToHome: () -> Unit,
+    onClickSkip: () -> Unit,
     navigateToJoin: () -> Unit,
     onSelectBook: (Long) -> Unit,
     onDismissBottomSheet: () -> Unit,
@@ -106,7 +107,10 @@ fun OnboardingScreen(
                 title = {},
                 actions = {
                     TextButton(
-                        onClick = navigateToHome,
+                        onClick = {
+                            onClickSkip()
+                            navigateToHome()
+                        },
                     ) {
                         Text("건너뛰기")
                     }
@@ -220,6 +224,7 @@ private fun OnboardingScreenPreview() {
                 ),
             ),
             navigateToHome = {},
+            onClickSkip = {},
             navigateToJoin = {},
             onSelectBook = {},
             onDismissBottomSheet = {},

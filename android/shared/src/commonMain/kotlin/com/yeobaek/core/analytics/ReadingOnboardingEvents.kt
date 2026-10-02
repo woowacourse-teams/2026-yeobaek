@@ -5,6 +5,11 @@ enum class ReadingOnboardingOption(val value: String) {
     PUBLIC_ROOM("public_room"),
 }
 
+data object ReadingOnboardingSkipped : AnalyticsEvent {
+    override val name = "reading_onboarding_skipped"
+    override val properties = emptyMap<String, Any>()
+}
+
 data class ReadingOnboardingBookSelected(
     val bookId: Long,
     val attemptId: String,
