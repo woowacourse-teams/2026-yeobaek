@@ -37,6 +37,7 @@ import com.yeobaek.core.analytics.MyPageOpened
 import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.analytics.PublicRoomReaderOpened
 import com.yeobaek.core.analytics.ReaderOpened
+import com.yeobaek.core.analytics.ReadingOnboardingSkipped
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -278,6 +279,9 @@ fun App(
                             }
                         }
                         appContainer.guideOnboardingPreferences.saveOnboardingState(true)
+                    },
+                    onClickSkip = {
+                        appContainer.analyticsTracker.track(ReadingOnboardingSkipped)
                     },
                     navigateToJoin = {
                         appContainer.analyticsTracker.track(
