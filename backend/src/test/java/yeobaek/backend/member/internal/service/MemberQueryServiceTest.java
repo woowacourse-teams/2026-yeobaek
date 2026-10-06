@@ -15,9 +15,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberFailureReason;
-import yeobaek.backend.member.api.MemberNotFoundFailure;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.MemberNotFoundException;
+import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberProfile;
 import yeobaek.backend.member.domain.vo.Nickname;
@@ -49,10 +49,10 @@ class MemberQueryServiceTest {
         given(memberRepository.findById(99L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> memberQueryService.getProfile(new MemberId(99L)))
-                .isInstanceOf(MemberNotFoundFailure.class)
+                .isInstanceOf(MemberNotFoundException.class)
                 .satisfies(failure -> {
-                    MemberNotFoundFailure memberFailure = (MemberNotFoundFailure) failure;
-                    assertThat(memberFailure.reason()).isEqualTo(MemberFailureReason.MEMBER_NOT_FOUND);
+                    MemberNotFoundException memberFailure = (MemberNotFoundException) failure;
+                    assertThat(memberFailure.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
                     assertThat(memberFailure.memberId()).isEqualTo(new MemberId(99L));
                 });
     }

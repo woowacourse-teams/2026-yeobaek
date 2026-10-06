@@ -30,15 +30,15 @@ import yeobaek.backend.member.dto.BlockedMemberResponse;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.service.MemberBlockService;
-import yeobaek.backend.web.compatibility.MemberService;
+import yeobaek.backend.web.v1.MemberService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.analytics.AnalyticsEvent;
 import yeobaek.backend.support.analytics.AnalyticsTracker;
-import yeobaek.backend.publicroom.dto.PublicRoomReadingSpaceResponse;
-import yeobaek.backend.publicroom.dto.RecentReadingResponse;
-import yeobaek.backend.web.compatibility.RecentReadingService;
-import yeobaek.backend.club.dto.ClubBookResponse;
-import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.web.publicroom.dto.PublicRoomReadingSpaceResponse;
+import yeobaek.backend.web.publicroom.dto.RecentReadingResponse;
+import yeobaek.backend.web.v1.RecentReadingService;
+import yeobaek.backend.web.common.dto.BookResponse;
+import yeobaek.backend.web.common.dto.BookResponse.Status;
 
 @WebMvcTest(MemberController.class)
 class MemberControllerTest extends ControllerTest {
@@ -73,7 +73,7 @@ class MemberControllerTest extends ControllerTest {
     void findRecentReading() throws Exception {
         givenValidMember(1L);
         var response = new RecentReadingResponse(new PublicRoomReadingSpaceResponse(3L),
-                new ClubBookResponse(2L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE),
+                new BookResponse(2L, "책", List.of("작가"), null, 10, Status.ACTIVE),
                 4, 40, LocalDateTime.of(2026, 9, 30, 10, 0));
         given(recentReadingService.findRecent(1L)).willReturn(Optional.of(response));
 

@@ -13,7 +13,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.LogCapture;
-import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.shared.exception.NotFoundException;
 
 class MemberAuthInterceptorTest {
 

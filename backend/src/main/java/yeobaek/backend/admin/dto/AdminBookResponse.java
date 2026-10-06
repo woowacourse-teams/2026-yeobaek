@@ -2,8 +2,6 @@ package yeobaek.backend.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.BookStatus;
 
 public record AdminBookResponse(
         @Schema(description = "도서 ID") Long bookId,
@@ -13,26 +11,10 @@ public record AdminBookResponse(
         @Schema(description = "출판 연도", nullable = true) Integer publishedYear,
         @Schema(description = "본문 수") int passageCount,
         @Schema(description = "표지 이미지 공개 URL", nullable = true) String coverImageUrl,
-        @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) BookStatus status
+        @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) String status
 ) {
 
     public AdminBookResponse {
         authors = List.copyOf(authors);
-    }
-
-    public static AdminBookResponse of(
-            Book book,
-            List<AdminBookAuthorResponse> authors,
-            String coverImageUrl
-    ) {
-        return new AdminBookResponse(
-                book.getId(),
-                book.getTitle().value(),
-                authors,
-                book.getPublisher() == null ? null : book.getPublisher().value(),
-                book.getPublishedYear(),
-                book.getPassageCount().value(),
-                coverImageUrl,
-                book.getStatus());
     }
 }

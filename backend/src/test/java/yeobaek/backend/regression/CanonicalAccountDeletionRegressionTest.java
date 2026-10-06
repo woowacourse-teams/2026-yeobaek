@@ -10,40 +10,40 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import yeobaek.backend.application.account.AccountDeletionWorkflow;
 import yeobaek.backend.application.appreciation.CommentSharingWorkflow;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
-import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
-import yeobaek.backend.comment.domain.CommentReport;
-import yeobaek.backend.comment.domain.CommentView;
-import yeobaek.backend.comment.repository.CommentReportRepository;
-import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.comment.repository.CommentViewRepository;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.book.domain.Chapter;
+import yeobaek.backend.content.book.domain.Passage;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.content.book.repository.ChapterRepository;
+import yeobaek.backend.content.book.repository.PassageRepository;
+import yeobaek.backend.space.club.persistence.Club;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.space.club.repository.ClubMemberRepository;
+import yeobaek.backend.space.club.repository.ClubRepository;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
+import yeobaek.backend.appreciation.comment.domain.CommentReport;
+import yeobaek.backend.appreciation.comment.domain.CommentView;
+import yeobaek.backend.appreciation.comment.repository.CommentReportRepository;
+import yeobaek.backend.appreciation.comment.repository.CommentRepository;
+import yeobaek.backend.appreciation.comment.repository.CommentViewRepository;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.reading.api.PublicRoomVisitApi;
+import yeobaek.backend.space.publicroom.persistence.PublicRoom;
+import yeobaek.backend.space.publicroom.repository.PublicRoomRepository;
+import yeobaek.backend.space.api.publicroom.PublicRoomVisitApi;
 import yeobaek.backend.reading.api.ReadingProgressApi;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -114,11 +114,11 @@ class CanonicalAccountDeletionRegressionTest extends IntegrationTest {
         Member target = memberRepository.save(new Member(new Nickname("삭제 대상")));
         Member remaining = memberRepository.save(new Member(new Nickname("잔여 회원")));
         Member observer = memberRepository.save(new Member(new Nickname("관찰 회원")));
-        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(target.getId()), joinedClub));
-        ClubMember leftMembership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(target.getId()), leftClub);
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(target.getId()), joinedClub));
+        ClubMember leftMembership = new ClubMember(new yeobaek.backend.shared.identity.MemberId(target.getId()), leftClub);
         leftMembership.leave();
         clubMemberRepository.save(leftMembership);
-        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(remaining.getId()), joinedClub));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(remaining.getId()), joinedClub));
 
         var targetClubComment = share(target, joinedClub.getSpaceId(), book, passage, "모임 삭제 댓글");
         var targetRoomComment = share(target, publicRoom.getSpaceId(), book, passage, "공개방 삭제 댓글");
@@ -170,7 +170,8 @@ class CanonicalAccountDeletionRegressionTest extends IntegrationTest {
     private AppreciationId share(Member author, Long spaceId, Book book, Passage passage, String content) {
         return sharingWorkflow.share(new MemberId(author.getId()), new SpaceId(spaceId),
                 new ContentId(book.getContentId()),
-                new ContentLocationId(passage.getSentences().getFirst().getLocationId()), content)
+                new ContentLocationId(passage.getSentences().getFirst().getLocationId()),
+                new yeobaek.backend.appreciation.api.comment.CommentContent(content))
                 .comment().id();
     }
 

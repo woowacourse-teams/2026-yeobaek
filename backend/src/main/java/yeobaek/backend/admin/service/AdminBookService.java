@@ -6,8 +6,6 @@ import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,35 +13,25 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
 import yeobaek.backend.admin.dto.AdminBookResponse;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.service.BookCoverUrlResolver;
+import yeobaek.backend.content.api.book.BookAdministrationApi;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AdminBookService {
 
-    private final BookManagementRepository bookManagementRepository;
-    private final AuthorBookRepository authorBookRepository;
-    private final BookCoverUrlResolver bookCoverUrlResolver;
+    private final BookAdministrationApi bookAdministrationApi;
 
     @Transactional(readOnly = true)
     public AdminBooksResponse findBooks() {
         logAttempt("admin.book.findBooks", null);
-        List<Book> books = bookManagementRepository.findAllByOrderByIdAsc();
+        List<BookAdministrationApi.BookView> books = bookAdministrationApi.findBooks();
         if (books.isEmpty()) {
             logSuccess("admin.book.findBooks", null, 0);
             return new AdminBooksResponse(List.of());
         }
-        Map<Long, List<AdminBookAuthorResponse>> authorsByBookId = authorsByBookId(
-                books.stream().map(Book::getId).toList());
         var response = new AdminBooksResponse(books.stream()
-                .map(book -> AdminBookResponse.of(
-                        book,
-                        authorsByBookId.getOrDefault(book.getId(), List.of()),
-                        bookCoverUrlResolver.resolve(book.getCoverImageKey())))
+                .map(this::toResponse)
                 .toList());
         logSuccess("admin.book.findBooks", null, response.books().size());
         return response;
@@ -52,31 +40,29 @@ public class AdminBookService {
     @Transactional
     public void delete(Long bookId) {
         logAttempt("admin.book.delete", bookId);
-        bookManagementRepository.delete(bookId);
+        bookAdministrationApi.delete(bookId);
         logSuccess("admin.book.delete", bookId);
     }
 
     @Transactional
     public void replaceCoverImage(Long bookId, String coverImageKey) {
         logAttempt("admin.book.replaceCoverImage", bookId);
-        bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);
+        bookAdministrationApi.replaceCoverImage(bookId, coverImageKey);
         logSuccess("admin.book.replaceCoverImage", bookId);
     }
 
     @Transactional
     public void removeCoverImage(Long bookId) {
         logAttempt("admin.book.removeCoverImage", bookId);
-        bookManagementRepository.getByIdForUpdate(bookId).removeCoverImage();
+        bookAdministrationApi.removeCoverImage(bookId);
         logSuccess("admin.book.removeCoverImage", bookId);
     }
 
-    private Map<Long, List<AdminBookAuthorResponse>> authorsByBookId(List<Long> bookIds) {
-        return authorBookRepository.findAllWithAuthorByBookIdIn(bookIds).stream()
-                .collect(Collectors.groupingBy(
-                        authorBook -> authorBook.getBook().getId(),
-                        Collectors.mapping(
-                                authorBook -> AdminBookAuthorResponse.from(authorBook.getAuthor()),
-                                Collectors.toList())));
+    private AdminBookResponse toResponse(BookAdministrationApi.BookView book) {
+        return new AdminBookResponse(book.bookId(), book.title(), book.authors().stream()
+                .map(author -> new AdminBookAuthorResponse(author.authorId(), author.name(), author.isni()))
+                .toList(), book.publisher(), book.publishedYear(), book.unitCount(),
+                book.coverImageUrl(), book.status());
     }
 
     private void logAttempt(String operation, Long bookId) {

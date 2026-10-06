@@ -12,35 +12,35 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.admin.dto.AdminDashboardClubResponse;
 import yeobaek.backend.admin.dto.AdminDashboardClubsResponse;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.BookStatus;
-import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
-import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.comment.domain.Comment;
-import yeobaek.backend.comment.domain.vo.CommentContent;
-import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.web.common.dto.BookResponse.Status;
+import yeobaek.backend.content.book.domain.Chapter;
+import yeobaek.backend.content.book.domain.Passage;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.content.book.repository.ChapterRepository;
+import yeobaek.backend.content.book.repository.PassageRepository;
+import yeobaek.backend.space.club.persistence.Club;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.space.club.repository.ClubMemberRepository;
+import yeobaek.backend.space.club.repository.ClubRepository;
+import yeobaek.backend.appreciation.comment.persistence.Comment;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.appreciation.comment.repository.CommentRepository;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.collaboration.persistence.AppreciationContextRepository;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.web.compatibility.MemberService;
+import yeobaek.backend.web.v1.MemberService;
 import yeobaek.backend.support.IntegrationTest;
 
 class AdminClubDashboardServiceTest extends IntegrationTest {
@@ -97,13 +97,13 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
         Member left = memberRepository.save(new Member(new Nickname("탈퇴 회원")));
         Member deleted = memberRepository.save(new Member(new Nickname("삭제 회원")));
         Member secondJoined = memberRepository.save(new Member(new Nickname("둘째 모임 회원")));
-        ClubMember joinedMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(joined.getId()), first));
-        ClubMember leftMembership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(left.getId()), first);
+        ClubMember joinedMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(joined.getId()), first));
+        ClubMember leftMembership = new ClubMember(new yeobaek.backend.shared.identity.MemberId(left.getId()), first);
         leftMembership.leave();
         leftMembership = clubMemberRepository.save(leftMembership);
-        ClubMember deletedMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(deleted.getId()), first));
-        ClubMember secondMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(joined.getId()), second));
-        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(secondJoined.getId()), second));
+        ClubMember deletedMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(deleted.getId()), first));
+        ClubMember secondMembership = clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(joined.getId()), second));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(secondJoined.getId()), second));
         memberBlockRepository.save(new MemberBlock(joined, left));
         saveComments(List.of(
                 newClubComment(joinedMembership, passage.getSentences().getFirst(), new CommentContent("첫 댓글")),
@@ -124,9 +124,9 @@ class AdminClubDashboardServiceTest extends IntegrationTest {
                         AdminDashboardClubResponse::memberCount,
                         AdminDashboardClubResponse::commentCount)
                 .containsExactly(
-                        tuple(first.getId(), "첫 모임", BookStatus.DELETED, 1L, 3L),
-                        tuple(empty.getId(), "빈 모임", BookStatus.DELETED, 0L, 0L),
-                        tuple(second.getId(), "둘째 모임", BookStatus.DELETED, 2L, 1L));
+                        tuple(first.getId(), "첫 모임", Status.DELETED, 1L, 3L),
+                        tuple(empty.getId(), "빈 모임", Status.DELETED, 0L, 0L),
+                        tuple(second.getId(), "둘째 모임", Status.DELETED, 2L, 1L));
         assertThat(response.clubs().getFirst())
                 .extracting(AdminDashboardClubResponse::bookId, AdminDashboardClubResponse::bookTitle)
                 .containsExactly(book.getId(), "통계 도서");

@@ -3,12 +3,10 @@ package yeobaek.backend.member.service;
 import static yeobaek.backend.support.LogField.BLOCKED_MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
-import static yeobaek.backend.support.LogField.REASON;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.member.domain.Member;
@@ -17,9 +15,9 @@ import yeobaek.backend.member.dto.BlockedMemberResponse;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.BadRequestException;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.member.api.MemberNotFoundException;
+import yeobaek.backend.member.api.block.SelfBlockException;
+import yeobaek.backend.shared.identity.MemberId;
 
 @Service
 @RequiredArgsConstructor
@@ -45,16 +43,12 @@ public class MemberBlockService {
     public void block(Long blockerId, Long blockedId) {
         logAttempt("memberBlock.block", blockedId);
         if (blockerId.equals(blockedId)) {
-            throw new BadRequestException(
-                    ErrorCode.CANNOT_BLOCK_SELF,
-                    "자기 자신은 차단할 수 없습니다: memberId=" + blockerId,
-                    Map.of(REASON, "self_block"));
+            throw new SelfBlockException(new MemberId(blockerId),
+                    "자기 자신은 차단할 수 없습니다: memberId=" + blockerId);
         }
         Member blocked = memberRepository.findById(blockedId)
-                .orElseThrow(() -> new NotFoundException(
-                        ErrorCode.MEMBER_NOT_FOUND,
-                        "차단할 회원이 존재하지 않습니다: memberId=" + blockedId,
-                        Map.of(BLOCKED_MEMBER_ID, blockedId.toString())));
+                .orElseThrow(() -> new MemberNotFoundException(new MemberId(blockedId),
+                        "차단할 회원이 존재하지 않습니다: memberId=" + blockedId));
         if (!memberBlockRepository.existsByBlockerIdAndBlockedId(blockerId, blockedId)) {
             memberBlockRepository.save(new MemberBlock(memberRepository.getReferenceById(blockerId), blocked));
         }
@@ -65,10 +59,8 @@ public class MemberBlockService {
     public void unblock(Long blockerId, Long blockedId) {
         logAttempt("memberBlock.unblock", blockedId);
         if (!memberRepository.existsById(blockedId)) {
-            throw new NotFoundException(
-                    ErrorCode.MEMBER_NOT_FOUND,
-                    "차단 해제할 회원이 존재하지 않습니다: memberId=" + blockedId,
-                    Map.of(BLOCKED_MEMBER_ID, blockedId.toString()));
+            throw new MemberNotFoundException(new MemberId(blockedId),
+                    "차단 해제할 회원이 존재하지 않습니다: memberId=" + blockedId);
         }
         memberBlockRepository.deleteByBlockerIdAndBlockedId(blockerId, blockedId);
         logSuccess("memberBlock.unblock", blockedId);

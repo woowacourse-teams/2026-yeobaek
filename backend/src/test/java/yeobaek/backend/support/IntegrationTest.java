@@ -8,27 +8,31 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.content.api.ContentLifecycleApi;
-import yeobaek.backend.appreciation.api.AppreciationRootApi;
-import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.comment.domain.Comment;
-import yeobaek.backend.comment.domain.vo.CommentContent;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.book.domain.Chapter;
+import yeobaek.backend.content.book.domain.Passage;
+import yeobaek.backend.content.book.domain.Sentence;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.Publisher;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.content.api.lifecycle.ContentLifecycleApi;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.location.LocationKind;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.space.club.persistence.Club;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.appreciation.comment.persistence.Comment;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.space.api.SpaceRootLifecycleApi;
+import yeobaek.backend.space.publicroom.persistence.PublicRoom;
+import yeobaek.backend.space.api.lifecycle.SpaceRootLifecycleApi;
+import yeobaek.backend.space.api.SpaceKind;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -51,15 +55,16 @@ public abstract class IntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     protected Club newClub(ClubName name, JoinCode joinCode) {
-        return new Club(spaceRootLifecycleApi.create("CLUB").value(), name, joinCode);
+        return new Club(spaceRootLifecycleApi.create(SpaceKind.CLUB).value(), name, joinCode);
     }
 
     protected PublicRoom newPublicRoom() {
-        return PublicRoom.create(spaceRootLifecycleApi.create("PUBLIC_ROOM").value());
+        return PublicRoom.create(spaceRootLifecycleApi.create(SpaceKind.PUBLIC_ROOM).value());
     }
 
     protected Comment newClubComment(ClubMember membership, Sentence sentence, CommentContent content) {
-        var root = appreciationRootApi.create("COMMENT", new MemberId(membership.getMemberId()), LocalDateTime.now());
+        var root = appreciationRootApi.create(
+                AppreciationKind.COMMENT, new MemberId(membership.getMemberId()), LocalDateTime.now());
         return CommentFixtures.inClub(root.id(), contentIdOf(sentence), membership, sentence, content);
     }
 
@@ -68,7 +73,8 @@ public abstract class IntegrationTest {
     }
 
     protected Comment newPublicRoomComment(PublicRoom room, Member author, Sentence sentence, CommentContent content) {
-        var root = appreciationRootApi.create("COMMENT", new MemberId(author.getId()), LocalDateTime.now());
+        var root = appreciationRootApi.create(
+                AppreciationKind.COMMENT, new MemberId(author.getId()), LocalDateTime.now());
         return CommentFixtures.inPublicRoom(root.id(), contentIdOf(sentence), room, sentence, content);
     }
 
@@ -78,15 +84,15 @@ public abstract class IntegrationTest {
 
     protected Book newBook(BookTitle title, Publisher publisher, Integer publishedYear,
                            int passageCount, String coverImageKey) {
-        ContentId contentId = contentLifecycleApi.createContent("BOOK");
+        ContentId contentId = contentLifecycleApi.createContent(ContentKind.BOOK);
         return new Book(contentId, title, publisher, publishedYear, passageCount, coverImageKey);
     }
 
     protected Passage newPassage(Chapter chapter, int sequence, List<SentenceContent> sentenceContents) {
         ContentId contentId = new ContentId(chapter.getBook().getContentId());
-        ContentLocationId passageLocationId = contentLifecycleApi.createLocation(contentId, "PASSAGE");
+        ContentLocationId passageLocationId = contentLifecycleApi.createLocation(contentId, LocationKind.PASSAGE);
         List<ContentLocationId> sentenceLocationIds = sentenceContents.stream()
-                .map(ignored -> contentLifecycleApi.createLocation(contentId, "SENTENCE"))
+                .map(ignored -> contentLifecycleApi.createLocation(contentId, LocationKind.SENTENCE))
                 .toList();
         return new Passage(passageLocationId, sentenceLocationIds, chapter, sequence, sentenceContents);
     }

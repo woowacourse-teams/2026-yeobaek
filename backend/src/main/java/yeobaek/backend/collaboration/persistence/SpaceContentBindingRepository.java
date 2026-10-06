@@ -7,4 +7,6 @@ public interface SpaceContentBindingRepository
         extends JpaRepository<SpaceContentBindingJpaEntity, SpaceContentBindingId> {
 
     List<SpaceContentBindingJpaEntity> findAllBySpaceIdOrderByContentId(Long spaceId);
+
+    List<SpaceContentBindingJpaEntity> findAllByContentIdOrderBySpaceId(Long contentId);
 }

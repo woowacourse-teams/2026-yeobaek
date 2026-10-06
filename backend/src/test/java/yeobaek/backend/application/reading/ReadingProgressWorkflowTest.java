@@ -9,16 +9,18 @@ import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.content.api.location.ContentLocationQueryApi;
+import yeobaek.backend.content.api.location.LocationKind;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.MemberProfile;
 import yeobaek.backend.reading.api.ReadingProgressApi;
-import yeobaek.backend.space.api.SpaceAccessApi;
+import yeobaek.backend.space.api.access.SpaceAccessApi;
 
 class ReadingProgressWorkflowTest {
 
@@ -35,15 +37,17 @@ class ReadingProgressWorkflowTest {
         var bindings = mock(SpaceContentBindingApi.class);
         var contents = mock(ContentApi.class);
         var progress = mock(ReadingProgressApi.class);
+        var locations = mock(ContentLocationQueryApi.class);
         given(members.getProfile(ACTOR)).willReturn(new MemberProfile(ACTOR, "독자"));
         given(spaces.canAccess(ACTOR, SPACE)).willReturn(true);
         given(bindings.isBound(SPACE, CONTENT)).willReturn(true);
-        given(contents.ownsLocation(CONTENT, LOCATION)).willReturn(true);
-        var workflow = new ReadingProgressWorkflow(members, spaces, bindings, contents, progress);
+        given(locations.get(LOCATION)).willReturn(new ContentLocationQueryApi.Location(
+                LOCATION, CONTENT, LocationKind.PASSAGE, LOCATION, 1));
+        var workflow = new ReadingProgressWorkflow(members, spaces, bindings, contents, progress, locations);
 
         workflow.update(ACTOR, SPACE, CONTENT, LOCATION, READ_AT);
 
-        verifyValidationOrder(members, spaces, bindings, contents, progress);
+        verifyValidationOrder(members, spaces, bindings, contents, progress, locations);
     }
 
     @Test
@@ -53,26 +57,27 @@ class ReadingProgressWorkflowTest {
         var bindings = mock(SpaceContentBindingApi.class);
         var contents = mock(ContentApi.class);
         var progress = mock(ReadingProgressApi.class);
+        var locations = mock(ContentLocationQueryApi.class);
         given(members.getProfile(ACTOR)).willReturn(new MemberProfile(ACTOR, "독자"));
         given(spaces.canAccess(ACTOR, SPACE)).willReturn(true);
         given(bindings.isBound(SPACE, CONTENT)).willReturn(false);
-        var workflow = new ReadingProgressWorkflow(members, spaces, bindings, contents, progress);
+        var workflow = new ReadingProgressWorkflow(members, spaces, bindings, contents, progress, locations);
 
         assertThatThrownBy(() -> workflow.update(ACTOR, SPACE, CONTENT, LOCATION, READ_AT))
-                .isInstanceOf(ReadingProgressPolicyFailure.class);
+                .isInstanceOf(ReadingProgressPolicyException.class);
 
-        verify(contents, never()).ownsLocation(CONTENT, LOCATION);
+        verify(locations, never()).get(LOCATION);
         verify(progress, never()).update(ACTOR, SPACE, CONTENT, LOCATION, READ_AT);
     }
 
     private void verifyValidationOrder(MemberQuery members, SpaceAccessApi spaces,
                                        SpaceContentBindingApi bindings, ContentApi contents,
-                                       ReadingProgressApi progress) {
-        var ordered = inOrder(members, spaces, bindings, contents, progress);
+                                       ReadingProgressApi progress, ContentLocationQueryApi locations) {
+        var ordered = inOrder(members, spaces, bindings, contents, progress, locations);
         ordered.verify(members).getProfile(ACTOR);
         ordered.verify(spaces).canAccess(ACTOR, SPACE);
         ordered.verify(bindings).isBound(SPACE, CONTENT);
-        ordered.verify(contents).ownsLocation(CONTENT, LOCATION);
+        ordered.verify(locations).get(LOCATION);
         ordered.verify(contents).requireAvailable(CONTENT);
         ordered.verify(progress).update(ACTOR, SPACE, CONTENT, LOCATION, READ_AT);
     }

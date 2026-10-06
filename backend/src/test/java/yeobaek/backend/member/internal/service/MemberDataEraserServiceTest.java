@@ -8,7 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.member.repository.MemberRepository;
 
 @ExtendWith(MockitoExtension.class)

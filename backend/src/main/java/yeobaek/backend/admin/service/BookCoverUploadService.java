@@ -19,7 +19,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import yeobaek.backend.admin.dto.BookCoverUploadUrlRequest;
 import yeobaek.backend.admin.dto.BookCoverUploadUrlResponse;
 import yeobaek.backend.support.storage.S3StorageProperties;
-import yeobaek.backend.support.InvalidRequestException;
+import yeobaek.backend.shared.exception.InvalidRequestException;
 
 @Service
 @Slf4j

@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
 
 public record ChapterUploadRequest(
         @JsonProperty(required = true)

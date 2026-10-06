@@ -11,8 +11,8 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.servlet.HandlerInterceptor;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.UnauthorizedException;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.shared.exception.UnauthorizedException;
 
 /**
  * 고정 관리자 토큰(X-Admin-Token) 검증. 토큰 누락·불일치는 401이며,

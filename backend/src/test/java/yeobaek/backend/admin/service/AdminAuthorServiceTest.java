@@ -10,17 +10,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.admin.dto.AdminAuthorBookResponse;
 import yeobaek.backend.admin.dto.AdminAuthorResponse;
 import yeobaek.backend.admin.dto.AdminAuthorsResponse;
-import yeobaek.backend.book.domain.Author;
-import yeobaek.backend.book.domain.AuthorBook;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.BookStatus;
-import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.Isni;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookManagementRepository;
+import yeobaek.backend.content.book.domain.Author;
+import yeobaek.backend.content.book.domain.AuthorBook;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.api.value.AuthorName;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.Isni;
+import yeobaek.backend.content.api.value.Publisher;
+import yeobaek.backend.content.book.repository.AuthorBookRepository;
+import yeobaek.backend.content.book.repository.AuthorRepository;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
 import yeobaek.backend.support.IntegrationTest;
 
 class AdminAuthorServiceTest extends IntegrationTest {
@@ -52,7 +51,7 @@ class AdminAuthorServiceTest extends IntegrationTest {
         assertThat(response.authors().getFirst().isni()).isEqualTo("000000012345964X");
         assertThat(response.authors().getFirst().books())
                 .extracting(AdminAuthorBookResponse::title, AdminAuthorBookResponse::status)
-                .containsExactly(tuple("운수 좋은 날", BookStatus.ACTIVE));
+                .containsExactly(tuple("운수 좋은 날", "ACTIVE"));
         assertThat(response.authors().getLast().books()).isEmpty();
     }
 
@@ -71,6 +70,6 @@ class AdminAuthorServiceTest extends IntegrationTest {
         bookRepository.delete(book.getId());
 
         assertThat(adminAuthorService.findAuthors().authors().getFirst().books().getFirst().status())
-                .isEqualTo(BookStatus.DELETED);
+                .isEqualTo("DELETED");
     }
 }

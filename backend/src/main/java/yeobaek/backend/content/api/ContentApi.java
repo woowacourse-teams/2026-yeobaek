@@ -1,8 +1,7 @@
 package yeobaek.backend.content.api;
 
-import yeobaek.backend.content.domain.Content;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
 
 public interface ContentApi {
 

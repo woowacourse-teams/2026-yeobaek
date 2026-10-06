@@ -10,7 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardClubCountDistributionResponse;
 import yeobaek.backend.admin.dto.AdminDashboardMemberResponse;
 import yeobaek.backend.admin.dto.AdminDashboardMembersResponse;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.club.repository.MemberClubCount;
+import yeobaek.backend.space.api.club.ClubMembershipApi;
+import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.member.domain.Members;
 import yeobaek.backend.member.repository.MemberRepository;
 
@@ -31,7 +30,7 @@ public class AdminMemberDashboardService {
     private static final int AVERAGE_SCALE = 2;
 
     private final MemberRepository memberRepository;
-    private final ClubMemberRepository clubMemberRepository;
+    private final ClubMembershipApi memberships;
 
     @Transactional(readOnly = true)
     public AdminDashboardMembersResponse findMemberClubParticipationStatistics() {
@@ -43,8 +42,8 @@ public class AdminMemberDashboardService {
             return new AdminDashboardMembersResponse(
                     List.of(), BigDecimal.ZERO.setScale(AVERAGE_SCALE), List.of());
         }
-        Map<Long, Long> clubCounts = clubMemberRepository.countJoinedClubsByMemberIds(allMembers.ids()).stream()
-                .collect(Collectors.toMap(MemberClubCount::getMemberId, MemberClubCount::getClubCount));
+        Map<Long, Long> clubCounts = memberships.countJoinedClubs(
+                allMembers.ids().stream().map(MemberId::new).toList());
         List<AdminDashboardMemberResponse> members = allMembers.asList().stream()
                 .map(member -> new AdminDashboardMemberResponse(
                         member.getId(),

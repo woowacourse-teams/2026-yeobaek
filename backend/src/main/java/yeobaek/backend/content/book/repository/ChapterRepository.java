@@ -1,0 +1,10 @@
+package yeobaek.backend.content.book.repository;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import yeobaek.backend.content.book.domain.Chapter;
+
+public interface ChapterRepository extends JpaRepository<Chapter, Long> {
+
+    List<Chapter> findAllByBookIdOrderBySequenceAsc(Long bookId);
+}

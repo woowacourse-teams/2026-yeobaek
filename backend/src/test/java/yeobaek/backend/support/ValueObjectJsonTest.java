@@ -22,19 +22,21 @@ import yeobaek.backend.admin.dto.AuthorEntryRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
-import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.Isni;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.dto.ClubCreateRequest;
-import yeobaek.backend.club.dto.ClubJoinRequest;
-import yeobaek.backend.comment.domain.vo.CommentContent;
-import yeobaek.backend.comment.dto.CommentCreateRequest;
-import yeobaek.backend.comment.dto.CommentUpdateRequest;
+import yeobaek.backend.content.api.value.AuthorName;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.Isni;
+import yeobaek.backend.content.api.value.Publisher;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.web.club.dto.ClubCreateRequest;
+import yeobaek.backend.web.club.dto.ClubJoinRequest;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.web.comment.dto.CommentCreateRequest;
+import yeobaek.backend.web.comment.dto.CommentUpdateRequest;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateRequest;
 
@@ -74,6 +76,24 @@ class ValueObjectJsonTest {
                 Arguments.of(new Isni("000000012345964X"), "000000012345964X"),
                 Arguments.of(new ChapterTitle("1장"), "1장"),
                 Arguments.of(new SentenceContent("  문장\n"), "  문장\n"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("numericIdentifierValues")
+    @DisplayName("canonical 식별자 MixIn은 숫자 스칼라 JSON을 보존한다")
+    void numericIdentifierRoundTrip(Object value, Long scalar) {
+        String json = mapper.writeValueAsString(value);
+
+        assertThat(json).isEqualTo(mapper.writeValueAsString(scalar));
+        assertThat(mapper.readValue(json, value.getClass())).isEqualTo(value);
+        assertThatThrownBy(() -> mapper.readValue("0", value.getClass()))
+                .isInstanceOf(JacksonException.class);
+    }
+
+    private static Stream<Arguments> numericIdentifierValues() {
+        return Stream.of(
+                Arguments.of(new ContentId(2L), 2L),
+                Arguments.of(new ContentLocationId(3L), 3L));
     }
 
     @ParameterizedTest

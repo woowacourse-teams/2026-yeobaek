@@ -10,15 +10,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.admin.dto.AdminDashboardClubCountDistributionResponse;
 import yeobaek.backend.admin.dto.AdminDashboardMemberResponse;
 import yeobaek.backend.admin.dto.AdminDashboardMembersResponse;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.space.club.persistence.Club;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.space.club.repository.ClubMemberRepository;
+import yeobaek.backend.space.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -57,7 +57,7 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
         join(threeClubs, third);
         join(oneClubFirst, first);
         join(oneClubSecond, second);
-        ClubMember leftMembership = new ClubMember(new yeobaek.backend.foundation.identity.MemberId(zeroClubs.getId()), first);
+        ClubMember leftMembership = new ClubMember(new yeobaek.backend.shared.identity.MemberId(zeroClubs.getId()), first);
         leftMembership.leave();
         clubMemberRepository.save(leftMembership);
         bookRepository.delete(book.getId());
@@ -120,6 +120,6 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
     }
 
     private void join(Member member, Club club) {
-        clubMemberRepository.save(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(member.getId()), club));
+        clubMemberRepository.save(new ClubMember(new yeobaek.backend.shared.identity.MemberId(member.getId()), club));
     }
 }

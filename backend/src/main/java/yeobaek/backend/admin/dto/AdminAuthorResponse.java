@@ -2,7 +2,6 @@ package yeobaek.backend.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
-import yeobaek.backend.book.domain.Author;
 
 public record AdminAuthorResponse(
         @Schema(description = "작가 ID") Long authorId,
@@ -13,10 +12,5 @@ public record AdminAuthorResponse(
 
     public AdminAuthorResponse {
         books = List.copyOf(books);
-    }
-
-    public static AdminAuthorResponse of(Author author, List<AdminAuthorBookResponse> books) {
-        return new AdminAuthorResponse(author.getId(), author.getName().value(),
-                author.getIsni() == null ? null : author.getIsni().value(), books);
     }
 }

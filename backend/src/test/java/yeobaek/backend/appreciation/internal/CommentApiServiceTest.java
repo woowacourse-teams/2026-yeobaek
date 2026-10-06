@@ -8,18 +8,21 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import yeobaek.backend.appreciation.api.AppreciationRootApi;
-import yeobaek.backend.appreciation.api.CommentFailure;
-import yeobaek.backend.comment.domain.Comment;
-import yeobaek.backend.comment.domain.vo.CommentContent;
-import yeobaek.backend.comment.internal.CommentApiService;
-import yeobaek.backend.comment.repository.CommentReportRepository;
-import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.comment.repository.CommentViewRepository;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.appreciation.api.comment.CommentException;
+import yeobaek.backend.appreciation.comment.persistence.Comment;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.appreciation.comment.internal.CommentApiService;
+import yeobaek.backend.appreciation.comment.repository.CommentReportRepository;
+import yeobaek.backend.appreciation.comment.repository.CommentRepository;
+import yeobaek.backend.appreciation.comment.repository.CommentViewRepository;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.exception.ErrorCode;
 
 class CommentApiServiceTest {
 
@@ -35,7 +38,7 @@ class CommentApiServiceTest {
     void setUp() {
         entity = new Comment(10L, new CommentContent("원문"));
         root = new AppreciationRootApi.Root(new AppreciationId(10L), new MemberId(2L),
-                yeobaek.backend.appreciation.domain.Comment.COMMENT_KIND,
+                AppreciationKind.COMMENT,
                 java.time.LocalDateTime.of(2026, 10, 2, 12, 0), null);
     }
 
@@ -44,9 +47,10 @@ class CommentApiServiceTest {
         given(comments.findById(10L)).willReturn(Optional.of(entity));
         given(roots.getForUpdate(new AppreciationId(10L))).willReturn(root);
 
-        assertThatThrownBy(() -> api.update(new MemberId(1L), new AppreciationId(10L), "변경"))
-                .isInstanceOfSatisfying(CommentFailure.class,
-                        failure -> assertThat(failure.reason()).isEqualTo(CommentFailure.Reason.NOT_OWNER));
+        assertThatThrownBy(() -> api.update(new MemberId(1L), new AppreciationId(10L),
+                new CommentContent("변경")))
+                .isInstanceOfSatisfying(CommentException.class,
+                        failure -> assertThat(failure.getCode()).isEqualTo(ErrorCode.NOT_COMMENT_OWNER));
 
         assertThat(entity.getContent()).isEqualTo("원문");
     }
@@ -57,8 +61,8 @@ class CommentApiServiceTest {
         given(roots.getForUpdate(new AppreciationId(10L))).willReturn(root);
 
         assertThatThrownBy(() -> api.delete(new MemberId(1L), new AppreciationId(10L)))
-                .isInstanceOfSatisfying(CommentFailure.class,
-                        failure -> assertThat(failure.reason()).isEqualTo(CommentFailure.Reason.NOT_OWNER));
+                .isInstanceOfSatisfying(CommentException.class,
+                        failure -> assertThat(failure.getCode()).isEqualTo(ErrorCode.NOT_COMMENT_OWNER));
 
         verify(comments, never()).delete(entity);
     }
@@ -69,9 +73,9 @@ class CommentApiServiceTest {
         given(roots.getForUpdate(new AppreciationId(10L))).willReturn(root);
 
         assertThatThrownBy(() -> api.report(new MemberId(2L), new AppreciationId(10L)))
-                .isInstanceOfSatisfying(CommentFailure.class,
-                        failure -> assertThat(failure.reason())
-                                .isEqualTo(CommentFailure.Reason.CANNOT_REPORT_OWN_COMMENT));
+                .isInstanceOfSatisfying(CommentException.class,
+                        failure -> assertThat(failure.getCode())
+                                .isEqualTo(ErrorCode.CANNOT_REPORT_OWN_COMMENT));
 
         verify(reports, never()).insertIfAbsent(2L, 10L);
     }
@@ -86,5 +90,32 @@ class CommentApiServiceTest {
 
         verify(roots).getForUpdate(new AppreciationId(10L));
         verify(reports).insertIfAbsent(1L, 10L);
+    }
+
+    @Test
+    void findByIdsKeepsBulkLookupAndSortsByCreatedAtThenId() {
+        var later = new Comment(11L, new CommentContent("나중 댓글"));
+        var sameTimeLargerId = new Comment(12L, new CommentContent("같은 시각 댓글"));
+        var createdAt = java.time.LocalDateTime.of(2026, 10, 2, 12, 0);
+        given(comments.findAllById(List.of(11L, 12L, 10L))).willReturn(List.of(later, sameTimeLargerId, entity));
+        given(roots.get(new AppreciationId(11L))).willReturn(new AppreciationRootApi.Root(
+                new AppreciationId(11L), new MemberId(2L), AppreciationKind.COMMENT,
+                createdAt.plusMinutes(1), null));
+        given(roots.get(new AppreciationId(12L))).willReturn(new AppreciationRootApi.Root(
+                new AppreciationId(12L), new MemberId(2L), AppreciationKind.COMMENT, createdAt, null));
+        given(roots.get(new AppreciationId(10L))).willReturn(new AppreciationRootApi.Root(
+                new AppreciationId(10L), new MemberId(2L), AppreciationKind.COMMENT, createdAt, null));
+
+        var found = api.findByIds(List.of(new AppreciationId(11L), new AppreciationId(12L),
+                new AppreciationId(10L)));
+
+        assertThat(found).extracting(response -> response.id().value()).containsExactly(10L, 12L, 11L);
+    }
+
+    @Test
+    void findByIdsDoesNotAccessRepositoriesForEmptyInput() {
+        assertThat(api.findByIds(List.of())).isEmpty();
+
+        verify(comments, never()).findAllById(List.of());
     }
 }

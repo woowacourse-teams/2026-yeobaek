@@ -13,6 +13,7 @@
         <exclude name="UnitTestShouldIncludeAssert"/>
         <exclude name="UnitTestContainsTooManyAsserts"/>
         <exclude name="AbstractClassWithoutAbstractMethod"/>
+        <exclude name="ImplicitFunctionalInterface"/>
     </rule>
 
     <rule ref="category/java/bestpractices.xml/UnitTestContainsTooManyAsserts">

@@ -41,17 +41,16 @@ import yeobaek.backend.admin.dto.PassageUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
-import yeobaek.backend.book.domain.BookStatus;
-import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.Isni;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.content.api.value.AuthorName;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.Isni;
+import yeobaek.backend.content.api.value.Publisher;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.shared.exception.BadRequestException;
 import yeobaek.backend.support.ControllerTest;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.shared.exception.NotFoundException;
 
 @WebMvcTest(AdminBookController.class)
 @TestPropertySource(properties = "admin.token=controller-test-token")
@@ -77,7 +76,7 @@ class AdminBookControllerTest extends ControllerTest {
                         2026,
                         42,
                         "https://covers.example/books/3.jpg",
-                        BookStatus.ACTIVE),
+                        "ACTIVE"),
                 new AdminBookResponse(
                         4L,
                         "삭제된 책",
@@ -86,7 +85,7 @@ class AdminBookControllerTest extends ControllerTest {
                         null,
                         0,
                         null,
-                        BookStatus.DELETED)));
+                        "DELETED")));
         given(adminBookService.findBooks()).willReturn(response);
 
         mockMvc.perform(get("/api/admin/books")

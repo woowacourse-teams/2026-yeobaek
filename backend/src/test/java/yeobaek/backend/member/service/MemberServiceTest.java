@@ -48,8 +48,9 @@ class MemberServiceTest {
         given(memberRepository.existsByNickname("민서")).willReturn(true);
 
         assertThatThrownBy(() -> memberService.create(new Nickname("민서")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 사용 중인 닉네임입니다.");
+                .isInstanceOf(yeobaek.backend.shared.exception.InvalidRequestException.class)
+                .hasMessage("이미 사용 중인 닉네임입니다.")
+                .extracting("code").isEqualTo(yeobaek.backend.shared.exception.ErrorCode.INVALID_REQUEST);
 
         verify(memberRepository, never()).save(any());
     }

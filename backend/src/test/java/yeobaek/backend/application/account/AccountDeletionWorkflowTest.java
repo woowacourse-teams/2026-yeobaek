@@ -4,14 +4,16 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
 import org.mockito.InOrder;
-import yeobaek.backend.appreciation.api.AppreciationDataEraser;
-import yeobaek.backend.club.api.ClubMembershipApi;
-import yeobaek.backend.collaboration.api.AppreciationContextApi;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberBlockApi;
+import yeobaek.backend.appreciation.api.erasure.AppreciationDataEraser;
+import yeobaek.backend.space.api.club.ClubMembershipApi;
+import yeobaek.backend.collaboration.api.context.AppreciationContextApi;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.block.MemberBlockApi;
 import yeobaek.backend.member.api.MemberDataEraser;
-import yeobaek.backend.reading.api.PublicRoomVisitApi;
+import yeobaek.backend.space.api.publicroom.PublicRoomVisitApi;
 import yeobaek.backend.reading.api.ReadingProgressApi;
 
 class AccountDeletionWorkflowTest {
@@ -20,12 +22,13 @@ class AccountDeletionWorkflowTest {
     void erasesOwnedModuleDataBeforeMemberRoot() {
         var contexts = mock(AppreciationContextApi.class);
         var appreciations = mock(AppreciationDataEraser.class);
+        var roots = mock(AppreciationRootApi.class);
         var progress = mock(ReadingProgressApi.class);
         var visits = mock(PublicRoomVisitApi.class);
         var memberships = mock(ClubMembershipApi.class);
         var blocks = mock(MemberBlockApi.class);
         var members = mock(MemberDataEraser.class);
-        var workflow = new AccountDeletionWorkflow(contexts, appreciations, progress, visits,
+        var workflow = new AccountDeletionWorkflow(contexts, roots, appreciations, progress, visits,
                 memberships, blocks, members);
         var memberId = new MemberId(7L);
 
@@ -40,9 +43,10 @@ class AccountDeletionWorkflowTest {
                                      ClubMembershipApi memberships,
                                      MemberBlockApi blocks, MemberDataEraser members, MemberId memberId) {
         InOrder ordered = inOrder(contexts, appreciations, progress, visits, memberships, blocks, members);
-        ordered.verify(contexts).eraseAuthoredBy(memberId);
+        ordered.verify(contexts).detachAll(List.of());
         ordered.verify(appreciations).eraseAuthoredBy(memberId);
-        ordered.verify(appreciations).eraseReactionsBy(memberId);
+        ordered.verify(appreciations).eraseViewsBy(memberId);
+        ordered.verify(appreciations).eraseReportsBy(memberId);
         ordered.verify(progress).erase(memberId);
         ordered.verify(visits).erase(memberId);
         ordered.verify(memberships).erase(memberId);

@@ -6,12 +6,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.content.api.ContentBodyApi;
-import yeobaek.backend.content.api.ContentBodyProvider;
-import yeobaek.backend.content.api.ContentBodyProviderRegistry;
-import yeobaek.backend.content.api.ContentBodyUnsupportedFailure;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.body.ContentBodyApi;
+import yeobaek.backend.content.spi.body.ContentBodyProvider;
+import yeobaek.backend.content.spi.body.ContentBodyProviderRegistry;
+import yeobaek.backend.content.api.body.ContentBodyUnsupportedException;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
 
 @Service
 @RequiredArgsConstructor
@@ -42,11 +43,13 @@ public class ContentBodyService implements ContentBodyApi {
     }
 
     private ContentBodyProvider provider(ContentId contentId) {
-        String kind = contentApi.getContent(contentId).kind();
+        ContentKind kind = contentApi.getContent(contentId).kind();
         try {
             return providers.get(kind);
         } catch (IllegalArgumentException exception) {
-            throw new ContentBodyUnsupportedFailure(contentId, kind, exception);
+            throw new ContentBodyUnsupportedException(contentId, kind,
+                    "본문을 제공하지 않는 컨텐츠입니다: contentId=" + contentId.value() + ", kind=" + kind,
+                    exception);
         }
     }
 }

@@ -1,6 +1,6 @@
 package yeobaek.backend.member.domain;
 
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.shared.identity.MemberId;
 
 public record MemberProfile(MemberId id, String nickname) {
 

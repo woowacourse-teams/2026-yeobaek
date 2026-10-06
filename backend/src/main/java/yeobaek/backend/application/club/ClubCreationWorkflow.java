@@ -3,14 +3,16 @@ package yeobaek.backend.application.club;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.club.api.ClubCommandApi;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.space.api.club.ClubApi;
+import yeobaek.backend.space.api.club.ClubMembershipApi;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.ClubResponse;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.member.api.MemberQuery;
-import yeobaek.backend.space.domain.Club;
+import yeobaek.backend.application.space.query.SpaceQueryResultFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -18,16 +20,18 @@ public class ClubCreationWorkflow {
 
     private final MemberQuery memberQuery;
     private final ContentApi contentApi;
-    private final ClubCommandApi clubCommandApi;
+    private final ClubApi clubApi;
+    private final ClubMembershipApi membershipApi;
     private final SpaceContentBindingApi bindingApi;
+    private final SpaceQueryResultFactory results;
 
     @Transactional
-    public Club create(MemberId actorId, ClubName name, ContentId contentId) {
+    public ClubCommandResult create(MemberId actorId, ClubName name, ContentId contentId) {
         memberQuery.getProfile(actorId);
         contentApi.requireAvailable(contentId);
-        Club club = clubCommandApi.create(name);
+        ClubResponse club = clubApi.create(name);
         bindingApi.bind(club.id(), contentId);
-        clubCommandApi.join(actorId, club.id());
-        return club;
+        membershipApi.join(actorId, club.id());
+        return new ClubCommandResult(club, results.content(contentId));
     }
 }

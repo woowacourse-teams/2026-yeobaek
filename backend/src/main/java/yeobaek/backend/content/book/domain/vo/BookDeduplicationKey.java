@@ -1,0 +1,24 @@
+package yeobaek.backend.content.book.domain.vo;
+
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.Publisher;
+
+import java.util.Objects;
+import java.util.Set;
+
+public record BookDeduplicationKey(
+        BookTitle title,
+        Publisher publisher,
+        Integer publishedYear,
+        Set<Long> authorIds
+) {
+
+    public BookDeduplicationKey {
+        Objects.requireNonNull(title, "도서 제목은 필수입니다.");
+        authorIds = Set.copyOf(Objects.requireNonNull(authorIds, "작가 목록은 필수입니다."));
+    }
+
+    public boolean isDuplicateOf(BookDeduplicationKey other) {
+        return equals(other);
+    }
+}

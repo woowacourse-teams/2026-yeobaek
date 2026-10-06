@@ -10,12 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
+import yeobaek.backend.member.api.MemberNotFoundException;
+import yeobaek.backend.member.api.block.SelfBlockException;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.BadRequestException;
-import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
-import yeobaek.backend.support.NotFoundException;
 
 class MemberBlockServiceTest extends IntegrationTest {
 
@@ -74,19 +74,30 @@ class MemberBlockServiceTest extends IntegrationTest {
     @DisplayName("자기 자신을 차단하면 CANNOT_BLOCK_SELF로 실패한다")
     void rejectSelfBlock() {
         assertThatThrownBy(() -> memberBlockService.block(blocker.getId(), blocker.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.CANNOT_BLOCK_SELF);
+                .isInstanceOfSatisfying(SelfBlockException.class, failure -> {
+                    assertThat(failure.getCode()).isEqualTo(ErrorCode.CANNOT_BLOCK_SELF);
+                    assertThat(failure.getMessage()).isEqualTo("자기 자신은 차단할 수 없습니다: memberId="
+                            + blocker.getId());
+                    assertThat(failure.getLogContext()).containsEntry("reason", "SELF_BLOCK");
+                });
     }
 
     @Test
     @DisplayName("존재하지 않는 회원은 차단하거나 차단 해제할 수 없다")
     void rejectUnknownMember() {
-        assertThatThrownBy(() -> memberBlockService.block(blocker.getId(), 999L))
-                .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-        assertThatThrownBy(() -> memberBlockService.unblock(blocker.getId(), 999L))
-                .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+        assertMemberNotFound(() -> memberBlockService.block(blocker.getId(), 999L),
+                "차단할 회원이 존재하지 않습니다: memberId=999");
+        assertMemberNotFound(() -> memberBlockService.unblock(blocker.getId(), 999L),
+                "차단 해제할 회원이 존재하지 않습니다: memberId=999");
+    }
+
+    private void assertMemberNotFound(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation,
+                                      String message) {
+        assertThatThrownBy(operation).isInstanceOfSatisfying(MemberNotFoundException.class, failure -> {
+            assertThat(failure.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+            assertThat(failure.getMessage()).isEqualTo(message);
+            assertThat(failure.getLogContext()).containsEntry("reason", "MEMBER_NOT_FOUND");
+        });
     }
 
     @Test

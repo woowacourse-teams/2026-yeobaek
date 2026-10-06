@@ -14,6 +14,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.content.api.location.LocationKind;
 
 @Entity
 @Table(name = "content_locations", uniqueConstraints = {
@@ -35,8 +36,12 @@ public class ContentLocationJpaEntity {
     @Column(nullable = false, length = 64)
     private String kind;
 
-    public ContentLocationJpaEntity(ContentJpaEntity content, String kind) {
+    public ContentLocationJpaEntity(ContentJpaEntity content, LocationKind kind) {
         this.content = content;
-        this.kind = kind;
+        this.kind = kind.value();
+    }
+
+    public LocationKind locationKind() {
+        return new LocationKind(kind);
     }
 }

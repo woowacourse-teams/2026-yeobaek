@@ -3,15 +3,16 @@ package yeobaek.backend.bootstrap;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import yeobaek.backend.collaboration.api.SpaceContentBindingCapability;
-import yeobaek.backend.collaboration.api.SpaceContentBindingRegistry;
+import yeobaek.backend.space.api.SpaceKind;
+import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingCapability;
+import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingRegistry;
 
 @Configuration
 public class SpaceContentBindingConfiguration {
 
     @Bean
     SpaceContentBindingRegistry spaceContentBindings(List<SpaceContentBindingCapability> capabilities) {
-        CapabilityRegistry<String, SpaceContentBindingCapability> registry =
+        CapabilityRegistry<SpaceKind, SpaceContentBindingCapability> registry =
                 new CapabilityRegistry<>(capabilities, SpaceContentBindingCapability::supportedKind);
         return registry::get;
     }

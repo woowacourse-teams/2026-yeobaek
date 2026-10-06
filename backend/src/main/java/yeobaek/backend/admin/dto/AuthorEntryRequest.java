@@ -3,8 +3,8 @@ package yeobaek.backend.admin.dto;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
-import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.Isni;
+import yeobaek.backend.content.api.value.AuthorName;
+import yeobaek.backend.content.api.value.Isni;
 
 /**
  * 업로드 도서의 작가 항목. {name, isni?} 또는 {authorId} 중 한 형태만 허용한다 (API.md 6장).

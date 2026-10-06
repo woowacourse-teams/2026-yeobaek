@@ -10,6 +10,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.space.api.SpaceKind;
 
 @Entity
 @Table(name = "spaces", uniqueConstraints = {
@@ -26,7 +27,11 @@ public class SpaceJpaEntity {
     @Column(nullable = false, length = 64)
     private String kind;
 
-    public SpaceJpaEntity(String kind) {
-        this.kind = kind;
+    public SpaceJpaEntity(SpaceKind kind) {
+        this.kind = kind.value();
+    }
+
+    public SpaceKind spaceKind() {
+        return new SpaceKind(kind);
     }
 }

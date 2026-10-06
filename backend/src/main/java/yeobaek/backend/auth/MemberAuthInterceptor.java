@@ -14,10 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.web.servlet.HandlerInterceptor;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.shared.exception.NotFoundException;
 import yeobaek.backend.support.RequestLoggingFilter;
-import yeobaek.backend.support.InvalidRequestException;
+import yeobaek.backend.shared.exception.InvalidRequestException;
 
 @RequiredArgsConstructor
 @Slf4j

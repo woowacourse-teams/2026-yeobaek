@@ -1,0 +1,115 @@
+package yeobaek.backend.web.club.controller;
+
+import static yeobaek.backend.support.LogField.BOOK_ID;
+import static yeobaek.backend.support.LogField.CLUB_ID;
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.RESULT;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import yeobaek.backend.auth.AuthMember;
+import yeobaek.backend.web.club.dto.ClubCreateRequest;
+import yeobaek.backend.web.club.dto.ClubCreateResponse;
+import yeobaek.backend.web.club.dto.ClubDetailResponse;
+import yeobaek.backend.web.club.dto.ClubJoinRequest;
+import yeobaek.backend.web.club.dto.ClubJoinResponse;
+import yeobaek.backend.web.club.dto.MyClubsResponse;
+import yeobaek.backend.web.v1.ClubService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
+
+@Tag(name = "모임")
+@SecurityRequirement(name = "memberId")
+@RestController
+@RequiredArgsConstructor
+@Slf4j
+public class ClubController {
+
+    private final ClubService clubService;
+    private final AnalyticsTracker analyticsTracker;
+
+    @Operation(summary = "모임 생성",
+            description = "책 한 권을 골라 모임을 만든다. 생성자는 자동으로 모임에 참여되고 참여 코드가 발급된다.")
+    @PostMapping("/api/clubs")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ClubCreateResponse create(@AuthMember Long memberId, @Valid @RequestBody ClubCreateRequest request) {
+        log.atInfo().addKeyValue(OPERATION, "club.create")
+                .addKeyValue(BOOK_ID, request.bookId())
+                .log("모임 생성 API 처리를 시작합니다.");
+        ClubCreateResponse response = clubService.create(memberId, request.name(), request.bookId());
+        analyticsTracker.track(memberId, AnalyticsEvent.clubCreate(response.clubId(), response.book().bookId()));
+        log.atInfo().addKeyValue(OPERATION, "club.create").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, response.clubId())
+                .log("모임 생성 API 처리를 완료했습니다.");
+        return response;
+    }
+
+    @Operation(summary = "참여 코드로 모임 참여",
+            description = "형식이 잘못된 코드는 400(INVALID_REQUEST), 존재하지 않는 코드는 400(JOIN_CODE_NOT_FOUND). 이미 참여한 모임이면 같은 응답을 반환한다(멱등).")
+    @PostMapping("/api/clubs/join")
+    public ClubJoinResponse join(@AuthMember Long memberId, @Valid @RequestBody ClubJoinRequest request) {
+        log.atInfo().addKeyValue(OPERATION, "club.join").log("모임 참여 API 처리를 시작합니다.");
+        ClubJoinResponse response = clubService.join(memberId, request.joinCode());
+        analyticsTracker.track(memberId, AnalyticsEvent.clubJoin(response.clubId(), response.book().bookId()));
+        log.atInfo().addKeyValue(OPERATION, "club.join").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, response.clubId())
+                .log("모임 참여 API 처리를 완료했습니다.");
+        return response;
+    }
+
+    @Operation(summary = "모임 탈퇴",
+            description = "참여 정보와 댓글·진도는 보존한 채 모임 탈퇴로 처리한다. 중복 탈퇴는 멱등하게 처리한다.")
+    @DeleteMapping("/api/clubs/{clubId}/members/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leave(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
+        log.atInfo().addKeyValue(OPERATION, "club.leave")
+                .addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 시작합니다.");
+        clubService.leave(memberId, clubId);
+        analyticsTracker.track(memberId, AnalyticsEvent.clubLeave(clubId));
+        log.atInfo().addKeyValue(OPERATION, "club.leave").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).log("모임 탈퇴 API 처리를 완료했습니다.");
+    }
+
+    @Operation(summary = "내 모임 목록 조회")
+    @GetMapping("/api/clubs")
+    public MyClubsResponse findMyClubs(@AuthMember Long memberId) {
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").log("내 모임 목록 API 처리를 시작합니다.");
+        MyClubsResponse response = clubService.findMyClubs(memberId);
+        analyticsTracker.track(memberId, AnalyticsEvent.clubsView(response.clubs().size()));
+        log.atInfo().addKeyValue(OPERATION, "club.findMyClubs").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("resultCount", response.clubs().size())
+                .log("내 모임 목록 API 처리를 완료했습니다.");
+        return response;
+    }
+
+    @Operation(summary = "모임 상세 조회",
+            description = "모임 상세 화면용: 초대 코드, 참여자 목록(참여 시각 오름차순), 내 진도. 모임 미소속은 403(NOT_CLUB_MEMBER).")
+    @GetMapping("/api/clubs/{clubId}")
+    public ClubDetailResponse findDetail(@AuthMember Long memberId, @Parameter(description = "모임 ID") @PathVariable Long clubId) {
+        log.atInfo().addKeyValue(OPERATION, "club.findDetail")
+                .addKeyValue(CLUB_ID, clubId).log("모임 상세 API 처리를 시작합니다.");
+        ClubDetailResponse response = clubService.findDetail(memberId, clubId);
+        Integer progressRate = response.myProgress() == null ? null : response.myProgress().progressRate();
+        analyticsTracker.track(memberId, AnalyticsEvent.clubView(
+                response.clubId(), response.book().bookId(), response.members().size(),
+                progressRate, response.book().status().name()));
+        log.atInfo().addKeyValue(OPERATION, "club.findDetail").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId)
+                .addKeyValue("memberCount", response.members().size()).log("모임 상세 API 처리를 완료했습니다.");
+        return response;
+    }
+}

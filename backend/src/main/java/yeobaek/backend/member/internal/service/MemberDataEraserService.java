@@ -3,7 +3,7 @@ package yeobaek.backend.member.internal.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.member.api.MemberDataEraser;
 import yeobaek.backend.member.repository.MemberRepository;
 

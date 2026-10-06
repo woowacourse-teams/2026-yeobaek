@@ -3,14 +3,14 @@ package yeobaek.backend.support;
 import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
-import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.comment.domain.Comment;
-import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.content.book.domain.Sentence;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.appreciation.comment.persistence.Comment;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
 import yeobaek.backend.collaboration.persistence.AppreciationContextJpaEntity;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.space.publicroom.persistence.PublicRoom;
 
 public final class CommentFixtures {
 

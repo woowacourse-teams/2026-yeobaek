@@ -120,14 +120,15 @@ class BookCoverUploadServiceTest {
     @DisplayName("지원하지 않는 형식과 범위를 벗어난 크기는 URL 발급 전에 거부한다")
     void rejectInvalidFileMetadata() {
         assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/gif", 1024L)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(yeobaek.backend.shared.exception.InvalidRequestException.class)
+                .extracting("code").isEqualTo(yeobaek.backend.shared.exception.ErrorCode.INVALID_REQUEST);
         assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest(null, 1024L)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(yeobaek.backend.shared.exception.InvalidRequestException.class);
         assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 0L)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(yeobaek.backend.shared.exception.InvalidRequestException.class);
         assertThatThrownBy(() -> service.issueUploadUrl(
                 new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH + 1)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(yeobaek.backend.shared.exception.InvalidRequestException.class);
 
         verifyNoInteractions(s3Presigner);
     }

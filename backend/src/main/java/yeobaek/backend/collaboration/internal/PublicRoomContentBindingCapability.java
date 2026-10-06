@@ -2,12 +2,12 @@ package yeobaek.backend.collaboration.internal;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.collaboration.api.SpaceContentBindingCapability;
+import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingCapability;
 import yeobaek.backend.collaboration.persistence.PublicRoomContentBindingJpaEntity;
 import yeobaek.backend.collaboration.persistence.PublicRoomContentBindingRepository;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
-import yeobaek.backend.space.domain.PublicRoom;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
+import yeobaek.backend.space.api.SpaceKind;
 
 @Component
 @RequiredArgsConstructor
@@ -16,8 +16,8 @@ public class PublicRoomContentBindingCapability implements SpaceContentBindingCa
     private final PublicRoomContentBindingRepository repository;
 
     @Override
-    public String supportedKind() {
-        return PublicRoom.KIND;
+    public SpaceKind supportedKind() {
+        return SpaceKind.PUBLIC_ROOM;
     }
 
     @Override

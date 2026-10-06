@@ -10,6 +10,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.content.api.ContentKind;
 
 @Entity
 @Table(name = "contents", uniqueConstraints = {
@@ -26,7 +27,11 @@ public class ContentJpaEntity {
     @Column(nullable = false, length = 64)
     private String kind;
 
-    public ContentJpaEntity(String kind) {
-        this.kind = kind;
+    public ContentJpaEntity(ContentKind kind) {
+        this.kind = kind.value();
+    }
+
+    public ContentKind contentKind() {
+        return new ContentKind(kind);
     }
 }

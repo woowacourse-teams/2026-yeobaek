@@ -6,6 +6,12 @@ import ch.qos.logback.classic.Level;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.appreciation.spi.erasure.UnsupportedAppreciationKindException;
+import yeobaek.backend.application.appreciation.CommentPolicyException;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.shared.exception.NotFoundException;
+import yeobaek.backend.shared.exception.UnauthorizedException;
 
 class GlobalExceptionLoggingTest {
 
@@ -23,6 +29,23 @@ class GlobalExceptionLoggingTest {
             assertThat(logs.field(event, "errorCode")).isEqualTo("CLUB_NOT_FOUND");
             assertThat(logs.field(event, "clubId")).isEqualTo("7");
             assertThat(event.getFormattedMessage()).doesNotContain("sensitive-message");
+        }
+    }
+
+    @Test
+    @DisplayName("커스텀 예외의 호출자 로그 맥락을 메시지 파싱 없이 기록한다")
+    void logCallerContext() {
+        var exception = new CommentPolicyException(ErrorCode.SPACE_ACCESS_DENIED,
+                "클라이언트 디버깅 메시지: spaceId=8",
+                Map.of("actorId", "7", "spaceId", "8", "contentId", "9", "locationId", "10",
+                        "reason", "SPACE_ACCESS_DENIED"));
+
+        try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
+            handler.handleCommentPolicyException(exception);
+
+            var event = logs.event("exception.handleCommentPolicyFailure", "rejected");
+            verifyCommentContext(logs, event);
+            assertThat(event.getFormattedMessage()).doesNotContain("클라이언트 디버깅 메시지");
         }
     }
 
@@ -71,5 +94,61 @@ class GlobalExceptionLoggingTest {
             assertThat(logs.field(event, "errorCode")).isEqualTo("INTERNAL_ERROR");
             assertThat(event.getThrowableProxy()).isNotNull();
         }
+    }
+
+    @Test
+    @DisplayName("별도 핸들러가 없는 예외도 ERROR와 원본 스택 및 원인을 기록한다")
+    void logUnhandledException() {
+        var cause = new IllegalStateException("underlying failure");
+        var exception = new RuntimeException("unhandled failure", cause);
+
+        try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
+            handler.handleException(exception);
+
+            var event = logs.event("exception.handleException", "failure");
+            assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(logs.field(event, "errorCode")).isEqualTo("INTERNAL_ERROR");
+            assertThat(event.getThrowableProxy().getClassName()).isEqualTo(RuntimeException.class.getName());
+            assertThat(event.getThrowableProxy().getStackTraceElementProxyArray()).isNotEmpty();
+            verifyLoggedCause(event);
+        }
+    }
+
+    @Test
+    @DisplayName("커스텀 서버 예외는 ERROR와 원인 예외 및 구조화된 맥락을 함께 기록한다")
+    void logCustomServerFailureContextAndCause() {
+        var cause = new IllegalStateException("registry lookup failed");
+        var exception = new UnsupportedAppreciationKindException(
+                new AppreciationKind("NOTE"), "저장된 감상 타입을 삭제할 수 없습니다.", cause);
+
+        try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
+            handler.handleLogContextException(exception);
+
+            var event = logs.event("exception.handleLogContextException", "failure");
+            verifyServerFailure(logs, event);
+            assertThat(exception.getCause()).isSameAs(cause);
+        }
+    }
+
+    private void verifyCommentContext(LogCapture logs, ch.qos.logback.classic.spi.ILoggingEvent event) {
+        assertThat(logs.field(event, "errorCode")).isEqualTo("SPACE_ACCESS_DENIED");
+        assertThat(logs.field(event, "actorId")).isEqualTo("7");
+        assertThat(logs.field(event, "spaceId")).isEqualTo("8");
+        assertThat(logs.field(event, "contentId")).isEqualTo("9");
+        assertThat(logs.field(event, "locationId")).isEqualTo("10");
+    }
+
+    private void verifyServerFailure(LogCapture logs, ch.qos.logback.classic.spi.ILoggingEvent event) {
+        assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+        assertThat(logs.field(event, "errorCode")).isEqualTo("INTERNAL_ERROR");
+        assertThat(logs.field(event, "kind")).isEqualTo("NOTE");
+        assertThat(event.getThrowableProxy()).isNotNull();
+        verifyLoggedCause(event);
+    }
+
+    private void verifyLoggedCause(ch.qos.logback.classic.spi.ILoggingEvent event) {
+        assertThat(event.getThrowableProxy().getCause()).isNotNull();
+        assertThat(event.getThrowableProxy().getCause().getClassName())
+                .isEqualTo(IllegalStateException.class.getName());
     }
 }

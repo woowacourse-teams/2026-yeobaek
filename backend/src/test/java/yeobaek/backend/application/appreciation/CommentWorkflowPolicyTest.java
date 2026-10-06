@@ -11,21 +11,26 @@ import static org.mockito.Mockito.verify;
 import java.time.LocalDateTime;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import yeobaek.backend.appreciation.api.CommentApi;
-import yeobaek.backend.appreciation.api.CommentFailure;
-import yeobaek.backend.appreciation.domain.Comment;
-import yeobaek.backend.collaboration.api.AppreciationContextApi;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
+import yeobaek.backend.appreciation.api.comment.CommentApi;
+import yeobaek.backend.appreciation.api.comment.CommentException;
+import yeobaek.backend.appreciation.api.comment.CommentViewApi;
+import yeobaek.backend.appreciation.comment.internal.CommentSnapshot;
+import yeobaek.backend.collaboration.api.context.AppreciationContextApi;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.foundation.identity.SpaceId;
-import yeobaek.backend.member.api.MemberBlockApi;
+import yeobaek.backend.content.api.location.ContentLocationQueryApi;
+import yeobaek.backend.content.api.location.LocationKind;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.identity.SpaceId;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.member.api.block.MemberBlockApi;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.MemberProfile;
-import yeobaek.backend.space.api.SpaceAccessApi;
+import yeobaek.backend.space.api.access.SpaceAccessApi;
 
 class CommentWorkflowPolicyTest {
 
@@ -40,35 +45,74 @@ class CommentWorkflowPolicyTest {
     void sharingChecksActorAccessBindingLocationAndAvailabilityBeforeCreating() {
         var comments = mock(CommentApi.class);
         var contexts = mock(AppreciationContextApi.class);
+        var views = mock(CommentViewApi.class);
         var contents = mock(ContentApi.class);
         var members = mock(MemberQuery.class);
         var spaces = mock(SpaceAccessApi.class);
         var bindings = mock(SpaceContentBindingApi.class);
+        var locations = mock(ContentLocationQueryApi.class);
+        var body = new CommentContent("감상");
         var comment = comment(ACTOR);
         given(members.getProfile(ACTOR)).willReturn(new MemberProfile(ACTOR, "작성자"));
         given(spaces.canAccess(ACTOR, SPACE_ID)).willReturn(true);
         given(bindings.isBound(SPACE_ID, CONTENT_ID)).willReturn(true);
-        given(contents.ownsLocation(CONTENT_ID, LOCATION_ID)).willReturn(true);
-        given(comments.create(ACTOR, "감상")).willReturn(comment);
-        var workflow = new CommentSharingWorkflow(comments, contexts, contents, members, spaces, bindings);
+        given(locations.get(LOCATION_ID)).willReturn(new ContentLocationQueryApi.Location(
+                LOCATION_ID, CONTENT_ID, LocationKind.SENTENCE, new ContentLocationId(41L), 1));
+        given(comments.create(ACTOR, body)).willReturn(comment);
+        var workflow = new CommentSharingWorkflow(
+                comments, views, contexts, contents, members, spaces, bindings, locations);
 
-        workflow.share(ACTOR, SPACE_ID, CONTENT_ID, LOCATION_ID, "감상");
+        workflow.share(ACTOR, SPACE_ID, CONTENT_ID, LOCATION_ID, body);
 
-        verifySharingOrder(members, spaces, bindings, contents, comments, contexts);
+        verifySharingOrder(members, spaces, bindings, contents, comments, views, contexts, locations, body);
+    }
+
+    @Test
+    void sharingWritesClientMessageAndStructuredContextAtDecisionPoint() {
+        var comments = mock(CommentApi.class);
+        var contexts = mock(AppreciationContextApi.class);
+        var views = mock(CommentViewApi.class);
+        var contents = mock(ContentApi.class);
+        var members = mock(MemberQuery.class);
+        var spaces = mock(SpaceAccessApi.class);
+        var bindings = mock(SpaceContentBindingApi.class);
+        var locations = mock(ContentLocationQueryApi.class);
+        given(members.getProfile(ACTOR)).willReturn(new MemberProfile(ACTOR, "작성자"));
+        given(spaces.canAccess(ACTOR, SPACE_ID)).willReturn(false);
+        var workflow = new CommentSharingWorkflow(
+                comments, views, contexts, contents, members, spaces, bindings, locations);
+
+        assertThatThrownBy(() -> workflow.share(
+                ACTOR, SPACE_ID, CONTENT_ID, LOCATION_ID, new CommentContent("감상")))
+                .isInstanceOfSatisfying(CommentPolicyException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(ErrorCode.SPACE_ACCESS_DENIED);
+                    assertThat(exception.getMessage())
+                            .isEqualTo("감상을 공유할 공간에 접근할 수 없습니다: spaceId=20");
+                    assertThat(exception.getLogContext()).containsAllEntriesOf(java.util.Map.of(
+                            "reason", "SPACE_ACCESS_DENIED",
+                            "actorId", "1",
+                            "spaceId", "20",
+                            "contentId", "30",
+                            "locationId", "40"));
+                });
+
+        verify(bindings, never()).isBound(SPACE_ID, CONTENT_ID);
+        verify(comments, never()).create(ACTOR, new CommentContent("감상"));
     }
 
     private void verifySharingOrder(MemberQuery members, SpaceAccessApi spaces,
                                     SpaceContentBindingApi bindings, ContentApi contents,
-                                    CommentApi comments, AppreciationContextApi contexts) {
-        var ordered = inOrder(members, spaces, bindings, contents, comments, contexts);
+                                    CommentApi comments, CommentViewApi views, AppreciationContextApi contexts,
+                                    ContentLocationQueryApi locations, CommentContent body) {
+        var ordered = inOrder(members, spaces, bindings, contents, comments, views, contexts, locations);
         ordered.verify(members).getProfile(ACTOR);
         ordered.verify(spaces).canAccess(ACTOR, SPACE_ID);
         ordered.verify(bindings).isBound(SPACE_ID, CONTENT_ID);
-        ordered.verify(contents).ownsLocation(CONTENT_ID, LOCATION_ID);
+        ordered.verify(locations).get(LOCATION_ID);
         ordered.verify(contents).requireAvailable(CONTENT_ID);
-        ordered.verify(comments).create(ACTOR, "감상");
+        ordered.verify(comments).create(ACTOR, body);
         ordered.verify(contexts).attach(COMMENT_ID, SPACE_ID, CONTENT_ID, LOCATION_ID);
-        ordered.verify(comments).markViewed(ACTOR, java.util.List.of(COMMENT_ID));
+        ordered.verify(views).markViewed(ACTOR, java.util.List.of(COMMENT_ID));
     }
 
     @Test
@@ -79,12 +123,16 @@ class CommentWorkflowPolicyTest {
         var workflow = new CommentModificationWorkflow(comments, contexts, mock(ContentApi.class),
                 mock(MemberQuery.class), mock(SpaceAccessApi.class));
 
-        assertThatThrownBy(() -> workflow.update(ACTOR, COMMENT_ID, "변경"))
-                .isInstanceOfSatisfying(CommentFailure.class,
-                        failure -> assertThat(failure.reason()).isEqualTo(CommentFailure.Reason.NOT_OWNER));
+        CommentContent changed = new CommentContent("변경");
+        assertThatThrownBy(() -> workflow.update(ACTOR, COMMENT_ID, changed))
+                .isInstanceOfSatisfying(CommentException.class,
+                        failure -> {
+                            assertThat(failure.getCode()).isEqualTo(ErrorCode.NOT_COMMENT_OWNER);
+                            assertThat(failure.getLogContext()).containsEntry("actorId", "1");
+                        });
 
         verify(contexts, never()).get(COMMENT_ID);
-        verify(comments, never()).update(ACTOR, COMMENT_ID, "변경");
+        verify(comments, never()).update(ACTOR, COMMENT_ID, changed);
     }
 
     @Test
@@ -101,8 +149,14 @@ class CommentWorkflowPolicyTest {
         var workflow = new CommentReportWorkflow(comments, contexts, contents, members, blocks, spaces);
 
         assertThatThrownBy(() -> workflow.report(ACTOR, COMMENT_ID))
-                .isInstanceOfSatisfying(CommentFailure.class,
-                        failure -> assertThat(failure.reason()).isEqualTo(CommentFailure.Reason.NOT_VISIBLE));
+                .isInstanceOfSatisfying(CommentException.class,
+                        failure -> {
+                            assertThat(failure.getCode()).isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+                            assertThat(failure.getLogContext())
+                                    .containsEntry("actorId", "1")
+                                    .containsEntry("reason", "NOT_VISIBLE")
+                                    .containsEntry("authorId", "2");
+                        });
 
         verify(comments).getForUpdate(COMMENT_ID);
         verify(contexts, never()).get(COMMENT_ID);
@@ -143,7 +197,7 @@ class CommentWorkflowPolicyTest {
         ordered.verify(comments).report(ACTOR, COMMENT_ID);
     }
 
-    private Comment comment(MemberId authorId) {
-        return new Comment(COMMENT_ID, authorId, "감상", LocalDateTime.of(2026, 1, 1, 0, 0), null);
+    private CommentSnapshot comment(MemberId authorId) {
+        return new CommentSnapshot(COMMENT_ID, authorId, "감상", LocalDateTime.of(2026, 1, 1, 0, 0), null);
     }
 }

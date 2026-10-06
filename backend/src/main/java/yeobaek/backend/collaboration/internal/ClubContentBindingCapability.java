@@ -2,12 +2,12 @@ package yeobaek.backend.collaboration.internal;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.collaboration.api.SpaceContentBindingCapability;
+import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingCapability;
 import yeobaek.backend.collaboration.persistence.ClubContentBindingJpaEntity;
 import yeobaek.backend.collaboration.persistence.ClubContentBindingRepository;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
-import yeobaek.backend.space.domain.Club;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
+import yeobaek.backend.space.api.SpaceKind;
 
 @Component
 @RequiredArgsConstructor
@@ -16,8 +16,8 @@ public class ClubContentBindingCapability implements SpaceContentBindingCapabili
     private final ClubContentBindingRepository repository;
 
     @Override
-    public String supportedKind() {
-        return Club.KIND;
+    public SpaceKind supportedKind() {
+        return SpaceKind.CLUB;
     }
 
     @Override

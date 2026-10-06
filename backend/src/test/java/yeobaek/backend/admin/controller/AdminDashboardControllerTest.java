@@ -28,7 +28,7 @@ import yeobaek.backend.admin.dto.AdminDashboardMembersResponse;
 import yeobaek.backend.admin.service.AdminBookDashboardService;
 import yeobaek.backend.admin.service.AdminClubDashboardService;
 import yeobaek.backend.admin.service.AdminMemberDashboardService;
-import yeobaek.backend.book.domain.BookStatus;
+import yeobaek.backend.web.common.dto.BookResponse.Status;
 import yeobaek.backend.support.ControllerTest;
 
 @WebMvcTest(AdminDashboardController.class)
@@ -48,7 +48,7 @@ class AdminDashboardControllerTest extends ControllerTest {
     @DisplayName("모임 대시보드의 전체 응답 계약을 반환한다")
     void findClubsWithMemberAndCommentCounts() throws Exception {
         var response = new AdminDashboardClubsResponse(List.of(
-                new AdminDashboardClubResponse(1L, "함께 읽기", 2L, "여백", BookStatus.DELETED, 3L, 4L)));
+                new AdminDashboardClubResponse(1L, "함께 읽기", 2L, "여백", Status.DELETED, 3L, 4L)));
         given(adminClubDashboardService.findClubsWithMemberAndCommentCounts()).willReturn(response);
 
         mockMvc.perform(get("/api/admin/dashboard/clubs")
@@ -72,7 +72,7 @@ class AdminDashboardControllerTest extends ControllerTest {
     @DisplayName("도서 대시보드의 전체 응답 계약을 반환한다")
     void findBooksWithClubCounts() throws Exception {
         var response = new AdminDashboardBooksResponse(List.of(
-                new AdminDashboardBookResponse(2L, "여백", BookStatus.ACTIVE, 3L)));
+                new AdminDashboardBookResponse(2L, "여백", "ACTIVE", 3L)));
         given(adminBookDashboardService.findBooksWithClubCounts()).willReturn(response);
 
         mockMvc.perform(get("/api/admin/dashboard/books")

@@ -5,12 +5,13 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.appreciation.api.AppreciationRootApi;
-import yeobaek.backend.appreciation.api.AppreciationNotFoundFailure;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.appreciation.api.AppreciationNotFoundException;
 import yeobaek.backend.appreciation.persistence.AppreciationJpaEntity;
 import yeobaek.backend.appreciation.persistence.AppreciationRepository;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.MemberId;
 
 @Service
 @RequiredArgsConstructor
@@ -20,7 +21,7 @@ public class AppreciationRootService implements AppreciationRootApi {
     private final AppreciationRepository repository;
 
     @Override
-    public Root create(String kind, MemberId authorId, LocalDateTime createdAt) {
+    public Root create(AppreciationKind kind, MemberId authorId, LocalDateTime createdAt) {
         return toRoot(repository.save(new AppreciationJpaEntity(kind, authorId.value(), createdAt)));
     }
 
@@ -61,12 +62,14 @@ public class AppreciationRootService implements AppreciationRootApi {
         return repository.findById(appreciationId.value()).orElseThrow(() -> notFound(appreciationId));
     }
 
-    private AppreciationNotFoundFailure notFound(AppreciationId appreciationId) {
-        return new AppreciationNotFoundFailure(appreciationId);
+    private AppreciationNotFoundException notFound(AppreciationId appreciationId) {
+        return new AppreciationNotFoundException(
+                "감상이 존재하지 않습니다: appreciationId=" + appreciationId.value(),
+                java.util.Map.of("appreciationId", Long.toString(appreciationId.value())));
     }
 
     private Root toRoot(AppreciationJpaEntity entity) {
-        return new Root(new AppreciationId(entity.getId()), new MemberId(entity.getAuthorId()), entity.getKind(),
+        return new Root(new AppreciationId(entity.getId()), new MemberId(entity.getAuthorId()), entity.appreciationKind(),
                 entity.getCreatedAt(), entity.getUpdatedAt());
     }
 }

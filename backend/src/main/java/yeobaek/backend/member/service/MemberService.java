@@ -15,7 +15,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.InvalidRequestException;
+import yeobaek.backend.shared.exception.InvalidRequestException;
 
 @Service
 @RequiredArgsConstructor

@@ -18,10 +18,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberFailureReason;
-import yeobaek.backend.member.api.MemberNotFoundFailure;
-import yeobaek.backend.member.api.SelfBlockFailure;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.MemberNotFoundException;
+import yeobaek.backend.shared.exception.ErrorCode;
+import yeobaek.backend.member.api.block.SelfBlockException;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.MemberProfile;
@@ -63,9 +63,9 @@ class MemberBlockApiServiceTest {
     @DisplayName("자기 자신 차단은 저장소 조회 전에 거부한다")
     void rejectSelfBlock() {
         assertThatThrownBy(() -> memberBlockApiService.block(new MemberId(1L), new MemberId(1L)))
-                .isInstanceOf(SelfBlockFailure.class)
-                .satisfies(failure -> assertThat(((SelfBlockFailure) failure).reason())
-                        .isEqualTo(MemberFailureReason.SELF_BLOCK));
+                .isInstanceOf(SelfBlockException.class)
+                .satisfies(failure -> assertThat(((SelfBlockException) failure).getCode())
+                        .isEqualTo(ErrorCode.CANNOT_BLOCK_SELF));
 
         verify(memberRepository, never()).findById(1L);
         verify(memberBlockRepository, never()).save(org.mockito.ArgumentMatchers.any());
@@ -77,8 +77,8 @@ class MemberBlockApiServiceTest {
         given(memberRepository.findById(99L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> memberBlockApiService.block(new MemberId(1L), new MemberId(99L)))
-                .isInstanceOf(MemberNotFoundFailure.class)
-                .satisfies(failure -> assertThat(((MemberNotFoundFailure) failure).memberId())
+                .isInstanceOf(MemberNotFoundException.class)
+                .satisfies(failure -> assertThat(((MemberNotFoundException) failure).memberId())
                         .isEqualTo(new MemberId(99L)));
     }
 
@@ -93,7 +93,7 @@ class MemberBlockApiServiceTest {
 
         given(memberRepository.existsById(99L)).willReturn(false);
         assertThatThrownBy(() -> memberBlockApiService.unblock(new MemberId(1L), new MemberId(99L)))
-                .isInstanceOf(MemberNotFoundFailure.class);
+                .isInstanceOf(MemberNotFoundException.class);
     }
 
     @Test

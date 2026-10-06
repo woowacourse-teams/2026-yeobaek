@@ -3,12 +3,13 @@ package yeobaek.backend.space.internal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.foundation.identity.SpaceId;
-import yeobaek.backend.space.api.SpaceAccessApi;
-import yeobaek.backend.space.api.SpaceAccessRegistry;
-import yeobaek.backend.space.api.SpaceNotFoundFailure;
-import yeobaek.backend.space.domain.Space;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.identity.SpaceId;
+import yeobaek.backend.space.api.access.SpaceAccessApi;
+import yeobaek.backend.space.spi.access.SpaceAccessRegistry;
+import yeobaek.backend.space.api.SpaceNotFoundException;
+import yeobaek.backend.space.api.Space;
+import yeobaek.backend.space.api.SpaceKind;
 import yeobaek.backend.space.persistence.SpaceRootRepository;
 
 @Service
@@ -21,7 +22,7 @@ public class SpaceAccessService implements SpaceAccessApi {
 
     @Override
     public Space getSpace(SpaceId spaceId) {
-        String canonicalKind = findKind(spaceId);
+        SpaceKind canonicalKind = findKind(spaceId);
         return capabilities.get(canonicalKind).getSpace(spaceId);
     }
 
@@ -31,9 +32,10 @@ public class SpaceAccessService implements SpaceAccessApi {
         return capabilities.get(space.kind()).canAccess(memberId, space.id());
     }
 
-    private String findKind(SpaceId spaceId) {
+    private SpaceKind findKind(SpaceId spaceId) {
         return spaces.findById(spaceId.value())
-                .orElseThrow(() -> new SpaceNotFoundFailure(spaceId))
-                .getKind();
+                .orElseThrow(() -> new SpaceNotFoundException(spaceId,
+                        "접근 여부를 확인할 공간이 존재하지 않습니다: spaceId=" + spaceId.value()))
+                .spaceKind();
     }
 }

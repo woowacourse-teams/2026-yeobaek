@@ -20,7 +20,6 @@ import yeobaek.backend.admin.dto.AdminAuthorBookResponse;
 import yeobaek.backend.admin.dto.AdminAuthorResponse;
 import yeobaek.backend.admin.dto.AdminAuthorsResponse;
 import yeobaek.backend.admin.service.AdminAuthorService;
-import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.support.ControllerTest;
 
 @WebMvcTest(AdminAuthorController.class)
@@ -40,8 +39,8 @@ class AdminAuthorControllerTest extends ControllerTest {
                         "000000012345964X",
                         List.of(
                                 new AdminAuthorBookResponse(3L, "운수 좋은 날",
-                                        "https://covers.example/cover.jpg", BookStatus.DELETED),
-                                new AdminAuthorBookResponse(4L, "표지 없는 책", null, BookStatus.ACTIVE))),
+                                        "https://covers.example/cover.jpg", "DELETED"),
+                                new AdminAuthorBookResponse(4L, "표지 없는 책", null, "ACTIVE"))),
                 new AdminAuthorResponse(13L, "작자 미상", null, List.of())));
         given(adminAuthorService.findAuthors()).willReturn(response);
 

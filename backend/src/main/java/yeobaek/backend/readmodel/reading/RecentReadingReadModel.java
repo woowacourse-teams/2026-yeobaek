@@ -2,26 +2,26 @@ package yeobaek.backend.readmodel.reading;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.space.domain.Space;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.space.api.Space;
 
-@FunctionalInterface
 public interface RecentReadingReadModel {
 
     List<RecentReadingSnapshot> findCandidates(MemberId actorId);
 
-    record RecentReadingSnapshot(Space space, String spaceName, BookSnapshot book,
+    record RecentReadingSnapshot(Space space, String spaceName, ContentSnapshot content,
                                  ContentLocationId locationId, int passageSequence,
                                  LocalDateTime lastReadAt) {
     }
 
-    record BookSnapshot(Long bookId, ContentId contentId, String title, List<String> authors,
-                        String coverImageKey, int passageCount, String status, boolean available) {
+    record ContentSnapshot(ContentId contentId, ContentKind kind, String title, List<String> creators,
+                           String coverImageUrl, int unitCount, boolean available) {
 
-        public BookSnapshot {
-            authors = List.copyOf(authors);
+        public ContentSnapshot {
+            creators = List.copyOf(creators);
         }
     }
 }

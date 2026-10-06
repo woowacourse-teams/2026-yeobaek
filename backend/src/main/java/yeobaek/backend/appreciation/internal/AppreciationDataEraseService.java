@@ -6,12 +6,13 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.appreciation.api.AppreciationDataEraser;
-import yeobaek.backend.appreciation.api.AppreciationRootApi;
-import yeobaek.backend.appreciation.api.AppreciationSubtypeEraser;
-import yeobaek.backend.appreciation.api.AppreciationSubtypeEraserRegistry;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.MemberId;
+import yeobaek.backend.appreciation.api.erasure.AppreciationDataEraser;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
+import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraser;
+import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraserRegistry;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.MemberId;
 
 @Service
 @RequiredArgsConstructor
@@ -23,19 +24,24 @@ public class AppreciationDataEraseService implements AppreciationDataEraser {
 
     @Override
     public void eraseAuthoredBy(MemberId authorId) {
-        Map<String, List<AppreciationId>> idsByKind = groupByKind(roots.findAuthoredBy(authorId));
-        Map<String, AppreciationSubtypeEraser> resolved = new LinkedHashMap<>();
+        Map<AppreciationKind, List<AppreciationId>> idsByKind = groupByKind(roots.findAuthoredBy(authorId));
+        Map<AppreciationKind, AppreciationSubtypeEraser> resolved = new LinkedHashMap<>();
         idsByKind.keySet().forEach(kind -> resolved.put(kind, erasers.get(kind)));
         idsByKind.forEach((kind, ids) -> resolved.get(kind).eraseBodies(ids));
         roots.eraseAuthoredBy(authorId);
     }
 
     @Override
-    public void eraseReactionsBy(MemberId actorId) {
-        erasers.all().forEach(eraser -> eraser.eraseReactionsBy(actorId));
+    public void eraseViewsBy(MemberId actorId) {
+        erasers.all().forEach(eraser -> eraser.eraseViewsBy(actorId));
     }
 
-    private Map<String, List<AppreciationId>> groupByKind(List<AppreciationRootApi.Root> authored) {
+    @Override
+    public void eraseReportsBy(MemberId actorId) {
+        erasers.all().forEach(eraser -> eraser.eraseReportsBy(actorId));
+    }
+
+    private Map<AppreciationKind, List<AppreciationId>> groupByKind(List<AppreciationRootApi.Root> authored) {
         return authored.stream().collect(java.util.stream.Collectors.groupingBy(
                 AppreciationRootApi.Root::kind,
                 LinkedHashMap::new,

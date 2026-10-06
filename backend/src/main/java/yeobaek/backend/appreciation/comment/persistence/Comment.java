@@ -1,0 +1,54 @@
+package yeobaek.backend.appreciation.comment.persistence;
+
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.appreciation.api.AppreciationKind;
+
+@Entity(name = "Comment")
+@Table(name = "comments")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Comment {
+
+    @Id
+    private Long id;
+
+    @Column(name = "appreciation_kind", nullable = false, length = 64, updatable = false)
+    private String appreciationKind;
+
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "content", nullable = false, length = CommentContent.MAX_LENGTH))
+    private CommentContent content;
+
+    public Comment(Long appreciationId, CommentContent content) {
+        if (content == null) {
+            throw new IllegalArgumentException("댓글 내용은 필수입니다.");
+        }
+        if (appreciationId == null) {
+            throw new IllegalArgumentException("댓글 감상 ID는 필수입니다.");
+        }
+        this.id = appreciationId;
+        this.content = content;
+        this.appreciationKind = AppreciationKind.COMMENT.value();
+    }
+
+    public void updateContent(CommentContent content) {
+        if (content == null) {
+            throw new IllegalArgumentException("댓글 내용은 필수입니다.");
+        }
+        this.content = content;
+    }
+
+    public String getContent() {
+        return content.value();
+    }
+
+}

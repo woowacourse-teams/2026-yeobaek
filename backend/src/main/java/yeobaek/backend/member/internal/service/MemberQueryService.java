@@ -7,8 +7,8 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberNotFoundFailure;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.MemberNotFoundException;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberProfile;
@@ -25,7 +25,8 @@ public class MemberQueryService implements MemberQuery {
     public MemberProfile getProfile(MemberId memberId) {
         return memberRepository.findById(memberId.value())
                 .map(this::toProfile)
-                .orElseThrow(() -> new MemberNotFoundFailure(memberId));
+                .orElseThrow(() -> new MemberNotFoundException(memberId,
+                        "조회할 회원이 존재하지 않습니다: memberId=" + memberId.value()));
     }
 
     @Override

@@ -14,31 +14,30 @@ import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.dto.ChapterUploadRequest;
 import yeobaek.backend.admin.dto.PassageUploadRequest;
 import yeobaek.backend.admin.dto.SentenceUploadRequest;
-import yeobaek.backend.book.domain.Author;
-import yeobaek.backend.book.domain.AuthorBook;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.ContentSequence;
-import yeobaek.backend.book.domain.vo.Isni;
-import yeobaek.backend.book.domain.vo.PassageCount;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
-import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
-import yeobaek.backend.support.BadRequestException;
-import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.content.api.value.AuthorName;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.Isni;
+import yeobaek.backend.content.api.value.Publisher;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.content.api.book.BookIngestException;
+import yeobaek.backend.content.book.domain.Author;
+import yeobaek.backend.content.book.domain.AuthorBook;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.book.domain.Passage;
+import yeobaek.backend.content.book.domain.vo.ContentSequence;
+import yeobaek.backend.content.book.domain.vo.PassageCount;
+import yeobaek.backend.content.book.repository.AuthorBookRepository;
+import yeobaek.backend.content.book.repository.AuthorRepository;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.content.book.repository.ChapterRepository;
+import yeobaek.backend.content.book.repository.PassageRepository;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
+import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
-import yeobaek.backend.support.NotFoundException;
-import yeobaek.backend.publicroom.repository.PublicRoomRepository;
+import yeobaek.backend.space.publicroom.repository.PublicRoomRepository;
 
 class BookIngestServiceTest extends IntegrationTest {
 
@@ -148,9 +147,9 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않는 authorId 참조는 AUTHOR_NOT_FOUND로 거부한다")
     void rejectUnknownAuthorId() {
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(999L, null, null))))
-                .isInstanceOf(NotFoundException.class);
+        assertIngestFailure(() -> bookIngestService.upload(requestWithAuthors(
+                        new AuthorEntryRequest(999L, null, null))), ErrorCode.AUTHOR_NOT_FOUND,
+                "authorId가 가리키는 작가가 존재하지 않습니다: authorId=999", "AUTHOR_NOT_FOUND");
     }
 
     @Test
@@ -158,10 +157,10 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectNameMismatch() {
         authorRepository.save(new Author(new AuthorName("현진건"), new Isni("000000012345964X")));
 
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(null, new AuthorName("이효석"), new Isni("000000012345964X")))))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.AUTHOR_NAME_MISMATCH);
+        assertIngestFailure(() -> bookIngestService.upload(requestWithAuthors(
+                        new AuthorEntryRequest(null, new AuthorName("이효석"), new Isni("000000012345964X")))),
+                ErrorCode.AUTHOR_NAME_MISMATCH,
+                "ISNI로 찾은 기존 작가와 요청한 작가 이름이 일치하지 않습니다.", "AUTHOR_NAME_MISMATCH");
     }
 
     @Test
@@ -169,11 +168,12 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectDuplicateAuthorEntry() {
         Author existing = authorRepository.save(new Author(new AuthorName("현진건"), new Isni("000000012345964X")));
 
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
+        assertIngestFailure(() -> bookIngestService.upload(requestWithAuthors(
                 new AuthorEntryRequest(existing.getId(), null, null),
-                new AuthorEntryRequest(null, new AuthorName("현진건"), new Isni("000000012345964X")))))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_AUTHOR);
+                new AuthorEntryRequest(null, new AuthorName("현진건"), new Isni("000000012345964X")))),
+                ErrorCode.DUPLICATE_AUTHOR,
+                "한 업로드 요청에 같은 작가가 중복 기재되었습니다: authorId=" + existing.getId(),
+                "DUPLICATE_AUTHOR");
     }
 
     @Test
@@ -187,9 +187,8 @@ class BookIngestServiceTest extends IntegrationTest {
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
                 List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))));
 
-        assertThatThrownBy(() -> bookIngestService.upload(request))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_BOOK);
+        assertIngestFailure(() -> bookIngestService.upload(request), ErrorCode.DUPLICATE_BOOK,
+                "동일한 서지 정보와 작가 구성의 활성 도서가 이미 존재합니다.", "DUPLICATE_BOOK");
     }
 
     @Test
@@ -207,9 +206,8 @@ class BookIngestServiceTest extends IntegrationTest {
                         new AuthorEntryRequest(first.getId(), null, null)),
                 chaptersWithOnePassage());
 
-        assertThatThrownBy(() -> bookIngestService.upload(request))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_BOOK);
+        assertIngestFailure(() -> bookIngestService.upload(request), ErrorCode.DUPLICATE_BOOK,
+                "동일한 서지 정보와 작가 구성의 활성 도서가 이미 존재합니다.", "DUPLICATE_BOOK");
     }
 
     @Test
@@ -275,24 +273,25 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("작가 0명, 목차 0개, 본문 0개인 목차는 거부한다")
     void rejectEmptyStructures() {
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                List.of(), chaptersWithOnePassage())))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of())))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of())))))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertIngestFailure(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null,
+                        null, List.of(), chaptersWithOnePassage())), ErrorCode.INVALID_REQUEST,
+                "작가는 최소 1명이어야 합니다.", "AUTHORS_EMPTY");
+        assertIngestFailure(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null,
+                        null, authorsOfUnknown(), List.of())), ErrorCode.INVALID_REQUEST,
+                "목차는 최소 1개여야 합니다.", "CHAPTERS_EMPTY");
+        assertIngestFailure(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null,
+                        null, authorsOfUnknown(),
+                        List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of())))),
+                ErrorCode.INVALID_REQUEST, "각 목차의 본문은 최소 1개여야 합니다.", "PASSAGES_EMPTY");
     }
 
     @Test
     @DisplayName("문장이 없거나 문장 내용이 공백이면 거부한다")
     void rejectBlankContent() {
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
+        assertIngestFailure(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(new PassageUploadRequest(List.of())))))))
-                .isInstanceOf(IllegalArgumentException.class);
+                        List.of(new PassageUploadRequest(List.of())))))), ErrorCode.INVALID_REQUEST,
+                "각 문단의 문장은 최소 1개여야 합니다.", "SENTENCES_EMPTY");
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
                         List.of(passage(" ")))))))
@@ -306,9 +305,8 @@ class BookIngestServiceTest extends IntegrationTest {
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
                 List.of(passage("a".repeat(65_536))))));
 
-        assertThatThrownBy(() -> bookIngestService.upload(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("문장 하나는 65535바이트를 넘을 수 없습니다.");
+        assertIngestFailure(() -> bookIngestService.upload(request), ErrorCode.INVALID_REQUEST,
+                "문장 하나는 65535바이트를 넘을 수 없습니다.", "SENTENCE_TOO_LARGE");
     }
 
     @Test
@@ -316,13 +314,23 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectAmbiguousAuthorEntry() {
         Author existing = authorRepository.save(new Author(new AuthorName("현진건")));
 
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(existing.getId(), new AuthorName("현진건"), null))))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertIngestFailure(() -> bookIngestService.upload(requestWithAuthors(
+                        new AuthorEntryRequest(existing.getId(), new AuthorName("현진건"), null))),
+                ErrorCode.INVALID_REQUEST,
+                "작가 항목은 {name, isni?} 또는 {authorId} 중 한 형태여야 합니다.", "MIXED_AUTHOR_REFERENCE");
     }
 
     private BookUploadRequest requestWithAuthors(AuthorEntryRequest... authors) {
         return new BookUploadRequest(new BookTitle("새 책"), null, null, null, List.of(authors), chaptersWithOnePassage());
+    }
+
+    private void assertIngestFailure(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation,
+                                     ErrorCode code, String message, String reason) {
+        assertThatThrownBy(operation).isInstanceOfSatisfying(BookIngestException.class, failure -> {
+            assertThat(failure.getCode()).isEqualTo(code);
+            assertThat(failure.getMessage()).isEqualTo(message);
+            assertThat(failure.getLogContext()).containsEntry("reason", reason);
+        });
     }
 
     private List<ChapterUploadRequest> chaptersWithOnePassage() {

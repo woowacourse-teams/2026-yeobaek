@@ -6,18 +6,25 @@ import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import yeobaek.backend.shared.identity.MemberId;
 
 public class AuthMemberArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(AuthMember.class)
-                && Long.class.equals(parameter.getParameterType());
+                && (Long.class.equals(parameter.getParameterType())
+                || MemberId.class.equals(parameter.getParameterType()));
     }
 
     @Override
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
-        return webRequest.getAttribute(MemberAuthInterceptor.MEMBER_ID_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+        Object memberId = webRequest.getAttribute(
+                MemberAuthInterceptor.MEMBER_ID_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+        if (MemberId.class.equals(parameter.getParameterType())) {
+            return new MemberId((Long) memberId);
+        }
+        return memberId;
     }
 }

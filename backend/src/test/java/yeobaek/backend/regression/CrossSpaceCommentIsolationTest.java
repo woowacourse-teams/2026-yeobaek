@@ -8,32 +8,32 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
-import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
-import yeobaek.backend.comment.domain.vo.CommentContent;
-import yeobaek.backend.comment.repository.CommentViewRepository;
-import yeobaek.backend.web.compatibility.CommentService;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.book.domain.Chapter;
+import yeobaek.backend.content.book.domain.Passage;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.api.value.ChapterTitle;
+import yeobaek.backend.content.api.value.SentenceContent;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.content.book.repository.ChapterRepository;
+import yeobaek.backend.content.book.repository.PassageRepository;
+import yeobaek.backend.space.club.persistence.Club;
+import yeobaek.backend.space.club.domain.ClubMember;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.space.club.repository.ClubMemberRepository;
+import yeobaek.backend.space.club.repository.ClubRepository;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
+import yeobaek.backend.appreciation.api.comment.CommentContent;
+import yeobaek.backend.appreciation.comment.repository.CommentViewRepository;
+import yeobaek.backend.web.v1.CommentService;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.repository.PublicRoomRepository;
+import yeobaek.backend.space.publicroom.persistence.PublicRoom;
+import yeobaek.backend.space.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
 
 class CrossSpaceCommentIsolationTest extends IntegrationTest {
@@ -88,7 +88,7 @@ class CrossSpaceCommentIsolationTest extends IntegrationTest {
         bindingApi.bind(new SpaceId(publicRoom.getSpaceId()), new ContentId(book.getContentId()));
         writer = memberRepository.save(new Member(new Nickname("작성자")));
         reader = memberRepository.save(new Member(new Nickname("독자")));
-        clubMemberRepository.saveAll(List.of(new ClubMember(new yeobaek.backend.foundation.identity.MemberId(writer.getId()), club), new ClubMember(new yeobaek.backend.foundation.identity.MemberId(reader.getId()), club)));
+        clubMemberRepository.saveAll(List.of(new ClubMember(new yeobaek.backend.shared.identity.MemberId(writer.getId()), club), new ClubMember(new yeobaek.backend.shared.identity.MemberId(reader.getId()), club)));
     }
 
     @Test

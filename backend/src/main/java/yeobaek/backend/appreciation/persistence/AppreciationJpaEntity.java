@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import yeobaek.backend.appreciation.api.AppreciationKind;
 
 @Entity
 @Table(name = "appreciations", uniqueConstraints = {
@@ -36,10 +37,14 @@ public class AppreciationJpaEntity {
     @Column(precision = 6)
     private LocalDateTime updatedAt;
 
-    public AppreciationJpaEntity(String kind, Long authorId, LocalDateTime createdAt) {
-        this.kind = kind;
+    public AppreciationJpaEntity(AppreciationKind kind, Long authorId, LocalDateTime createdAt) {
+        this.kind = kind.value();
         this.authorId = authorId;
         this.createdAt = createdAt;
+    }
+
+    public AppreciationKind appreciationKind() {
+        return new AppreciationKind(kind);
     }
 
     public void markUpdated(LocalDateTime changedAt) {

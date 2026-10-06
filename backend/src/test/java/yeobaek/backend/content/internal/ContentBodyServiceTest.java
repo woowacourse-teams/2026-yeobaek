@@ -7,11 +7,12 @@ import static org.mockito.Mockito.mock;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.content.api.ContentBodyApi;
-import yeobaek.backend.content.api.ContentBodyProvider;
-import yeobaek.backend.content.api.ContentBodyProviderRegistry;
-import yeobaek.backend.content.domain.Content;
-import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.body.ContentBodyApi;
+import yeobaek.backend.content.spi.body.ContentBodyProvider;
+import yeobaek.backend.content.spi.body.ContentBodyProviderRegistry;
+import yeobaek.backend.content.api.Content;
+import yeobaek.backend.shared.identity.ContentId;
 
 class ContentBodyServiceTest {
 
@@ -34,10 +35,10 @@ class ContentBodyServiceTest {
 
     private record ThirdContent(ContentId id) implements Content {
 
-        private static final String KIND = "THIRD_CONTENT";
+        private static final ContentKind KIND = new ContentKind("THIRD_CONTENT");
 
         @Override
-        public String kind() {
+        public ContentKind kind() {
             return KIND;
         }
 

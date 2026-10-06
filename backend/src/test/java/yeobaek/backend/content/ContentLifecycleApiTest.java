@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.content.api.ContentLifecycleApi;
-import yeobaek.backend.content.api.ContentNotFoundFailure;
-import yeobaek.backend.foundation.identity.ContentId;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.location.LocationKind;
+import yeobaek.backend.content.api.lifecycle.ContentLifecycleApi;
+import yeobaek.backend.content.api.ContentNotFoundException;
+import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.support.IntegrationTest;
 
 class ContentLifecycleApiTest extends IntegrationTest {
@@ -25,9 +27,11 @@ class ContentLifecycleApiTest extends IntegrationTest {
 
     @Test
     void createsExtensionContentAndLocationWithoutAddingCoreKinds() {
-        var content = lifecycleApi.createContent("FUTURE_CONTENT");
-        var otherContent = lifecycleApi.createContent("FUTURE_CONTENT");
-        var location = lifecycleApi.createLocation(content, "FUTURE_LOCATION");
+        ContentKind futureContent = new ContentKind("FUTURE_CONTENT");
+        LocationKind futureLocation = new LocationKind("FUTURE_LOCATION");
+        var content = lifecycleApi.createContent(futureContent);
+        var otherContent = lifecycleApi.createContent(futureContent);
+        var location = lifecycleApi.createLocation(content, futureLocation);
 
         assertThat(contentApi.ownsLocation(content, location)).isTrue();
         assertThat(contentApi.ownsLocation(otherContent, location)).isFalse();
@@ -39,8 +43,9 @@ class ContentLifecycleApiTest extends IntegrationTest {
 
     @Test
     void rejectsAnUnknownContentBeforePersistingItsLocation() {
-        assertThatThrownBy(() -> lifecycleApi.createLocation(new ContentId(9999L), "FUTURE_LOCATION"))
-                .isInstanceOf(ContentNotFoundFailure.class);
+        assertThatThrownBy(() -> lifecycleApi.createLocation(
+                new ContentId(9999L), new LocationKind("FUTURE_LOCATION")))
+                .isInstanceOf(ContentNotFoundException.class);
         assertThat(jdbcTemplate.queryForObject("select count(*) from content_locations", Long.class)).isZero();
         assertThat(jdbcTemplate.queryForObject("select count(*) from contents", Long.class)).isZero();
     }

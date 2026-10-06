@@ -7,16 +7,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import yeobaek.backend.admin.dto.AdminDashboardBookResponse;
-import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.BookStatus;
-import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.club.domain.vo.ClubName;
-import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.collaboration.api.SpaceContentBindingApi;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.api.value.BookTitle;
+import yeobaek.backend.content.book.repository.BookManagementRepository;
+import yeobaek.backend.space.api.club.ClubName;
+import yeobaek.backend.space.api.club.JoinCode;
+import yeobaek.backend.space.club.repository.ClubRepository;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.support.IntegrationTest;
 
 class AdminBookDashboardServiceTest extends IntegrationTest {
@@ -57,10 +56,10 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
                         AdminDashboardBookResponse::status,
                         AdminDashboardBookResponse::clubCount)
                 .containsExactly(
-                        tuple(second.getId(), "같은 제목", BookStatus.DELETED, 2L),
-                        tuple(first.getId(), "같은 제목", BookStatus.ACTIVE, 1L),
-                        tuple(tied.getId(), "동률 도서", BookStatus.ACTIVE, 1L),
-                        tuple(zero.getId(), "모임 없는 책", BookStatus.ACTIVE, 0L));
+                        tuple(second.getId(), "같은 제목", "DELETED", 2L),
+                        tuple(first.getId(), "같은 제목", "ACTIVE", 1L),
+                        tuple(tied.getId(), "동률 도서", "ACTIVE", 1L),
+                        tuple(zero.getId(), "모임 없는 책", "ACTIVE", 0L));
     }
 
     @Test

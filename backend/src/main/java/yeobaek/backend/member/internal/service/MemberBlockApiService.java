@@ -8,10 +8,10 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberBlockApi;
-import yeobaek.backend.member.api.MemberNotFoundFailure;
-import yeobaek.backend.member.api.SelfBlockFailure;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.block.MemberBlockApi;
+import yeobaek.backend.member.api.MemberNotFoundException;
+import yeobaek.backend.member.api.block.SelfBlockException;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.MemberProfile;
@@ -53,7 +53,8 @@ public class MemberBlockApiService implements MemberBlockApi {
     @Transactional
     public void block(MemberId blockerId, MemberId blockedId) {
         if (blockerId.equals(blockedId)) {
-            throw new SelfBlockFailure(blockerId);
+            throw new SelfBlockException(blockerId,
+                    "자기 자신은 차단할 수 없습니다: memberId=" + blockerId.value());
         }
         Member blocked = findMember(blockedId);
         if (!memberBlockRepository.existsByBlockerIdAndBlockedId(blockerId.value(), blockedId.value())) {
@@ -66,7 +67,8 @@ public class MemberBlockApiService implements MemberBlockApi {
     @Transactional
     public void unblock(MemberId blockerId, MemberId blockedId) {
         if (!memberRepository.existsById(blockedId.value())) {
-            throw new MemberNotFoundFailure(blockedId);
+            throw new MemberNotFoundException(blockedId,
+                    "차단할 회원이 존재하지 않습니다: memberId=" + blockedId.value());
         }
         memberBlockRepository.deleteByBlockerIdAndBlockedId(blockerId.value(), blockedId.value());
     }
@@ -79,7 +81,8 @@ public class MemberBlockApiService implements MemberBlockApi {
 
     private Member findMember(MemberId memberId) {
         return memberRepository.findById(memberId.value())
-                .orElseThrow(() -> new MemberNotFoundFailure(memberId));
+                .orElseThrow(() -> new MemberNotFoundException(memberId,
+                        "차단 관계를 처리할 회원이 존재하지 않습니다: memberId=" + memberId.value()));
     }
 
     private MemberProfile toProfile(Member member) {

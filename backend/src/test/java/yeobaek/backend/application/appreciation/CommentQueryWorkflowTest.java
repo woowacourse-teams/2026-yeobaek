@@ -1,35 +1,32 @@
 package yeobaek.backend.application.appreciation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import yeobaek.backend.appreciation.api.CommentViewApi;
-import yeobaek.backend.appreciation.domain.Comment;
-import yeobaek.backend.application.appreciation.CommentQueryWorkflow.CommentQueryFailure;
-import yeobaek.backend.foundation.identity.AppreciationId;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.foundation.identity.SpaceId;
+import yeobaek.backend.appreciation.api.comment.CommentViewApi;
+import yeobaek.backend.appreciation.comment.internal.CommentSnapshot;
+import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
+import yeobaek.backend.content.api.Content;
+import yeobaek.backend.content.api.ContentApi;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.location.ContentLocationQueryApi;
+import yeobaek.backend.content.api.location.LocationKind;
+import yeobaek.backend.shared.identity.AppreciationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.MemberProfile;
 import yeobaek.backend.readmodel.comment.CommentReadModel;
-import yeobaek.backend.readmodel.comment.CommentReadModel.DiscoverySnapshot;
-import yeobaek.backend.readmodel.comment.CommentReadModel.LocationSnapshot;
-import yeobaek.backend.readmodel.comment.CommentReadModel.SpaceContentSnapshot;
-import yeobaek.backend.space.api.SpaceAccessApi;
-import yeobaek.backend.space.domain.Club;
+import yeobaek.backend.space.api.access.SpaceAccessApi;
 
 class CommentQueryWorkflowTest {
 
@@ -38,98 +35,72 @@ class CommentQueryWorkflowTest {
     private static final SpaceId SPACE = new SpaceId(3L);
     private static final ContentId CONTENT = new ContentId(4L);
     private static final ContentLocationId LOCATION = new ContentLocationId(5L);
-    private static final LocalDateTime CREATED_AT = LocalDateTime.of(2026, 10, 2, 12, 0);
 
     @Test
-    void returnsPureCommentsWithProfilesAndRecordsViews() {
+    void returnsCommentsAndMarksThemViewedThroughCanonicalTarget() {
+        Fixture fixture = fixture(LocationKind.SENTENCE, 2);
+        var comment = new CommentSnapshot(new AppreciationId(6L), AUTHOR, "감상",
+                LocalDateTime.of(2026, 10, 2, 12, 0), null);
+        given(fixture.comments.findVisible(REQUESTER, SPACE, LOCATION)).willReturn(List.of(comment));
+        given(fixture.members.findProfiles(Set.of(AUTHOR)))
+                .willReturn(Map.of(AUTHOR, new MemberProfile(AUTHOR, "작성자")));
+
+        var result = fixture.workflow.findComments(REQUESTER, SPACE, CONTENT, LOCATION);
+
+        assertThat(result).singleElement().satisfies(found -> assertThat(found.comment()).isSameAs(comment));
+        verify(fixture.views).markViewed(REQUESTER, List.of(comment.id()));
+    }
+
+    @Test
+    void sortsDiscoveryUsingLegacySentenceIdOnlyAsInternalTieBreaker() {
+        Fixture fixture = fixture(LocationKind.PASSAGE, 2);
+        var first = new ContentLocationId(11L);
+        var second = new ContentLocationId(12L);
+        given(fixture.comments.findDiscovery(REQUESTER, SPACE, CONTENT)).willReturn(List.of(
+                new CommentReadModel.DiscoverySnapshot(first, LOCATION, 21L, "첫째", 2, 1, 1, 1,
+                        LocalDateTime.of(2026, 1, 1, 0, 0)),
+                new CommentReadModel.DiscoverySnapshot(second, LOCATION, 22L, "둘째", 2, 1, 1, 1,
+                        LocalDateTime.of(2026, 1, 1, 0, 0))));
+
+        var result = fixture.workflow.findDiscovery(REQUESTER, SPACE, CONTENT, LOCATION);
+
+        assertThat(result).extracting(CommentQueryWorkflow.DiscoveryResult::locationId)
+                .containsExactly(second, first);
+    }
+
+    @Test
+    void passesRequestedContentToUnreadCountReadModel() {
+        Fixture fixture = fixture(LocationKind.PASSAGE, 2);
+        given(fixture.comments.countNewVisible(REQUESTER, SPACE, CONTENT, 2)).willReturn(3L);
+
+        long count = fixture.workflow.countNewComments(REQUESTER, SPACE, CONTENT, LOCATION);
+
+        assertThat(count).isEqualTo(3L);
+        verify(fixture.comments).countNewVisible(REQUESTER, SPACE, CONTENT, 2);
+    }
+
+    private Fixture fixture(LocationKind kind, int passageSequence) {
         var comments = mock(CommentReadModel.class);
         var views = mock(CommentViewApi.class);
         var members = mock(MemberQuery.class);
         var spaces = mock(SpaceAccessApi.class);
-        var workflow = new CommentQueryWorkflow(comments, views, members, spaces);
-        var space = clubSnapshot(true);
-        var location = new LocationSnapshot(LOCATION, CONTENT, 2);
-        var comment = new Comment(new AppreciationId(6L), AUTHOR, "감상", CREATED_AT, null);
+        var bindings = mock(SpaceContentBindingApi.class);
+        var contents = mock(ContentApi.class);
+        var locations = mock(ContentLocationQueryApi.class);
+        var content = mock(Content.class);
+        given(members.getProfile(REQUESTER)).willReturn(new MemberProfile(REQUESTER, "독자"));
         given(spaces.canAccess(REQUESTER, SPACE)).willReturn(true);
-        given(comments.findVisible(REQUESTER, SPACE, LOCATION)).willReturn(List.of(comment));
-        given(members.findProfiles(Set.of(AUTHOR)))
-                .willReturn(Map.of(AUTHOR, new MemberProfile(AUTHOR, "작성자")));
-
-        var result = workflow.findComments(REQUESTER, space, location);
-
-        assertThat(result).singleElement().satisfies(item -> {
-            assertThat(item.comment()).isSameAs(comment);
-            assertThat(item.author()).isEqualTo(new MemberProfile(AUTHOR, "작성자"));
-        });
-        verify(views).markViewed(REQUESTER, List.of(new AppreciationId(6L)));
+        given(bindings.isBound(SPACE, CONTENT)).willReturn(true);
+        given(locations.get(LOCATION)).willReturn(new ContentLocationQueryApi.Location(
+                LOCATION, CONTENT, kind, LOCATION, passageSequence));
+        given(contents.getContent(CONTENT)).willReturn(content);
+        given(content.kind()).willReturn(ContentKind.BOOK);
+        given(content.available()).willReturn(true);
+        return new Fixture(new CommentQueryWorkflow(comments, views, members, spaces, bindings, contents, locations),
+                comments, views, members);
     }
 
-    @Test
-    void rejectsClubAccessBeforeResolvingTheSentence() {
-        var comments = mock(CommentReadModel.class);
-        var spaces = mock(SpaceAccessApi.class);
-        var workflow = new CommentQueryWorkflow(
-                comments, mock(CommentViewApi.class), mock(MemberQuery.class), spaces);
-        given(comments.findClub(7L)).willReturn(Optional.of(clubSnapshot(true)));
-        given(spaces.canAccess(REQUESTER, SPACE)).willReturn(false);
-
-        assertThatThrownBy(() -> workflow.findClubComments(REQUESTER, 7L, 8L))
-                .isInstanceOf(CommentQueryFailure.class)
-                .extracting(failure -> ((CommentQueryFailure) failure).reason())
-                .isEqualTo(CommentQueryWorkflow.FailureReason.NOT_CLUB_MEMBER);
-
-        var ordered = inOrder(comments, spaces);
-        ordered.verify(comments).findClub(7L);
-        ordered.verify(spaces).canAccess(REQUESTER, SPACE);
-        verify(comments, never()).findSentence(8L);
-    }
-
-    @Test
-    void sortsDiscoveryByUnreadProgressThenLocation() {
-        var comments = mock(CommentReadModel.class);
-        var spaces = mock(SpaceAccessApi.class);
-        var workflow = new CommentQueryWorkflow(
-                comments, mock(CommentViewApi.class), mock(MemberQuery.class), spaces);
-        var passage = new LocationSnapshot(LOCATION, CONTENT, 2);
-        given(spaces.canAccess(REQUESTER, SPACE)).willReturn(true);
-        given(comments.findDiscovery(REQUESTER, SPACE)).willReturn(List.of(
-                discovery(11L, 1, 1, 0),
-                discovery(12L, 3, 1, 1),
-                discovery(13L, 2, 2, 1),
-                discovery(14L, 2, 1, 1)));
-
-        var result = workflow.findDiscovery(REQUESTER, clubSnapshot(true), passage);
-
-        assertThat(result).extracting(CommentQueryWorkflow.DiscoveryResult::sentenceId)
-                .containsExactly(14L, 13L, 12L, 11L);
-        assertThat(result).extracting(CommentQueryWorkflow.DiscoveryResult::revealRequired)
-                .containsExactly(false, false, true, false);
-    }
-
-    @Test
-    void rejectsUnavailableContentBeforeRunningAQuery() {
-        var comments = mock(CommentReadModel.class);
-        var spaces = mock(SpaceAccessApi.class);
-        var workflow = new CommentQueryWorkflow(
-                comments, mock(CommentViewApi.class), mock(MemberQuery.class), spaces);
-        given(spaces.canAccess(REQUESTER, SPACE)).willReturn(true);
-
-        assertThatThrownBy(() -> workflow.countNewComments(
-                REQUESTER, clubSnapshot(false), new LocationSnapshot(LOCATION, CONTENT, 2)))
-                .isInstanceOf(CommentQueryFailure.class)
-                .extracting(failure -> ((CommentQueryFailure) failure).reason())
-                .isEqualTo(CommentQueryWorkflow.FailureReason.CONTENT_UNAVAILABLE);
-
-        verify(comments, never()).countNewVisible(REQUESTER, SPACE, 2);
-    }
-
-    private SpaceContentSnapshot clubSnapshot(boolean available) {
-        return new SpaceContentSnapshot(new Club(SPACE, 7L, "모임", "join"), CONTENT, available);
-    }
-
-    private DiscoverySnapshot discovery(Long sentenceId, int passageSequence,
-                                        int sentenceSequence, long unreadCount) {
-        return new DiscoverySnapshot(sentenceId, "문장", 20L + passageSequence, passageSequence,
-                sentenceSequence, 1, unreadCount, CREATED_AT);
+    private record Fixture(CommentQueryWorkflow workflow, CommentReadModel comments, CommentViewApi views,
+                           MemberQuery members) {
     }
 }

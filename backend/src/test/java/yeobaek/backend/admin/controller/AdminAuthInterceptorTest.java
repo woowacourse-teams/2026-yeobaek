@@ -7,7 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import yeobaek.backend.support.UnauthorizedException;
+import yeobaek.backend.shared.exception.UnauthorizedException;
 
 class AdminAuthInterceptorTest {
 

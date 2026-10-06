@@ -13,8 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardBookResponse;
 import yeobaek.backend.admin.dto.AdminDashboardBooksResponse;
-import yeobaek.backend.book.domain.Books;
-import yeobaek.backend.book.repository.BookManagementRepository;
+import yeobaek.backend.content.api.book.BookAdministrationApi;
 import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
 
 @Service
@@ -22,25 +21,24 @@ import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
 @Slf4j
 public class AdminBookDashboardService {
 
-    private final BookManagementRepository bookManagementRepository;
+    private final BookAdministrationApi bookAdministrationApi;
     private final AdminClubStatisticsReadModel statisticsReadModel;
 
     @Transactional(readOnly = true)
     public AdminDashboardBooksResponse findBooksWithClubCounts() {
         log.atInfo().addKeyValue(OPERATION, "admin.dashboard.findBooksWithClubCounts")
                 .log("관리자 도서 현황을 조회합니다.");
-        Books books = new Books(bookManagementRepository.findAll());
+        List<BookAdministrationApi.BookStatusView> books = bookAdministrationApi.findBookStatuses();
         if (books.isEmpty()) {
             logSuccess(0);
             return new AdminDashboardBooksResponse(List.of());
         }
-        Map<Long, Long> clubCounts = statisticsReadModel.countClubsByBookIds(books.ids());
-        var response = new AdminDashboardBooksResponse(books.asList().stream()
+        Map<Long, Long> clubCounts = statisticsReadModel.countClubsByBookIds(
+                books.stream().map(BookAdministrationApi.BookStatusView::bookId).toList());
+        var response = new AdminDashboardBooksResponse(books.stream()
                 .map(book -> new AdminDashboardBookResponse(
-                        book.getId(),
-                        book.getTitle().value(),
-                        book.getStatus(),
-                        clubCounts.getOrDefault(book.getId(), 0L)))
+                        book.bookId(), book.title(), book.status(),
+                        clubCounts.getOrDefault(book.bookId(), 0L)))
                 .sorted(Comparator.comparingLong(AdminDashboardBookResponse::clubCount).reversed()
                         .thenComparing(AdminDashboardBookResponse::bookId))
                 .toList());

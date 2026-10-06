@@ -5,13 +5,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.content.api.ContentApi;
-import yeobaek.backend.content.api.ContentUnavailableFailure;
-import yeobaek.backend.content.api.ContentNotFoundFailure;
-import yeobaek.backend.content.api.ContentProviderRegistry;
-import yeobaek.backend.content.domain.Content;
+import yeobaek.backend.content.api.ContentKind;
+import yeobaek.backend.content.api.ContentUnavailableException;
+import yeobaek.backend.content.api.ContentNotFoundException;
+import yeobaek.backend.content.spi.ContentProviderRegistry;
+import yeobaek.backend.content.api.Content;
 import yeobaek.backend.content.persistence.ContentRootRepository;
-import yeobaek.backend.foundation.identity.ContentId;
-import yeobaek.backend.foundation.identity.ContentLocationId;
+import yeobaek.backend.shared.identity.ContentId;
+import yeobaek.backend.shared.identity.ContentLocationId;
 
 @Service
 @RequiredArgsConstructor
@@ -24,15 +25,17 @@ public class ContentService implements ContentApi {
 
     @Override
     public Content getContent(ContentId contentId) {
-        String kind = rootRepository.findById(contentId.value())
-                .orElseThrow(() -> new ContentNotFoundFailure(contentId)).getKind();
+        ContentKind kind = rootRepository.findById(contentId.value())
+                .orElseThrow(() -> new ContentNotFoundException(contentId,
+                        "컨텐츠가 존재하지 않습니다: contentId=" + contentId.value())).contentKind();
         return providers.get(kind).get(contentId);
     }
 
     @Override
     public void requireAvailable(ContentId contentId) {
         if (!getContent(contentId).available()) {
-            throw new ContentUnavailableFailure(contentId);
+            throw new ContentUnavailableException(contentId,
+                    "더 이상 이용할 수 없는 컨텐츠입니다: contentId=" + contentId.value());
         }
     }
 

@@ -3,13 +3,14 @@ package yeobaek.backend.application.account;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.appreciation.api.AppreciationDataEraser;
-import yeobaek.backend.club.api.ClubMembershipApi;
-import yeobaek.backend.collaboration.api.AppreciationContextApi;
-import yeobaek.backend.foundation.identity.MemberId;
-import yeobaek.backend.member.api.MemberBlockApi;
+import yeobaek.backend.appreciation.api.erasure.AppreciationDataEraser;
+import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
+import yeobaek.backend.space.api.club.ClubMembershipApi;
+import yeobaek.backend.collaboration.api.context.AppreciationContextApi;
+import yeobaek.backend.shared.identity.MemberId;
+import yeobaek.backend.member.api.block.MemberBlockApi;
 import yeobaek.backend.member.api.MemberDataEraser;
-import yeobaek.backend.reading.api.PublicRoomVisitApi;
+import yeobaek.backend.space.api.publicroom.PublicRoomVisitApi;
 import yeobaek.backend.reading.api.ReadingProgressApi;
 
 @Service
@@ -17,6 +18,7 @@ import yeobaek.backend.reading.api.ReadingProgressApi;
 public class AccountDeletionWorkflow {
 
     private final AppreciationContextApi contextApi;
+    private final AppreciationRootApi appreciationRoots;
     private final AppreciationDataEraser appreciationEraser;
     private final ReadingProgressApi readingProgressApi;
     private final PublicRoomVisitApi visitApi;
@@ -26,9 +28,11 @@ public class AccountDeletionWorkflow {
 
     @Transactional
     public void delete(MemberId memberId) {
-        contextApi.eraseAuthoredBy(memberId);
+        contextApi.detachAll(appreciationRoots.findAuthoredBy(memberId).stream()
+                .map(AppreciationRootApi.Root::id).toList());
         appreciationEraser.eraseAuthoredBy(memberId);
-        appreciationEraser.eraseReactionsBy(memberId);
+        appreciationEraser.eraseViewsBy(memberId);
+        appreciationEraser.eraseReportsBy(memberId);
         readingProgressApi.erase(memberId);
         visitApi.erase(memberId);
         clubMembershipApi.erase(memberId);
