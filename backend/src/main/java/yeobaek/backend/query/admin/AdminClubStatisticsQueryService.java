@@ -10,8 +10,8 @@ import yeobaek.backend.appreciation.api.comment.CommentApi;
 import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.collaboration.api.context.AppreciationContextApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.space.api.SpaceKind;
 import yeobaek.backend.space.api.access.SpaceAccessApi;
 import yeobaek.backend.space.api.club.ClubApi;
@@ -24,7 +24,7 @@ public class AdminClubStatisticsQueryService {
     private final ClubApi clubs;
     private final AppreciationContextApi contexts;
     private final CommentApi comments;
-    private final ContentLegacyReferenceApi references;
+    private final ContentIdMappingApi idMappings;
     private final SpaceContentBindingApi bindings;
     private final SpaceAccessApi spaces;
 
@@ -46,13 +46,13 @@ public class AdminClubStatisticsQueryService {
         Map<Long, Long> counts = new HashMap<>();
         for (Long bookId : bookIds) {
             try {
-                var contentId = references.resolve(ContentKind.BOOK, bookId);
+                var contentId = idMappings.toContentId(ContentKind.BOOK, bookId);
                 long count = bindings.findSpaces(contentId).stream()
                         .filter(spaceId -> SpaceKind.CLUB.equals(spaces.getSpace(spaceId).kind())).count();
                 if (count > 0) {
                     counts.put(bookId, count);
                 }
-            } catch (ContentLegacyReferenceNotFoundException failure) {
+            } catch (ContentIdMappingNotFoundException failure) {
                 // 기존 통계에서 존재하지 않는 도서는 결과 행을 만들지 않는다.
                 continue;
             }

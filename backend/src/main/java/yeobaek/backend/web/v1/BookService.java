@@ -15,8 +15,8 @@ import yeobaek.backend.content.api.ContentKind;
 import yeobaek.backend.application.content.ContentMetadataQueryService;
 import yeobaek.backend.application.content.ContentMetadataQueryService.Detail;
 import yeobaek.backend.application.content.ContentMetadataQueryService.Summary;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.shared.exception.NotFoundException;
@@ -34,7 +34,7 @@ public class BookService {
     private static final String DELETED_STATUS = "DELETED";
 
     private final ContentMetadataQueryService queries;
-    private final ContentLegacyReferenceApi legacyReferenceApi;
+    private final ContentIdMappingApi idMappings;
 
     public BooksResponse findBooks(String keyword) {
         boolean searchUsed = keyword != null && !keyword.isBlank();
@@ -42,7 +42,7 @@ public class BookService {
                 .addKeyValue("keyword", keyword)
                 .addKeyValue("searchUsed", searchUsed).log("도서 목록을 조회합니다.");
         List<Summary> metadata = queries.search(ContentKind.BOOK, keyword);
-        Map<ContentId, Long> bookIds = legacyReferenceApi.legacyIds(ContentKind.BOOK,
+        Map<ContentId, Long> bookIds = idMappings.toImplementationIds(ContentKind.BOOK,
                 metadata.stream().map(Summary::contentId).toList());
         var response = new BooksResponse(metadata.stream()
                 .map(content -> summary(content, requireBookId(bookIds, content.contentId())))
@@ -68,8 +68,8 @@ public class BookService {
 
     private ContentId resolve(Long bookId) {
         try {
-            return legacyReferenceApi.resolve(ContentKind.BOOK, bookId);
-        } catch (ContentLegacyReferenceNotFoundException failure) {
+            return idMappings.toContentId(ContentKind.BOOK, bookId);
+        } catch (ContentIdMappingNotFoundException failure) {
             throw new NotFoundException(ErrorCode.BOOK_NOT_FOUND,
                     "이용할 도서가 존재하지 않습니다: bookId=" + bookId,
                     Map.of(BOOK_ID, bookId.toString()), failure);

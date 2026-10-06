@@ -11,7 +11,7 @@ import yeobaek.backend.application.reading.ReadingActivityResult;
 import yeobaek.backend.application.reading.ReadingProgressCommandService;
 import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
 import yeobaek.backend.content.api.location.ContentLegacyLocationQueryApi;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.MemberId;
@@ -30,7 +30,7 @@ public class ProgressService {
     private final ClubApi clubs;
     private final SpaceContentBindingApi bindings;
     private final ContentLegacyLocationQueryApi locations;
-    private final ContentLegacyReferenceApi references;
+    private final ContentIdMappingApi idMappings;
     private final ReadingProgressCommandService commands;
     private final ReadingActivityQueryService activities;
 
@@ -60,7 +60,8 @@ public class ProgressService {
     }
 
     private BookResponse book(ContentCardResult content) {
-        Long bookId = references.legacyIds(ContentKind.BOOK, List.of(content.contentId())).get(content.contentId());
+        Long bookId = idMappings.toImplementationIds(ContentKind.BOOK, List.of(content.contentId()))
+                .get(content.contentId());
         return new BookResponse(bookId, content.title(), content.creators(), content.coverImageUrl(),
                 content.unitCount(), content.available() ? Status.ACTIVE : Status.DELETED);
     }

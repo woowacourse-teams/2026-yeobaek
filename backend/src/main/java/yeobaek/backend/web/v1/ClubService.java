@@ -11,8 +11,8 @@ import yeobaek.backend.application.content.ContentCardResult;
 import yeobaek.backend.application.space.query.SpaceQueryResult;
 import yeobaek.backend.application.space.query.SpaceQueryService;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.space.api.SpaceKind;
 import yeobaek.backend.space.api.club.ClubName;
@@ -42,7 +42,7 @@ public class ClubService {
     private final ClubMembershipWorkflow memberships;
     private final ClubCreationWorkflow creations;
     private final SpaceQueryService queries;
-    private final ContentLegacyReferenceApi references;
+    private final ContentIdMappingApi idMappings;
 
     @Transactional
     public ClubCreateResponse create(Long memberId, ClubName name, Long bookId) {
@@ -104,15 +104,16 @@ public class ClubService {
     }
 
     private BookResponse book(ContentCardResult content) {
-        Long bookId = references.legacyIds(ContentKind.BOOK, List.of(content.contentId())).get(content.contentId());
+        Long bookId = idMappings.toImplementationIds(ContentKind.BOOK, List.of(content.contentId()))
+                .get(content.contentId());
         return new BookResponse(bookId, content.title(), content.creators(), content.coverImageUrl(),
                 content.unitCount(), content.available() ? Status.ACTIVE : Status.DELETED);
     }
 
     private yeobaek.backend.shared.identity.ContentId resolveBook(Long bookId) {
         try {
-            return references.resolve(ContentKind.BOOK, bookId);
-        } catch (ContentLegacyReferenceNotFoundException failure) {
+            return idMappings.toContentId(ContentKind.BOOK, bookId);
+        } catch (ContentIdMappingNotFoundException failure) {
             throw new NotFoundException(ErrorCode.BOOK_NOT_FOUND, "도서가 존재하지 않습니다: bookId=" + bookId,
                     Map.of("bookId", bookId.toString()), failure);
         }

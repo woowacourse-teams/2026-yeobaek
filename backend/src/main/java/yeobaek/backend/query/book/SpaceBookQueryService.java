@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.content.api.metadata.ContentMetadataApi;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.SpaceId;
@@ -22,7 +22,7 @@ public class SpaceBookQueryService {
     private final SpaceContentBindingApi bindings;
     private final ContentApi contents;
     private final ContentMetadataApi metadata;
-    private final ContentLegacyReferenceApi references;
+    private final ContentIdMappingApi idMappings;
 
     public Optional<BookSnapshot> findBook(SpaceId spaceId) {
         return bindings.findContents(spaceId).stream()
@@ -32,8 +32,8 @@ public class SpaceBookQueryService {
 
     public Optional<BookSnapshot> findByBookId(Long bookId) {
         try {
-            return Optional.of(snapshot(references.resolve(ContentKind.BOOK, bookId)));
-        } catch (ContentLegacyReferenceNotFoundException failure) {
+            return Optional.of(snapshot(idMappings.toContentId(ContentKind.BOOK, bookId)));
+        } catch (ContentIdMappingNotFoundException failure) {
             return Optional.empty();
         }
     }
@@ -41,7 +41,7 @@ public class SpaceBookQueryService {
     private BookSnapshot snapshot(ContentId contentId) {
         var detail = metadata.get(contentId);
         boolean available = contents.getContent(contentId).available();
-        Long bookId = references.legacyIds(ContentKind.BOOK, List.of(contentId)).get(contentId);
+        Long bookId = idMappings.toImplementationIds(ContentKind.BOOK, List.of(contentId)).get(contentId);
         return new BookSnapshot(bookId, contentId, detail.title(),
                 detail.creators().stream().map(creator -> creator.name()).toList(), detail.coverImageUrl(),
                 detail.unitCount(), available ? "ACTIVE" : "DELETED", available);

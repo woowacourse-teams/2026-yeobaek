@@ -7,15 +7,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.internal.legacyreference.ContentLegacyReferenceProvider;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.content.book.persistence.Book;
+import yeobaek.backend.content.internal.idmapping.ContentIdMappingProvider;
 import yeobaek.backend.shared.identity.ContentId;
 
 @Component
 @RequiredArgsConstructor
-public class BookLegacyReferenceAdapter implements ContentLegacyReferenceProvider {
+public class BookIdMappingAdapter implements ContentIdMappingProvider {
 
     private final EntityManager entityManager;
 
@@ -25,20 +25,20 @@ public class BookLegacyReferenceAdapter implements ContentLegacyReferenceProvide
     }
 
     @Override
-    public ContentId resolve(long legacyId) {
+    public ContentId toContentId(long implementationId) {
         return entityManager.createQuery("""
                         select book.contentId from Book book where book.id = :legacyId
                         """, Long.class)
-                .setParameter("legacyId", legacyId)
+                .setParameter("legacyId", implementationId)
                 .getResultStream()
                 .findFirst()
                 .map(ContentId::new)
-                .orElseThrow(() -> new ContentLegacyReferenceNotFoundException(ContentKind.BOOK, legacyId,
-                        "레거시 도서 식별자에 해당하는 컨텐츠가 존재하지 않습니다: legacyId=" + legacyId));
+                .orElseThrow(() -> new ContentIdMappingNotFoundException(ContentKind.BOOK, implementationId,
+                        "레거시 도서 식별자에 해당하는 컨텐츠가 존재하지 않습니다: legacyId=" + implementationId));
     }
 
     @Override
-    public Map<ContentId, Long> legacyIds(Collection<ContentId> contentIds) {
+    public Map<ContentId, Long> toImplementationIds(Collection<ContentId> contentIds) {
         if (contentIds.isEmpty()) {
             return Map.of();
         }

@@ -5,7 +5,7 @@ import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.internal.legacyreference.ContentLegacyReferenceProvider;
+import yeobaek.backend.content.internal.idmapping.ContentIdMappingProvider;
 import yeobaek.backend.content.internal.location.ContentLocationProvider;
 import yeobaek.backend.content.internal.metadata.ContentMetadataProvider;
 
@@ -18,10 +18,10 @@ public class ContentQueryCapabilityConfiguration {
     }
 
     @Bean
-    Map<ContentKind, ContentLegacyReferenceProvider> contentLegacyReferenceProviders(
-            List<ContentLegacyReferenceProvider> providers
+    Map<ContentKind, ContentIdMappingProvider> contentIdMappingProviders(
+            List<ContentIdMappingProvider> providers
     ) {
-        return CapabilityMap.from(providers, ContentLegacyReferenceProvider::supportedKind);
+        return CapabilityMap.from(providers, ContentIdMappingProvider::supportedKind);
     }
 
     @Bean

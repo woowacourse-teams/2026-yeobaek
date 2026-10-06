@@ -12,7 +12,7 @@ import yeobaek.backend.application.space.query.SpaceQueryResult;
 import yeobaek.backend.application.space.query.SpaceQueryService;
 import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
 import yeobaek.backend.content.api.location.ContentLegacyLocationQueryApi;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.MemberId;
@@ -39,7 +39,7 @@ public class PublicRoomService {
 
     private final PublicRoomApi rooms;
     private final SpaceContentBindingApi bindings;
-    private final ContentLegacyReferenceApi contentReferences;
+    private final ContentIdMappingApi contentIdMappings;
     private final ContentLegacyLocationQueryApi locations;
     private final SpaceQueryService spaceQueries;
     private final ContentReadingQueryService contentQueries;
@@ -110,7 +110,7 @@ public class PublicRoomService {
     }
 
     private BookResponse book(ContentCardResult content) {
-        Long bookId = contentReferences.legacyIds(ContentKind.BOOK, List.of(content.contentId()))
+        Long bookId = contentIdMappings.toImplementationIds(ContentKind.BOOK, List.of(content.contentId()))
                 .get(content.contentId());
         return new BookResponse(bookId, content.title(), content.creators(), content.coverImageUrl(),
                 content.unitCount(), content.available() ? Status.ACTIVE : Status.DELETED);

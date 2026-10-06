@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import yeobaek.backend.application.content.ContentMetadataQueryService;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
+import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
 import yeobaek.backend.support.LogCapture;
 
 class BookLoggingTest {
@@ -19,10 +19,10 @@ class BookLoggingTest {
     @DisplayName("검색어가 없더라도 도서 조회 로그에 keyword 필드를 null로 기록한다")
     void logNullKeyword() {
         ContentMetadataQueryService metadata = mock(ContentMetadataQueryService.class);
-        ContentLegacyReferenceApi references = mock(ContentLegacyReferenceApi.class);
+        ContentIdMappingApi idMappings = mock(ContentIdMappingApi.class);
         when(metadata.search(ContentKind.BOOK, null)).thenReturn(List.of());
-        when(references.legacyIds(ContentKind.BOOK, List.of())).thenReturn(Map.of());
-        var service = new BookService(metadata, references);
+        when(idMappings.toImplementationIds(ContentKind.BOOK, List.of())).thenReturn(Map.of());
+        var service = new BookService(metadata, idMappings);
 
         try (var logs = new LogCapture(BookService.class.getName())) {
             service.findBooks(null);
@@ -40,10 +40,10 @@ class BookLoggingTest {
     @DisplayName("검색어로 도서를 조회하면 모든 로그에 keyword와 searchUsed를 기록한다")
     void logSearchKeyword() {
         ContentMetadataQueryService metadata = mock(ContentMetadataQueryService.class);
-        ContentLegacyReferenceApi references = mock(ContentLegacyReferenceApi.class);
+        ContentIdMappingApi idMappings = mock(ContentIdMappingApi.class);
         when(metadata.search(ContentKind.BOOK, "여백")).thenReturn(List.of());
-        when(references.legacyIds(ContentKind.BOOK, List.of())).thenReturn(Map.of());
-        var service = new BookService(metadata, references);
+        when(idMappings.toImplementationIds(ContentKind.BOOK, List.of())).thenReturn(Map.of());
+        var service = new BookService(metadata, idMappings);
 
         try (var logs = new LogCapture(BookService.class.getName())) {
             service.findBooks("여백");
