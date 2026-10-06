@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.shared.identity.SpaceId;
-import yeobaek.backend.space.spi.access.SpaceAccessCapability;
+import yeobaek.backend.space.internal.access.SpaceAccessCapability;
 import yeobaek.backend.space.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.space.api.SpaceKind;
 

@@ -8,13 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import yeobaek.backend.appreciation.api.lifecycle.AppreciationRootApi;
 import yeobaek.backend.appreciation.api.AppreciationKind;
-import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraser;
-import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraserRegistry;
-import yeobaek.backend.appreciation.spi.erasure.UnsupportedAppreciationKindException;
+import yeobaek.backend.appreciation.internal.erasure.AppreciationSubtypeEraser;
+import yeobaek.backend.appreciation.internal.erasure.UnsupportedAppreciationKindException;
 import yeobaek.backend.shared.identity.AppreciationId;
 import yeobaek.backend.shared.identity.MemberId;
 
@@ -22,8 +23,6 @@ class AppreciationDataEraseServiceTest {
 
     private static final MemberId AUTHOR = new MemberId(7L);
     private final AppreciationRootApi roots = mock(AppreciationRootApi.class);
-    private final AppreciationSubtypeEraserRegistry registry = mock(AppreciationSubtypeEraserRegistry.class);
-    private final AppreciationDataEraseService service = new AppreciationDataEraseService(roots, registry);
 
     @Test
     void dispatchesEverySubtypeBeforeErasingRoots() {
@@ -34,10 +33,11 @@ class AppreciationDataEraseServiceTest {
         AppreciationKind note = new AppreciationKind("NOTE");
         given(roots.findAuthoredBy(AUTHOR)).willReturn(List.of(root(commentId, AppreciationKind.COMMENT),
                 root(noteId, note)));
-        given(registry.get(AppreciationKind.COMMENT)).willReturn(comments);
-        given(registry.get(note)).willReturn(notes);
+        Map<AppreciationKind, AppreciationSubtypeEraser> erasers = new LinkedHashMap<>();
+        erasers.put(AppreciationKind.COMMENT, comments);
+        erasers.put(note, notes);
 
-        service.eraseAuthoredBy(AUTHOR);
+        new AppreciationDataEraseService(roots, erasers).eraseAuthoredBy(AUTHOR);
 
         var ordered = inOrder(comments, notes, roots);
         ordered.verify(comments).eraseBodies(List.of(commentId));
@@ -51,13 +51,11 @@ class AppreciationDataEraseServiceTest {
         given(roots.findAuthoredBy(AUTHOR)).willReturn(List.of(
                 root(new AppreciationId(10L), AppreciationKind.COMMENT),
                 root(new AppreciationId(11L), new AppreciationKind("NOTE"))));
-        given(registry.get(AppreciationKind.COMMENT)).willReturn(comments);
-        given(registry.get(new AppreciationKind("NOTE")))
-                .willThrow(new UnsupportedAppreciationKindException(new AppreciationKind("NOTE"),
-                        "저장된 감상 타입을 삭제할 구현을 찾을 수 없습니다: kind=NOTE", null));
+        var service = new AppreciationDataEraseService(roots, Map.of(AppreciationKind.COMMENT, comments));
 
         assertThatThrownBy(() -> service.eraseAuthoredBy(AUTHOR))
-                .isInstanceOf(UnsupportedAppreciationKindException.class);
+                .isInstanceOf(UnsupportedAppreciationKindException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
 
         verify(comments, never()).eraseBodies(org.mockito.ArgumentMatchers.anyList());
         verify(roots, never()).eraseAuthoredBy(AUTHOR);
@@ -67,9 +65,11 @@ class AppreciationDataEraseServiceTest {
     void delegatesActorViewCleanupToEverySubtype() {
         AppreciationSubtypeEraser comments = mock(AppreciationSubtypeEraser.class);
         AppreciationSubtypeEraser notes = mock(AppreciationSubtypeEraser.class);
-        given(registry.all()).willReturn(List.of(comments, notes));
+        Map<AppreciationKind, AppreciationSubtypeEraser> erasers = new LinkedHashMap<>();
+        erasers.put(AppreciationKind.COMMENT, comments);
+        erasers.put(new AppreciationKind("NOTE"), notes);
 
-        service.eraseViewsBy(AUTHOR);
+        new AppreciationDataEraseService(roots, erasers).eraseViewsBy(AUTHOR);
 
         verify(comments).eraseViewsBy(AUTHOR);
         verify(notes).eraseViewsBy(AUTHOR);
@@ -79,9 +79,11 @@ class AppreciationDataEraseServiceTest {
     void delegatesActorReportCleanupToEverySubtype() {
         AppreciationSubtypeEraser comments = mock(AppreciationSubtypeEraser.class);
         AppreciationSubtypeEraser notes = mock(AppreciationSubtypeEraser.class);
-        given(registry.all()).willReturn(List.of(comments, notes));
+        Map<AppreciationKind, AppreciationSubtypeEraser> erasers = new LinkedHashMap<>();
+        erasers.put(AppreciationKind.COMMENT, comments);
+        erasers.put(new AppreciationKind("NOTE"), notes);
 
-        service.eraseReportsBy(AUTHOR);
+        new AppreciationDataEraseService(roots, erasers).eraseReportsBy(AUTHOR);
 
         verify(comments).eraseReportsBy(AUTHOR);
         verify(notes).eraseReportsBy(AUTHOR);

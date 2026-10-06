@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.spi.legacyreference.ContentLegacyReferenceProviderRegistry;
+import yeobaek.backend.content.internal.legacyreference.ContentLegacyReferenceProvider;
 import yeobaek.backend.shared.identity.ContentId;
 
 @Service
@@ -15,15 +15,23 @@ import yeobaek.backend.shared.identity.ContentId;
 @Transactional(readOnly = true)
 public class ContentLegacyReferenceService implements ContentLegacyReferenceApi {
 
-    private final ContentLegacyReferenceProviderRegistry providers;
+    private final Map<ContentKind, ContentLegacyReferenceProvider> providers;
 
     @Override
     public ContentId resolve(ContentKind kind, long legacyId) {
-        return providers.get(kind).resolve(legacyId);
+        return provider(kind).resolve(legacyId);
     }
 
     @Override
     public Map<ContentId, Long> legacyIds(ContentKind kind, Collection<ContentId> contentIds) {
-        return providers.get(kind).legacyIds(contentIds);
+        return provider(kind).legacyIds(contentIds);
+    }
+
+    private ContentLegacyReferenceProvider provider(ContentKind kind) {
+        ContentLegacyReferenceProvider provider = providers.get(kind);
+        if (provider == null) {
+            throw new IllegalArgumentException("지원하지 않는 capability입니다: " + kind);
+        }
+        return provider;
     }
 }

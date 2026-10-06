@@ -1,28 +1,23 @@
 package yeobaek.backend.bootstrap;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.spi.ContentProvider;
-import yeobaek.backend.content.spi.ContentProviderRegistry;
-import yeobaek.backend.content.spi.body.ContentBodyProvider;
-import yeobaek.backend.content.spi.body.ContentBodyProviderRegistry;
+import yeobaek.backend.content.internal.ContentProvider;
+import yeobaek.backend.content.internal.body.ContentBodyProvider;
 
 @Configuration
 public class ContentCapabilityConfiguration {
 
     @Bean
-    ContentProviderRegistry contentProviders(List<ContentProvider> providers) {
-        CapabilityRegistry<ContentKind, ContentProvider> registry =
-                new CapabilityRegistry<>(providers, ContentProvider::supportedKind);
-        return registry::get;
+    Map<ContentKind, ContentProvider> contentProviders(List<ContentProvider> providers) {
+        return CapabilityMap.from(providers, ContentProvider::supportedKind);
     }
 
     @Bean
-    ContentBodyProviderRegistry contentBodyProviders(List<ContentBodyProvider> providers) {
-        CapabilityRegistry<ContentKind, ContentBodyProvider> registry =
-                new CapabilityRegistry<>(providers, ContentBodyProvider::supportedKind);
-        return registry::get;
+    Map<ContentKind, ContentBodyProvider> contentBodyProviders(List<ContentBodyProvider> providers) {
+        return CapabilityMap.from(providers, ContentBodyProvider::supportedKind);
     }
 }

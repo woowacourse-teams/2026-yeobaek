@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardBookResponse;
 import yeobaek.backend.admin.dto.AdminDashboardBooksResponse;
 import yeobaek.backend.content.api.book.BookAdministrationApi;
-import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
+import yeobaek.backend.query.admin.AdminClubStatisticsQueryService;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +22,7 @@ import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
 public class AdminBookDashboardService {
 
     private final BookAdministrationApi bookAdministrationApi;
-    private final AdminClubStatisticsReadModel statisticsReadModel;
+    private final AdminClubStatisticsQueryService statisticsQueryService;
 
     @Transactional(readOnly = true)
     public AdminDashboardBooksResponse findBooksWithClubCounts() {
@@ -33,7 +33,7 @@ public class AdminBookDashboardService {
             logSuccess(0);
             return new AdminDashboardBooksResponse(List.of());
         }
-        Map<Long, Long> clubCounts = statisticsReadModel.countClubsByBookIds(
+        Map<Long, Long> clubCounts = statisticsQueryService.countClubsByBookIds(
                 books.stream().map(BookAdministrationApi.BookStatusView::bookId).toList());
         var response = new AdminDashboardBooksResponse(books.stream()
                 .map(book -> new AdminDashboardBookResponse(

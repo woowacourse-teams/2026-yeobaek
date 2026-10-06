@@ -12,7 +12,7 @@ import yeobaek.backend.content.api.location.ContentLegacyLocationQueryApi;
 import yeobaek.backend.content.api.location.LocationKind;
 import yeobaek.backend.content.book.domain.Passage;
 import yeobaek.backend.content.book.domain.Sentence;
-import yeobaek.backend.content.spi.location.ContentLocationProvider;
+import yeobaek.backend.content.internal.location.ContentLocationProvider;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.ContentLocationId;
 

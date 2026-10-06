@@ -4,7 +4,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraser;
+import yeobaek.backend.appreciation.internal.erasure.AppreciationSubtypeEraser;
 import yeobaek.backend.appreciation.api.AppreciationKind;
 import yeobaek.backend.appreciation.comment.repository.CommentReportRepository;
 import yeobaek.backend.appreciation.comment.repository.CommentRepository;

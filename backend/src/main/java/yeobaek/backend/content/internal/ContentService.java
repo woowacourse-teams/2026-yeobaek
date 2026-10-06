@@ -1,6 +1,7 @@
 package yeobaek.backend.content.internal;
 
 import jakarta.persistence.EntityManager;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,7 +9,6 @@ import yeobaek.backend.content.api.ContentApi;
 import yeobaek.backend.content.api.ContentKind;
 import yeobaek.backend.content.api.ContentUnavailableException;
 import yeobaek.backend.content.api.ContentNotFoundException;
-import yeobaek.backend.content.spi.ContentProviderRegistry;
 import yeobaek.backend.content.api.Content;
 import yeobaek.backend.content.persistence.ContentRootRepository;
 import yeobaek.backend.shared.identity.ContentId;
@@ -20,7 +20,7 @@ import yeobaek.backend.shared.identity.ContentLocationId;
 public class ContentService implements ContentApi {
 
     private final ContentRootRepository rootRepository;
-    private final ContentProviderRegistry providers;
+    private final Map<ContentKind, ContentProvider> providers;
     private final EntityManager entityManager;
 
     @Override
@@ -28,7 +28,7 @@ public class ContentService implements ContentApi {
         ContentKind kind = rootRepository.findById(contentId.value())
                 .orElseThrow(() -> new ContentNotFoundException(contentId,
                         "컨텐츠가 존재하지 않습니다: contentId=" + contentId.value())).contentKind();
-        return providers.get(kind).get(contentId);
+        return provider(kind).get(contentId);
     }
 
     @Override
@@ -48,5 +48,13 @@ public class ContentService implements ContentApi {
                 .setParameter("locationId", locationId.value())
                 .setParameter("contentId", contentId.value())
                 .getSingleResult() > 0;
+    }
+
+    private ContentProvider provider(ContentKind kind) {
+        ContentProvider provider = providers.get(kind);
+        if (provider == null) {
+            throw new IllegalArgumentException("지원하지 않는 capability입니다: " + kind);
+        }
+        return provider;
     }
 }

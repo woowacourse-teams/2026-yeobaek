@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.application.content.ContentCardResult;
 import yeobaek.backend.application.reading.ReadingActivityResult.ReadingSpace;
 import yeobaek.backend.shared.identity.MemberId;
-import yeobaek.backend.readmodel.reading.RecentReadingReadModel;
-import yeobaek.backend.readmodel.reading.RecentReadingReadModel.RecentReadingSnapshot;
+import yeobaek.backend.query.reading.RecentReadingQueryService;
+import yeobaek.backend.query.reading.RecentReadingQueryService.RecentReadingSnapshot;
 import yeobaek.backend.space.api.SpaceKind;
 import yeobaek.backend.space.api.club.ProgressRate;
 
@@ -18,7 +18,7 @@ import yeobaek.backend.space.api.club.ProgressRate;
 @Transactional(readOnly = true)
 public class ReadingActivityQueryService {
 
-    private final RecentReadingReadModel readings;
+    private final RecentReadingQueryService readings;
     private final ReadingSpaceDataRegistry spaceData;
 
     public Optional<ReadingActivityResult> findLastClub(MemberId actorId) {

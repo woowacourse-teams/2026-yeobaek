@@ -4,9 +4,9 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.content.spi.ContentProvider;
 import yeobaek.backend.content.api.ContentKind;
 import yeobaek.backend.content.api.ContentNotFoundException;
+import yeobaek.backend.content.internal.ContentProvider;
 import yeobaek.backend.shared.identity.ContentId;
 
 @Component

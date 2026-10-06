@@ -25,7 +25,7 @@ import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.MemberProfile;
-import yeobaek.backend.readmodel.comment.CommentReadModel;
+import yeobaek.backend.query.comment.CommentQueryService;
 import yeobaek.backend.space.api.access.SpaceAccessApi;
 
 class CommentQueryWorkflowTest {
@@ -57,9 +57,9 @@ class CommentQueryWorkflowTest {
         var first = new ContentLocationId(11L);
         var second = new ContentLocationId(12L);
         given(fixture.comments.findDiscovery(REQUESTER, SPACE, CONTENT)).willReturn(List.of(
-                new CommentReadModel.DiscoverySnapshot(first, LOCATION, 21L, "첫째", 2, 1, 1, 1,
+                new CommentQueryService.DiscoverySnapshot(first, LOCATION, 21L, "첫째", 2, 1, 1, 1,
                         LocalDateTime.of(2026, 1, 1, 0, 0)),
-                new CommentReadModel.DiscoverySnapshot(second, LOCATION, 22L, "둘째", 2, 1, 1, 1,
+                new CommentQueryService.DiscoverySnapshot(second, LOCATION, 22L, "둘째", 2, 1, 1, 1,
                         LocalDateTime.of(2026, 1, 1, 0, 0))));
 
         var result = fixture.workflow.findDiscovery(REQUESTER, SPACE, CONTENT, LOCATION);
@@ -69,7 +69,7 @@ class CommentQueryWorkflowTest {
     }
 
     @Test
-    void passesRequestedContentToUnreadCountReadModel() {
+    void passesRequestedContentToUnreadCountQuery() {
         Fixture fixture = fixture(LocationKind.PASSAGE, 2);
         given(fixture.comments.countNewVisible(REQUESTER, SPACE, CONTENT, 2)).willReturn(3L);
 
@@ -80,7 +80,7 @@ class CommentQueryWorkflowTest {
     }
 
     private Fixture fixture(LocationKind kind, int passageSequence) {
-        var comments = mock(CommentReadModel.class);
+        var comments = mock(CommentQueryService.class);
         var views = mock(CommentViewApi.class);
         var members = mock(MemberQuery.class);
         var spaces = mock(SpaceAccessApi.class);
@@ -100,7 +100,7 @@ class CommentQueryWorkflowTest {
                 comments, views, members);
     }
 
-    private record Fixture(CommentQueryWorkflow workflow, CommentReadModel comments, CommentViewApi views,
+    private record Fixture(CommentQueryWorkflow workflow, CommentQueryService comments, CommentViewApi views,
                            MemberQuery members) {
     }
 }

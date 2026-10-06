@@ -6,8 +6,8 @@ import static org.mockito.Mockito.mock;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import yeobaek.backend.appreciation.spi.erasure.AppreciationSubtypeEraser;
 import yeobaek.backend.appreciation.api.AppreciationKind;
+import yeobaek.backend.appreciation.internal.erasure.AppreciationSubtypeEraser;
 
 class AppreciationCapabilityConfigurationTest {
 

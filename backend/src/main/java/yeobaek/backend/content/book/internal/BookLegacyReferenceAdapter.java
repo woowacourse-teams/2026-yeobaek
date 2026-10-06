@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import yeobaek.backend.content.api.legacyreference.ContentLegacyReferenceNotFoundException;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.spi.legacyreference.ContentLegacyReferenceProvider;
+import yeobaek.backend.content.internal.legacyreference.ContentLegacyReferenceProvider;
 import yeobaek.backend.content.book.persistence.Book;
 import yeobaek.backend.shared.identity.ContentId;
 

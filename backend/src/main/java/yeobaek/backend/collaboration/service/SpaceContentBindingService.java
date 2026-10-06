@@ -1,11 +1,12 @@
 package yeobaek.backend.collaboration.service;
 
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
-import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingRegistry;
+import yeobaek.backend.collaboration.internal.binding.SpaceContentBindingCapability;
 import yeobaek.backend.collaboration.persistence.SpaceContentBindingJpaEntity;
 import yeobaek.backend.collaboration.persistence.SpaceContentBindingRepository;
 import yeobaek.backend.shared.identity.ContentId;
@@ -18,7 +19,7 @@ import yeobaek.backend.space.api.SpaceKind;
 public class SpaceContentBindingService implements SpaceContentBindingApi {
 
     private final SpaceContentBindingRepository bindingRepository;
-    private final SpaceContentBindingRegistry capabilities;
+    private final Map<SpaceKind, SpaceContentBindingCapability> capabilities;
     private final SpaceAccessApi spaceAccessApi;
 
     @Override
@@ -26,7 +27,7 @@ public class SpaceContentBindingService implements SpaceContentBindingApi {
     public void bind(SpaceId spaceId, ContentId contentId) {
         SpaceKind spaceKind = spaceAccessApi.getSpace(spaceId).kind();
         bindingRepository.save(new SpaceContentBindingJpaEntity(spaceId.value(), contentId.value()));
-        capabilities.get(spaceKind).bind(spaceId, contentId);
+        capability(spaceKind).bind(spaceId, contentId);
     }
 
     @Override
@@ -48,5 +49,13 @@ public class SpaceContentBindingService implements SpaceContentBindingApi {
     public List<SpaceId> findSpaces(ContentId contentId) {
         return bindingRepository.findAllByContentIdOrderBySpaceId(contentId.value()).stream()
                 .map(binding -> new SpaceId(binding.getSpaceId())).toList();
+    }
+
+    private SpaceContentBindingCapability capability(SpaceKind kind) {
+        SpaceContentBindingCapability capability = capabilities.get(kind);
+        if (capability == null) {
+            throw new IllegalArgumentException("지원하지 않는 capability입니다: " + kind);
+        }
+        return capability;
     }
 }

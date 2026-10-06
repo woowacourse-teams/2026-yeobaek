@@ -7,7 +7,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import yeobaek.backend.appreciation.api.AppreciationKind;
-import yeobaek.backend.appreciation.spi.erasure.UnsupportedAppreciationKindException;
+import yeobaek.backend.appreciation.internal.erasure.UnsupportedAppreciationKindException;
 import yeobaek.backend.application.appreciation.CommentPolicyException;
 import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.shared.exception.NotFoundException;

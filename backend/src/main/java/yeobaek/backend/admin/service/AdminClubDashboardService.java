@@ -15,9 +15,9 @@ import yeobaek.backend.admin.dto.AdminDashboardClubsResponse;
 import yeobaek.backend.space.api.club.ClubApi;
 import yeobaek.backend.space.api.club.ClubMembershipApi;
 import yeobaek.backend.space.api.club.ClubResponse;
-import yeobaek.backend.readmodel.book.SpaceBookReadModel;
+import yeobaek.backend.query.book.SpaceBookQueryService;
 import yeobaek.backend.web.common.dto.BookResponse.Status;
-import yeobaek.backend.readmodel.admin.AdminClubStatisticsReadModel;
+import yeobaek.backend.query.admin.AdminClubStatisticsQueryService;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +26,8 @@ public class AdminClubDashboardService {
 
     private final ClubApi clubsApi;
     private final ClubMembershipApi memberships;
-    private final AdminClubStatisticsReadModel statisticsReadModel;
-    private final SpaceBookReadModel bookReadModel;
+    private final AdminClubStatisticsQueryService statisticsQueryService;
+    private final SpaceBookQueryService bookQueryService;
 
     @Transactional(readOnly = true)
     public AdminDashboardClubsResponse findClubsWithMemberAndCommentCounts() {
@@ -40,10 +40,10 @@ public class AdminClubDashboardService {
         }
         List<Long> clubIds = clubs.stream().map(ClubResponse::clubId).toList();
         Map<Long, Long> memberCounts = memberships.countJoinedMembers(clubIds);
-        Map<Long, Long> commentCounts = statisticsReadModel.countComments(clubIds);
+        Map<Long, Long> commentCounts = statisticsQueryService.countComments(clubIds);
         var response = new AdminDashboardClubsResponse(clubs.stream()
                 .map(club -> {
-                    var book = bookReadModel.findBook(club.id()).orElseThrow();
+                    var book = bookQueryService.findBook(club.id()).orElseThrow();
                     return new AdminDashboardClubResponse(
                         club.clubId(),
                         club.name(),

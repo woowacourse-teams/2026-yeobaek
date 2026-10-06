@@ -9,7 +9,7 @@ import yeobaek.backend.content.book.domain.Passage;
 import yeobaek.backend.content.book.repository.PassageRepository;
 import yeobaek.backend.content.api.body.ContentBodyApi;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.spi.body.ContentBodyProvider;
+import yeobaek.backend.content.internal.body.ContentBodyProvider;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.ContentLocationId;
 

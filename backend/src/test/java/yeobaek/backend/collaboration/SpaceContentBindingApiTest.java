@@ -37,7 +37,7 @@ import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.space.publicroom.persistence.PublicRoom;
 import yeobaek.backend.space.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.reading.api.ReadingProgressApi;
-import yeobaek.backend.readmodel.book.SpaceBookReadModel;
+import yeobaek.backend.query.book.SpaceBookQueryService;
 import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.web.v1.ClubService;
 
@@ -66,7 +66,7 @@ class SpaceContentBindingApiTest extends IntegrationTest {
     @Autowired
     private ReadingProgressApi readingApi;
     @Autowired
-    private SpaceBookReadModel bookReadModel;
+    private SpaceBookQueryService bookQueryService;
     @Autowired
     private ClubService clubService;
 
@@ -149,7 +149,7 @@ class SpaceContentBindingApiTest extends IntegrationTest {
     void canonicalBindingProvidesBookMetadata() {
         Book book = book(8);
         Club club = club(book, "META01");
-        var metadata = bookReadModel.findBook(spaceId(club)).orElseThrow();
+        var metadata = bookQueryService.findBook(spaceId(club)).orElseThrow();
         assertThat(metadata.bookId()).isEqualTo(book.getId());
         assertThat(metadata.contentId()).isEqualTo(new ContentId(book.getContentId()));
         assertThat(metadata.passageCount()).isEqualTo(8);

@@ -28,15 +28,15 @@ import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.shared.exception.ErrorCode;
 import yeobaek.backend.member.api.MemberQuery;
 import yeobaek.backend.member.domain.MemberProfile;
-import yeobaek.backend.readmodel.comment.CommentReadModel;
-import yeobaek.backend.readmodel.comment.CommentReadModel.DiscoverySnapshot;
+import yeobaek.backend.query.comment.CommentQueryService;
+import yeobaek.backend.query.comment.CommentQueryService.DiscoverySnapshot;
 import yeobaek.backend.space.api.access.SpaceAccessApi;
 
 @Service
 @RequiredArgsConstructor
 public class CommentQueryWorkflow {
 
-    private final CommentReadModel comments;
+    private final CommentQueryService comments;
     private final CommentViewApi views;
     private final MemberQuery members;
     private final SpaceAccessApi spaces;

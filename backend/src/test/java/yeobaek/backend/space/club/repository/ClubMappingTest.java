@@ -26,7 +26,7 @@ import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.MemberId;
 import yeobaek.backend.shared.identity.SpaceId;
 import yeobaek.backend.reading.api.ReadingProgressApi;
-import yeobaek.backend.readmodel.book.SpaceBookReadModel;
+import yeobaek.backend.query.book.SpaceBookQueryService;
 
 class ClubMappingTest extends IntegrationTest {
 
@@ -52,7 +52,7 @@ class ClubMappingTest extends IntegrationTest {
     private SpaceContentBindingApi bindingApi;
 
     @Autowired
-    private SpaceBookReadModel bookReadModel;
+    private SpaceBookQueryService bookQueryService;
 
     @Autowired
     private ReadingProgressApi readingApi;
@@ -72,7 +72,7 @@ class ClubMappingTest extends IntegrationTest {
             Club found = clubRepository.findById(saved.getId()).orElseThrow();
 
             assertThat(found.getJoinCode()).isEqualTo("A3F9KQ");
-            assertThat(bookReadModel.findBook(new SpaceId(found.getSpaceId())).orElseThrow().title())
+            assertThat(bookQueryService.findBook(new SpaceId(found.getSpaceId())).orElseThrow().title())
                     .isEqualTo("운수 좋은 날");
         });
     }

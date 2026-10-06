@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import yeobaek.backend.content.api.metadata.ContentMetadataDetailResponse;
 import yeobaek.backend.content.api.ContentKind;
-import yeobaek.backend.content.spi.metadata.ContentMetadataProvider;
+import yeobaek.backend.content.internal.metadata.ContentMetadataProvider;
 import yeobaek.backend.content.api.metadata.ContentMetadataResponse;
 import yeobaek.backend.content.api.ContentNotFoundException;
 import yeobaek.backend.content.book.domain.AuthorBook;

@@ -2,7 +2,7 @@ package yeobaek.backend.collaboration.internal;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.collaboration.spi.binding.SpaceContentBindingCapability;
+import yeobaek.backend.collaboration.internal.binding.SpaceContentBindingCapability;
 import yeobaek.backend.collaboration.persistence.PublicRoomContentBindingJpaEntity;
 import yeobaek.backend.collaboration.persistence.PublicRoomContentBindingRepository;
 import yeobaek.backend.shared.identity.ContentId;
