@@ -11,7 +11,7 @@ import yeobaek.backend.space.api.SpaceKind;
 public interface V2KindJsonConfiguration {
 
     @JacksonMixin(ContentKind.class)
-    public abstract static class ContentKindMixin {
+    abstract class ContentKindMixin {
 
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         protected ContentKindMixin(String value) {
@@ -22,7 +22,7 @@ public interface V2KindJsonConfiguration {
     }
 
     @JacksonMixin(SpaceKind.class)
-    public abstract static class SpaceKindMixin {
+    abstract class SpaceKindMixin {
 
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         protected SpaceKindMixin(String value) {
@@ -33,7 +33,7 @@ public interface V2KindJsonConfiguration {
     }
 
     @JacksonMixin(AppreciationKind.class)
-    public abstract static class AppreciationKindMixin {
+    abstract class AppreciationKindMixin {
 
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         protected AppreciationKindMixin(String value) {
@@ -44,7 +44,7 @@ public interface V2KindJsonConfiguration {
     }
 
     @JacksonMixin(LocationKind.class)
-    public abstract static class LocationKindMixin {
+    abstract class LocationKindMixin {
 
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         protected LocationKindMixin(String value) {

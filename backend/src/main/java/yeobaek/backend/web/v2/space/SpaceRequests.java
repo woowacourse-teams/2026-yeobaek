@@ -12,42 +12,42 @@ import yeobaek.backend.space.api.club.JoinCode;
 
 public interface SpaceRequests {
 
-    public record Create(@NotNull @Schema(description = "공간 종류", example = "CLUB") SpaceKind kind,
-                         @NotNull @Valid @Schema(description = "종류별 생성 입력. CLUB은 CreateClubData")
-                         CreateData data) {
+    record Create(@NotNull @Schema(description = "공간 종류", example = "CLUB") SpaceKind kind,
+                  @NotNull @Valid @Schema(description = "종류별 생성 입력. CLUB은 CreateClubData")
+                  CreateData data) {
     }
 
     @Schema(oneOf = CreateClubData.class)
-    public interface CreateData {
+    interface CreateData {
     }
 
-    public record CreateClubData(@NotNull @Schema(description = "1~20자 모임 이름") ClubName name,
-                                 @NotNull @Schema(description = "canonical 컨텐츠 ID",
-                                         implementation = Long.class) ContentId contentId)
+    record CreateClubData(@NotNull @Schema(description = "1~20자 모임 이름") ClubName name,
+                          @NotNull @Schema(description = "canonical 컨텐츠 ID",
+                                  implementation = Long.class) ContentId contentId)
             implements CreateData {
     }
 
-    public record Join(@NotNull @Schema(description = "공간 종류", example = "CLUB") SpaceKind kind,
-                       @NotNull @Valid @Schema(description = "종류별 가입 입력. CLUB은 JoinClubData") JoinData data) {
+    record Join(@NotNull @Schema(description = "공간 종류", example = "CLUB") SpaceKind kind,
+                @NotNull @Valid @Schema(description = "종류별 가입 입력. CLUB은 JoinClubData") JoinData data) {
     }
 
     @Schema(oneOf = JoinClubData.class)
-    public interface JoinData {
+    interface JoinData {
     }
 
-    public record JoinClubData(@NotNull @Schema(description = "6자 대문자·숫자 참여 코드") JoinCode joinCode)
+    record JoinClubData(@NotNull @Schema(description = "6자 대문자·숫자 참여 코드") JoinCode joinCode)
             implements JoinData {
     }
 
     @JacksonMixin(Create.class)
-    public abstract static class CreateMixin {
+    abstract class CreateMixin {
 
         @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "kind")
         public abstract CreateData data();
     }
 
     @JacksonMixin(Join.class)
-    public abstract static class JoinMixin {
+    abstract class JoinMixin {
 
         @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "kind")
         public abstract JoinData data();

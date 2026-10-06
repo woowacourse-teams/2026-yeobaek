@@ -10,20 +10,20 @@ import yeobaek.backend.appreciation.api.comment.CommentContent;
 
 public interface AppreciationRequests {
 
-    public record Write(@NotNull @Schema(description = "감상 종류", example = "COMMENT") AppreciationKind kind,
-                        @NotNull @Valid @Schema(description = "종류별 감상 입력. COMMENT는 CommentData") Data data) {
+    record Write(@NotNull @Schema(description = "감상 종류", example = "COMMENT") AppreciationKind kind,
+                 @NotNull @Valid @Schema(description = "종류별 감상 입력. COMMENT는 CommentData") Data data) {
     }
 
     @Schema(oneOf = CommentData.class)
-    public interface Data {
+    interface Data {
     }
 
-    public record CommentData(@NotNull @Schema(description = "1~1000자 댓글 내용") CommentContent content)
+    record CommentData(@NotNull @Schema(description = "1~1000자 댓글 내용") CommentContent content)
             implements Data {
     }
 
     @JacksonMixin(Write.class)
-    public abstract static class WriteMixin {
+    abstract class WriteMixin {
 
         @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "kind")
         public abstract Data data();
