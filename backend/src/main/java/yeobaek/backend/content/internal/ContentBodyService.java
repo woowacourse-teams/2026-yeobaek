@@ -12,7 +12,6 @@ import yeobaek.backend.content.api.body.ContentBodyApi;
 import yeobaek.backend.content.api.body.ContentBodyUnsupportedException;
 import yeobaek.backend.content.internal.body.ContentBodyProvider;
 import yeobaek.backend.shared.identity.ContentId;
-import yeobaek.backend.shared.identity.ContentLocationId;
 
 @Service
 @RequiredArgsConstructor
@@ -30,11 +29,6 @@ public class ContentBodyService implements ContentBodyApi {
     @Override
     public Optional<Passage> findPassage(ContentId contentId, long passageId) {
         return provider(contentId).findPassage(passageId);
-    }
-
-    @Override
-    public Optional<Passage> findPassageByLocation(ContentId contentId, ContentLocationId locationId) {
-        return provider(contentId).findPassageByLocation(locationId);
     }
 
     @Override

@@ -8,15 +8,8 @@ import yeobaek.backend.shared.identity.ContentId;
 
 public final class ContentBodyUnsupportedException extends LogContextException {
 
-    private final long failedContentIdValue;
-
     public ContentBodyUnsupportedException(ContentId contentId, ContentKind kind, String message, Throwable cause) {
         super(ErrorCode.INVALID_REQUEST, message,
                 Map.of("contentId", Long.toString(contentId.value()), "kind", kind.value()), cause);
-        failedContentIdValue = contentId.value();
-    }
-
-    public long failedContentId() {
-        return failedContentIdValue;
     }
 }

@@ -9,7 +9,6 @@ import yeobaek.backend.collaboration.api.binding.SpaceContentBindingApi;
 import yeobaek.backend.content.api.ContentApi;
 import yeobaek.backend.content.api.ContentKind;
 import yeobaek.backend.content.api.idmapping.ContentIdMappingApi;
-import yeobaek.backend.content.api.idmapping.ContentIdMappingNotFoundException;
 import yeobaek.backend.content.api.metadata.ContentMetadataApi;
 import yeobaek.backend.shared.identity.ContentId;
 import yeobaek.backend.shared.identity.SpaceId;
@@ -28,14 +27,6 @@ public class SpaceBookQueryService {
         return bindings.findContents(spaceId).stream()
                 .filter(contentId -> ContentKind.BOOK.equals(contents.getContent(contentId).kind()))
                 .findFirst().map(this::snapshot);
-    }
-
-    public Optional<BookSnapshot> findByBookId(Long bookId) {
-        try {
-            return Optional.of(snapshot(idMappings.toContentId(ContentKind.BOOK, bookId)));
-        } catch (ContentIdMappingNotFoundException failure) {
-            return Optional.empty();
-        }
     }
 
     private BookSnapshot snapshot(ContentId contentId) {

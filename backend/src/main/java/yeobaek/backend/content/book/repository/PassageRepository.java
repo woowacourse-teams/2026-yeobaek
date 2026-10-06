@@ -1,16 +1,12 @@
 package yeobaek.backend.content.book.repository;
 
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.content.book.domain.Passage;
 
 public interface PassageRepository extends JpaRepository<Passage, Long> {
-
-    @Query("select p from Passage p where p.locationId = :locationId")
-    Optional<Passage> findByLocationId(@Param("locationId") Long locationId);
 
     @Query("""
             select p.chapter.id as chapterId,

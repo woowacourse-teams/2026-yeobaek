@@ -11,8 +11,6 @@ public interface ContentBodyApi {
 
     Optional<Passage> findPassage(ContentId contentId, long passageId);
 
-    Optional<Passage> findPassageByLocation(ContentId contentId, ContentLocationId locationId);
-
     int passageCount(ContentId contentId);
 
     record Passage(long passageId, ContentId contentId, ContentLocationId locationId, int sequence,

@@ -39,11 +39,6 @@ public class BookContentBodyService implements ContentBodyProvider {
     }
 
     @Override
-    public Optional<ContentBodyApi.Passage> findPassageByLocation(ContentLocationId locationId) {
-        return passageRepository.findByLocationId(locationId.value()).map(this::toBody);
-    }
-
-    @Override
     public int passageCount(ContentId contentId) {
         return contentProvider.get(contentId).passageCount();
     }

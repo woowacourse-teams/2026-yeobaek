@@ -8,8 +8,6 @@ import yeobaek.backend.shared.identity.AppreciationId;
 
 public final class CommentException extends LogContextException {
 
-    private final long failedCommentId;
-
     public CommentException(ErrorCode code, AppreciationId commentId, String message) {
         this(code, commentId, message, Map.of(), null);
     }
@@ -26,11 +24,6 @@ public final class CommentException extends LogContextException {
     public CommentException(ErrorCode code, AppreciationId commentId, String message,
                             Map<String, String> logContext, Throwable cause) {
         super(code, message, context(commentId, logContext), cause);
-        this.failedCommentId = commentId.value();
-    }
-
-    public long commentId() {
-        return failedCommentId;
     }
 
     private static Map<String, String> context(AppreciationId commentId, Map<String, String> logContext) {
