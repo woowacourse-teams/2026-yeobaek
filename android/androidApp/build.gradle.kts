@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
-
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
 }
@@ -19,6 +19,15 @@ dependencies {
 
     // compose & android
     implementation(libs.androidx.activity.compose)
+
+    // material3
+    debugImplementation(libs.compose.material3)
+
+    // navigation
+    debugImplementation(libs.navigation.compose)
+
+    // kotlinx serialization
+    debugImplementation(libs.kotlinx.serialization.json)
 
     // compose tooling (preview & debug)
     implementation(libs.compose.uiToolingPreview)
