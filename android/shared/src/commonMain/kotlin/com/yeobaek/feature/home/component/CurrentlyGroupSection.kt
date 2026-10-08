@@ -19,20 +19,16 @@ import com.yeobaek.feature.home.model.GroupUiModel
 
 @Composable
 fun CurrentlyGroupSection(
-    title: String,
     groupUiModelList: List<GroupUiModel>,
+    emptyMessage: String,
     navigateToDetail: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
-        SectionTitle(
-            title = title,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
         if (groupUiModelList.isEmpty()) {
-            EmptyGroupColumn()
+            EmptyGroupColumn(message = emptyMessage)
         }
         LazyColumn {
             items(items = groupUiModelList, key = { it.groupId }) { groupUiModel ->
@@ -53,6 +49,7 @@ fun CurrentlyGroupSection(
 
 @Composable
 private fun EmptyGroupColumn(
+    message: String,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -61,7 +58,7 @@ private fun EmptyGroupColumn(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "모임에 참여하거나 만들어서 함께 책을 읽어봐요!",
+            text = message,
         )
     }
 }
@@ -71,8 +68,8 @@ private fun EmptyGroupColumn(
 private fun CurrentlyGroupSectionPreview() {
     YeobaekTheme {
         CurrentlyGroupSection(
-            title = "내 모임",
             groupUiModelList = emptyList(),
+            emptyMessage = "모임을 만들거나 참여해 보세요!",
             navigateToDetail = {},
         )
     }

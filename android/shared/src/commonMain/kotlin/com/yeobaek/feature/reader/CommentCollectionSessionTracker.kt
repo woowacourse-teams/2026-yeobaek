@@ -1,6 +1,6 @@
 package com.yeobaek.feature.reader
 
-import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.CommentCollectionClosed
 import com.yeobaek.core.analytics.CommentCollectionEnd
 import com.yeobaek.core.analytics.CommentCollectionOpened
@@ -17,7 +17,7 @@ import kotlin.time.TimeSource
  * 복귀하면 이벤트 없이 측정을 이어가므로, 방문이 끝날 때의 `closed`에는 방문 전체의 값이 담긴다.
  */
 class CommentCollectionSessionTracker(
-    private val analyticsTracker: AnalyticsTracker,
+    private val trackEvent: (AnalyticsEvent) -> Unit,
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     private var isVisiting = false
@@ -42,7 +42,7 @@ class CommentCollectionSessionTracker(
         sentences = null
         segmentStartMark = timeSource.markNow()
 
-        analyticsTracker.track(
+        trackEvent(
             CommentCollectionOpened(
                 bookId = bookId,
                 hasNewComments = hasNewComments,
@@ -90,7 +90,7 @@ class CommentCollectionSessionTracker(
 
     private fun trackClosed(endedBy: CommentCollectionEnd) {
         val loadedSentences = sentences
-        analyticsTracker.track(
+        trackEvent(
             CommentCollectionClosed(
                 bookId = bookId,
                 durationSeconds = accumulatedDuration.inWholeSeconds,

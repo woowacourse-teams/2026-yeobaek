@@ -406,26 +406,70 @@
         }
     });
 
+    async function resizeToJpeg(file, quality = 0.8) {
+        const bitmap = await createImageBitmap(file);
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 450;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                throw new Error('Canvas를 사용할 수 없습니다.');
+            }
+            // JPEG는 투명도를 지원하지 않으므로 흰 배경을 적용합니다.
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 300, 450);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            const scale = Math.min(300 / bitmap.width, 450 / bitmap.height);
+            const width = bitmap.width * scale;
+            const height = bitmap.height * scale;
+            ctx.drawImage(bitmap, (300 - width) / 2, (450 - height) / 2, width, height);
+
+            return await new Promise((resolve, reject) => {
+                canvas.toBlob(
+                    blob => blob
+                        ? resolve(blob)
+                        : reject(new Error('JPEG 변환에 실패했습니다.')),
+                    'image/jpeg',
+                    quality
+                );
+            });
+        } finally {
+            bitmap.close();
+        }
+    }
+
     async function uploadCover(file) {
         validateCoverFile(file);
+        const jpeg = await resizeToJpeg(file);
+        validateCoverFile(jpeg);
         const issueResponse = await fetch('/api/admin/book-covers/upload-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
-            body: JSON.stringify({ contentType: file.type, contentLength: file.size })
+            body: JSON.stringify({ contentType: file.type, contentLength: file.size, lowContentLength: jpeg.size })
         });
         const issueBody = await issueResponse.json();
         if (!issueResponse.ok) {
             throw new Error(issueBody.code + ': ' + issueBody.message);
         }
-        const uploadResponse = await fetch(issueBody.uploadUrl, {
+        await uploadCoverObject(issueBody.original, file);
+        await uploadCoverObject(issueBody.low, jpeg);
+        await uploadCoverObject(issueBody.legacy, jpeg);
+        return issueBody.coverImageKey;
+    }
+
+    async function uploadCoverObject(target, file) {
+        const uploadResponse = await fetch(target.uploadUrl, {
             method: 'PUT',
-            headers: issueBody.requiredHeaders,
+            headers: target.requiredHeaders,
             body: file
         });
         if (!uploadResponse.ok) {
             throw new Error('S3 표지 업로드 실패 (' + uploadResponse.status + ')');
         }
-        return issueBody.coverImageKey;
     }
 
     function validateCoverFile(file) {

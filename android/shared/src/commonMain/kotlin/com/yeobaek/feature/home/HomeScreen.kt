@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -18,17 +17,36 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.HomeReadingSpace
+import com.yeobaek.core.analytics.HomeReadingTabSelected
+import com.yeobaek.core.analytics.PublicRoomEntryPoint
+import com.yeobaek.core.analytics.PublicRoomListEnd
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.CurrentlyReadingBookSection
-import com.yeobaek.feature.home.component.GroupButtonSection
+import com.yeobaek.feature.home.component.GroupFabMenu
+import com.yeobaek.feature.home.component.GroupTab
+import com.yeobaek.feature.home.component.GroupTabBar
+import com.yeobaek.feature.home.component.PublicGroupSection
+import com.yeobaek.feature.reader.ReaderTarget
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -38,23 +56,57 @@ fun HomeScreen(
     navigateToJoin: () -> Unit,
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
-    navigateToReader: (Long) -> Unit,
+    navigateToReader: (ReaderTarget) -> Unit,
+    onPublicRoomClick: (Long, PublicRoomEntryPoint, String?) -> Unit,
     navigateToMyPage: () -> Unit,
+    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var selectedGroupTab by rememberSaveable(
+        stateSaver = Saver(
+            save = { tab -> tab.name },
+            restore = { name -> GroupTab.valueOf(name) },
+        ),
+    ) {
+        mutableStateOf(GroupTab.MyGroups)
+    }
+    val listVisitTracker = remember { PublicRoomListVisitTracker(onAnalyticsEvent) }
+    var observationEpoch by remember { mutableIntStateOf(0) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        observationEpoch++
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        listVisitTracker.close(PublicRoomListEnd.BACKGROUND)
+    }
+
+    LaunchedEffect(uiState.isMovePublicRoom) {
+        if (uiState.isMovePublicRoom) {
+            selectedGroupTab = GroupTab.PublicRooms
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             AppTitle(
                 title = "$appName | ${uiState.username}",
-                navigateToMyPage = navigateToMyPage,
+                navigateToMyPage = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToMyPage()
+                },
             )
         },
-        bottomBar = {
-            GroupButtonSection(
-                navigateToJoin = navigateToJoin,
-                navigateToCreate = navigateToCreate,
-                modifier = Modifier.navigationBarsPadding().padding(16.dp),
+        floatingActionButton = {
+            GroupFabMenu(
+                navigateToJoin = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToJoin()
+                },
+                navigateToCreate = {
+                    listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                    navigateToCreate()
+                },
             )
         },
     ) { innerPadding ->
@@ -62,21 +114,77 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {
             uiState.currentlyReadingBookUiModel?.let { book ->
-                Spacer(modifier = Modifier.height(36.dp))
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
-                    navigateToReader = navigateToReader,
+                    navigateToReader = { target ->
+                        listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                        navigateToReader(target)
+                    },
+                    modifier = Modifier.padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 8.dp,
+                        bottom = 16.dp,
+                    ),
+                )
+            }
+            GroupTabBar(
+                selectedTab = selectedGroupTab,
+                onTabSelected = { tab ->
+                    if (tab != selectedGroupTab) {
+                        if (selectedGroupTab == GroupTab.PublicRooms) {
+                            listVisitTracker.close(PublicRoomListEnd.TAB_SWITCH)
+                        }
+                        selectedGroupTab = tab
+                        onAnalyticsEvent(
+                            HomeReadingTabSelected(
+                                if (tab == GroupTab.PublicRooms) {
+                                    HomeReadingSpace.PUBLIC_ROOM
+                                } else {
+                                    HomeReadingSpace.GROUP
+                                },
+                            ),
+                        )
+                    }
+                },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            when (selectedGroupTab) {
+                GroupTab.MyGroups -> CurrentlyGroupSection(
+                    groupUiModelList = uiState.groups,
+                    emptyMessage = "모임을 만들거나 참여해 보세요!",
+                    navigateToDetail = { groupId ->
+                        listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                        navigateToDetail(groupId)
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+
+                GroupTab.PublicRooms -> PublicGroupSection(
+                    uiState = uiState.publicRoomTab,
+                    onPublicRoomClick = { publicRoomId, entryPoint ->
+                        val listVisitId = if (entryPoint == PublicRoomEntryPoint.ROOM_LIST) {
+                            val rooms = uiState.publicRoomTab.publicRooms
+                            val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoomId } + 1
+                            listVisitTracker.observe(rooms.size, selectedPosition.takeIf { it > 0 })
+                            listVisitTracker.selectRoom()
+                        } else {
+                            listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
+                            null
+                        }
+                        onPublicRoomClick(publicRoomId, entryPoint, listVisitId)
+                    },
+                    onListObserved = listVisitTracker::observe,
+                    onListUserScrolled = listVisitTracker::onUserScrolled,
+                    observationEpoch = observationEpoch,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-            Spacer(modifier = Modifier.height(32.dp))
-            CurrentlyGroupSection(
-                title = "내 모임",
-                groupUiModelList = uiState.groups,
-                navigateToDetail = navigateToDetail,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            if (uiState.screenState != ScreenState.Success) {
+            if (
+                selectedGroupTab == GroupTab.MyGroups &&
+                uiState.screenState != ScreenState.Success
+            ) {
                 Text(
                     text = when (uiState.screenState) {
                         is ScreenState.Error -> uiState.screenState.message
@@ -112,7 +220,7 @@ private fun AppTitle(
                 onClick = {
                     navigateToMyPage()
                 },
-                modifier = Modifier.size(50.dp),
+                modifier = Modifier.size(48.dp),
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.ic_person_circle),
@@ -142,6 +250,7 @@ private fun HomeScreenPreview() {
             navigateToDetail = {},
             navigateToCreate = {},
             navigateToReader = {},
+            onPublicRoomClick = { _, _, _ -> },
             navigateToMyPage = {},
         )
     }

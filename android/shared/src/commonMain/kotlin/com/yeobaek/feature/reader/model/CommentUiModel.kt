@@ -4,7 +4,7 @@ import com.yeobaek.data.model.CommentModel
 
 data class CommentUiModel(
     val commentId: Long,
-    val memberId: Int,
+    val memberId: Long,
     val nickname: String,
     val content: String,
     val createdAt: String,

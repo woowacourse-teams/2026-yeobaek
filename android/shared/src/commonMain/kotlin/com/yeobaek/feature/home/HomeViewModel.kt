@@ -15,46 +15,46 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.UserRepository
-import com.yeobaek.feature.home.model.CurrentlyReadingBookUiModel
 import com.yeobaek.feature.home.model.GroupUiModel
+import com.yeobaek.feature.home.model.toCurrentlyReadingBookUiModel
+import com.yeobaek.feature.home.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
+    private val publicRoomRepository: PublicRoomRepository,
     private val crashReporter: CrashReporter,
 ) : ViewModel() {
     var uiState by mutableStateOf(HomeUiState())
         private set
 
     fun initCurrentlyBook() {
+        uiState = uiState.copy(
+            currentlyBookState = CurrentlyBookState.Loading,
+        )
+
         viewModelScope.launch {
             try {
-                val lastReading = userRepository.getLastReading()
+                val recentReading = userRepository.getRecentReading()
+                val currentlyReadingBook = recentReading?.toCurrentlyReadingBookUiModel()
 
                 uiState = uiState.copy(
-                    currentlyReadingBookUiModel = if (lastReading != null) {
-                        CurrentlyReadingBookUiModel(
-                            clubId = lastReading.clubId,
-                            groupName = lastReading.clubName,
-                            title = lastReading.book.title,
-                            coverImageUrl = lastReading.book.coverImageUrl,
-                            authors = lastReading.book.authors,
-                            progressRate = lastReading.progressRate,
-                        )
-                    } else {
-                        null
-                    },
+                    currentlyReadingBookUiModel = currentlyReadingBook,
+                    currentlyBookState = CurrentlyBookState.Success,
                 )
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
                         screen = TrackedScreen.HOME,
                         operation = CrashOperation.HOME_LAST_READING_LOADED,
-                        bookId = lastReading?.book?.id,
-                        itemCount = if (lastReading == null) 0 else 1,
+                        bookId = currentlyReadingBook?.bookId,
+                        itemCount = if (currentlyReadingBook == null) 0 else 1,
                     ),
                 )
             } catch (e: io.ktor.utils.io.CancellationException) {
@@ -66,6 +66,7 @@ class HomeViewModel(
                 )
                 uiState = uiState.copy(
                     currentlyReadingBookUiModel = null,
+                    currentlyBookState = CurrentlyBookState.Error(e.message ?: "최근 읽은 책 정보를 가져오는데 실패했습니다."),
                 )
             }
         }
@@ -101,6 +102,7 @@ class HomeViewModel(
                         itemCount = groups.size,
                     ),
                 )
+                updateMovePublicRoomIfReady()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -115,16 +117,82 @@ class HomeViewModel(
         }
     }
 
+    fun initPublicRooms() {
+        uiState = uiState.copy(
+            publicRoomTab = uiState.publicRoomTab.copy(
+                screenState = ScreenState.Loading("공개방 정보를 불러오는 중입니다."),
+            ),
+        )
+        viewModelScope.launch {
+            try {
+                val (visitedPublicRooms, publicRooms) = coroutineScope {
+                    val visitedPublicRooms = async {
+                        publicRoomRepository.getVisitedPublicRooms()
+                    }
+                    val publicRooms = async {
+                        publicRoomRepository.getPublicRooms()
+                    }
+
+                    visitedPublicRooms.await() to publicRooms.await()
+                }
+
+                uiState = uiState.copy(
+                    publicRoomTab = PublicRoomTabUiState(
+                        visitedPublicRooms = visitedPublicRooms.map { it.publicRoom.toUiModel() },
+                        publicRooms = publicRooms.map { it.toUiModel() },
+                        screenState = ScreenState.Success,
+                    ),
+                )
+                crashReporter.track(
+                    level = CrashLogLevel.INFO,
+                    context = CrashContext(
+                        screen = TrackedScreen.HOME,
+                        operation = CrashOperation.HOME_PUBLIC_ROOMS_LOADED,
+                        itemCount = publicRooms.size,
+                    ),
+                )
+                updateMovePublicRoomIfReady()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                crashReporter.recordException(
+                    throwable = e,
+                    context = crashContext(CrashOperation.HOME_PUBLIC_ROOMS_FAILED),
+                )
+                uiState = uiState.copy(
+                    publicRoomTab = PublicRoomTabUiState(
+                        screenState = ScreenState.Error("공개방 정보를 가져오는데 실패했습니다."),
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun updateMovePublicRoomIfReady() {
+        val isGroupsLoaded = uiState.screenState is ScreenState.Success
+        val isPublicRoomsLoaded =
+            uiState.publicRoomTab.screenState is ScreenState.Success
+
+        if (!isGroupsLoaded || !isPublicRoomsLoaded) return
+
+        uiState = uiState.copy(
+            isMovePublicRoom =
+                uiState.groups.isEmpty() &&
+                    uiState.publicRoomTab.visitedPublicRooms.isNotEmpty(),
+        )
+    }
     companion object {
         fun homeViewModelFactory(
             userRepository: UserRepository,
             groupRepository: GroupRepository,
+            publicRoomRepository: PublicRoomRepository,
             crashReporter: CrashReporter,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 HomeViewModel(
                     userRepository = userRepository,
                     groupRepository = groupRepository,
+                    publicRoomRepository = publicRoomRepository,
                     crashReporter = crashReporter,
                 )
             }

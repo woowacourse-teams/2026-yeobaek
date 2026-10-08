@@ -17,14 +17,14 @@ import de.jensklingenberg.ktorfit.http.Query
 
 interface CommentApi {
     @POST("api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views")
-    suspend fun getComments(
+    suspend fun getGroupComments(
         @Path("clubId") clubId: Long,
         @Path("sentenceId") sentenceId: Long,
     ): CommentsResponse
 
     @Headers("Content-Type: application/json")
     @POST("api/clubs/{clubId}/sentences/{sentenceId}/comments")
-    suspend fun createComment(
+    suspend fun createGroupComment(
         @Path("clubId") clubId: Long,
         @Path("sentenceId") sentenceId: Long,
         @Body request: CommentRequest,
@@ -48,14 +48,40 @@ interface CommentApi {
     ): Response<Unit>
 
     @GET("api/clubs/{clubId}/comments/new-count")
-    suspend fun getNewCommentCount(
+    suspend fun getGroupNewCommentCount(
         @Path("clubId") clubId: Long,
         @Query("currentPassageId") currentPassageId: Long,
     ): Response<NewCommentCountResponse>
 
     @GET("api/clubs/{clubId}/commented-sentences")
-    suspend fun getCommentedSentences(
+    suspend fun getGroupCommentedSentences(
         @Path("clubId") clubId: Long,
+        @Query("currentPassageId") currentPassageId: Long,
+    ): Response<CommentedSentencesResponse>
+
+    @POST("api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views")
+    suspend fun getPublicRoomComments(
+        @Path("publicRoomId") publicRoomId: Long,
+        @Path("sentenceId") sentenceId: Long,
+    ): CommentsResponse
+
+    @Headers("Content-Type: application/json")
+    @POST("api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments")
+    suspend fun createPublicRoomComment(
+        @Path("publicRoomId") publicRoomId: Long,
+        @Path("sentenceId") sentenceId: Long,
+        @Body request: CommentRequest,
+    ): CommentResponse
+
+    @GET("api/public-rooms/{publicRoomId}/comments/new-count")
+    suspend fun getPublicRoomNewCommentCount(
+        @Path("publicRoomId") publicRoomId: Long,
+        @Query("currentPassageId") currentPassageId: Long,
+    ): Response<NewCommentCountResponse>
+
+    @GET("api/public-rooms/{publicRoomId}/commented-sentences")
+    suspend fun getPublicRoomCommentedSentences(
+        @Path("publicRoomId") publicRoomId: Long,
         @Query("currentPassageId") currentPassageId: Long,
     ): Response<CommentedSentencesResponse>
 }

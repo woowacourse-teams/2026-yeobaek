@@ -8,16 +8,19 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.PublicRoomRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 
@@ -30,6 +33,7 @@ class AppContainer(
 
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
+    val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
 
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 
@@ -59,13 +63,18 @@ class AppContainer(
     val groupRepository: GroupRepository = GroupRepositoryImpl(
         clubApi = apiProvider.clubApi,
     )
+    val publicRoomRepository: PublicRoomRepository = PublicRoomRepositoryImpl(
+        publicRoomApi = apiProvider.publicRoomApi,
+    )
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
         readerApi = apiProvider.readerApi,
     )
 
+    val posthogApiKey = if (isDebug) BuildKonfig.POSTHOG_DEBUG_API_KEY else BuildKonfig.POSTHOG_RELEASE_API_KEY
+
     init {
         analyticsClient.setup(
-            apiKey = BuildKonfig.POSTHOG_API_KEY,
+            apiKey = posthogApiKey,
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )

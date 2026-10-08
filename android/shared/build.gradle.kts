@@ -32,7 +32,8 @@ val localProperties = Properties().apply {
 
 val baseUrl = localProperties.getProperty("BASE_URL")
 val testBaseUrl = localProperties.getProperty("TEST_BASE_URL")
-val postHogApiKey = localProperties.getProperty("POSTHOG_API_KEY").orEmpty()
+val postHogReleaseApiKey = localProperties.getProperty("POSTHOG_RELEASE_API_KEY").orEmpty()
+val postHogDebugApiKey = localProperties.getProperty("POSTHOG_DEBUG_API_KEY").orEmpty()
 val postHogHost = localProperties.getProperty("POSTHOG_HOST") ?: "https://us.i.posthog.com"
 
 if (!postHogHost.startsWith("https://")) {
@@ -188,8 +189,14 @@ buildkonfig {
 
         buildConfigField(
             type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
-            name = "POSTHOG_API_KEY",
-            value = postHogApiKey,
+            name = "POSTHOG_RELEASE_API_KEY",
+            value = postHogReleaseApiKey,
+        )
+
+        buildConfigField(
+            type = com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING,
+            name = "POSTHOG_DEBUG_API_KEY",
+            value = postHogDebugApiKey,
         )
 
         buildConfigField(

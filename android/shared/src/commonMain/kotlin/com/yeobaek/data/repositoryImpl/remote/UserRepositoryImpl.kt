@@ -4,7 +4,7 @@ import com.yeobaek.data.api.UserApi
 import com.yeobaek.data.dto.UserRequest
 import com.yeobaek.data.dto.toModel
 import com.yeobaek.data.local.UserPreferences
-import com.yeobaek.data.model.LastReadingModel
+import com.yeobaek.data.model.RecentReadingModel
 import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.UserRepository
 import io.ktor.http.HttpStatusCode.Companion.NoContent
@@ -30,21 +30,16 @@ class UserRepositoryImpl(
         }
     }
 
-    override suspend fun getLastReading(): LastReadingModel? {
-        val response = userApi.getLastReading()
+    override suspend fun getRecentReading(): RecentReadingModel? {
+        val response = userApi.getRecentReading()
 
         return when (response.status) {
-            OK -> {
-                response.body()?.toModel() ?: throw IllegalArgumentException("마지막으로 읽은 책 정보가 없네요")
-            }
+            OK -> response.body()?.toModel()
+                ?: throw IllegalArgumentException("최근에 읽은 책 정보가 없네요")
 
-            NoContent -> {
-                null
-            }
+            NoContent -> null
 
-            else -> {
-                throw IllegalArgumentException("마지막으로 읽은 책 정보를 가져오는데 실패했습니다. ${response.status}")
-            }
+            else -> throw IllegalArgumentException("최근에 읽은 책 정보를 가져오는데 실패했습니다. ${response.status}")
         }
     }
 

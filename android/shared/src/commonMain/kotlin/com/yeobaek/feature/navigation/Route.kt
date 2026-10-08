@@ -11,6 +11,15 @@ data class Guide(
 )
 
 @Serializable
+data object Onboarding
+
+@Serializable
+data class OnboardingCreate(
+    val bookId: Long,
+    val attemptId: String,
+)
+
+@Serializable
 data object Home
 
 @Serializable
@@ -22,11 +31,18 @@ data class Detail(
 data object Create
 
 @Serializable
-data object Join
+data class Join(
+    val fromOnboarding: Boolean = false,
+)
 
 @Serializable
 data class Reader(
     val groupId: Long,
+)
+
+@Serializable
+data class PublicRoomReader(
+    val publicRoomId: Long,
 )
 
 @Serializable

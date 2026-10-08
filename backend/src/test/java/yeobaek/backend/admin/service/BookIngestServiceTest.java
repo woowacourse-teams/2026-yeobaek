@@ -111,6 +111,20 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("신규 표지는 UUID만 저장하고 구버전용 공개 URL을 응답한다")
+    void uploadWithCoverUuid() {
+        String uuid = "123e4567-e89b-12d3-a456-426614174000";
+        var request = new BookUploadRequest(new BookTitle("UUID 표지 도서"), null, null, uuid,
+                authorsOfUnknown(), chaptersWithOnePassage());
+
+        var response = bookIngestService.upload(request);
+
+        assertThat(bookRepository.getById(response.bookId()).getCoverImageKey()).isEqualTo(uuid);
+        assertThat(response.coverImageUrl()).isEqualTo(
+                "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/yeobaek/book-covers/" + uuid);
+    }
+
+    @Test
     @DisplayName("ISNI가 기존 작가와 일치하면 재사용한다")
     void reuseAuthorByIsni() {
         Author existing = authorRepository.save(new Author(new AuthorName("현진건"), new Isni("000000012345964X")));

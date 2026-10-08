@@ -4,6 +4,7 @@ import com.yeobaek.data.api.CommentApi
 import com.yeobaek.data.dto.CommentRequest
 import com.yeobaek.data.dto.toModel
 import com.yeobaek.data.model.CommentModel
+import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.CommentedSentencesModel
 import com.yeobaek.data.model.CommentsModel
 import com.yeobaek.data.model.NewCommentCountModel
@@ -13,26 +14,40 @@ class CommentRepositoryImpl(
     private val commentApi: CommentApi,
 ) : CommentRepository {
     override suspend fun getComments(
-        clubId: Long,
+        space: CommentSpace,
         sentenceId: Long,
-    ): CommentsModel = commentApi
-        .getComments(
-            clubId = clubId,
+    ): CommentsModel = when (space) {
+        is CommentSpace.Group -> commentApi.getGroupComments(
+            clubId = space.groupId,
             sentenceId = sentenceId,
         )
-        .toModel()
+
+        is CommentSpace.PublicRoom -> commentApi.getPublicRoomComments(
+            publicRoomId = space.publicRoomId,
+            sentenceId = sentenceId,
+        )
+    }.toModel()
 
     override suspend fun createComment(
-        clubId: Long,
+        space: CommentSpace,
         sentenceId: Long,
         content: String,
-    ): CommentModel = commentApi
-        .createComment(
-            clubId = clubId,
-            sentenceId = sentenceId,
-            request = CommentRequest(content = content),
-        )
-        .toModel()
+    ): CommentModel {
+        val request = CommentRequest(content = content)
+        return when (space) {
+            is CommentSpace.Group -> commentApi.createGroupComment(
+                clubId = space.groupId,
+                sentenceId = sentenceId,
+                request = request,
+            )
+
+            is CommentSpace.PublicRoom -> commentApi.createPublicRoomComment(
+                publicRoomId = space.publicRoomId,
+                sentenceId = sentenceId,
+                request = request,
+            )
+        }.toModel()
+    }
 
     override suspend fun updateComment(
         commentId: Long,
@@ -55,10 +70,20 @@ class CommentRepositoryImpl(
     }
 
     override suspend fun getNewCommentCount(
-        clubId: Long,
+        space: CommentSpace,
         currentPassageId: Long,
     ): NewCommentCountModel {
-        val response = commentApi.getNewCommentCount(clubId = clubId, currentPassageId = currentPassageId)
+        val response = when (space) {
+            is CommentSpace.Group -> commentApi.getGroupNewCommentCount(
+                clubId = space.groupId,
+                currentPassageId = currentPassageId,
+            )
+
+            is CommentSpace.PublicRoom -> commentApi.getPublicRoomNewCommentCount(
+                publicRoomId = space.publicRoomId,
+                currentPassageId = currentPassageId,
+            )
+        }
 
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("새 댓글 개수 정보가 없네요")
@@ -67,8 +92,21 @@ class CommentRepositoryImpl(
         }
     }
 
-    override suspend fun getCommentedSentences(clubId: Long, currentPassageId: Long): CommentedSentencesModel {
-        val response = commentApi.getCommentedSentences(clubId = clubId, currentPassageId = currentPassageId)
+    override suspend fun getCommentedSentences(
+        space: CommentSpace,
+        currentPassageId: Long,
+    ): CommentedSentencesModel {
+        val response = when (space) {
+            is CommentSpace.Group -> commentApi.getGroupCommentedSentences(
+                clubId = space.groupId,
+                currentPassageId = currentPassageId,
+            )
+
+            is CommentSpace.PublicRoom -> commentApi.getPublicRoomCommentedSentences(
+                publicRoomId = space.publicRoomId,
+                currentPassageId = currentPassageId,
+            )
+        }
 
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("댓글 문장 조회 정보가 없네요")

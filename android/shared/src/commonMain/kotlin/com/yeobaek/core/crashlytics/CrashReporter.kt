@@ -33,10 +33,13 @@ class CrashReporter(
     }
 }
 
-private fun CrashContext.toCustomKeys(errorType: String): Map<String, Any> = mapOf(
+internal fun CrashContext.toCustomKeys(errorType: String): Map<String, Any> = mapOf(
     KEY_SCREEN to screen.value,
     KEY_OPERATION to operation.value,
     KEY_BOOK_ID to (bookId ?: EMPTY_LONG),
+    KEY_PUBLIC_ROOM_ID to (publicRoomId ?: EMPTY_LONG),
+    KEY_READING_SPACE to (readingSpace ?: NO_VALUE),
+    KEY_ENTRY_POINT to (entryPoint ?: NO_VALUE),
     KEY_CHAPTER_SEQUENCE to (chapterSequence ?: EMPTY_INT),
     KEY_PASSAGE_SEQUENCE to (passageSequence ?: EMPTY_INT),
     KEY_ITEM_COUNT to (itemCount ?: EMPTY_INT),
@@ -54,6 +57,9 @@ private fun CrashContext.toLogLine(
     append(" screen=")
     append(screen.value)
     bookId?.let { append(" book_id=").append(it) }
+    publicRoomId?.let { append(" public_room_id=").append(it) }
+    readingSpace?.let { append(" reading_space=").append(it) }
+    entryPoint?.let { append(" entry_point=").append(it) }
     chapterSequence?.let { append(" chapter_sequence=").append(it) }
     passageSequence?.let { append(" passage_sequence=").append(it) }
     itemCount?.let { append(" item_count=").append(it) }
@@ -63,11 +69,15 @@ private fun CrashContext.toLogLine(
 private const val KEY_SCREEN = "screen"
 private const val KEY_OPERATION = "operation"
 private const val KEY_BOOK_ID = "book_id"
+private const val KEY_PUBLIC_ROOM_ID = "public_room_id"
+private const val KEY_READING_SPACE = "reading_space"
+private const val KEY_ENTRY_POINT = "entry_point"
 private const val KEY_CHAPTER_SEQUENCE = "chapter_sequence"
 private const val KEY_PASSAGE_SEQUENCE = "passage_sequence"
 private const val KEY_ITEM_COUNT = "item_count"
 private const val KEY_ERROR_TYPE = "error_type"
 private const val NO_ERROR = "none"
+private const val NO_VALUE = "none"
 private const val UNKNOWN_ERROR = "unknown"
 private const val EMPTY_INT = -1
 private const val EMPTY_LONG = -1L
