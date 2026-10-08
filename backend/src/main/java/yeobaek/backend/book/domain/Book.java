@@ -33,6 +33,8 @@ import yeobaek.backend.support.ErrorCode;
 public class Book {
 
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
+    private static final Pattern COVER_IMAGE_ID_PATTERN = Pattern.compile(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
     private static final Pattern COVER_IMAGE_KEY_PATTERN = Pattern.compile(
             "^[^/]+(?:/[^/]+)*/book-covers/"
                     + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp)$");
@@ -129,7 +131,8 @@ public class Book {
     private void validateCoverImageKey(String coverImageKey) {
         if (coverImageKey != null
                 && (coverImageKey.length() > MAX_COVER_IMAGE_KEY_LENGTH
-                || !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches())) {
+                || (!COVER_IMAGE_ID_PATTERN.matcher(coverImageKey).matches()
+                && !COVER_IMAGE_KEY_PATTERN.matcher(coverImageKey).matches()))) {
             throw new IllegalArgumentException("유효하지 않은 표지 이미지 키입니다.");
         }
     }

@@ -704,30 +704,51 @@
 
 요청:
 ```json
-{ "contentType": "image/jpeg", "contentLength": 245760 }
+{ "contentType": "image/png", "contentLength": 245760, "lowContentLength": 18432 }
 ```
 
 - 허용 형식: JPEG(`image/jpeg`), PNG(`image/png`), WebP(`image/webp`)
-- 허용 크기: 1바이트 이상 5 MiB 이하
-- 서버는 원본 파일명 대신 `${BOOK_COVER_S3_PREFIX}/book-covers/{uuid}.{확장자}` 형식의 새 키를
-  발급한다. prefix 환경변수의 기본값은 `yeobaek`이다.
+- `contentType`, `contentLength`: 원본 MIME과 바이트 크기.
+- `lowContentLength`: 브라우저에서 생성한 300×450 JPEG(품질 0.8)의 바이트 크기. 필수다.
+- 원본·압축본 모두 1바이트 이상 5 MiB 이하로 제한한다.
+- 서버는 UUID 하나로 아래 세 객체의 서명 URL을 발급한다. 모든 파일명에는 확장자가 없다.
+  - `${BOOK_COVER_S3_PREFIX}/book-covers/orgin/{uuid}`: 원본 바이트와 MIME을 유지한다.
+  - `${BOOK_COVER_S3_PREFIX}/book-covers/low/{uuid}`: JPEG 압축본이다.
+  - `${BOOK_COVER_S3_PREFIX}/book-covers/{uuid}`: 구버전용이며 `low`와 같은 JPEG 바이트다.
+- `orgin`은 합의한 prefix 철자다. 환경변수 prefix의 기본값은 `yeobaek`이다.
 
 응답 `200`:
 ```json
 {
-  "coverImageKey": "yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
-  "uploadUrl": "https://<bucket>.s3.<region>.amazonaws.com/yeobaek/book-covers/...?X-Amz-...",
-  "expiresAt": "2026-08-26T12:10:00Z",
-  "requiredHeaders": {
-    "Content-Type": "image/jpeg",
-    "Cache-Control": "public,max-age=31536000,immutable"
+  "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
+  "original": {
+    "uploadUrl": "https://<bucket>.s3.<region>.amazonaws.com/yeobaek/book-covers/orgin/550e8400-e29b-41d4-a716-446655440000?X-Amz-...",
+    "expiresAt": "2026-10-08T12:10:00Z",
+    "requiredHeaders": { "Content-Type": "image/png", "Cache-Control": "public,max-age=31536000,immutable" }
+  },
+  "low": {
+    "uploadUrl": "https://<bucket>.s3.<region>.amazonaws.com/yeobaek/book-covers/low/550e8400-e29b-41d4-a716-446655440000?X-Amz-...",
+    "expiresAt": "2026-10-08T12:10:00Z",
+    "requiredHeaders": { "Content-Type": "image/jpeg", "Cache-Control": "public,max-age=31536000,immutable" }
+  },
+  "legacy": {
+    "uploadUrl": "https://<bucket>.s3.<region>.amazonaws.com/yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000?X-Amz-...",
+    "expiresAt": "2026-10-08T12:10:00Z",
+    "requiredHeaders": { "Content-Type": "image/jpeg", "Cache-Control": "public,max-age=31536000,immutable" }
   }
 }
 ```
 
 - Presigned PUT URL의 수명은 10분이다.
-- 관리자는 `requiredHeaders`를 그대로 넣어 이미지 바이트를 `PUT uploadUrl`로 전송한다.
-- S3 업로드가 실패하면 도서 생성·표지 교체 API를 호출하지 않는다.
+- 관리자는 객체마다 `requiredHeaders`를 그대로 넣어 이미지 바이트를 `PUT uploadUrl`로 전송한다.
+- 세 업로드가 모두 성공한 뒤에만 `coverImageKey` UUID로 도서 생성·표지 교체 API를 호출한다.
+- 압축·서명 발급·S3 업로드가 실패하면 도서 생성·표지 교체 API를 호출하지 않는다.
+  이미 올라간 객체는 기존 정책대로 삭제하지 않는다.
+- 신규·교체 표지는 DB에 UUID만 저장한다. 기존 전체 객체 키 데이터는 유지한다.
+- 기존 `coverImageUrl` 응답 필드는 UUID에 대해 `${publicBaseUrl}/${prefix}/book-covers/{uuid}`를
+  반환한다. 구버전 클라이언트는 이 URL로 JPEG를 읽고, 신규 클라이언트는 같은 UUID의 `orgin` 또는
+  `low` 경로를 선택할 수 있다. 기존 전체 객체 키는 이전 URL 그대로 반환한다.
+- 기존 도서의 이미지 변환·재업로드·DB 일괄 마이그레이션은 수행하지 않는다.
 - URL 발급 API와 관리자 화면에서 형식·크기를 검사한다. 현재 S3 자체의 엄격한 최대 크기 제한은
   적용하지 않는다.
 
@@ -740,7 +761,7 @@
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
   "publishedYear": 1924,
-  "coverImageKey": "yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -765,8 +786,8 @@
 - `title`: 필수, 1~100자 (공백만 불가)
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
-- `coverImageKey`: 선택(null 허용). 표지 업로드 URL 발급 API가 반환한
-  `${prefix}/book-covers/{uuid}.(jpg|png|webp)` 키만 허용한다.
+- `coverImageKey`: 선택(null 허용). 표지 업로드 URL 발급 API가 반환한 소문자 UUID를 전달한다.
+  기존 `${prefix}/book-covers/{uuid}.(jpg|png|webp)` 키도 호환을 위해 허용한다.
 - `authors`: **최소 1명.** 각 원소는 두 형태 중 하나
   - `{ "name", "isni"? }` — `name` 필수 1~100자. `isni`는 선택: 공백·하이픈 제거 후 16자리(끝자리 `X` 허용) 형식 검증(체크섬 검증 없음). ISNI가 기존 작가와 일치하면 재사용하되 유효한 이름이 다르면 `400` (`AUTHOR_NAME_MISMATCH`). 이름 누락·공백·길이 초과 등 VO 검증 실패는 기존 ISNI 여부와 무관하게 서비스 호출 전에 `400` (`INVALID_REQUEST`)로 거부한다. 일치하는 작가가 없으면 신규 생성. ISNI 없이 이름만 주면 항상 신규 생성
   - `{ "authorId" }` — 기존 작가 참조 (관리자가 작가 조회로 확인 후 기재). 미존재 시 `400` (`AUTHOR_NOT_FOUND`)
@@ -793,7 +814,7 @@
 {
   "bookId": 3,
   "title": "운수 좋은 날",
-  "coverImageUrl": "https://<public-base-url>/yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "coverImageUrl": "https://<public-base-url>/yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000",
   "passageCount": 30
 }
 ```
@@ -805,10 +826,10 @@
 
 요청:
 ```json
-{ "coverImageKey": "yeobaek/book-covers/7b2a5027-65f5-4db8-b3b0-231e4663c90f.webp" }
+{ "coverImageKey": "7b2a5027-65f5-4db8-b3b0-231e4663c90f" }
 ```
 
-- 먼저 표지 업로드 URL 발급 API와 S3 PUT을 성공시킨 뒤 새 키를 전달한다.
+- 먼저 표지 업로드 URL 발급 API와 S3 PUT 세 건을 모두 성공시킨 뒤 UUID를 전달한다.
 - 성공 응답: `204 No Content`.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 - 교체된 이전 S3 객체는 즉시 삭제하지 않는다. 고아 객체 정리는 후속 작업이다.

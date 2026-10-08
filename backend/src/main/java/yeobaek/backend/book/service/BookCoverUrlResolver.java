@@ -7,16 +7,19 @@ import yeobaek.backend.support.storage.S3StorageProperties;
 public class BookCoverUrlResolver {
 
     private final String publicBaseUrl;
+    private final String coverPrefix;
 
     public BookCoverUrlResolver(S3StorageProperties properties) {
         this.publicBaseUrl = stripTrailingSlash(properties.publicBaseUrl());
+        this.coverPrefix = properties.prefix() + "/book-covers/";
     }
 
     public String resolve(String coverImageKey) {
         if (coverImageKey == null) {
             return null;
         }
-        return publicBaseUrl + "/" + coverImageKey;
+        String key = coverImageKey.contains("/") ? coverImageKey : coverPrefix + coverImageKey;
+        return publicBaseUrl + "/" + key;
     }
 
     private String stripTrailingSlash(String url) {

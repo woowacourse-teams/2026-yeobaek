@@ -8,6 +8,7 @@ import static yeobaek.backend.support.LogField.SUCCESS;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,7 @@ public class BookCoverUploadService {
     public static final long MAX_CONTENT_LENGTH = 5L * 1024 * 1024;
     public static final String CACHE_CONTROL = "public,max-age=31536000,immutable";
     private static final Duration UPLOAD_URL_TTL = Duration.ofMinutes(10);
-    private static final Map<String, String> EXTENSION_BY_CONTENT_TYPE = Map.of(
-            "image/jpeg", "jpg",
-            "image/png", "png",
-            "image/webp", "webp");
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final S3Presigner s3Presigner;
     private final S3StorageProperties properties;
@@ -46,22 +44,32 @@ public class BookCoverUploadService {
                 .addKeyValue("contentTypeProvided", request.contentType() != null)
                 .addKeyValue("contentLength", request.contentLength())
                 .log("표지 업로드 URL을 발급합니다.");
-        String extension = extensionOf(request.contentType());
+        validateContentType(request.contentType());
         validateContentLength(request.contentLength());
-        String key = properties.prefix() + "/book-covers/" + UUID.randomUUID() + "." + extension;
+        validateContentLength(request.lowContentLength());
+        String id = UUID.randomUUID().toString();
+        String baseKey = properties.prefix() + "/book-covers/";
+        var response = new BookCoverUploadUrlResponse(id,
+                issueTarget(baseKey + "orgin/" + id, request.contentType()),
+                issueTarget(baseKey + "low/" + id, "image/jpeg"),
+                issueTarget(baseKey + id, "image/jpeg"));
+        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("contentType", request.contentType()).addKeyValue("contentLength", request.contentLength())
+                .addKeyValue("lowContentLength", request.lowContentLength())
+                .log("표지 업로드 URL을 발급했습니다.");
+        return response;
+    }
+
+    private BookCoverUploadUrlResponse.UploadTarget issueTarget(String key, String contentType) {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(key)
-                .contentType(request.contentType())
+                .contentType(contentType)
                 .cacheControl(CACHE_CONTROL)
                 .build();
         PresignedPutObjectRequest presigned = presign(putObjectRequest);
-        var response = new BookCoverUploadUrlResponse(key, presigned.url().toString(), presigned.expiration(),
-                requiredHeaders(presigned, request.contentType()));
-        log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl").addKeyValue(RESULT, SUCCESS)
-                .addKeyValue("contentType", request.contentType()).addKeyValue("contentLength", request.contentLength())
-                .log("표지 업로드 URL을 발급했습니다.");
-        return response;
+        return new BookCoverUploadUrlResponse.UploadTarget(presigned.url().toString(), presigned.expiration(),
+                requiredHeaders(presigned, contentType));
     }
 
     private PresignedPutObjectRequest presign(PutObjectRequest putObjectRequest) {
@@ -94,23 +102,21 @@ public class BookCoverUploadService {
         return headers;
     }
 
-    private String extensionOf(String contentType) {
+    private void validateContentType(String contentType) {
         if (contentType == null) {
             throw new InvalidRequestException("표지 이미지 MIME 타입은 필수입니다.",
                     Map.of(REASON, "content_type_missing"));
         }
-        String extension = EXTENSION_BY_CONTENT_TYPE.get(contentType);
-        if (extension == null) {
+        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new InvalidRequestException("표지 이미지는 JPEG, PNG, WebP 형식만 허용합니다.",
                     Map.of(REASON, "content_type_unsupported"));
         }
-        return extension;
     }
 
-    private void validateContentLength(long contentLength) {
-        if (contentLength < 1 || contentLength > MAX_CONTENT_LENGTH) {
+    private void validateContentLength(Long contentLength) {
+        if (contentLength == null || contentLength < 1 || contentLength > MAX_CONTENT_LENGTH) {
             throw new InvalidRequestException("표지 이미지 크기는 1바이트 이상 5 MiB 이하여야 합니다.",
-                    Map.of(REASON, "content_length_out_of_range", "contentLength", Long.toString(contentLength)));
+                    Map.of(REASON, "content_length_out_of_range", "contentLength", String.valueOf(contentLength)));
         }
     }
 }
