@@ -18,4 +18,14 @@ class BookCoverUrlResolverTest {
                 .isEqualTo("https://cover.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg");
         assertThat(resolver.resolve(null)).isNull();
     }
+
+    @Test
+    @DisplayName("UUID는 설정 prefix 아래 확장자 없는 구버전용 표지 URL로 반환한다")
+    void resolveUuidForLegacyClient() {
+        var resolver = new BookCoverUrlResolver(
+                new S3StorageProperties("bucket", "ap-northeast-2", "https://cover.example///", "custom/prefix"));
+
+        assertThat(resolver.resolve("123e4567-e89b-12d3-a456-426614174000"))
+                .isEqualTo("https://cover.example/custom/prefix/book-covers/123e4567-e89b-12d3-a456-426614174000");
+    }
 }

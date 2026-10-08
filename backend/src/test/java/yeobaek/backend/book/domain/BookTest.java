@@ -114,6 +114,8 @@ class BookTest {
     @Test
     @DisplayName("표지 이미지 키는 없을 수 있고 prefix를 포함한 UUID 키 형식만 허용한다")
     void validateCoverImageKey() {
+        String uuid = "123e4567-e89b-12d3-a456-426614174000";
+        assertThat(new Book(new BookTitle("제목"), null, null, 1, uuid).getCoverImageKey()).isEqualTo(uuid);
         assertThat(new Book(new BookTitle("제목"), null, null, 1, null).getCoverImageKey()).isNull();
         assertThat(new Book(new BookTitle("제목"), null, null, 1, COVER_KEY).getCoverImageKey()).isEqualTo(COVER_KEY);
         assertThatThrownBy(() -> new Book(new BookTitle("제목"), null, null, 1, "book-covers/123e4567-e89b-12d3-a456-426614174000.webp"))

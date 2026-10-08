@@ -27,7 +27,7 @@ public class AdminBookCoverController {
     private final BookCoverUploadService bookCoverUploadService;
 
     @Operation(summary = "도서 표지 업로드 URL 발급",
-            description = "발급된 URL로 requiredHeaders를 포함한 PUT 요청을 전송한 뒤 coverImageKey를 도서 API에 전달한다.")
+            description = "원본·압축본·구버전용 객체를 각 URL과 requiredHeaders로 모두 업로드한 뒤 coverImageKey(UUID)를 도서 API에 전달한다.")
     @PostMapping("/api/admin/book-covers/upload-url")
     public BookCoverUploadUrlResponse issueUploadUrl(@Valid @RequestBody BookCoverUploadUrlRequest request) {
         log.atInfo().addKeyValue(OPERATION, "admin.bookCover.issueUploadUrl")

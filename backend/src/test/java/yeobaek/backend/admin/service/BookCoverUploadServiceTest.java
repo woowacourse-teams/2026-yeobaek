@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.net.URI;
 import java.time.Duration;
@@ -41,21 +43,20 @@ class BookCoverUploadServiceTest {
     }
 
     @Test
-    @DisplayName("WebP 파일에 UUID 키와 10분짜리 PUT URL 및 고정 캐시 헤더를 발급한다")
+    @DisplayName("원본과 두 JPEG에 같은 UUID와 10분짜리 PUT URL 및 고정 캐시 헤더를 발급한다")
     void issuePresignedPutUrl() throws Exception {
         Instant expiration = Instant.parse("2026-08-26T12:10:00Z");
         stubSuccessfulPresign(expiration);
 
         BookCoverUploadUrlResponse response = service.issueUploadUrl(
-                new BookCoverUploadUrlRequest("image/webp", 1024L));
+                new BookCoverUploadUrlRequest("image/webp", 1024L, 256L));
 
         assertThat(response.coverImageKey()).matches(
-                "^yeobaek/book-covers/"
-                        + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$");
-        assertThat(response)
-                .extracting(BookCoverUploadUrlResponse::uploadUrl, BookCoverUploadUrlResponse::expiresAt)
+                "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+        assertThat(response.original())
+                .extracting(BookCoverUploadUrlResponse.UploadTarget::uploadUrl, BookCoverUploadUrlResponse.UploadTarget::expiresAt)
                 .containsExactly("https://s3.example/upload", expiration);
-        assertThat(response.requiredHeaders()).containsEntry("Content-Type", "image/webp")
+        assertThat(response.original().requiredHeaders()).containsEntry("Content-Type", "image/webp")
                 .containsEntry("Cache-Control", BookCoverUploadService.CACHE_CONTROL);
     }
 
@@ -65,16 +66,16 @@ class BookCoverUploadServiceTest {
         stubSuccessfulPresign(Instant.parse("2026-08-26T12:10:00Z"));
 
         BookCoverUploadUrlResponse response = service.issueUploadUrl(
-                new BookCoverUploadUrlRequest("image/webp", 1024L));
+                new BookCoverUploadUrlRequest("image/webp", 1024L, 256L));
 
         ArgumentCaptor<PutObjectPresignRequest> captor = ArgumentCaptor.forClass(PutObjectPresignRequest.class);
-        org.mockito.Mockito.verify(s3Presigner).presignPutObject(captor.capture());
-        PutObjectPresignRequest request = captor.getValue();
+        verify(s3Presigner, times(3)).presignPutObject(captor.capture());
+        PutObjectPresignRequest request = captor.getAllValues().getFirst();
         assertThat(request.signatureDuration()).isEqualTo(Duration.ofMinutes(10));
         assertThat(request.putObjectRequest())
                 .extracting(put -> put.bucket(), put -> put.key(), put -> put.contentType(),
                         put -> put.cacheControl(), put -> put.contentLength())
-                .containsExactly("cover-bucket", response.coverImageKey(), "image/webp",
+                .containsExactly("cover-bucket", "yeobaek/book-covers/orgin/" + response.coverImageKey(), "image/webp",
                         BookCoverUploadService.CACHE_CONTROL, null);
     }
 
@@ -84,7 +85,7 @@ class BookCoverUploadServiceTest {
         stubSuccessfulPresign(Instant.parse("2026-08-26T12:10:00Z"));
 
         try (var logs = new LogCapture(BookCoverUploadService.class.getName())) {
-            service.issueUploadUrl(new BookCoverUploadUrlRequest("image/webp", 1024L));
+            service.issueUploadUrl(new BookCoverUploadUrlRequest("image/webp", 1024L, 256L));
 
             var event = logs.event("admin.bookCover.issueUploadUrl", "success");
             assertThat(logs.field(event, "contentType")).isEqualTo("image/webp");
@@ -106,29 +107,58 @@ class BookCoverUploadServiceTest {
                             "cover-bucket", "ap-northeast-2", "https://cover.example", "custom-prefix"));
 
             BookCoverUploadUrlResponse response = realService.issueUploadUrl(
-                    new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH));
+                    new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH, 256L));
 
-            assertThat(response.uploadUrl()).startsWith(
-                    "https://cover-bucket.s3.ap-northeast-2.amazonaws.com/custom-prefix/book-covers/");
-            assertThat(response.requiredHeaders()).containsEntry("Content-Type", "image/jpeg")
+            assertThat(response.original().uploadUrl()).startsWith(
+                    "https://cover-bucket.s3.ap-northeast-2.amazonaws.com/custom-prefix/book-covers/orgin/");
+            assertThat(response.original().requiredHeaders()).containsEntry("Content-Type", "image/jpeg")
                     .containsEntry("Cache-Control", BookCoverUploadService.CACHE_CONTROL);
-            assertThat(response.requiredHeaders()).containsOnlyKeys("Content-Type", "Cache-Control");
+            assertThat(response.original().requiredHeaders()).containsOnlyKeys("Content-Type", "Cache-Control");
         }
     }
 
     @Test
     @DisplayName("지원하지 않는 형식과 범위를 벗어난 크기는 URL 발급 전에 거부한다")
     void rejectInvalidFileMetadata() {
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/gif", 1024L)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/gif", 1024L, 256L)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest(null, 1024L)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest(null, 1024L, 256L)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 0L)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 0L, 256L)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.issueUploadUrl(
-                new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH + 1)))
+                new BookCoverUploadUrlRequest("image/jpeg", BookCoverUploadService.MAX_CONTENT_LENGTH + 1, 256L)))
                 .isInstanceOf(IllegalArgumentException.class);
 
+        verifyNoInteractions(s3Presigner);
+    }
+
+    @Test
+    @DisplayName("압축본과 구버전용 객체는 확장자 없는 같은 UUID를 쓰고 JPEG 메타데이터를 가진다")
+    void issueJpegVariants() throws Exception {
+        stubSuccessfulPresign(Instant.parse("2026-08-26T12:10:00Z"));
+        var response = service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 1024L, 256L));
+        var captor = ArgumentCaptor.forClass(PutObjectPresignRequest.class);
+        verify(s3Presigner, times(3)).presignPutObject(captor.capture());
+        assertThat(captor.getAllValues()).extracting(put -> put.putObjectRequest().key())
+                .containsExactly("yeobaek/book-covers/orgin/" + response.coverImageKey(),
+                        "yeobaek/book-covers/low/" + response.coverImageKey(),
+                        "yeobaek/book-covers/" + response.coverImageKey());
+        assertThat(captor.getAllValues()).extracting(put -> put.putObjectRequest().contentType())
+                .containsExactly("image/png", "image/jpeg", "image/jpeg");
+        assertThat(response.low().requiredHeaders()).containsEntry("Content-Type", "image/jpeg")
+                .containsEntry("Cache-Control", BookCoverUploadService.CACHE_CONTROL);
+        assertThat(response.legacy().requiredHeaders()).containsEntry("Content-Type", "image/jpeg")
+                .containsEntry("Cache-Control", BookCoverUploadService.CACHE_CONTROL);
+    }
+
+    @Test
+    @DisplayName("압축본 크기가 누락되거나 범위를 벗어나면 모든 서명을 시작하기 전에 거부한다")
+    void rejectInvalidLowContentLength() {
+        for (Long length : java.util.Arrays.asList(null, 0L, BookCoverUploadService.MAX_CONTENT_LENGTH + 1)) {
+            assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/png", 1024L, length)))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
         verifyNoInteractions(s3Presigner);
     }
 
@@ -145,7 +175,7 @@ class BookCoverUploadServiceTest {
         given(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class)))
                 .willThrow(SdkClientException.builder().message("credential detail").build());
 
-        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/jpeg", 1024L)))
+        assertThatThrownBy(() -> service.issueUploadUrl(new BookCoverUploadUrlRequest("image/jpeg", 1024L, 256L)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("표지 이미지 업로드 URL 발급에 실패했습니다.");
     }

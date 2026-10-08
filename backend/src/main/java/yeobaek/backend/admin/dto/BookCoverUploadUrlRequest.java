@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 public record BookCoverUploadUrlRequest(
         @Schema(description = "이미지 MIME 타입", allowableValues = {"image/jpeg", "image/png", "image/webp"})
         @NotNull String contentType,
-        @Schema(description = "이미지 크기(바이트), 최대 5 MiB") @NotNull Long contentLength
+        @Schema(description = "원본 이미지 크기(바이트), 최대 5 MiB") @NotNull Long contentLength,
+        @Schema(description = "300×450 JPEG 압축본 크기(바이트), 최대 5 MiB") @NotNull Long lowContentLength
 ) {
 }
