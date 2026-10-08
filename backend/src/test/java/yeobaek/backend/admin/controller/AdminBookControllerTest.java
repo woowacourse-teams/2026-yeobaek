@@ -136,18 +136,18 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("도서 표지 교체 요청의 ID와 키를 서비스에 전달하고 204를 반환한다")
     void replaceCoverImage() throws Exception {
-        String key = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
+        String key = "123e4567-e89b-12d3-a456-426614174000";
 
         mockMvc.perform(put("/api/admin/books/{bookId}/cover", 3L)
                         .header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"coverImageKey":"yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp"}
+                                {"coverImageKey":"123e4567-e89b-12d3-a456-426614174000"}
                                 """))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(adminBookService).replaceCoverImage(3L, key);
+        verify(adminBookService, times(1)).replaceCoverImage(3L, key);
     }
 
     @ParameterizedTest
@@ -163,6 +163,39 @@ class AdminBookControllerTest extends ControllerTest {
                         MethodArgumentNotValidException.class, HttpMessageNotReadableException.class));
 
         verifyNoInteractions(adminBookService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+            "123e4567-e89b-12d3-a456-426614174000.jpg", "orgin/123e4567-e89b-12d3-a456-426614174000",
+            "123E4567-e89b-12d3-a456-426614174000", "", "invalid"})
+    @DisplayName("표지 교체는 경로나 확장자가 붙은 값과 잘못된 UUID를 저장 서비스 호출 전에 거부한다")
+    void rejectNonUuidCoverReplacement(String key) throws Exception {
+        mockMvc.perform(put("/api/admin/books/{bookId}/cover", 3L)
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"coverImageKey\":\"" + key + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+        verifyNoInteractions(adminBookService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+            "123e4567-e89b-12d3-a456-426614174000.jpg", "low/123e4567-e89b-12d3-a456-426614174000",
+            "123E4567-e89b-12d3-a456-426614174000", "", "invalid"})
+    @DisplayName("도서 등록은 경로나 확장자가 붙은 값과 잘못된 UUID를 저장 서비스 호출 전에 거부한다")
+    void rejectNonUuidCoverUpload(String key) throws Exception {
+        String body = """
+                {"title":"도서","coverImageKey":"COVER_KEY","authors":[],"chapters":[]}
+                """.replace("COVER_KEY", key);
+        mockMvc.perform(post("/api/admin/books")
+                        .header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(MethodArgumentNotValidException.class, result.getResolvedException()));
+        verifyNoInteractions(bookIngestService);
     }
 
     @Test
@@ -199,7 +232,7 @@ class AdminBookControllerTest extends ControllerTest {
         var request = new BookUploadRequest(new BookTitle("운수 좋은 날"),
                 null,
                 1924,
-                "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+                "123e4567-e89b-12d3-a456-426614174000",
                 List.of(
                         new AuthorEntryRequest(null, new AuthorName("현진건"), new Isni("0000 0001 2345 964X")),
                         new AuthorEntryRequest(12L, null, null)),
@@ -210,7 +243,7 @@ class AdminBookControllerTest extends ControllerTest {
                         new ChapterUploadRequest(new ChapterTitle("2장"), List.of(
                                 passage("셋째 본문")))));
         var response = new BookUploadResponse(3L, "운수 좋은 날",
-                "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
+                "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000", 3);
         given(bookIngestService.upload(request)).willReturn(response);
 
         mockMvc.perform(post("/api/admin/books")
@@ -221,7 +254,7 @@ class AdminBookControllerTest extends ControllerTest {
                                   "title": "운수 좋은 날",
                                   "publisher": null,
                                   "publishedYear": 1924,
-                                  "coverImageKey": "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg",
+                                  "coverImageKey": "123e4567-e89b-12d3-a456-426614174000",
                                   "authors": [
                                     {"name": "현진건", "isni": "0000 0001 2345 964X"},
                                     {"authorId": 12}

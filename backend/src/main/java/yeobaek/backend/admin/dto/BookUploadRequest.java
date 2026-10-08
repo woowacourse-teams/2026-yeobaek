@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.Nulls;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,7 +22,10 @@ public record BookUploadRequest(
         @Schema(type = "string", description = "도서 제목 (1~100자)") @NotNull BookTitle title,
         @Schema(type = "string", description = "출판사 (선택, 최대 100자)", nullable = true) Publisher publisher,
         @Schema(description = "출판연도 (선택, 정수)", nullable = true) Integer publishedYear,
-        @Schema(description = "표지 UUID (선택, 기존 전체 객체 키도 허용)", nullable = true) String coverImageKey,
+        @Schema(description = "표지 UUID (선택, 소문자, 경로·확장자 없음)", nullable = true)
+        @Pattern(regexp = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                message = "표지 키는 경로와 확장자가 없는 소문자 UUID여야 합니다.")
+        String coverImageKey,
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters
 ) {

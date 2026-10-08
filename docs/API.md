@@ -787,7 +787,7 @@
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
 - `coverImageKey`: 선택(null 허용). 표지 업로드 URL 발급 API가 반환한 소문자 UUID를 전달한다.
-  기존 `${prefix}/book-covers/{uuid}.(jpg|png|webp)` 키도 호환을 위해 허용한다.
+  경로·확장자가 포함된 값은 `400 INVALID_REQUEST`로 거부한다. 기존 DB 전체 키의 조회 호환은 유지한다.
 - `authors`: **최소 1명.** 각 원소는 두 형태 중 하나
   - `{ "name", "isni"? }` — `name` 필수 1~100자. `isni`는 선택: 공백·하이픈 제거 후 16자리(끝자리 `X` 허용) 형식 검증(체크섬 검증 없음). ISNI가 기존 작가와 일치하면 재사용하되 유효한 이름이 다르면 `400` (`AUTHOR_NAME_MISMATCH`). 이름 누락·공백·길이 초과 등 VO 검증 실패는 기존 ISNI 여부와 무관하게 서비스 호출 전에 `400` (`INVALID_REQUEST`)로 거부한다. 일치하는 작가가 없으면 신규 생성. ISNI 없이 이름만 주면 항상 신규 생성
   - `{ "authorId" }` — 기존 작가 참조 (관리자가 작가 조회로 확인 후 기재). 미존재 시 `400` (`AUTHOR_NOT_FOUND`)
@@ -829,7 +829,8 @@
 { "coverImageKey": "7b2a5027-65f5-4db8-b3b0-231e4663c90f" }
 ```
 
-- 먼저 표지 업로드 URL 발급 API와 S3 PUT 세 건을 모두 성공시킨 뒤 UUID를 전달한다.
+- 먼저 표지 업로드 URL 발급 API와 S3 PUT 세 건을 모두 성공시킨 뒤 소문자 UUID만 전달한다.
+- 경로·확장자가 포함된 값은 `400 INVALID_REQUEST`로 거부하며 저장하지 않는다.
 - 성공 응답: `204 No Content`.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 - 교체된 이전 S3 객체는 즉시 삭제하지 않는다. 고아 객체 정리는 후속 작업이다.
