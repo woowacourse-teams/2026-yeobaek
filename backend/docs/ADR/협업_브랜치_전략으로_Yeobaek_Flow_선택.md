@@ -9,8 +9,8 @@
 개발한 내용을 사용자에게 공개하기 전에 검증할 수 있는 공간이 필요하다. 현재 백엔드는
 `develop` 변경을 테스트한 뒤 Android 개발자가 로컬에서 사용할 `:develop` 이미지를
 발행하고, `main` 변경은 운영에 배포한다
-([backend-ci.yml](../../../.github/workflows/backend-ci.yml),
-[backend-deploy.yml](../../../.github/workflows/backend-deploy.yml)).
+([backend-dev.yml](../../../.github/workflows/backend-dev.yml),
+[backend-prod.yml](../../../.github/workflows/backend-prod.yml)).
 
 이 결정은 P-124에서 `develop` 브랜치의 백엔드 변경을 Android 개발자가 로컬에서
 연동 테스트할 수 있도록 환경을 구축한 선택과 맞닿아 있다.
