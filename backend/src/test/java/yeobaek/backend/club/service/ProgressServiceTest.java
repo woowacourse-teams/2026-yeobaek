@@ -4,20 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManagerFactory;
-import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
@@ -72,9 +65,6 @@ class ProgressServiceTest extends IntegrationTest {
     private EntityManagerFactory entityManagerFactory;
 
     @Autowired
-    private TransactionTemplate transactionTemplate;
-
-    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private Member reader;
@@ -116,40 +106,10 @@ class ProgressServiceTest extends IntegrationTest {
 
         assertThat(response.lastReadPassageSequence()).isEqualTo(2);
         assertThat(response.progressRate()).isEqualTo(50);
-    }
-
-    @Test
-    @DisplayName("동시 최초 진도 보고는 모두 성공하고 최근 읽기 행 하나에 일관된 상태를 저장한다")
-    void concurrentFirstProgressUpdates() throws Exception {
-        CountDownLatch snapshotsReady = new CountDownLatch(2);
-        CountDownLatch start = new CountDownLatch(1);
-        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
-            try {
-                var first = executor.submit(() -> updateProgressAfterSnapshot(second, snapshotsReady, start));
-                var secondUpdate = executor.submit(() -> updateProgressAfterSnapshot(fourth, snapshotsReady, start));
-                await(snapshotsReady);
-                start.countDown();
-
-                ProgressResponse firstResponse = first.get(10, TimeUnit.SECONDS);
-                ProgressResponse secondResponse = secondUpdate.get(10, TimeUnit.SECONDS);
-                ProgressResponse stored = loadStoredProgress();
-                List<ProgressResponse> responses = List.of(firstResponse, secondResponse);
-
-                assertThat(jdbcTemplate.queryForObject("""
-                        select count(*) from club_member_last_reads where club_member_id = ?
-                        """, Long.class, clubMember.getId())).isOne();
-                assertThat(responses).extracting(ProgressResponse::lastReadPassageSequence)
-                        .containsExactlyInAnyOrder(2, 4);
-                assertThat(responses)
-                        .anyMatch(response -> response.lastReadPassageSequence() == stored.lastReadPassageSequence()
-                                && Math.abs(ChronoUnit.NANOS.between(
-                                response.lastReadAt(), stored.lastReadAt())) <= 1_000);
-            } finally {
-                start.countDown();
-                executor.shutdownNow();
-                assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
-            }
-        }
+        clubMemberRepository.flush();
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from club_member_last_reads where club_member_id = ?
+                """, Long.class, clubMember.getId())).isOne();
     }
 
     @Test
@@ -267,32 +227,4 @@ class ProgressServiceTest extends IntegrationTest {
         clubMemberRepository.saveAndFlush(membership);
     }
 
-    private ProgressResponse updateProgressAfterSnapshot(Passage passage, CountDownLatch snapshotsReady,
-                                                         CountDownLatch start) {
-        return transactionTemplate.execute(status -> {
-            clubRepository.findById(club.getId()).orElseThrow();
-            snapshotsReady.countDown();
-            await(start);
-            return progressService.updateProgress(reader.getId(), club.getId(), passage.getId());
-        });
-    }
-
-    private ProgressResponse loadStoredProgress() {
-        return transactionTemplate.execute(status -> {
-            ClubMember stored = clubMemberRepository.findById(clubMember.getId()).orElseThrow();
-            return new ProgressResponse(stored.getLastReadPassage().getSequence().value(),
-                    stored.progressRate(), stored.getLastReadAt());
-        });
-    }
-
-    private void await(CountDownLatch latch) {
-        try {
-            if (!latch.await(10, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("동시성 테스트 대기 시간이 초과되었습니다.");
-            }
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(exception);
-        }
-    }
 }

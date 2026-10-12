@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
 
-public interface ClubMemberRepository extends JpaRepository<ClubMember, Long>, ClubMemberRepositoryCustom {
+public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
 
     String MEMBER_ID = "memberId";
 
