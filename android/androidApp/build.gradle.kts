@@ -32,6 +32,9 @@ dependencies {
     // compose tooling (preview & debug)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+    debugImplementation(libs.compose.foundation)
+    debugImplementation(libs.compose.material3)
+    debugImplementation(libs.androidx.lifecycle.viewmodelCompose)
 
     // coroutines (android dispatcher)
     implementation(libs.kotlinx.coroutines.android)

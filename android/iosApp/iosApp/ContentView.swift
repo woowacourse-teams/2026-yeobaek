@@ -6,19 +6,22 @@ struct ComposeView: UIViewControllerRepresentable {
     let analyticsClient: AnalyticsClient
 
     func makeUIViewController(context: Self.Context) -> UIViewController {
-        #if DEBUG
-        let isDebug = true
-        #else
-        let isDebug = false
-        #endif
+        let appVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? ""
 
-        return MainViewControllerKt.MainViewController(
-            isDebug: isDebug,
-            appVersion: Bundle.main.object(
-                forInfoDictionaryKey: "CFBundleShortVersionString"
-            ) as? String ?? "",
+        #if DEBUG
+        return DebugViewControllerKt.DebugViewController(
+            appVersion: appVersion,
             analyticsClient: analyticsClient
         )
+        #else
+        return MainViewControllerKt.MainViewController(
+            isDebug: false,
+            appVersion: appVersion,
+            analyticsClient: analyticsClient
+        )
+        #endif
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Self.Context) {}
