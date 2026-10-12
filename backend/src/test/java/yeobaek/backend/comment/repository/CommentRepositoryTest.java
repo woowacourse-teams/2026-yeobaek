@@ -71,7 +71,7 @@ class CommentRepositoryTest extends IntegrationTest {
 
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNull();
-        assertThat(saved.getClubMember().getMember().getNickname()).isEqualTo("민서");
+        assertThat(saved.getWriter().getNickname()).isEqualTo("민서");
     }
 
     @Test

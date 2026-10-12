@@ -1,6 +1,7 @@
 package yeobaek.backend.club.domain;
 
 import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -8,8 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -38,9 +38,9 @@ public class Club {
     @AttributeOverride(name = "value", column = @Column(name = "name", nullable = false, length = ClubName.MAX_LENGTH))
     private ClubName name;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "book_id", updatable = false)
-    private Book book;
+    @OneToOne(mappedBy = "club", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Getter(AccessLevel.NONE)
+    private ClubBook clubBook;
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "join_code", nullable = false, length = 10))
@@ -51,7 +51,7 @@ public class Club {
             throw new IllegalArgumentException("모임 이름은 필수입니다.");
         }
         this.name = name;
-        this.book = book;
+        this.clubBook = new ClubBook(this, book);
         this.joinCode = joinCode;
     }
 
@@ -63,19 +63,23 @@ public class Club {
         return joinCode.value();
     }
 
+    public Book getBook() {
+        return clubBook.getBook();
+    }
+
     public boolean isReading(Passage passage) {
-        return passage.belongsTo(book);
+        return passage.belongsTo(getBook());
     }
 
     public boolean isReading(Sentence sentence) {
-        return sentence.belongsTo(book);
+        return sentence.belongsTo(getBook());
     }
 
     public PassageCount totalPassageCount() {
-        return book.getPassageCount();
+        return getBook().getPassageCount();
     }
 
     public void ensureBookAvailable() {
-        book.ensureAvailable();
+        getBook().ensureAvailable();
     }
 }

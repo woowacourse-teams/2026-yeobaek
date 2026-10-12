@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMemberStatus;
 
-public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
+public interface ClubMemberRepository extends JpaRepository<ClubMember, Long>, ClubMemberRepositoryCustom {
 
     String MEMBER_ID = "memberId";
 
@@ -28,7 +28,7 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
             where cm.member.id = :memberId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
               and cm.club.id = (
-                  select comment.clubMember.club.id from Comment comment where comment.id = :commentId
+                  select comment.clubComment.club.id from Comment comment where comment.id = :commentId
               )
             """)
     boolean existsJoinedByMemberIdAndCommentId(@Param(MEMBER_ID) Long memberId,
@@ -45,20 +45,24 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     @Query("""
             select cm from ClubMember cm
             join fetch cm.club c
-            join fetch c.book
-            join fetch cm.lastReadPassage
+            join fetch c.clubBook cb
+            join fetch cb.book
+            join fetch cm.lastRead lr
+            join fetch lr.lastReadPassage
             where cm.member.id = :memberId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-              and cm.lastReadAt is not null
-            order by cm.lastReadAt desc
+              and lr.lastReadAt is not null
+            order by lr.lastReadAt desc
             """)
     List<ClubMember> findAllJoinedWithLastReadingByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
             select cm from ClubMember cm
             join fetch cm.club c
-            join fetch c.book
-            left join fetch cm.lastReadPassage
+            join fetch c.clubBook cb
+            join fetch cb.book
+            left join fetch cm.lastRead lr
+            left join fetch lr.lastReadPassage
             where cm.member.id = :memberId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             """)
@@ -85,7 +89,8 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
     @Query("""
             select cm from ClubMember cm
             join fetch cm.member
-            left join fetch cm.lastReadPassage
+            left join fetch cm.lastRead lr
+            left join fetch lr.lastReadPassage
             where cm.club.id = :clubId
               and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
             order by cm.id asc

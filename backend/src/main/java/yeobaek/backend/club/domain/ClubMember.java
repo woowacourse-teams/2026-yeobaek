@@ -1,5 +1,6 @@
 package yeobaek.backend.club.domain;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,6 +11,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -40,12 +42,10 @@ public class ClubMember {
     @JoinColumn(name = "club_id")
     private Club club;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "last_read_passage_id")
-    private Passage lastReadPassage;
-
-    @Column
-    private LocalDateTime lastReadAt;
+    @OneToOne(mappedBy = "clubMember", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    @Getter(AccessLevel.NONE)
+    private ClubMemberLastRead lastRead;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "varchar(20) default 'JOINED'")
@@ -57,8 +57,11 @@ public class ClubMember {
     }
 
     public void updateProgress(Passage passage, LocalDateTime readAt) {
-        this.lastReadPassage = passage;
-        this.lastReadAt = readAt;
+        if (lastRead == null) {
+            lastRead = new ClubMemberLastRead(this, passage, readAt);
+            return;
+        }
+        lastRead.update(passage, readAt);
     }
 
     public void rejoin() {
@@ -81,7 +84,15 @@ public class ClubMember {
      * 진도율(0~100, 반올림) = 최근 열람 본문의 순서 ÷ 도서의 본문 개수 (PRD 3.4).
      */
     public int progressRate() {
-        return ProgressRate.calculate(lastReadPassage.getSequence(), club.totalPassageCount()).roundedPercentage();
+        return ProgressRate.calculate(getLastReadPassage().getSequence(), club.totalPassageCount()).roundedPercentage();
+    }
+
+    public Passage getLastReadPassage() {
+        return lastRead == null ? null : lastRead.getLastReadPassage();
+    }
+
+    public LocalDateTime getLastReadAt() {
+        return lastRead == null ? null : lastRead.getLastReadAt();
     }
 
     public void ensureBookAvailable() {

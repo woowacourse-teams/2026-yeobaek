@@ -15,7 +15,7 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.support.LogCapture;
 
 class MemberLoggingTest {
@@ -29,7 +29,7 @@ class MemberLoggingTest {
         given(savedMember.getNickname()).willReturn("새회원");
         given(members.save(any(Member.class))).willReturn(savedMember);
         var service = new MemberService(members, mock(CommentRepository.class), mock(ClubMemberRepository.class),
-                mock(PublicRoomActivityRepository.class));
+                mock(PublicRoomMemberRepository.class));
 
         try (var logs = new LogCapture(MemberService.class.getName())) {
             service.create(new Nickname("새회원"));
@@ -46,7 +46,7 @@ class MemberLoggingTest {
         var members = mock(MemberRepository.class);
         var comments = mock(CommentRepository.class);
         var clubs = mock(ClubMemberRepository.class);
-        var service = new MemberService(members, comments, clubs, mock(PublicRoomActivityRepository.class));
+        var service = new MemberService(members, comments, clubs, mock(PublicRoomMemberRepository.class));
         var failure = new IllegalStateException("database unavailable");
         doThrow(failure).when(comments).deleteAllByMemberId(7L);
 
