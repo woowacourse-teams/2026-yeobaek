@@ -3,8 +3,10 @@ package com.yeobaek.feature.group.create
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -26,6 +28,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
     private val crashReporter: CrashReporter,
@@ -46,8 +49,17 @@ class CreateViewModel(
         viewModelScope.launch {
             try {
                 val groups = bookRepository.getBooks()
+                val books = groups.map { book -> book.toUiModel() }
+                val selectedBook = books.firstOrNull { book ->
+                    book.id == savedStateHandle.get<Long>(SELECTED_BOOK_ID_KEY)
+                }
                 uiState = uiState.copy(
-                    bookList = groups.map { book -> book.toUiModel() },
+                    bookList = books,
+                    selectedBook = selectedBook,
+                    step = if (
+                        selectedBook != null &&
+                        savedStateHandle.get<String>(CREATE_STEP_KEY) == CreateStep.GroupName.name
+                    ) CreateStep.GroupName else CreateStep.BookSelection,
                     bookState = BookState.Success,
                 )
                 crashReporter.track(
@@ -104,6 +116,11 @@ class CreateViewModel(
         uiState = uiState.copy(
             selectedBook = targetBook.takeUnless { isAlreadySelected },
         )
+        if (isAlreadySelected) {
+            savedStateHandle.remove<Long>(SELECTED_BOOK_ID_KEY)
+        } else {
+            savedStateHandle[SELECTED_BOOK_ID_KEY] = targetBook.id
+        }
 
         if (!isAlreadySelected) {
             analyticsTracker.track(
@@ -118,10 +135,12 @@ class CreateViewModel(
     fun moveToGroupName() {
         if (uiState.bookState !is BookState.Success || uiState.selectedBook == null) return
         uiState = uiState.copy(step = CreateStep.GroupName)
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.GroupName.name
     }
 
     fun moveToBookSelection() {
         uiState = uiState.copy(step = CreateStep.BookSelection)
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookSelection.name
     }
 
     fun createGroup() {
@@ -212,6 +231,9 @@ class CreateViewModel(
     }
 
     companion object {
+        private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
+        private const val CREATE_STEP_KEY = "createStep"
+
         fun createViewModelFactory(
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
@@ -220,6 +242,7 @@ class CreateViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
+                    savedStateHandle = createSavedStateHandle(),
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
                     crashReporter = crashReporter,
