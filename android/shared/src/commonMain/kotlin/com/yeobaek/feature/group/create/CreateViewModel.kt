@@ -61,7 +61,11 @@ class CreateViewModel(
                     step = if (
                         selectedBook != null &&
                         savedStateHandle.get<String>(CREATE_STEP_KEY) == CreateStep.GroupName.name
-                    ) CreateStep.GroupName else CreateStep.BookSelection,
+                    ) {
+                        CreateStep.GroupName
+                    } else {
+                        CreateStep.BookSelection
+                    },
                     bookState = BookState.Success,
                 )
                 crashReporter.track(
