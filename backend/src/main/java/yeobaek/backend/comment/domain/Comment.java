@@ -66,19 +66,21 @@ public class Comment {
     private LocalDateTime updatedAt;
 
     public Comment(ClubMember clubMember, Sentence sentence, CommentContent content) {
-        if (clubMember != null) {
-            this.writer = clubMember.getMember();
-            this.clubComment = new ClubComment(this, clubMember.getClub());
+        if (clubMember == null) {
+            throw new IllegalArgumentException("모임 회원은 필수입니다.");
         }
+        this.writer = clubMember.getMember();
+        this.clubComment = new ClubComment(this, clubMember.getClub());
         this.sentence = sentence;
         setContentOnCreate(content);
     }
 
     public Comment(PublicRoom publicRoom, Member writer, Sentence sentence, CommentContent content) {
-        this.writer = writer;
-        if (publicRoom != null) {
-            this.publicRoomComment = new PublicRoomComment(this, publicRoom);
+        if (publicRoom == null) {
+            throw new IllegalArgumentException("공개방은 필수입니다.");
         }
+        this.writer = writer;
+        this.publicRoomComment = new PublicRoomComment(this, publicRoom);
         this.sentence = sentence;
         setContentOnCreate(content);
     }
