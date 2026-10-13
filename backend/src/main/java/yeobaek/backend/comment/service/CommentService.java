@@ -241,7 +241,8 @@ public class CommentService {
                     "본인의 댓글만 " + action + "할 수 있습니다: commentId=" + commentId,
                     commentContext(commentId));
         }
-        if (!comment.isWriterJoined()) {
+        if (!comment.isPublicRoomComment()
+                && !clubMemberRepository.existsJoinedByMemberIdAndClubId(memberId, comment.getClubId())) {
             throw new ForbiddenException(
                     ErrorCode.NOT_CLUB_MEMBER,
                     "모임에 참여 중인 작성자만 댓글을 " + action + "할 수 있습니다: commentId=" + commentId,

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
@@ -63,9 +64,13 @@ class ProgressServiceTest extends IntegrationTest {
     @Autowired
     private EntityManagerFactory entityManagerFactory;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private Member reader;
     private Book book;
     private Club club;
+    private ClubMember clubMember;
     private Passage second;
     private Passage fourth;
 
@@ -79,7 +84,7 @@ class ProgressServiceTest extends IntegrationTest {
         fourth = passageRepository.save(new Passage(chapter, 4, Collections.singletonList(new SentenceContent("본문 4"))));
         reader = memberRepository.save(new Member(new Nickname("민서")));
         club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        clubMemberRepository.save(new ClubMember(reader, club));
+        clubMember = clubMemberRepository.save(new ClubMember(reader, club));
     }
 
     @Test
@@ -101,6 +106,10 @@ class ProgressServiceTest extends IntegrationTest {
 
         assertThat(response.lastReadPassageSequence()).isEqualTo(2);
         assertThat(response.progressRate()).isEqualTo(50);
+        clubMemberRepository.flush();
+        assertThat(jdbcTemplate.queryForObject("""
+                select count(*) from club_member_last_reads where club_member_id = ?
+                """, Long.class, clubMember.getId())).isOne();
     }
 
     @Test
@@ -144,7 +153,7 @@ class ProgressServiceTest extends IntegrationTest {
     @DisplayName("모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
     void updateProgressWorksWhenBookIsUninitializedProxy() {
         Club loadedClub = clubRepository.findById(club.getId()).orElseThrow();
-        assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedClub, "book")).isFalse();
+        assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedClub.getBook())).isFalse();
 
         ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
 
@@ -217,4 +226,5 @@ class ProgressServiceTest extends IntegrationTest {
         membership.leave();
         clubMemberRepository.saveAndFlush(membership);
     }
+
 }

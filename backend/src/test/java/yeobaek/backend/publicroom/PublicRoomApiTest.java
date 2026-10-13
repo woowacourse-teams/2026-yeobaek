@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
@@ -36,7 +37,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.publicroom.service.PublicRoomBackfill;
 import yeobaek.backend.publicroom.service.PublicRoomService;
@@ -64,7 +65,7 @@ class PublicRoomApiTest extends IntegrationTest {
     private PublicRoomRepository publicRoomRepository;
 
     @Autowired
-    private PublicRoomActivityRepository activityRepository;
+    private PublicRoomMemberRepository publicRoomMemberRepository;
 
     @Autowired
     private CommentRepository commentRepository;
@@ -80,6 +81,9 @@ class PublicRoomApiTest extends IntegrationTest {
 
     @Autowired
     private CommentService commentService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("같은 공개방 댓글의 동시 반복 신고는 신고 한 건만 저장한다")
@@ -142,11 +146,11 @@ class PublicRoomApiTest extends IntegrationTest {
             progress.get(10, TimeUnit.SECONDS);
         }
 
-        var activity = activityRepository.findByMemberIdAndPublicRoomId(
+        var membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(
                 member.getId(), fixture.room().getId()).orElseThrow();
-        assertThat(activity.getLastVisitedAt()).isNotNull();
-        assertThat(activity.getLastReadPassage()).isNotNull();
-        assertThat(activityRepository.count()).isOne();
+        assertThat(membership.getLastVisitedAt()).isNotNull();
+        assertThat(membership.getLastReadPassage()).isNotNull();
+        assertThat(publicRoomMemberRepository.count()).isOne();
     }
 
     @Test
@@ -169,7 +173,7 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.publicRooms[0].publicRoomId").value(second.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].publicRoomId").value(first.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].myProgress").value((Object) null));
-        assertThat(activityRepository.count()).isEqualTo(3);
+        assertThat(publicRoomMemberRepository.count()).isEqualTo(3);
 
         Passage lastPassage = first.passages().getLast();
         mockMvc.perform(put("/api/public-rooms/{publicRoomId}/progress", first.room().getId())
@@ -314,7 +318,11 @@ class PublicRoomApiTest extends IntegrationTest {
         Member leaving = memberRepository.save(new Member(new Nickname("탈퇴자")));
         Member remaining = memberRepository.save(new Member(new Nickname("잔여자")));
         visit(fixture.room(), leaving);
+        publicRoomService.updateProgress(leaving.getId(), fixture.room().getId(),
+                fixture.passages().getFirst().getId());
         visit(fixture.room(), remaining);
+        publicRoomService.updateProgress(remaining.getId(), fixture.room().getId(),
+                fixture.passages().getFirst().getId());
         Long sentenceId = fixture.passages().getFirst().getSentences().getFirst().getId();
         mockMvc.perform(post("/api/public-rooms/{roomId}/sentences/{sentenceId}/comments",
                         fixture.room().getId(), sentenceId)
@@ -327,8 +335,10 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        assertThat(activityRepository.findAll()).hasSize(1)
-                .allMatch(activity -> activity.getMember().getId().equals(remaining.getId()));
+        assertThat(publicRoomMemberRepository.findAll()).hasSize(1)
+                .allMatch(membership -> membership.getMember().getId().equals(remaining.getId()));
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from public_room_member_last_reads", Long.class)).isOne();
         assertThat(commentRepository.findAll()).isEmpty();
         assertThat(publicRoomRepository.findAll()).hasSize(1);
     }

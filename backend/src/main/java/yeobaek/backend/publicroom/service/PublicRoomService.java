@@ -23,7 +23,7 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.SentenceCommentCount;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.domain.PublicRoomActivity;
+import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.dto.PublicRoomDetailResponse;
 import yeobaek.backend.publicroom.dto.PublicRoomProgressResponse;
 import yeobaek.backend.publicroom.dto.PublicRoomResponse;
@@ -31,7 +31,7 @@ import yeobaek.backend.publicroom.dto.PublicRoomSort;
 import yeobaek.backend.publicroom.dto.PublicRoomsResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomsResponse;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomVisitorCount;
 import yeobaek.backend.support.ErrorCode;
@@ -44,7 +44,7 @@ public class PublicRoomService {
     private static final int MAX_RANGE_SIZE = 100;
 
     private final PublicRoomRepository publicRoomRepository;
-    private final PublicRoomActivityRepository activityRepository;
+    private final PublicRoomMemberRepository publicRoomMemberRepository;
     private final MemberRepository memberRepository;
     private final PassageRepository passageRepository;
     private final CommentRepository commentRepository;
@@ -54,7 +54,7 @@ public class PublicRoomService {
     @Transactional(readOnly = true)
     public PublicRoomsResponse findAll(Long memberId, PublicRoomSort sort) {
         List<PublicRoom> rooms = publicRoomRepository.findAllActiveWithBook();
-        Map<Long, PublicRoomActivity> activities = activities(memberId, rooms);
+        Map<Long, PublicRoomMember> memberships = memberships(memberId, rooms);
         Map<Long, Long> visitorCounts = visitorCounts(rooms);
         Map<Long, List<String>> authorNames = authorNames(rooms.stream()
                 .map(room -> room.getBook().getId()).toList());
@@ -65,20 +65,20 @@ public class PublicRoomService {
         };
         return new PublicRoomsResponse(rooms.stream()
                 .sorted(comparator)
-                .map(room -> toResponse(room, activities.get(room.getId()), authorNames))
+                .map(room -> toResponse(room, memberships.get(room.getId()), authorNames))
                 .toList());
     }
 
     @Transactional(readOnly = true)
     public VisitedPublicRoomsResponse findVisited(Long memberId) {
-        List<PublicRoomActivity> activities = activityRepository.findVisitedActiveByMemberId(memberId);
-        Map<Long, List<String>> authorNames = authorNames(activities.stream()
-                .map(activity -> activity.getPublicRoom().getBook().getId()).toList());
-        return new VisitedPublicRoomsResponse(activities.stream()
-                .map(activity -> {
-                    PublicRoom room = activity.getPublicRoom();
+        List<PublicRoomMember> memberships = publicRoomMemberRepository.findVisitedActiveByMemberId(memberId);
+        Map<Long, List<String>> authorNames = authorNames(memberships.stream()
+                .map(membership -> membership.getPublicRoom().getBook().getId()).toList());
+        return new VisitedPublicRoomsResponse(memberships.stream()
+                .map(membership -> {
+                    PublicRoom room = membership.getPublicRoom();
                     return new VisitedPublicRoomResponse(room.getId(), toBook(room.getBook(), authorNames),
-                            toProgress(activity), activity.getLastVisitedAt());
+                            toProgress(membership), membership.getLastVisitedAt());
                 })
                 .toList());
     }
@@ -86,21 +86,21 @@ public class PublicRoomService {
     @Transactional(readOnly = true)
     public PublicRoomDetailResponse findDetail(Long memberId, Long publicRoomId) {
         PublicRoom room = findRoom(publicRoomId);
-        PublicRoomActivity activity = activityRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
+        PublicRoomMember membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
                 .orElse(null);
         Map<Long, List<String>> authorNames = authorNames(List.of(room.getBook().getId()));
         return new PublicRoomDetailResponse(room.getId(), toBook(room.getBook(), authorNames),
-                toProgress(activity), activity == null ? null : activity.getLastVisitedAt());
+                toProgress(membership), membership == null ? null : membership.getLastVisitedAt());
     }
 
     @Transactional
     public void visit(Long memberId, Long publicRoomId) {
         PublicRoom room = findRoomForUpdate(publicRoomId);
         room.ensureBookAvailable();
-        PublicRoomActivity activity = activityRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
-                .orElseGet(() -> activityRepository.save(new PublicRoomActivity(
+        PublicRoomMember membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
+                .orElseGet(() -> publicRoomMemberRepository.save(new PublicRoomMember(
                         memberRepository.getReferenceById(memberId), room)));
-        activity.visit(LocalDateTime.now());
+        membership.visit(LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -140,11 +140,11 @@ public class PublicRoomService {
                     "공개방 도서에 속하지 않는 본문입니다: passageId=" + passageId);
         }
         room.ensureBookAvailable();
-        PublicRoomActivity activity = activityRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
-                .orElseGet(() -> activityRepository.save(new PublicRoomActivity(
+        PublicRoomMember membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(memberId, publicRoomId)
+                .orElseGet(() -> publicRoomMemberRepository.save(new PublicRoomMember(
                         memberRepository.getReferenceById(memberId), room)));
-        activity.updateProgress(passage, LocalDateTime.now());
-        return toProgress(activity);
+        membership.updateProgress(passage, LocalDateTime.now());
+        return toProgress(membership);
     }
 
     private PublicRoom findRoom(Long publicRoomId) {
@@ -161,20 +161,21 @@ public class PublicRoomService {
                         "공개방이 존재하지 않습니다: publicRoomId=" + publicRoomId));
     }
 
-    private Map<Long, PublicRoomActivity> activities(Long memberId, List<PublicRoom> rooms) {
+    private Map<Long, PublicRoomMember> memberships(Long memberId, List<PublicRoom> rooms) {
         if (rooms.isEmpty()) {
             return Map.of();
         }
-        return activityRepository.findAllByMemberIdAndPublicRoomIdIn(
+        return publicRoomMemberRepository.findAllByMemberIdAndPublicRoomIdIn(
                         memberId, rooms.stream().map(PublicRoom::getId).toList()).stream()
-                .collect(Collectors.toMap(activity -> activity.getPublicRoom().getId(), Function.identity()));
+                .collect(Collectors.toMap(membership -> membership.getPublicRoom().getId(), Function.identity()));
     }
 
     private Map<Long, Long> visitorCounts(List<PublicRoom> rooms) {
         if (rooms.isEmpty()) {
             return Map.of();
         }
-        return activityRepository.countVisitorsByPublicRoomIds(rooms.stream().map(PublicRoom::getId).toList()).stream()
+        return publicRoomMemberRepository.countVisitorsByPublicRoomIds(
+                        rooms.stream().map(PublicRoom::getId).toList()).stream()
                 .collect(Collectors.toMap(PublicRoomVisitorCount::getPublicRoomId,
                         PublicRoomVisitorCount::getVisitorCount));
     }
@@ -189,9 +190,9 @@ public class PublicRoomService {
                                 Collectors.toList())));
     }
 
-    private PublicRoomResponse toResponse(PublicRoom room, PublicRoomActivity activity,
+    private PublicRoomResponse toResponse(PublicRoom room, PublicRoomMember membership,
                                           Map<Long, List<String>> authorNames) {
-        return new PublicRoomResponse(room.getId(), toBook(room.getBook(), authorNames), toProgress(activity));
+        return new PublicRoomResponse(room.getId(), toBook(room.getBook(), authorNames), toProgress(membership));
     }
 
     private ClubBookResponse toBook(Book book, Map<Long, List<String>> authorNames) {
@@ -199,12 +200,12 @@ public class PublicRoomService {
                 bookCoverUrlResolver.resolve(book.getCoverImageKey()));
     }
 
-    private PublicRoomProgressResponse toProgress(PublicRoomActivity activity) {
-        if (activity == null || !activity.hasProgress()) {
+    private PublicRoomProgressResponse toProgress(PublicRoomMember membership) {
+        if (membership == null || !membership.hasProgress()) {
             return null;
         }
-        return new PublicRoomProgressResponse(activity.getLastReadPassage().getSequence().value(),
-                activity.progressRate(), activity.getLastReadAt());
+        return new PublicRoomProgressResponse(membership.getLastReadPassage().getSequence().value(),
+                membership.progressRate(), membership.getLastReadAt());
     }
 
     private Map<Long, Long> countComments(Long memberId, Long publicRoomId, List<Long> sentenceIds) {

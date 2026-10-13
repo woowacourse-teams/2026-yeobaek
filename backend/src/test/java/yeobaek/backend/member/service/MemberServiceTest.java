@@ -22,7 +22,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceTest {
@@ -37,7 +37,7 @@ class MemberServiceTest {
     private ClubMemberRepository clubMemberRepository;
 
     @Mock
-    private PublicRoomActivityRepository publicRoomActivityRepository;
+    private PublicRoomMemberRepository publicRoomMemberRepository;
 
     @InjectMocks
     private MemberService memberService;
@@ -73,10 +73,10 @@ class MemberServiceTest {
     void delete() {
         memberService.delete(1L);
 
-        InOrder ordered = inOrder(commentRepository, publicRoomActivityRepository,
+        InOrder ordered = inOrder(commentRepository, publicRoomMemberRepository,
                 clubMemberRepository, memberRepository);
         ordered.verify(commentRepository).deleteAllByMemberId(1L);
-        ordered.verify(publicRoomActivityRepository).deleteAllByMemberId(1L);
+        ordered.verify(publicRoomMemberRepository).deleteAllByMemberId(1L);
         ordered.verify(clubMemberRepository).deleteAllByMemberId(1L);
         ordered.verify(memberRepository).deleteById(1L);
     }

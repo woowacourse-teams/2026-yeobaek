@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -71,6 +72,9 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Autowired
     private CommentReportRepository commentReportRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
@@ -88,7 +92,9 @@ class MemberDeletionApiTest extends IntegrationTest {
         ClubMember leftMembership = new ClubMember(targetMember, leftClub);
         leftMembership.leave();
         leftMembership = clubMemberRepository.save(leftMembership);
-        ClubMember remainingMembership = clubMemberRepository.save(new ClubMember(remainingMember, sharedClub));
+        ClubMember remainingMembership = new ClubMember(remainingMember, sharedClub);
+        remainingMembership.updateProgress(passage, LocalDateTime.of(2026, 9, 3, 11, 0));
+        remainingMembership = clubMemberRepository.save(remainingMembership);
         memberBlockRepository.saveAll(List.of(
                 new MemberBlock(targetMember, remainingMember),
                 new MemberBlock(remainingMember, targetMember)));
@@ -124,7 +130,11 @@ class MemberDeletionApiTest extends IntegrationTest {
                 .extracting(ClubMember::getId)
                 .containsExactly(remainingMembership.getId())
                 .doesNotContain(progressedMembership.getId(), leftMembership.getId());
-        assertThat(List.of(memberBlockRepository.count(), commentReportRepository.count())).containsOnly(0L);
+        assertThat(List.of(
+                memberBlockRepository.count(),
+                commentReportRepository.count(),
+                jdbcTemplate.queryForObject("select count(*) from club_member_last_reads", Long.class)))
+                .containsExactly(0L, 0L, 1L);
         assertThat(clubRepository.findAll())
                 .extracting(Club::getId)
                 .containsExactlyInAnyOrder(sharedClub.getId(), leftClub.getId());

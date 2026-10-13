@@ -3,6 +3,7 @@ package yeobaek.backend.comment.domain;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 
 import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -12,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -36,16 +38,18 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "club_member_id")
-    private ClubMember clubMember;
+    @OneToOne(mappedBy = "comment", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    @Getter(AccessLevel.NONE)
+    private ClubComment clubComment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "public_room_id")
-    private PublicRoom publicRoom;
+    @OneToOne(mappedBy = "comment", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    @Getter(AccessLevel.NONE)
+    private PublicRoomComment publicRoomComment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "writer_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "writer_id", nullable = false)
     private Member writer;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -62,14 +66,21 @@ public class Comment {
     private LocalDateTime updatedAt;
 
     public Comment(ClubMember clubMember, Sentence sentence, CommentContent content) {
-        this.clubMember = clubMember;
+        if (clubMember == null) {
+            throw new IllegalArgumentException("모임 회원은 필수입니다.");
+        }
+        this.writer = clubMember.getMember();
+        this.clubComment = new ClubComment(this, clubMember.getClub());
         this.sentence = sentence;
         setContentOnCreate(content);
     }
 
     public Comment(PublicRoom publicRoom, Member writer, Sentence sentence, CommentContent content) {
-        this.publicRoom = publicRoom;
+        if (publicRoom == null) {
+            throw new IllegalArgumentException("공개방은 필수입니다.");
+        }
         this.writer = writer;
+        this.publicRoomComment = new PublicRoomComment(this, publicRoom);
         this.sentence = sentence;
         setContentOnCreate(content);
     }
@@ -94,10 +105,6 @@ public class Comment {
         return getWriter().getId().equals(memberId);
     }
 
-    public boolean isWriterJoined() {
-        return publicRoom != null || clubMember.isJoined();
-    }
-
     public void ensureReportableBy(Long memberId) {
         if (isWrittenBy(memberId)) {
             throw new BadRequestException(
@@ -108,19 +115,23 @@ public class Comment {
     }
 
     public void ensureBookAvailable() {
-        if (publicRoom != null) {
-            publicRoom.ensureBookAvailable();
+        if (publicRoomComment != null) {
+            publicRoomComment.getPublicRoom().ensureBookAvailable();
             return;
         }
-        clubMember.ensureBookAvailable();
+        clubComment.getClub().ensureBookAvailable();
     }
 
     public boolean isPublicRoomComment() {
-        return publicRoom != null;
+        return publicRoomComment != null;
     }
 
     public Member getWriter() {
-        return writer == null ? clubMember.getMember() : writer;
+        return writer;
+    }
+
+    public Long getClubId() {
+        return clubComment == null ? null : clubComment.getClub().getId();
     }
 
     public String getContent() {
