@@ -74,9 +74,13 @@ trap - EXIT
 ```bash
 set -euo pipefail
 docker exec -i yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --show-warnings --abort-source-on-error -uroot yeobaek' \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --show-warnings -uroot yeobaek' \
   < 2026-10-12-reading-schema.sql
 ```
+
+`< 파일`로 입력하는 MySQL 배치 모드는 `--force`를 사용하지 않으면 SQL 오류에서 중단한다.
+MySQL 8.4에서 지원하지 않는 `--abort-source-on-error`는 사용하지 않는다.
+실행 방식은 [MySQL 배치 모드 공식 문서](https://dev.mysql.com/doc/refman/8.4/en/batch-mode.html)를 따른다.
 
 스크립트는 다음 조건에서 첫 변경 전에 실패한다.
 
