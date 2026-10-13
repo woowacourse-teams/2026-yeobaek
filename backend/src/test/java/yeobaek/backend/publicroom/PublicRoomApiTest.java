@@ -14,12 +14,14 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -88,6 +90,9 @@ class PublicRoomApiTest extends IntegrationTest {
 
     @Autowired
     private EntityManagerFactory entityManagerFactory;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @Test
     @DisplayName("같은 공개방 댓글의 동시 반복 신고는 신고 한 건만 저장한다")
@@ -158,29 +163,37 @@ class PublicRoomApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("공개방 목록용 참여 조회는 여러 방의 진도 관계를 한 번에 초기화한다")
-    void findAllMembershipsFetchesProgressAssociations() {
-        ReadingFixture progressed = createRoom("진도 있는 책", 1);
+    @DisplayName("조회 대상 공개방들의 진도 정보를 한 번의 SQL로 읽는다")
+    void findAllMembershipsFetchesProgressInOneQuery() {
+        ReadingFixture firstProgressed = createRoom("첫 번째 진도 책", 1);
+        ReadingFixture secondProgressed = createRoom("두 번째 진도 책", 2);
         ReadingFixture empty = createRoom("진도 없는 책", 1);
         Member member = memberRepository.save(new Member(new Nickname("목록 독자")));
-        publicRoomService.updateProgress(member.getId(), progressed.room().getId(),
-                progressed.passages().getFirst().getId());
+        publicRoomService.updateProgress(member.getId(), firstProgressed.room().getId(),
+                firstProgressed.passages().getFirst().getId());
+        publicRoomService.updateProgress(member.getId(), secondProgressed.room().getId(),
+                secondProgressed.passages().getLast().getId());
         publicRoomService.visit(member.getId(), empty.room().getId());
 
-        var memberships = publicRoomMemberRepository.findAllByMemberIdAndPublicRoomIdIn(
-                member.getId(), List.of(progressed.room().getId(), empty.room().getId()));
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        boolean statisticsEnabled = statistics.isStatisticsEnabled();
+        try {
+            statistics.setStatisticsEnabled(true);
+            long preparedStatementsBefore = statistics.getPrepareStatementCount();
 
-        assertThat(memberships).hasSize(2).allSatisfy(membership ->
-                assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(membership, "lastRead")).isTrue());
-        var progressedMembership = memberships.stream()
-                .filter(membership -> membership.getPublicRoom().getId().equals(progressed.room().getId()))
-                .findFirst().orElseThrow();
-        assertThat(progressedMembership.getLastReadPassage()).isNotNull();
-        assertThat(entityManagerFactory.getPersistenceUnitUtil()
-                .isLoaded(progressedMembership.getLastReadPassage())).isTrue();
-        assertThat(memberships.stream()
-                .filter(membership -> membership.getPublicRoom().getId().equals(empty.room().getId()))
-                .findFirst().orElseThrow().getLastReadPassage()).isNull();
+            List<Integer> progressSequences = transactionTemplate.execute(status ->
+                    publicRoomMemberRepository.findAllByMemberIdAndPublicRoomIdIn(member.getId(), List.of(
+                                    firstProgressed.room().getId(), secondProgressed.room().getId(),
+                                    empty.room().getId())).stream()
+                            .map(membership -> membership.getLastReadAt() == null
+                                    ? null : membership.getLastReadPassage().getSequence().value())
+                            .toList());
+
+            assertThat(progressSequences).containsExactlyInAnyOrder(1, 2, null);
+            assertThat(statistics.getPrepareStatementCount() - preparedStatementsBefore).isOne();
+        } finally {
+            statistics.setStatisticsEnabled(statisticsEnabled);
+        }
     }
 
     @Test
