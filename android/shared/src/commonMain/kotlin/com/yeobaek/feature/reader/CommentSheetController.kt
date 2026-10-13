@@ -3,6 +3,7 @@ package com.yeobaek.feature.reader
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.crashlytics.CrashContext
@@ -22,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class CommentSheetController(
+    private val savedStateHandle: SavedStateHandle,
     private val commentSpace: CommentSpace,
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
@@ -37,11 +39,18 @@ class CommentSheetController(
     private var loadJob: Job? = null
     private var didSubmitInSheet = false
 
-    fun open(sentence: SentenceUiModel) {
+    val pendingRestoreSentenceId: Long?
+        get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
+
+    val pendingRestorePassageSequence: Int?
+        get() = savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY]
+
+    fun open(sentence: SentenceUiModel, passageSequence: Int?) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
+            passageSequence = passageSequence,
             targetPassageSequence = null,
             hasNewComments = null,
         )
@@ -52,9 +61,25 @@ class CommentSheetController(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
             itemCount = sentence.commentCount,
+            passageSequence = sentence.passageSequence,
             targetPassageSequence = sentence.passageSequence,
             hasNewComments = sentence.isNewComment(),
         )
+    }
+
+    fun restore(sentence: SentenceUiModel) {
+        if (uiState != null || sentence.sentenceId != pendingRestoreSentenceId) return
+
+        uiState = CommentSheetUiState(
+            sentenceId = sentence.sentenceId,
+            sentenceContent = sentence.content,
+            targetPassageSequence = savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY],
+            input = savedStateHandle.get<String>(SHEET_INPUT_KEY).orEmpty(),
+            editingCommentId = savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY],
+            isLoading = true,
+        )
+        persistDraft()
+        loadComments(sentence.sentenceId)
     }
 
     fun retryLoad() {
@@ -72,6 +97,7 @@ class CommentSheetController(
         sentenceId: Long,
         sentenceContent: String,
         itemCount: Int,
+        passageSequence: Int?,
         targetPassageSequence: Int?,
         hasNewComments: Boolean?,
     ) {
@@ -95,6 +121,18 @@ class CommentSheetController(
             targetPassageSequence = targetPassageSequence,
             isLoading = true,
         )
+        savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
+        if (passageSequence == null) {
+            savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
+        } else {
+            savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY] = passageSequence
+        }
+        if (targetPassageSequence == null) {
+            savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
+        } else {
+            savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY] = targetPassageSequence
+        }
+        persistDraft()
 
         loadComments(sentenceId)
     }
@@ -157,6 +195,11 @@ class CommentSheetController(
             )
         }
         uiState = null
+        savedStateHandle.remove<Long>(SHEET_SENTENCE_ID_KEY)
+        savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
+        savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
+        savedStateHandle.remove<String>(SHEET_INPUT_KEY)
+        savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)
     }
 
     fun updateInput(input: String) {
@@ -166,6 +209,7 @@ class CommentSheetController(
             input = input,
             submitErrorMessage = null,
         )
+        persistDraft()
     }
 
     fun startEditing(commentId: Long) {
@@ -185,6 +229,7 @@ class CommentSheetController(
             submitErrorMessage = null,
             deleteErrorMessage = null,
         )
+        persistDraft()
     }
 
     fun cancelEditing() {
@@ -199,6 +244,7 @@ class CommentSheetController(
             editingCommentId = null,
             submitErrorMessage = null,
         )
+        persistDraft()
     }
 
     fun requestDelete(commentId: Long) {
@@ -427,6 +473,17 @@ class CommentSheetController(
             ?.takeIf { currentSheet -> currentSheet.sentenceId == sentenceId && isWaiting(currentSheet) }
             ?: return
         uiState = transform(sheet)
+        persistDraft()
+    }
+
+    private fun persistDraft() {
+        val sheet = uiState ?: return
+        savedStateHandle[SHEET_INPUT_KEY] = sheet.input
+        if (sheet.editingCommentId == null) {
+            savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)
+        } else {
+            savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY] = sheet.editingCommentId
+        }
     }
 
     private fun cancelLoad() {
@@ -454,6 +511,14 @@ class CommentSheetController(
             throwable = exception,
             context = crashContext(operation, sentenceId, null),
         )
+    }
+
+    private companion object {
+        const val SHEET_SENTENCE_ID_KEY = "commentSheetSentenceId"
+        const val SHEET_PASSAGE_SEQUENCE_KEY = "commentSheetPassageSequence"
+        const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
+        const val SHEET_INPUT_KEY = "commentSheetInput"
+        const val SHEET_EDITING_COMMENT_ID_KEY = "commentSheetEditingCommentId"
     }
 }
 
