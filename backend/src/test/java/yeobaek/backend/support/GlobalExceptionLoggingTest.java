@@ -3,6 +3,7 @@ package yeobaek.backend.support;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ThrowableProxy;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,17 +60,34 @@ class GlobalExceptionLoggingTest {
     }
 
     @Test
-    @DisplayName("의도하지 않은 5xx는 ERROR와 스택 트레이스로 기록한다")
+    @DisplayName("IllegalStateException은 공통 5xx 처리로 ERROR와 원래 예외를 기록한다")
     void logUnexpectedFailure() {
         IllegalStateException exception = new IllegalStateException("server-secret");
 
         try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
-            handler.handleIllegalState(exception);
+            handler.handleException(exception);
 
-            var event = logs.event("exception.handleIllegalState", "failure");
+            var event = logs.event("exception.handleException", "failure");
             assertThat(event.getLevel()).isEqualTo(Level.ERROR);
             assertThat(logs.field(event, "errorCode")).isEqualTo("INTERNAL_ERROR");
-            assertThat(event.getThrowableProxy()).isNotNull();
+            assertThat(logs.field(event, "exceptionType")).isEqualTo("IllegalStateException");
+            assertThat(((ThrowableProxy) event.getThrowableProxy()).getThrowable()).isSameAs(exception);
+        }
+    }
+
+    @Test
+    @DisplayName("처리되지 않은 예외는 공통 작업명과 원래 예외로 ERROR 기록한다")
+    void logUnhandledException() {
+        Exception exception = new Exception("original-cause");
+
+        try (var logs = new LogCapture(GlobalExceptionHandler.class.getName())) {
+            handler.handleException(exception);
+
+            var event = logs.event("exception.handleException", "failure");
+            assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(logs.field(event, "errorCode")).isEqualTo("INTERNAL_ERROR");
+            assertThat(logs.field(event, "exceptionType")).isEqualTo("Exception");
+            assertThat(((ThrowableProxy) event.getThrowableProxy()).getThrowable()).isSameAs(exception);
         }
     }
 }

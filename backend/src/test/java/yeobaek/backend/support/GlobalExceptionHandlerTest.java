@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 
 class GlobalExceptionHandlerTest {
 
@@ -58,6 +59,55 @@ class GlobalExceptionHandlerTest {
                         "BOOK_NOT_AVAILABLE", body.code(), "이용 불가 도서의 개별 코드를 반환해야 한다"),
                 () -> assertEquals(
                         "더 이상 이용할 수 없는 도서입니다.", body.message(), "이용 불가 안내 메시지를 반환해야 한다"));
+    }
+
+    @Test
+    @DisplayName("처리되지 않은 검사 예외를 500과 INTERNAL_ERROR로 변환한다")
+    void handleCheckedException() {
+        var exception = new Exception("검사 예외 원문");
+
+        var response = handler.handleException(exception);
+        var body = response.getBody();
+
+        assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(
+                        HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(), "처리되지 않은 예외는 500이어야 한다"),
+                () -> assertEquals("INTERNAL_ERROR", body.code(), "내부 오류 코드를 반환해야 한다"),
+                () -> assertEquals("검사 예외 원문", body.message(), "예외 메시지를 변경하지 않고 전달해야 한다"));
+    }
+
+    @Test
+    @DisplayName("처리되지 않은 런타임 예외를 공통 예외 핸들러로 변환한다")
+    void handleUnhandledRuntimeException() {
+        var exception = new RuntimeException("런타임 예외 원문");
+
+        var response = handler.handleException(exception);
+        var body = response.getBody();
+
+        assertNotNull(body, "예외 변환 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(
+                        HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(), "처리되지 않은 예외는 500이어야 한다"),
+                () -> assertEquals("INTERNAL_ERROR", body.code(), "내부 오류 코드를 반환해야 한다"),
+                () -> assertEquals("런타임 예외 원문", body.message(), "예외 메시지를 변경하지 않고 전달해야 한다"));
+    }
+
+    @Test
+    @DisplayName("구체적인 예외 핸들러가 공통 예외 핸들러보다 우선한다")
+    void preferSpecificExceptionHandler() {
+        var resolver = new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
+
+        var illegalArgumentHandler = resolver.resolveMethod(new IllegalArgumentException("잘못된 요청"));
+        var illegalStateHandler = resolver.resolveMethod(new IllegalStateException("잘못된 상태"));
+        var genericHandler = resolver.resolveMethod(new RuntimeException("서버 오류"));
+
+        assertAll(
+                () -> assertEquals(
+                        "handleIllegalArgument", illegalArgumentHandler.getName(), "구체적인 400 핸들러가 우선해야 한다"),
+                () -> assertEquals(
+                        "handleException", illegalStateHandler.getName(), "IllegalStateException은 공통 핸들러가 처리해야 한다"),
+                () -> assertEquals("handleException", genericHandler.getName(), "처리되지 않은 예외는 공통 핸들러가 처리해야 한다"));
     }
 
 }
