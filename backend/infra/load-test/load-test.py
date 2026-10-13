@@ -366,6 +366,41 @@ def generate(docker, args):
     return {"database": data["load_database"], "rows": result}
 
 
+def reset_rows(db, database):
+    verify_schema(db, database)
+    incoming = db.query(
+        "SELECT COUNT(*) FROM information_schema.key_column_usage "
+        f"WHERE referenced_table_schema='{identifier(database)}' AND table_schema <> '{database}'"
+    )
+    if int(incoming[0][0]):
+        raise RuntimeError("Another database references load-test tables; reset is blocked")
+    db.query("START TRANSACTION")
+    before = {table: int(db.query(f"SELECT COUNT(*) FROM `{table}`")[0][0]) for table in dummy_data.TABLES}
+    # Child rows go first. Keep foreign-key checks enabled and do not run DDL.
+    for table in reversed(dummy_data.TABLES):
+        db.query(f"DELETE FROM `{table}`")
+    for table in dummy_data.TABLES:
+        if int(db.query(f"SELECT EXISTS(SELECT 1 FROM `{table}` LIMIT 1)")[0][0]):
+            raise RuntimeError("Reset did not empty " + table)
+    db.query("COMMIT")
+    return before
+
+
+def reset(docker, args):
+    data = docker.state()
+    if data.get("configuration_pending") or data.get("pending"):
+        raise RuntimeError("Finish setup/switch recovery before resetting data")
+    info = docker.container(args.app_service)
+    if not info["State"]["Running"] or runtime_env(info)["DB_URL"] != data["dev_url"]:
+        raise RuntimeError("Use dev before resetting the load-test DB")
+    if docker.config()["services"][args.app_service]["environment"]["DB_URL"] != data["dev_url"]:
+        raise RuntimeError("Persist the dev DB selection before resetting the load-test DB")
+    # The target is read only from validated state, never from an arbitrary CLI DB name.
+    with docker.database(data["load_database"]) as db:
+        removed = reset_rows(db, data["load_database"])
+    return {"database": data["load_database"], "removed_rows": removed, "empty": True}
+
+
 def wait_healthy(docker, target_url, url, timeout):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -460,6 +495,7 @@ def parse_args(argv=None):
     generate_parser.add_argument("--comment-text", default="부하테스트용 댓글입니다.")
     generate_parser.add_argument("--batch-size", type=positive_integer, default=500)
     generate_parser.add_argument("--dry-run", action="store_true")
+    commands.add_parser("reset", help="Physically delete all load DB rows while using dev; preserve schema")
     switch = commands.add_parser("use", help="Recreate the same app with another DB and wait for health")
     switch.add_argument("mode", choices=("dev", "load"))
     switch.add_argument("--health-url", default="http://127.0.0.1:8080/health")
@@ -482,7 +518,7 @@ def main(argv=None):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError("Another load-test setup/switch command is running")
-        handlers = {"init": init, "seed": generate, "use": use, "status": status}
+        handlers = {"init": init, "seed": generate, "reset": reset, "use": use, "status": status}
         print(json.dumps(handlers[args.command](docker, args), ensure_ascii=False, indent=2))
     return 0
 
@@ -492,5 +528,5 @@ if __name__ == "__main__":
         sys.exit(main())
     except (OSError, ValueError, RuntimeError, KeyError, KeyboardInterrupt) as error:
         print(f"Stopped: {error}", file=sys.stderr)
-        print("No existing data is deleted. Uncommitted seed rows are cancelled. If COMMIT lost its connection, check counts before retrying. For a failed switch, check status and use dev to recover.", file=sys.stderr)
+        print("Development DB rows are not modified. Uncommitted data changes are cancelled. If COMMIT lost its connection, check counts before retrying. For a failed switch, check status and use dev to recover.", file=sys.stderr)
         sys.exit(1)

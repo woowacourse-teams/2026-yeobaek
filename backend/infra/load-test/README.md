@@ -6,7 +6,7 @@
 
 이 스크립트는 실제 책이나 회원 데이터를 복제하지 않는다. 개발 DB의 테이블 구조만 복사하고
 책·저자·장·문단·문장·회원·모임·가입·진도·공개방·댓글을 새로 생성한다.
-기존 데이터를 삭제하는 명령이나 자동 초기화 기능은 없다.
+명시적인 `reset`으로 부하 DB 데이터만 비울 수 있다. 개발 DB 삭제와 자동 초기화는 제공하지 않는다.
 
 ## 서버 준비
 
@@ -47,18 +47,18 @@ python3 load-test/load-test.py \
 ```bash
 # 예상 행 수 확인: Docker나 DB에 접속하지 않음
 python3 load-test/load-test.py seed \
-  --books 100 --chapters-per-book 3 --passages-per-chapter 100 \
+  --books 100 --chapters-per-book 10 --passages-per-chapter 300 \
   --sentences-per-passage 5 --members 1000 --clubs 100 \
   --members-per-club 10 --dry-run
 
 # 같은 조건으로 부하 DB에 생성
 python3 load-test/load-test.py seed \
-  --books 100 --chapters-per-book 3 --passages-per-chapter 100 \
+  --books 100 --chapters-per-book 10 --passages-per-chapter 300 \
   --sentences-per-passage 5 --members 1000 --clubs 100 \
   --members-per-club 10
 ```
 
-- 책당 장 3개, 장당 문단 100개, 문단당 문장 5개라면 책당 총 1,500문장이다.
+- 책당 장 10개, 장당 문단 300개, 문단당 문장 5개라면 책당 3,000문단과 15,000문장이다.
 - 문단 순서는 책 전체에서 연속되며 문장 순서는 각 문단에서 시작한다.
 - 책은 ID `1..books`, 회원은 `1..members`, 모임은 `1..clubs`로 생성한다.
 - 모임은 책을 ID 순서로 번갈아 배정한다. 모임별 가입자는 회원 풀에서 순환 배정하며
@@ -80,8 +80,34 @@ python3 load-test/load-test.py seed \
   생성 중 실패하면 미커밋 행은 취소하며, `COMMIT` 중 연결이 끊기면 먼저 실제 건수를 확인한다.
 - `--batch-size`의 기본값은 500이다. 큰 본문 때문에 패킷 제한에 걸리면 이 값을 줄여 실행한다.
 
-위 예시는 책 100권, 문장 150,000개, 댓글 45,000개를 생성한다.
+위 예시는 책 100권, 문장 1,500,000개, 댓글 450,000개를 생성한다.
 규모를 크게 잡으면 트랜잭션·저장 공간이 늘어나므로 `--dry-run`의 건수를 먼저 확인한다.
+
+## 부하 데이터를 비우고 다시 생성
+
+API의 책 삭제는 soft-delete지만 이 명령은 MySQL의 `DELETE`로 행을 물리 삭제한다.
+책뿐 아니라 부하 DB의 회원·모임·진도·댓글·차단·신고·조회 기록까지 모두 삭제한다.
+
+```bash
+cd ~/yeobaek-dev
+python3 load-test/load-test.py use dev
+python3 load-test/load-test.py reset
+
+# 위 seed 명령을 원하는 규모로 다시 실행
+python3 load-test/load-test.py seed \
+  --books 100 --chapters-per-book 10 --passages-per-chapter 300 \
+  --sentences-per-passage 5 --members 1000 --clubs 100 \
+  --members-per-club 10
+
+python3 load-test/load-test.py use load
+```
+
+`reset`은 상태 파일에 저장된 부하 DB만 대상으로 삼으며, 앱과 배포 설정 모두 개발 DB를
+사용하는 경우에만 실행한다. 다른 DB에서 부하 DB를 외래키로 참조하면 중단한다.
+외래키 검사는 끄지 않고 자식 테이블부터 삭제한다. 전체 삭제는 하나의 트랜잭션이며
+중간 오류가 나면 미커밋 삭제를 취소한다. 정상 커밋한 삭제는 복구 기능이 없으므로
+유지할 부하 데이터가 있으면 실행 전에 백업한다. 테이블·인덱스·자동 증가 카운터는 유지하고
+새 더미의 ID는 `seed`가 명시적으로 1부터 다시 지정한다.
 
 ## 전환·측정·복귀
 
@@ -146,4 +172,5 @@ python3 -m unittest discover -s backend/infra/load-test -p 'test_*.py' -v
 단위 검증 외에 임시 Compose 프로젝트에서 실제 Spring 앱 이미지와 MySQL 8.4를 실행한다.
 스키마만 복사되는지, 더미 비율·관계가 맞는지, 실제 API가 전환된 DB 데이터를 반환하는지,
 앱 한 개·동일 이미지·동일 MySQL을 유지하는지, CI 형태로 재생성해도 DB 선택이 유지되는지,
-실패한 전환에서 개발 DB로 복귀하는지를 확인한다. 임시 프로젝트와 테스트 이미지는 끝나면 제거한다.
+실패한 전환에서 개발 DB로 복귀하는지, 부하 데이터만 물리 삭제하고 더 큰 조건으로 재생성하는지를
+확인한다. 임시 프로젝트와 테스트 이미지는 끝나면 제거한다.

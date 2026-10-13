@@ -236,6 +236,9 @@ class RealAppSwitchTest(unittest.TestCase):
         self.assertEqual(self.docker.container("mysql")["Id"], mysql_id)
         self.assertEqual(self.cli("status")["configured_mode"], "load")
         self.assertEqual(len(self.docker.command("ps", "-q", "app").split()), 1)
+        load_before = self.counts("yeobaek_load_test")
+        self.cli("reset", success=False)
+        self.assertEqual(self.counts("yeobaek_load_test"), load_before)
 
         # Simulate CI's temporary image override while retaining the persisted DB selection.
         override = self.root / "ci-image.json"
@@ -264,6 +267,74 @@ class RealAppSwitchTest(unittest.TestCase):
         self.cli("use", "dev", "--health-url", self.url + "/health")
         self.assertEqual(self.cli("status")["active_mode"], "dev")
         self.assertIsNone(self.cli("status")["pending"])
+        self.assertEqual(self.counts("yeobaek"), before)
+
+        # Reset also removes data created by later API scenarios, including leaf tables.
+        with self.docker.database("yeobaek_load_test") as db:
+            db.query("""
+                INSERT INTO member_blocks (blocker_id, blocked_id) VALUES (1, 2);
+                INSERT INTO comment_views (member_id, comment_id) VALUES (2, 1);
+                INSERT INTO reports (reporter_id, comment_id) VALUES (2, 1)
+            """)
+        load_before = self.counts("yeobaek_load_test")
+        with self.docker.database("yeobaek") as db:
+            db.query("""
+                CREATE TABLE reset_external_reference (
+                    id BIGINT PRIMARY KEY, book_id BIGINT,
+                    FOREIGN KEY (book_id) REFERENCES yeobaek_load_test.books(id) ON DELETE CASCADE
+                );
+                INSERT INTO reset_external_reference VALUES (1, 1)
+            """)
+        self.cli("reset", success=False)
+        self.assertEqual(self.counts("yeobaek_load_test"), load_before)
+        with self.docker.database("yeobaek") as db:
+            self.assertEqual(db.query("SELECT COUNT(*) FROM reset_external_reference"), [["1"]])
+            db.query("DROP TABLE reset_external_reference")
+
+        # A mid-reset error must restore every prior DELETE in the same transaction.
+        db = SCRIPT.Mysql(self.docker.mysql_command("yeobaek_load_test"))
+        original_query = db.query
+
+        def fail_reset_at_books(sql):
+            if sql == "DELETE FROM `books`":
+                return original_query("DELETE FROM nonexistent_reset_table")
+            return original_query(sql)
+
+        db.query = fail_reset_at_books
+        try:
+            with self.assertRaises(RuntimeError):
+                SCRIPT.reset_rows(db, "yeobaek_load_test")
+        finally:
+            db.close()
+        self.assertEqual(self.counts("yeobaek_load_test"), load_before)
+
+        state_before = self.docker.state_file.read_text()
+        tampered = json.loads(state_before)
+        tampered["load_database"] = tampered["dev_database"]
+        tampered["load_url"] = tampered["dev_url"]
+        self.docker.state_file.write_text(json.dumps(tampered))
+        try:
+            self.cli("reset", success=False)
+        finally:
+            self.docker.state_file.write_text(state_before)
+        self.assertEqual(self.counts("yeobaek"), before)
+        self.assertEqual(self.counts("yeobaek_load_test"), load_before)
+
+        cleared = self.cli("reset")
+        self.assertEqual(cleared["removed_rows"], {table: int(count) for table, count in load_before.items()})
+        self.assertEqual(set(self.counts("yeobaek_load_test").values()), {"0"})
+        with self.docker.database("yeobaek_load_test") as db:
+            self.assertEqual(SCRIPT.schema_tables(db, "yeobaek_load_test"), set(DATA.TABLES))
+        self.assertEqual(self.counts("yeobaek"), before)
+        self.cli("reset")  # Empty reset is also safe.
+        resized = list(DATA_ARGS)
+        resized[resized.index("--chapters-per-book") + 1] = "10"
+        resized[resized.index("--passages-per-chapter") + 1] = "300"
+        expected_resized = DATA.plan(SCRIPT.parse_args(resized))
+        self.assertEqual(self.cli(*resized)["rows"], expected_resized)
+        self.assertEqual(expected_resized["passages"], 6000)
+        self.assertEqual(expected_resized["comments"], 3600)
+        self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected_resized.items()})
         self.assertEqual(self.counts("yeobaek"), before)
 
 
