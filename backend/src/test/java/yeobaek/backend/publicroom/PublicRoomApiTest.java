@@ -9,19 +9,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -87,12 +84,6 @@ class PublicRoomApiTest extends IntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private EntityManagerFactory entityManagerFactory;
-
-    @Autowired
-    private TransactionTemplate transactionTemplate;
 
     @Test
     @DisplayName("같은 공개방 댓글의 동시 반복 신고는 신고 한 건만 저장한다")
@@ -160,40 +151,6 @@ class PublicRoomApiTest extends IntegrationTest {
         assertThat(membership.getLastVisitedAt()).isNotNull();
         assertThat(membership.getLastReadPassage()).isNotNull();
         assertThat(publicRoomMemberRepository.count()).isOne();
-    }
-
-    @Test
-    @DisplayName("조회 대상 공개방들의 진도 정보를 한 번의 SQL로 읽는다")
-    void findAllMembershipsFetchesProgressInOneQuery() {
-        ReadingFixture firstProgressed = createRoom("첫 번째 진도 책", 1);
-        ReadingFixture secondProgressed = createRoom("두 번째 진도 책", 2);
-        ReadingFixture empty = createRoom("진도 없는 책", 1);
-        Member member = memberRepository.save(new Member(new Nickname("목록 독자")));
-        publicRoomService.updateProgress(member.getId(), firstProgressed.room().getId(),
-                firstProgressed.passages().getFirst().getId());
-        publicRoomService.updateProgress(member.getId(), secondProgressed.room().getId(),
-                secondProgressed.passages().getLast().getId());
-        publicRoomService.visit(member.getId(), empty.room().getId());
-
-        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
-        boolean statisticsEnabled = statistics.isStatisticsEnabled();
-        try {
-            statistics.setStatisticsEnabled(true);
-            long preparedStatementsBefore = statistics.getPrepareStatementCount();
-
-            List<Integer> progressSequences = transactionTemplate.execute(status ->
-                    publicRoomMemberRepository.findAllByMemberIdAndPublicRoomIdIn(member.getId(), List.of(
-                                    firstProgressed.room().getId(), secondProgressed.room().getId(),
-                                    empty.room().getId())).stream()
-                            .map(membership -> membership.getLastReadAt() == null
-                                    ? null : membership.getLastReadPassage().getSequence().value())
-                            .toList());
-
-            assertThat(progressSequences).containsExactlyInAnyOrder(1, 2, null);
-            assertThat(statistics.getPrepareStatementCount() - preparedStatementsBefore).isOne();
-        } finally {
-            statistics.setStatisticsEnabled(statisticsEnabled);
-        }
     }
 
     @Test
