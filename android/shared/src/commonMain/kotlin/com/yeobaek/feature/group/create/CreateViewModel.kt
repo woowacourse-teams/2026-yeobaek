@@ -34,7 +34,9 @@ class CreateViewModel(
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
-    var uiState by mutableStateOf(CreateUiState())
+    var uiState by mutableStateOf(
+        CreateUiState(groupNameValue = savedStateHandle.get<String>(GROUP_NAME_KEY).orEmpty().take(20)),
+    )
         private set
 
     init {
@@ -86,10 +88,12 @@ class CreateViewModel(
     }
 
     fun updateGroupNameValue(value: String) {
+        val groupName = value.take(20)
         uiState = uiState.copy(
-            groupNameValue = value.take(20),
+            groupNameValue = groupName,
             isGroupNameValid = true,
         )
+        savedStateHandle[GROUP_NAME_KEY] = groupName
     }
 
     // 스크롤마다 이벤트를 보내지 않고, 가장 아래까지 본 위치만 기억했다가 화면을 떠날 때 함께 보낸다.
@@ -223,6 +227,7 @@ class CreateViewModel(
             groupNameValue = if (isGroupNameValid) uiState.groupNameValue else "",
             isGroupNameValid = isGroupNameValid,
         )
+        if (!isGroupNameValid) savedStateHandle[GROUP_NAME_KEY] = ""
     }
 
     fun createConditionCheck(): Boolean {
@@ -233,6 +238,7 @@ class CreateViewModel(
     companion object {
         private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
         private const val CREATE_STEP_KEY = "createStep"
+        private const val GROUP_NAME_KEY = "groupName"
 
         fun createViewModelFactory(
             groupRepository: GroupRepository,
