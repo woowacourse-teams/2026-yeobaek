@@ -144,9 +144,9 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.countNewComments")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("새 댓글 수를 조회합니다.");
-        ClubMember clubMember = findJoinedClubMember(memberId, clubId);
+        ClubMember clubMember = findClubMember(memberId, clubId);
         Passage currentPassage = findPassage(currentPassageId);
-        validatePassageContext(clubMember, currentPassage, clubId, currentPassageId);
+        clubMember.ensureCanRead(currentPassage);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
                 memberId, clubId, currentPassage.getSequence().value());
         var response = new NewCommentCountResponse(count);
@@ -161,9 +161,9 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("댓글이 있는 문장 목록을 조회합니다.");
-        ClubMember clubMember = findJoinedClubMember(memberId, clubId);
+        ClubMember clubMember = findClubMember(memberId, clubId);
         Passage currentPassage = findPassage(currentPassageId);
-        validatePassageContext(clubMember, currentPassage, clubId, currentPassageId);
+        clubMember.ensureCanRead(currentPassage);
         int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
                 .findCommentedSentenceSummaries(memberId, clubId).stream()
@@ -285,11 +285,11 @@ public class CommentService {
     private record SentenceContext(ClubMember clubMember, Sentence sentence) {
     }
 
-    private ClubMember findJoinedClubMember(Long memberId, Long clubId) {
-        return clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
+    private ClubMember findClubMember(Long memberId, Long clubId) {
+        return clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
-                        "모임에 참여 중인 회원이 아닙니다: memberId=" + memberId + ", clubId=" + clubId,
+                        "모임 참여 정보가 존재하지 않습니다: memberId=" + memberId + ", clubId=" + clubId,
                         Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString())));
     }
 
@@ -299,18 +299,6 @@ public class CommentService {
                         ErrorCode.INVALID_REQUEST,
                         "문단이 존재하지 않습니다: passageId=" + passageId,
                         Map.of("passageId", passageId.toString())));
-    }
-
-    private void validatePassageContext(ClubMember clubMember, Passage passage,
-                                        Long clubId, Long passageId) {
-        if (!clubMember.getClub().isReading(passage)) {
-            throw new BadRequestException(
-                    ErrorCode.INVALID_REQUEST,
-                    "현재 문단이 해당 모임의 도서에 속하지 않습니다: clubId=" + clubId
-                            + ", passageId=" + passageId,
-                    passageContext(clubId, passageId));
-        }
-        clubMember.ensureBookAvailable();
     }
 
     private PublicRoom validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
@@ -401,7 +389,4 @@ public class CommentService {
         return Map.of(CLUB_ID, clubId.toString(), SENTENCE_ID, sentenceId.toString());
     }
 
-    private Map<String, String> passageContext(Long clubId, Long passageId) {
-        return Map.of(CLUB_ID, clubId.toString(), "passageId", passageId.toString());
-    }
 }

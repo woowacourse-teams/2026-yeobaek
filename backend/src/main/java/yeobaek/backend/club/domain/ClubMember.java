@@ -15,12 +15,17 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.club.domain.vo.ProgressRate;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.ForbiddenException;
 
 @Entity
 @Table(name = "club_members", uniqueConstraints = {
@@ -97,5 +102,35 @@ public class ClubMember {
 
     public void ensureBookAvailable() {
         club.ensureBookAvailable();
+    }
+
+    public void ensureCanRead(Passage passage) {
+        if (!isJoined()) {
+            throw new ForbiddenException(
+                    ErrorCode.NOT_CLUB_MEMBER,
+                    "모임에 참여 중인 회원이 아닙니다.",
+                    readingLogContext(passage));
+        }
+        if (!club.isReading(passage)) {
+            throw new BadRequestException(
+                    ErrorCode.INVALID_REQUEST,
+                    "해당 모임의 도서에 속한 문단이 아닙니다.",
+                    readingLogContext(passage));
+        }
+        club.ensureBookAvailable();
+    }
+
+    private Map<String, String> readingLogContext(Passage passage) {
+        Map<String, String> context = new HashMap<>();
+        if (member.getId() != null) {
+            context.put("memberId", member.getId().toString());
+        }
+        if (club.getId() != null) {
+            context.put("clubId", club.getId().toString());
+        }
+        if (passage.getId() != null) {
+            context.put("passageId", passage.getId().toString());
+        }
+        return context;
     }
 }

@@ -15,7 +15,6 @@ import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.book.repository.SentenceRepository;
-import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
@@ -37,13 +36,10 @@ class CommentLoggingTest {
         var clubs = mock(ClubRepository.class);
         var memberships = mock(ClubMemberRepository.class);
         var passages = mock(PassageRepository.class);
-        var club = mock(Club.class);
         var membership = mock(ClubMember.class);
         var passage = mock(Passage.class);
-        given(membership.getClub()).willReturn(club);
-        given(memberships.findJoinedByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(membership));
+        given(memberships.findByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(membership));
         given(passages.findById(13L)).willReturn(Optional.of(passage));
-        given(club.isReading(passage)).willReturn(true);
         given(passage.getSequence()).willReturn(new ContentSequence(4));
         given(comments.countNewVisibleCommentsWithinProgress(7L, 5L, 4)).willReturn(3L);
         var service = new CommentService(comments, mock(CommentReportRepository.class),
