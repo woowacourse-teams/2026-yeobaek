@@ -93,9 +93,9 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
     }
 
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException e) {
-        logUnexpected("exception.handleIllegalState", e);
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        logUnexpected("exception.handleException", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, e.getMessage()));
     }

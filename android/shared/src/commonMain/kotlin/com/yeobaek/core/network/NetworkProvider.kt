@@ -23,6 +23,8 @@ class NetworkProvider(
     private val httpClient: HttpClient =
         createHttpClient()
 
+    val baseUrl = if (isDebug) BuildKonfig.TEST_BASE_URL else BuildKonfig.BASE_URL
+
     val ktorfit: Ktorfit =
         createKtorfit(
             httpClient = httpClient,
@@ -68,7 +70,7 @@ class NetworkProvider(
         httpClient: HttpClient,
     ): Ktorfit =
         Ktorfit.Builder()
-            .baseUrl(if (isDebug) BuildKonfig.TEST_BASE_URL else BuildKonfig.BASE_URL)
+            .baseUrl(baseUrl)
             .httpClient(httpClient)
             .converterFactories(
                 ResponseConverterFactory(),
