@@ -9,29 +9,27 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerMapping;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
-    public static final String TRACE_ID = "traceId";
     public static final String MEMBER_ID = LogField.MEMBER_ID;
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestLoggingFilter.class);
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String previousTraceId = MDC.get(TRACE_ID);
         String previousMemberId = MDC.get(MEMBER_ID);
-        String traceId = UUID.randomUUID().toString();
         long startedAt = System.nanoTime();
-        MDC.put(TRACE_ID, traceId);
         MDC.remove(MEMBER_ID);
         LOGGER.atInfo()
                 .addKeyValue(OPERATION, "http.doFilterInternal")
@@ -50,7 +48,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                 int status = completed ? response.getStatus() : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
                 logCompletion(request, status, startedAt, failure);
             } finally {
-                restoreMdc(TRACE_ID, previousTraceId);
                 restoreMdc(MEMBER_ID, previousMemberId);
             }
         }

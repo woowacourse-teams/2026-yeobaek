@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <springProperty name="consoleFormat" source="logging.structured.format.console" defaultValue="logstash"/>
+    <property name="CONSOLE_LOG_STRUCTURED_FORMAT" value="${consoleFormat}"/>
+    <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+    <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+        <captureKeyValuePairAttributes>true</captureKeyValuePairAttributes>
+        <captureMdcAttributes>memberId</captureMdcAttributes>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="OTEL"/>
+    </root>
+</configuration>
