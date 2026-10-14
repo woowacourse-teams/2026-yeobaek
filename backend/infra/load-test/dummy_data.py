@@ -166,12 +166,19 @@ def literal(value):
     return "CONVERT(0x" + value.encode("utf-8").hex() + " USING utf8mb4)"
 
 
+def clear_rows(db):
+    # Child rows go first. Keep foreign-key checks enabled and do not run DDL.
+    for table in reversed(TABLES):
+        db.query(f"DELETE FROM `{table}`")
+    for table in TABLES:
+        if int(db.query(f"SELECT EXISTS(SELECT 1 FROM `{table}` LIMIT 1)")[0][0]):
+            raise RuntimeError("Reset did not empty " + table)
+
+
 def seed(db, args):
     expected = plan(args)
     db.query("START TRANSACTION")
-    nonempty = sum(int(db.query(f"SELECT EXISTS(SELECT 1 FROM `{table}` LIMIT 1)")[0][0]) for table in TABLES)
-    if nonempty:
-        raise RuntimeError("Load-test DB must be empty; existing data is never deleted")
+    clear_rows(db)
     for table, columns, iterator in rows(args):
         iterator = iter(iterator)
         while True:

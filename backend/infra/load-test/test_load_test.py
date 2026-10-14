@@ -203,7 +203,18 @@ class RealAppSwitchTest(unittest.TestCase):
         result = self.cli(*DATA_ARGS, "--sentence-text", "일관된 본문 😀 ' ; $()", "--comment-text", "일관된 댓글 😀 '")
         self.assertEqual(result["rows"], expected)
         self.assertEqual(self.counts("yeobaek"), before)
-        self.cli(*DATA_ARGS, success=False)  # No implicit reset or duplicate seeding.
+        preview = self.cli(*DATA_ARGS, "--dry-run")
+        self.assertTrue(preview["dry_run"])
+        # Failed replacement must preserve both old rows and their contents.
+        db = SCRIPT.Mysql(self.docker.mysql_command("yeobaek_load_test"))
+        query = db.query
+        db.query = fail_at_comments
+        try:
+            with self.assertRaises(RuntimeError):
+                DATA.seed(db, SCRIPT.parse_args(DATA_ARGS))
+        finally:
+            db.close()
+        self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected.items()})
         with self.docker.database("yeobaek_load_test") as db:
             self.assertEqual(db.query("SELECT COUNT(DISTINCT sentence_id), COUNT(*) FROM comments"), [["12", "12"]])
             self.assertEqual(db.query("SELECT content FROM sentences WHERE id=1"), [["일관된 본문 😀 ' ; $()"]])
@@ -240,8 +251,8 @@ class RealAppSwitchTest(unittest.TestCase):
         load_before = self.counts("yeobaek_load_test")
         # Recreate data while the same app continues to use the load database.
         app_id = self.docker.container("app")["Id"]
-        self.cli("reset")
-        self.assertEqual(set(self.counts("yeobaek_load_test").values()), {"0"})
+        with self.docker.database("yeobaek_load_test") as db:
+            db.query("INSERT INTO member_blocks (blocker_id, blocked_id) VALUES (1, 2)")
         self.assertEqual(self.cli(*DATA_ARGS)["rows"], expected)
         self.assertEqual(self.counts("yeobaek_load_test"), load_before)
         self.assertEqual(self.docker.container("app")["Id"], app_id)
@@ -321,6 +332,7 @@ class RealAppSwitchTest(unittest.TestCase):
                 INSERT INTO reset_external_reference VALUES (1, 1)
             """)
         self.cli("reset", success=False)
+        self.cli(*DATA_ARGS, success=False)
         self.assertEqual(self.counts("yeobaek_load_test"), load_before)
         with self.docker.database("yeobaek") as db:
             self.assertEqual(db.query("SELECT COUNT(*) FROM reset_external_reference"), [["1"]])
@@ -350,6 +362,7 @@ class RealAppSwitchTest(unittest.TestCase):
         self.docker.state_file.write_text(json.dumps(tampered))
         try:
             self.cli("reset", success=False)
+            self.cli(*DATA_ARGS, success=False)
         finally:
             self.docker.state_file.write_text(state_before)
         self.assertEqual(self.counts("yeobaek"), before)
@@ -370,6 +383,8 @@ class RealAppSwitchTest(unittest.TestCase):
         self.assertEqual(expected_resized["passages"], 6000)
         self.assertEqual(expected_resized["comments"], 3600)
         self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected_resized.items()})
+        self.assertEqual(self.cli(*DATA_ARGS)["rows"], expected)
+        self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected.items()})
         self.assertEqual(self.counts("yeobaek"), before)
 
 

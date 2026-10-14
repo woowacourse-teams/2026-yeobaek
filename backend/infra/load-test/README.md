@@ -51,7 +51,7 @@ python3 load-test/load-test.py seed \
   --sentences-per-passage 5 --members 1000 --clubs 100 \
   --members-per-club 10 --dry-run
 
-# 같은 조건으로 부하 DB에 생성
+# 부하 DB의 기존 데이터를 전부 삭제하고 같은 조건으로 재생성
 python3 load-test/load-test.py seed \
   --books 100 --chapters-per-book 10 --passages-per-chapter 300 \
   --sentences-per-passage 5 --members 1000 --clubs 100 \
@@ -75,9 +75,10 @@ python3 load-test/load-test.py seed \
 - 저자 하나를 모든 책에 연결하고 표지는 비워 둔다. S3 객체를 생성하거나 복제하지 않는다.
 - 시각은 재현 가능하도록 진도·방문 `2026-01-01 00:00:00`, 댓글 `00:00:01`로 고정한다.
 - 차단·신고·댓글 조회 기록은 초기 빈 상태로 둔다. API 호출 과정에서 생성할 수 있다.
-- 앱 실행 상태와 선택 DB에 관계없이 더미를 준비한다. 부하 DB는 모든 테이블이 비어 있어야 한다.
-  이미 생성된 DB에 재실행하면 중단한다. 데이터 변경은 하나의 InnoDB 트랜잭션으로 처리한다.
-  생성 중 실패하면 미커밋 행은 취소하며, `COMMIT` 중 연결이 끊기면 먼저 실제 건수를 확인한다.
+- 앱 실행 상태와 선택 DB에 관계없이 더미를 준비한다. `seed`는 매번 부하 DB의 기존 데이터를
+  전부 물리 삭제하고 지정한 규모로 다시 생성한다. 삭제와 생성은 하나의 InnoDB 트랜잭션이다.
+  생성 중 실패하면 삭제와 삽입이 함께 취소되어 기존 데이터가 보존된다.
+  `--dry-run`은 삭제하지 않고 예상 건수만 출력한다. `COMMIT` 중 연결이 끊기면 실제 데이터와 건수를 확인한다.
 - `--batch-size`의 기본값은 500이다. 큰 본문 때문에 패킷 제한에 걸리면 이 값을 줄여 실행한다.
 
 위 예시는 책 100권, 문장 1,500,000개, 댓글 450,000개를 생성한다.
@@ -85,12 +86,12 @@ python3 load-test/load-test.py seed \
 
 ## 부하 데이터를 비우고 다시 생성
 
-API의 책 삭제는 soft-delete지만 이 명령은 MySQL의 `DELETE`로 행을 물리 삭제한다.
+`seed`는 MySQL의 `DELETE`로 기존 행을 물리 삭제한 뒤 새 더미를 넣는다.
+API의 책 삭제는 soft-delete지만 스크립트는 soft-delete 행까지 모두 비운다.
 책뿐 아니라 부하 DB의 회원·모임·진도·댓글·차단·신고·조회 기록까지 모두 삭제한다.
 
 ```bash
 cd ~/yeobaek-dev &&
-python3 load-test/load-test.py reset &&
 python3 load-test/load-test.py seed \
   --books 100 --chapters-per-book 10 --passages-per-chapter 300 \
   --sentences-per-passage 5 --members 1000 --clubs 100 \
@@ -100,12 +101,13 @@ python3 load-test/load-test.py seed \
 `reset`과 `seed`는 앱 실행 상태, 선택된 DB, 설정 설치·전환 진행 상태를 조건으로 삼지 않는다.
 앱이 실행 중이거나 중지·재시작 중인 경우와 앱 컨테이너가 없는 경우에도 실행할 수 있다.
 DB 선택과 컨테이너 실행 상태, 전환 진행 기록은 바꾸지 않는다. 개발 DB를 선택한 상태였다면
-재생성 후 `use load`로 부하 DB를 선택한다. 위 명령은 초기화가 성공한 경우에만 생성한다.
+재생성 후 `use load`로 부하 DB를 선택한다. 별도 `reset` 실행은 필요 없다.
+데이터를 비우기만 하려면 `python3 load-test/load-test.py reset`을 실행한다.
 
-`reset`은 상태 파일에 저장된 부하 DB만 대상으로 삼으며,
+`reset`과 `seed`는 상태 파일에 저장된 부하 DB만 대상으로 삼으며,
 다른 DB에서 부하 DB를 외래키로 참조하면 중단한다.
-외래키 검사는 끄지 않고 자식 테이블부터 삭제한다. 전체 삭제는 하나의 트랜잭션이며
-중간 오류가 나면 미커밋 삭제를 취소한다. 정상 커밋한 삭제는 복구 기능이 없으므로
+외래키 검사는 끄지 않고 자식 테이블부터 삭제한다. `reset`은 삭제만, `seed`는 삭제와 생성을
+하나의 트랜잭션으로 처리하며 중간 오류가 나면 미커밋 변경을 취소한다. 정상 커밋한 삭제는 복구 기능이 없으므로
 유지할 부하 데이터가 있으면 실행 전에 백업한다. 테이블·인덱스·자동 증가 카운터는 유지하고
 새 더미의 ID는 `seed`가 명시적으로 1부터 다시 지정한다.
 

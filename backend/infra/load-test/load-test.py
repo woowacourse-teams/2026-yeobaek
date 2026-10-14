@@ -357,12 +357,12 @@ def generate(docker, args):
         return {"dry_run": True, "rows": expected}
     data = docker.state()
     with docker.database(data["load_database"]) as db:
-        verify_schema(db, data["load_database"])
+        verify_reset_schema(db, data["load_database"])
         result = dummy_data.seed(db, args)
     return {"database": data["load_database"], "rows": result}
 
 
-def reset_rows(db, database):
+def verify_reset_schema(db, database):
     verify_schema(db, database)
     incoming = db.query(
         "SELECT COUNT(*) FROM information_schema.key_column_usage "
@@ -370,14 +370,13 @@ def reset_rows(db, database):
     )
     if int(incoming[0][0]):
         raise RuntimeError("Another database references load-test tables; reset is blocked")
+
+
+def reset_rows(db, database):
+    verify_reset_schema(db, database)
     db.query("START TRANSACTION")
     before = {table: int(db.query(f"SELECT COUNT(*) FROM `{table}`")[0][0]) for table in dummy_data.TABLES}
-    # Child rows go first. Keep foreign-key checks enabled and do not run DDL.
-    for table in reversed(dummy_data.TABLES):
-        db.query(f"DELETE FROM `{table}`")
-    for table in dummy_data.TABLES:
-        if int(db.query(f"SELECT EXISTS(SELECT 1 FROM `{table}` LIMIT 1)")[0][0]):
-            raise RuntimeError("Reset did not empty " + table)
+    dummy_data.clear_rows(db)
     db.query("COMMIT")
     return before
 
@@ -477,7 +476,7 @@ def parse_args(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     initialize = commands.add_parser("init", help="Create an empty load DB with schema only; install persistent DB selection")
     initialize.add_argument("--load-database", type=identifier, default="yeobaek_load_test")
-    generate_parser = commands.add_parser("seed", help="Generate deterministic data in an empty load DB")
+    generate_parser = commands.add_parser("seed", help="Replace all load DB data with deterministic dummy data")
     for option in ("books", "chapters-per-book", "passages-per-chapter", "sentences-per-passage", "members", "clubs", "members-per-club"):
         generate_parser.add_argument("--" + option, type=positive_integer, required=True)
     generate_parser.add_argument("--sentence-text", default="부하테스트용 문장입니다.")
