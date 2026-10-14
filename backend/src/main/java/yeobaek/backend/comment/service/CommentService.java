@@ -281,16 +281,12 @@ public class CommentService {
     }
 
     private Passage validatePassageContext(Long memberId, Long clubId, Long passageId) {
-        Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(
-                        ErrorCode.CLUB_NOT_FOUND,
-                        "댓글 발견 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId,
-                        passageContext(clubId, passageId)));
-        clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
+        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
                         "모임에 참여 중인 회원만 댓글 발견 정보를 조회할 수 있습니다: clubId=" + clubId,
                         passageContext(clubId, passageId)));
+        Club club = clubMember.getClub();
         Passage passage = passageRepository.findById(passageId)
                 .orElseThrow(() -> new BadRequestException(
                         ErrorCode.INVALID_REQUEST,
@@ -303,7 +299,7 @@ public class CommentService {
                             + ", passageId=" + passageId,
                     passageContext(clubId, passageId));
         }
-        club.ensureBookAvailable();
+        clubMember.ensureBookAvailable();
         return passage;
     }
 

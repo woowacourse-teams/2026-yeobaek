@@ -38,9 +38,10 @@ class CommentLoggingTest {
         var memberships = mock(ClubMemberRepository.class);
         var passages = mock(PassageRepository.class);
         var club = mock(Club.class);
+        var membership = mock(ClubMember.class);
         var passage = mock(Passage.class);
-        given(clubs.findById(5L)).willReturn(Optional.of(club));
-        given(memberships.findJoinedByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(mock(ClubMember.class)));
+        given(membership.getClub()).willReturn(club);
+        given(memberships.findJoinedByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(membership));
         given(passages.findById(13L)).willReturn(Optional.of(passage));
         given(club.isReading(passage)).willReturn(true);
         given(passage.getSequence()).willReturn(new ContentSequence(4));

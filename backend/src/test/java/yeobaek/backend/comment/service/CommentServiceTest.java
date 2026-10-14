@@ -630,14 +630,30 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("발견 API는 없는 모임과 미소속 회원을 거부한다")
-    void validateDiscoveryMembership() {
+    @DisplayName("발견 API는 존재하지 않는 모임을 미가입으로 처리한다")
+    void rejectUnknownClubDiscovery() {
         assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), Long.MAX_VALUE, passage.getId()))
-                .isInstanceOf(NotFoundException.class).extracting("code").isEqualTo(ErrorCode.CLUB_NOT_FOUND);
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentences(writer.getId(), Long.MAX_VALUE, passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("발견 API는 모임에 가입하지 않은 회원을 거부한다")
+    void rejectOutsiderDiscovery() {
+        assertThatThrownBy(() -> commentService.countNewComments(other.getId(), otherClub.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
         assertThatThrownBy(() -> commentService.findCommentedSentences(other.getId(), otherClub.getId(), passage.getId()))
                 .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("발견 API는 모임을 탈퇴한 회원을 거부한다")
+    void rejectLeftMemberDiscovery() {
         leaveClub(writer, club);
         assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), club.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId()))
                 .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
     }
 
