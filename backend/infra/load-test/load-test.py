@@ -351,29 +351,11 @@ def init(docker, args):
     return {"initialized": True, "dev_database": dev_database, "load_database": load_database}
 
 
-def require_idle_load_database(docker, args, data):
-    if data.get("configuration_pending") or data.get("pending"):
-        raise RuntimeError("Finish setup/switch recovery before changing load-test data")
-    info = docker.container(args.app_service)
-    state = info["State"]
-    if state.get("Restarting"):
-        raise RuntimeError("Wait for the app to stop or finish restarting before changing load-test data")
-    if not state["Running"]:
-        if state["Status"] not in ("created", "exited"):
-            raise RuntimeError("The app must be stopped before changing load-test data")
-        return
-    if runtime_env(info).get("DB_URL") != data["dev_url"]:
-        raise RuntimeError("Stop the app or use dev before changing load-test data")
-    if docker.config()["services"][args.app_service]["environment"]["DB_URL"] != data["dev_url"]:
-        raise RuntimeError("Persist the dev DB selection or stop the app before changing load-test data")
-
-
 def generate(docker, args):
     expected = dummy_data.plan(args)
     if args.dry_run:
         return {"dry_run": True, "rows": expected}
     data = docker.state()
-    require_idle_load_database(docker, args, data)
     with docker.database(data["load_database"]) as db:
         verify_schema(db, data["load_database"])
         result = dummy_data.seed(db, args)
@@ -402,7 +384,6 @@ def reset_rows(db, database):
 
 def reset(docker, args):
     data = docker.state()
-    require_idle_load_database(docker, args, data)
     # The target is read only from validated state, never from an arbitrary CLI DB name.
     with docker.database(data["load_database"]) as db:
         removed = reset_rows(db, data["load_database"])
@@ -503,7 +484,7 @@ def parse_args(argv=None):
     generate_parser.add_argument("--comment-text", default="부하테스트용 댓글입니다.")
     generate_parser.add_argument("--batch-size", type=positive_integer, default=500)
     generate_parser.add_argument("--dry-run", action="store_true")
-    commands.add_parser("reset", help="Physically delete all load DB rows while app is stopped or uses dev; preserve schema")
+    commands.add_parser("reset", help="Physically delete all load DB rows; preserve schema")
     switch = commands.add_parser("use", help="Recreate the same app with another DB and wait for health")
     switch.add_argument("mode", choices=("dev", "load"))
     switch.add_argument("--health-url", default="http://127.0.0.1:8080/health")
