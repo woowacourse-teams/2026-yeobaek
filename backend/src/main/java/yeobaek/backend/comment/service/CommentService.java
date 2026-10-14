@@ -3,6 +3,7 @@ package yeobaek.backend.comment.service;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.CURRENT_PASSAGE_ID;
+import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SENTENCE_ID;
@@ -143,7 +144,9 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.countNewComments")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("새 댓글 수를 조회합니다.");
-        Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
+        ClubMember clubMember = findJoinedClubMember(memberId, clubId);
+        Passage currentPassage = findPassage(currentPassageId);
+        validatePassageContext(clubMember, currentPassage, clubId, currentPassageId);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
                 memberId, clubId, currentPassage.getSequence().value());
         var response = new NewCommentCountResponse(count);
@@ -158,7 +161,9 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("댓글이 있는 문장 목록을 조회합니다.");
-        Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
+        ClubMember clubMember = findJoinedClubMember(memberId, clubId);
+        Passage currentPassage = findPassage(currentPassageId);
+        validatePassageContext(clubMember, currentPassage, clubId, currentPassageId);
         int currentPassageSequence = currentPassage.getSequence().value();
         List<CommentedSentenceResponse> responses = commentRepository
                 .findCommentedSentenceSummaries(memberId, clubId).stream()
@@ -280,19 +285,25 @@ public class CommentService {
     private record SentenceContext(ClubMember clubMember, Sentence sentence) {
     }
 
-    private Passage validatePassageContext(Long memberId, Long clubId, Long passageId) {
-        ClubMember clubMember = clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
+    private ClubMember findJoinedClubMember(Long memberId, Long clubId) {
+        return clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
-                        "모임에 참여 중인 회원만 댓글 발견 정보를 조회할 수 있습니다: clubId=" + clubId,
-                        passageContext(clubId, passageId)));
-        Club club = clubMember.getClub();
-        Passage passage = passageRepository.findById(passageId)
+                        "모임에 참여 중인 회원이 아닙니다: memberId=" + memberId + ", clubId=" + clubId,
+                        Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString())));
+    }
+
+    private Passage findPassage(Long passageId) {
+        return passageRepository.findById(passageId)
                 .orElseThrow(() -> new BadRequestException(
                         ErrorCode.INVALID_REQUEST,
-                        "현재 문단이 존재하지 않습니다: passageId=" + passageId,
-                        passageContext(clubId, passageId)));
-        if (!club.isReading(passage)) {
+                        "문단이 존재하지 않습니다: passageId=" + passageId,
+                        Map.of("passageId", passageId.toString())));
+    }
+
+    private void validatePassageContext(ClubMember clubMember, Passage passage,
+                                        Long clubId, Long passageId) {
+        if (!clubMember.getClub().isReading(passage)) {
             throw new BadRequestException(
                     ErrorCode.INVALID_REQUEST,
                     "현재 문단이 해당 모임의 도서에 속하지 않습니다: clubId=" + clubId
@@ -300,7 +311,6 @@ public class CommentService {
                     passageContext(clubId, passageId));
         }
         clubMember.ensureBookAvailable();
-        return passage;
     }
 
     private PublicRoom validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
