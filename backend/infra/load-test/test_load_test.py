@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import Mock
 import urllib.error
 import urllib.request
 import uuid
@@ -86,6 +87,39 @@ class ConfigurationTest(unittest.TestCase):
                                 text=True, capture_output=True, cwd="/tmp")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["rows"]["comments"], 12)
+
+    def test_data_changes_require_stopped_app_or_running_dev_selection(self):
+        args = SCRIPT.parse_args(DATA_ARGS)
+        data = {"dev_url": "jdbc:mysql://mysql/dev", "load_url": "jdbc:mysql://mysql/load"}
+        docker = Mock()
+        for status in ("created", "exited"):
+            for selected in ("dev_url", "load_url"):
+                with self.subTest(status=status, selected=selected):
+                    docker.container.return_value = {
+                        "State": {"Running": False, "Restarting": False, "Status": status},
+                        "Config": {"Env": ["DB_URL=" + data[selected]]}}
+                    SCRIPT.require_idle_load_database(docker, args, data)
+        for status in ("restarting", "removing", "dead"):
+            with self.subTest(status=status):
+                docker.container.return_value = {"State": {
+                    "Running": False, "Restarting": status == "restarting", "Status": status}}
+                with self.assertRaises(RuntimeError):
+                    SCRIPT.require_idle_load_database(docker, args, data)
+        docker.container.return_value = {"State": {"Running": False, "Status": "exited"}}
+        for pending in ("configuration_pending", "pending"):
+            with self.subTest(pending=pending), self.assertRaises(RuntimeError):
+                SCRIPT.require_idle_load_database(docker, args, {**data, pending: True})
+        for runtime, configured in (("dev_url", "dev_url"), ("dev_url", "load_url"), ("load_url", "dev_url")):
+            with self.subTest(runtime=runtime, configured=configured):
+                docker.container.return_value = {
+                    "State": {"Running": True, "Restarting": False, "Status": "running"},
+                    "Config": {"Env": ["DB_URL=" + data[runtime]]}}
+                docker.config.return_value = {"services": {"app": {"environment": {"DB_URL": data[configured]}}}}
+                if runtime == configured == "dev_url":
+                    SCRIPT.require_idle_load_database(docker, args, data)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        SCRIPT.require_idle_load_database(docker, args, data)
 
 
 class RealAppSwitchTest(unittest.TestCase):
@@ -238,6 +272,7 @@ class RealAppSwitchTest(unittest.TestCase):
         self.assertEqual(len(self.docker.command("ps", "-q", "app").split()), 1)
         load_before = self.counts("yeobaek_load_test")
         self.cli("reset", success=False)
+        self.assertIn("Stop the app or use dev", self.cli(*DATA_ARGS, success=False).stderr)
         self.assertEqual(self.counts("yeobaek_load_test"), load_before)
 
         # Simulate CI's temporary image override while retaining the persisted DB selection.
@@ -257,6 +292,25 @@ class RealAppSwitchTest(unittest.TestCase):
         self.cli("use", "dev", "--health-url", self.url + "/health")
         self.assertEqual(self.api("/api/books")["books"][0]["title"], "개발 DB 보존 책")
         self.assertEqual(self.counts("yeobaek"), before)
+
+        # Keep load selected, stop the app, reset/reseed, then start the same container.
+        self.cli("use", "load", "--health-url", self.url + "/health")
+        app_id = self.docker.container("app")["Id"]
+        self.docker.command("stop", "app")
+        self.assertFalse(self.docker.container("app")["State"]["Running"])
+        self.cli("reset")
+        self.assertEqual(set(self.counts("yeobaek_load_test").values()), {"0"})
+        self.assertEqual(self.cli(*DATA_ARGS)["rows"], expected)
+        self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected.items()})
+        self.assertFalse(self.docker.container("app")["State"]["Running"])
+        self.assertEqual(self.cli("status")["configured_mode"], "load")
+        self.assertEqual(self.counts("yeobaek"), before)
+        self.docker.command("start", "app")
+        SCRIPT.wait_healthy(self.docker, "jdbc:mysql://mysql:3306/yeobaek_load_test", self.url + "/health", 120)
+        self.assertEqual(self.docker.container("app")["Id"], app_id)
+        self.assertEqual(self.docker.container("mysql")["Id"], mysql_id)
+        self.assertEqual(len(self.api("/api/books")["books"]), 2)
+        self.cli("use", "dev", "--health-url", self.url + "/health")
         self.assertEqual(self.counts("yeobaek_load_test"), {table: str(count) for table, count in expected.items()})
 
         # A timed-out switch is visible and can be recovered even if the app container is removed.
