@@ -3,8 +3,10 @@ package com.yeobaek.feature.reader
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -49,6 +51,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val readerTarget: ReaderTarget,
     private val bookRepository: BookRepository,
     private val groupRepository: GroupRepository,
@@ -93,6 +96,7 @@ class ReaderViewModel(
     }
 
     val commentSheet = CommentSheetController(
+        savedStateHandle = savedStateHandle,
         commentSpace = commentSpace,
         commentRepository = commentRepository,
         crashReporter = crashReporter,
@@ -212,6 +216,7 @@ class ReaderViewModel(
                     totalPassageCount = passageCount,
                     loadState = ReaderLoadState.Success,
                 )
+                restoreCommentSheetIfNeeded()
                 track(
                     operation = CrashOperation.READER_LOADED,
                     passageSequence = readingSequence.takeIf { it > 0 },
@@ -228,6 +233,29 @@ class ReaderViewModel(
                 )
             }
         }
+    }
+
+    private suspend fun restoreCommentSheetIfNeeded() {
+        val sentenceId = commentSheet.pendingRestoreSentenceId ?: return
+        val sentence = try {
+            uiState.passages.findSentence(sentenceId) ?: run {
+                val sequence = commentSheet.pendingRestorePassageSequence ?: return
+                if (sequence !in FIRST_PASSAGE_SEQUENCE..uiState.totalPassageCount) return
+                LoadedPassages(getPassages(from = sequence, to = sequence).passages.map(PassageModel::toUiModel))
+                    .findSentence(sentenceId)
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            recordFailure(
+                exception = exception,
+                operation = CrashOperation.COMMENT_SHEET_LOAD_FAILED,
+                passageSequence = commentSheet.pendingRestorePassageSequence,
+            )
+            return
+        } ?: return
+
+        commentSheet.restore(sentence)
     }
 
     fun loadPreviousPassages() {
@@ -630,7 +658,7 @@ class ReaderViewModel(
     fun openSentenceComments(sentence: SentenceUiModel) {
         commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
-        commentSheet.open(sentence)
+        commentSheet.open(sentence, uiState.passages.findPassageSequenceBySentenceId(sentence.sentenceId))
     }
 
     fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
@@ -923,6 +951,7 @@ class ReaderViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ReaderViewModel(
+                    savedStateHandle = createSavedStateHandle(),
                     readerTarget = readerTarget,
                     bookRepository = bookRepository,
                     groupRepository = groupRepository,
