@@ -1,0 +1,132 @@
+# Target: otel/opentelemetry-collector-contrib:0.161.0
+# Requires MySQL 8.0.28+ and enabled statement CPU instrumentation.
+receivers:
+  hostmetrics:
+    collection_interval: 60s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+          system.linux.memory.available:
+            enabled: true
+      paging:
+      filesystem:
+      disk:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  mysql:
+    endpoint: mysql:3306
+    username: otel_monitor
+    password: ${env:MYSQL_MONITOR_PASSWORD}
+    collection_interval: 60s
+  sqlquery/mysql_digest:
+    driver: mysql
+    host: mysql
+    port: 3306
+    database: performance_schema
+    username: otel_monitor
+    password: ${env:MYSQL_MONITOR_PASSWORD}
+    collection_interval: 60s
+    initial_delay: 5s
+    timeout: 10s
+    max_open_conn: 1
+    queries:
+      - sql: |
+          SELECT
+            SCHEMA_NAME AS db_name,
+            DIGEST AS digest,
+            COALESCE(LEFT(DIGEST_TEXT, 500), '') AS digest_text,
+            COUNT_STAR AS executions_total,
+            SUM_TIMER_WAIT / 1000000000000.0 AS elapsed_seconds_total,
+            SUM_CPU_TIME / 1000000000000.0 AS cpu_seconds_total,
+            SUM_ROWS_EXAMINED AS rows_examined_total,
+            SUM_ROWS_SENT AS rows_sent_total
+          FROM performance_schema.events_statements_summary_by_digest
+          WHERE SCHEMA_NAME IN ('yeobaek', 'yeobaek_load_test')
+            AND DIGEST IS NOT NULL
+        # Raw cumulative-counter snapshots, deliberately exported as gauges.
+        # Compare endpoint values for each DB/digest; do not SUM these samples.
+        # A reset/restart invalidates a comparison spanning that reset.
+        metrics:
+          - metric_name: mysql.query.executions.total
+            description: Cumulative statement executions snapshot; use differences between samples.
+            value_column: executions_total
+            value_type: int
+            data_type: gauge
+            unit: "{execution}"
+            attribute_columns: [db_name, digest, digest_text]
+          - metric_name: mysql.query.elapsed.total
+            description: Cumulative statement elapsed seconds snapshot, including waits.
+            value_column: elapsed_seconds_total
+            value_type: double
+            data_type: gauge
+            unit: s
+            attribute_columns: [db_name, digest, digest_text]
+          - metric_name: mysql.query.cpu.total
+            description: Cumulative statement CPU seconds snapshot since CPU collection began.
+            value_column: cpu_seconds_total
+            value_type: double
+            data_type: gauge
+            unit: s
+            attribute_columns: [db_name, digest, digest_text]
+          - metric_name: mysql.query.rows_examined.total
+            description: Cumulative rows examined snapshot; use differences between samples.
+            value_column: rows_examined_total
+            value_type: int
+            data_type: gauge
+            unit: "{row}"
+            attribute_columns: [db_name, digest, digest_text]
+          - metric_name: mysql.query.rows_sent.total
+            description: Cumulative rows sent snapshot; use differences between samples.
+            value_column: rows_sent_total
+            value_type: int
+            data_type: gauge
+            unit: "{row}"
+            attribute_columns: [db_name, digest, digest_text]
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+  # Logback MDC는 문자열이다. 기존 memberId의 정수 타입은 최종 로그에서 유지한다.
+  transform/app_logs:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["memberId"], Int(attributes["memberId"])) where IsString(attributes["memberId"]) and IsMatch(attributes["memberId"], "^[0-9]+$")
+  batch: {}
+exporters:
+  otlphttp/betterstack:
+    endpoint: ${env:BETTER_STACK_OTLP_ENDPOINT}
+    headers:
+      Authorization: "Bearer ${env:BETTER_STACK_SOURCE_TOKEN}"
+  otlphttp/yeobaek_dev:
+    endpoint: ${env:YEOBAEK_DEV_OTLP_ENDPOINT}
+    headers:
+      Authorization: "Bearer ${env:YEOBAEK_DEV_SOURCE_TOKEN}"
+service:
+  pipelines:
+    metrics/infra:
+      receivers: [hostmetrics, mysql, sqlquery/mysql_digest]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/betterstack]
+    metrics/app:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/yeobaek_dev]
+    logs/app:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/app_logs, batch]
+      exporters: [otlphttp/yeobaek_dev]
+    traces/app:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/yeobaek_dev]

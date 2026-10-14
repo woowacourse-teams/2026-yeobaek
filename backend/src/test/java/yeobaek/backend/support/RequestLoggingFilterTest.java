@@ -24,16 +24,23 @@ class RequestLoggingFilterTest {
     }
 
     @Test
-    @DisplayName("요청마다 다른 traceId를 부여하고 완료 후 기존 MDC를 복원한다")
-    void isolateTraceId() throws Exception {
-        MDC.put(RequestLoggingFilter.TRACE_ID, "outer-trace");
-        AtomicReference<String> first = captureTraceId("/api/books");
-        AtomicReference<String> second = captureTraceId("/api/clubs");
+    @DisplayName("추적 컨텍스트가 없으면 traceId를 만들지 않는다")
+    void leaveTraceContextToLibrary() throws Exception {
+        AtomicReference<String> captured = captureTraceId("/api/books");
 
-        assertThat(first.get()).isNotBlank().isNotEqualTo("outer-trace");
-        assertThat(second.get()).isNotBlank().isNotEqualTo(first.get());
-        assertThat(MDC.get(RequestLoggingFilter.TRACE_ID)).isEqualTo("outer-trace");
-        assertThat(MDC.get(RequestLoggingFilter.MEMBER_ID)).isNull();
+        assertThat(captured.get()).isNull();
+        assertThat(MDC.get("traceId")).isNull();
+    }
+
+    @Test
+    @DisplayName("라이브러리의 traceId와 spanId를 변경하지 않는다")
+    void preserveTraceContext() throws Exception {
+        MDC.put("traceId", "library-trace");
+        MDC.put("spanId", "library-span");
+
+        assertThat(captureTraceId("/api/books").get()).isEqualTo("library-trace");
+        assertThat(MDC.get("traceId")).isEqualTo("library-trace");
+        assertThat(MDC.get("spanId")).isEqualTo("library-span");
     }
 
     @Test
@@ -70,12 +77,27 @@ class RequestLoggingFilterTest {
         }
     }
 
+    @Test
+    @DisplayName("런타임 예외 후에도 회원 MDC를 정리하고 다음 요청에 전달하지 않는다")
+    void clearMemberAfterRuntimeFailure() throws Exception {
+        try (var logs = new LogCapture(RequestLoggingFilter.class.getName())) {
+            assertThatThrownBy(() -> filter.doFilter(new MockHttpServletRequest(),
+                    new MockHttpServletResponse(), (request, response) -> {
+                        MDC.put(RequestLoggingFilter.MEMBER_ID, "7");
+                        throw new IllegalStateException("failure");
+                    })).isInstanceOf(IllegalStateException.class);
+            assertThat(logs.field(logs.event("http.doFilterInternal", "failure"), "status")).isEqualTo(500);
+        }
+        assertThat(MDC.get(RequestLoggingFilter.MEMBER_ID)).isNull();
+        assertThat(captureTraceId("/api/books").get()).isNull();
+    }
+
     private AtomicReference<String> captureTraceId(String requestUri) throws Exception {
         AtomicReference<String> captured = new AtomicReference<>();
         MockHttpServletRequest request = new MockHttpServletRequest("GET", requestUri);
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, (servletRequest, servletResponse) -> {
-            captured.set(MDC.get(RequestLoggingFilter.TRACE_ID));
+            captured.set(MDC.get("traceId"));
             servletRequest.setAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE, requestUri);
         });
         return captured;
