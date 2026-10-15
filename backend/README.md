@@ -173,6 +173,11 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 
 현재 운영 수집은 실제 사용자가 없는 기간의 내부 테스트 계정에만 허용합니다. 운영 서버의 `.env`에서 PostHog를 활성화하고 재기동한 뒤 대상 API를 호출하면 US Cloud 프로젝트의 Activity에서 위 이벤트를 확인할 수 있습니다. 실제 사용자 유입 전에는 `POSTHOG_ENABLED=false`로 되돌리거나 국외 이전 동의 기능을 먼저 구현해야 합니다. 회원 로그인 도입 시에는 프론트엔드와 백엔드가 같은 `distinct_id`를 사용하도록 식별 정책을 함께 정합니다.
 
+## 관측 구성
+
+- [Spring Boot와 Better Stack 관측 구성](docs/Better_Stack_연동.md)
+- [개발 서버 전환·검증·원복 명령](docs/개발_관측_전환.md)
+
 ## 더 알아보기
 
 - [팀의 개발 방법](docs/온보딩_프로젝트_개발_방법.md)

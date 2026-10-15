@@ -3,6 +3,7 @@ package yeobaek.backend.comment.service;
 import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.CURRENT_PASSAGE_ID;
+import static yeobaek.backend.support.LogField.MEMBER_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SENTENCE_ID;
@@ -12,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
+import yeobaek.backend.comment.domain.CommentedSentence;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.Comments;
 import yeobaek.backend.comment.domain.ContentVisibility;
@@ -37,8 +40,9 @@ import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.repository.CommentSentenceRow;
 import yeobaek.backend.comment.repository.CommentViewRepository;
-import yeobaek.backend.comment.repository.CommentedSentenceSummary;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
@@ -60,6 +64,7 @@ public class CommentService {
     private final SentenceRepository sentenceRepository;
     private final PassageRepository passageRepository;
     private final MemberRepository memberRepository;
+    private final MemberBlockRepository memberBlockRepository;
     private final PublicRoomRepository publicRoomRepository;
 
     @Transactional
@@ -120,7 +125,9 @@ public class CommentService {
     @Transactional(readOnly = true)
     public NewCommentCountResponse countNewPublicRoomComments(Long memberId, Long publicRoomId,
                                                                Long currentPassageId) {
-        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage passage = findPassage(currentPassageId);
+        room.ensureCanRead(passage);
         long count = commentRepository.countNewVisibleCommentsInPublicRoom(
                 memberId, publicRoomId, passage.getSequence().value());
         return new NewCommentCountResponse(count);
@@ -129,13 +136,22 @@ public class CommentService {
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findPublicRoomCommentedSentences(Long memberId, Long publicRoomId,
                                                                        Long currentPassageId) {
-        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
-        int currentPassageSequence = passage.getSequence().value();
-        return new CommentedSentencesResponse(commentRepository
-                .findPublicRoomCommentedSentenceSummaries(memberId, publicRoomId).stream()
-                .map(summary -> toResponse(summary, currentPassageSequence))
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage currentPassage = findPassage(currentPassageId);
+        room.ensureCanRead(currentPassage);
+
+        Comments comments = new Comments(commentRepository.findAllWithSentenceByPublicRoomId(publicRoomId));
+        Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
+        Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
+        Set<Long> viewedCommentIds = visibleComments.isEmpty()
+                ? Set.of()
+                : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
+
+        List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
+                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
-                .toList());
+                .toList();
+        return new CommentedSentencesResponse(responses);
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +159,9 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.countNewComments")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("새 댓글 수를 조회합니다.");
-        Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
+        ClubMember clubMember = findClubMember(memberId, clubId);
+        Passage currentPassage = findPassage(currentPassageId);
+        clubMember.ensureCanRead(currentPassage);
         long count = commentRepository.countNewVisibleCommentsWithinProgress(
                 memberId, clubId, currentPassage.getSequence().value());
         var response = new NewCommentCountResponse(count);
@@ -158,14 +176,25 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("댓글이 있는 문장 목록을 조회합니다.");
-        Passage currentPassage = validatePassageContext(memberId, clubId, currentPassageId);
-        int currentPassageSequence = currentPassage.getSequence().value();
-        List<CommentedSentenceResponse> responses = commentRepository
-                .findCommentedSentenceSummaries(memberId, clubId).stream()
-                .map(summary -> toResponse(summary, currentPassageSequence))
+
+        ClubMember clubMember = findClubMember(memberId, clubId);
+        Passage currentPassage = findPassage(currentPassageId);
+        clubMember.ensureCanRead(currentPassage);
+
+        List<CommentSentenceRow> commentRows = commentRepository
+                .findAllVisibleSentenceRowsByMemberIdAndClubId(memberId, clubId);
+        Set<Long> viewedCommentIds = commentRows.isEmpty()
+                ? Set.of()
+                : new HashSet<>(commentViewRepository.findViewedCommentIds(
+                        memberId,
+                        commentRows.stream().map(CommentSentenceRow::commentId).toList()));
+
+        List<CommentedSentenceResponse> responses = CommentedSentence.summarize(commentRows, viewedCommentIds).stream()
+                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
-        var response = new CommentedSentencesResponse(responses);
+        CommentedSentencesResponse response = new CommentedSentencesResponse(responses);
+
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .addKeyValue("resultCount", responses.size()).log("댓글이 있는 문장 목록을 조회했습니다.");
@@ -280,31 +309,20 @@ public class CommentService {
     private record SentenceContext(ClubMember clubMember, Sentence sentence) {
     }
 
-    private Passage validatePassageContext(Long memberId, Long clubId, Long passageId) {
-        Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new NotFoundException(
-                        ErrorCode.CLUB_NOT_FOUND,
-                        "댓글 발견 정보를 조회할 모임이 존재하지 않습니다: clubId=" + clubId,
-                        passageContext(clubId, passageId)));
-        clubMemberRepository.findJoinedByMemberIdAndClubId(memberId, clubId)
+    private ClubMember findClubMember(Long memberId, Long clubId) {
+        return clubMemberRepository.findByMemberIdAndClubId(memberId, clubId)
                 .orElseThrow(() -> new ForbiddenException(
                         ErrorCode.NOT_CLUB_MEMBER,
-                        "모임에 참여 중인 회원만 댓글 발견 정보를 조회할 수 있습니다: clubId=" + clubId,
-                        passageContext(clubId, passageId)));
-        Passage passage = passageRepository.findById(passageId)
+                        "모임 참여 정보가 존재하지 않습니다: memberId=" + memberId + ", clubId=" + clubId,
+                        Map.of(MEMBER_ID, memberId.toString(), CLUB_ID, clubId.toString())));
+    }
+
+    private Passage findPassage(Long passageId) {
+        return passageRepository.findById(passageId)
                 .orElseThrow(() -> new BadRequestException(
                         ErrorCode.INVALID_REQUEST,
-                        "현재 문단이 존재하지 않습니다: passageId=" + passageId,
-                        passageContext(clubId, passageId)));
-        if (!club.isReading(passage)) {
-            throw new BadRequestException(
-                    ErrorCode.INVALID_REQUEST,
-                    "현재 문단이 해당 모임의 도서에 속하지 않습니다: clubId=" + clubId
-                            + ", passageId=" + passageId,
-                    passageContext(clubId, passageId));
-        }
-        club.ensureBookAvailable();
-        return passage;
+                        "문단이 존재하지 않습니다: passageId=" + passageId,
+                        Map.of("passageId", passageId.toString())));
     }
 
     private PublicRoom validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
@@ -321,22 +339,6 @@ public class CommentService {
         }
         room.ensureBookAvailable();
         return room;
-    }
-
-    private Passage validatePublicRoomPassageContext(Long publicRoomId, Long passageId) {
-        PublicRoom room = findPublicRoom(publicRoomId);
-        Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new BadRequestException(
-                        ErrorCode.INVALID_REQUEST,
-                        "현재 문단이 존재하지 않습니다: passageId=" + passageId));
-        if (!room.isReading(passage)) {
-            throw new BadRequestException(
-                    ErrorCode.INVALID_REQUEST,
-                    "현재 문단이 해당 공개방의 도서에 속하지 않습니다: publicRoomId=" + publicRoomId
-                            + ", passageId=" + passageId);
-        }
-        room.ensureBookAvailable();
-        return passage;
     }
 
     private PublicRoom findPublicRoom(Long publicRoomId) {
@@ -358,19 +360,19 @@ public class CommentService {
         commentViewRepository.saveAll(newViews);
     }
 
-    private CommentedSentenceResponse toResponse(CommentedSentenceSummary summary, int currentPassageSequence) {
-        boolean future = summary.getPassageSequence() > currentPassageSequence;
+    private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, Passage currentPassage) {
+        boolean future = commentedSentence.isFutureOf(currentPassage);
         return new CommentedSentenceResponse(
-                summary.getSentenceId(),
-                summary.getContent(),
-                summary.getPassageId(),
-                summary.getPassageSequence(),
-                summary.getSentenceSequence(),
+                commentedSentence.sentenceId(),
+                commentedSentence.content(),
+                commentedSentence.passageId(),
+                commentedSentence.passageSequence().value(),
+                commentedSentence.sentenceSequence().value(),
                 future,
-                summary.getCommentCount(),
-                summary.getUnreadCommentCount(),
-                ContentVisibility.from(future, summary.getUnreadCommentCount()),
-                summary.getLatestCommentCreatedAt());
+                commentedSentence.commentCount(),
+                commentedSentence.unreadCommentCount(),
+                ContentVisibility.from(future, commentedSentence.unreadCommentCount()),
+                commentedSentence.latestCommentCreatedAt());
     }
 
     private Comparator<CommentedSentenceResponse> commentedSentenceComparator() {
@@ -395,7 +397,4 @@ public class CommentService {
         return Map.of(CLUB_ID, clubId.toString(), SENTENCE_ID, sentenceId.toString());
     }
 
-    private Map<String, String> passageContext(Long clubId, Long passageId) {
-        return Map.of(CLUB_ID, clubId.toString(), "passageId", passageId.toString());
-    }
 }

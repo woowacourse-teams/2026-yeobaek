@@ -456,8 +456,8 @@
   기능 도입 전에 작성한 본인 댓글은 확인 기록이 없으므로 `NEW`이며 다른 기존 댓글과 동일하게 처리한다.
 - 조회 상태를 변경하지 않는 부작용 없는 API다. 호출 시점과 주기는 클라이언트가 결정하며,
   서버 푸시는 이 계약의 범위에 포함하지 않는다.
-- 모임 미소속 회원은 `403` (`NOT_CLUB_MEMBER`), 존재하지 않는 모임은 `400`
-  (`CLUB_NOT_FOUND`)을 반환한다. 모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+- 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
+  모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 댓글 문장 목록 전체 조회
 `GET /api/clubs/{clubId}/commented-sentences?currentPassageId=1042`
@@ -520,8 +520,8 @@
   3. 진도와 관계없이 `unreadCommentCount=0`인 확인한 문장
 - 응답 필드는 해당 목록 요청 시점의 값이다. 이후 변경은 목록을 새로 요청할 때 반영한다.
 - 결과가 비어 있으면 `commentedSentences`는 빈 배열이다.
-- 모임 미소속 회원은 `403` (`NOT_CLUB_MEMBER`), 존재하지 않는 모임은 `400`
-  (`CLUB_NOT_FOUND`)을 반환한다. 모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+- 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
+  모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
 ### 문장의 댓글 상세 조회 + 직접 확인
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
