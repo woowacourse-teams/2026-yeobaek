@@ -178,7 +178,7 @@ public class CommentService {
                 .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
-        var response = new CommentedSentencesResponse(responses);
+        CommentedSentencesResponse response = new CommentedSentencesResponse(responses);
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .addKeyValue("resultCount", responses.size()).log("댓글이 있는 문장 목록을 조회했습니다.");
