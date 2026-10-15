@@ -24,9 +24,9 @@ fun JoinCodeTextField(
         modifier = modifier.fillMaxWidth(),
     ) {
         Text(
-            if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "참여 코드",
+            "참여 코드",
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = if (codeState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -37,6 +37,13 @@ fun JoinCodeTextField(
             },
             placeholder = "예: BOOK42",
             isError = codeState,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            if (codeState) "잘못된 코드입니다. 다시 입력해주세요." else "",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = if (codeState) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
         )
     }
 }
