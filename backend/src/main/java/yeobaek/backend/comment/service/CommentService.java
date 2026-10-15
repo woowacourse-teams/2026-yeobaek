@@ -165,20 +165,24 @@ public class CommentService {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences")
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("댓글이 있는 문장 목록을 조회합니다.");
+
         ClubMember clubMember = findClubMember(memberId, clubId);
         Passage currentPassage = findPassage(currentPassageId);
         clubMember.ensureCanRead(currentPassage);
+
         Comments comments = new Comments(commentRepository.findAllWithSentenceByClubId(clubId));
         Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
         Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
         Set<Long> viewedCommentIds = visibleComments.isEmpty()
                 ? Set.of()
                 : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
+
         List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
                 .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
         CommentedSentencesResponse response = new CommentedSentencesResponse(responses);
+
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .addKeyValue("resultCount", responses.size()).log("댓글이 있는 문장 목록을 조회했습니다.");
