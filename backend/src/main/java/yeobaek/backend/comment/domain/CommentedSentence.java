@@ -1,8 +1,6 @@
 package yeobaek.backend.comment.domain;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Set;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.Sentence;
@@ -23,19 +21,9 @@ public record CommentedSentence(
         return passageSequence.isAfter(currentPassage.getSequence());
     }
 
-    public static CommentedSentence from(List<Comment> comments, Set<Long> viewedCommentIds) {
-        if (comments.isEmpty()) {
-            throw new IllegalArgumentException("집계할 댓글이 필요합니다.");
-        }
-        Comment first = comments.getFirst();
-        long unreadCommentCount = comments.stream()
-                .filter(comment -> !comment.isViewed(viewedCommentIds))
-                .count();
-        LocalDateTime latestCommentCreatedAt = comments.stream()
-                .map(Comment::getCreatedAt)
-                .max(Comparator.naturalOrder())
-                .orElseThrow();
-        Sentence sentence = first.getSentence();
+    public static CommentedSentence from(Comments comments, Set<Long> viewedCommentIds) {
+        Comment representativeComment = comments.representativeComment();
+        Sentence sentence = representativeComment.getSentence();
         Passage passage = sentence.getPassage();
         return new CommentedSentence(
                 sentence.getId(),
@@ -44,7 +32,7 @@ public record CommentedSentence(
                 passage.getSequence(),
                 sentence.getSequence(),
                 comments.size(),
-                unreadCommentCount,
-                latestCommentCreatedAt);
+                comments.countUnread(viewedCommentIds),
+                comments.latestCreatedAt());
     }
 }

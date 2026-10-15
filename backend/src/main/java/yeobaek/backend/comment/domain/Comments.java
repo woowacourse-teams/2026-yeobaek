@@ -1,5 +1,7 @@
 package yeobaek.backend.comment.domain;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +18,30 @@ public final class Comments {
 
     public boolean isEmpty() {
         return values.isEmpty();
+    }
+
+    public int size() {
+        return values.size();
+    }
+
+    public Comment representativeComment() {
+        if (isEmpty()) {
+            throw new IllegalArgumentException("댓글이 없어 대표 댓글을 선택할 수 없습니다.");
+        }
+        return values.getFirst();
+    }
+
+    public long countUnread(Set<Long> viewedCommentIds) {
+        return values.stream()
+                .filter(comment -> !comment.isViewed(viewedCommentIds))
+                .count();
+    }
+
+    public LocalDateTime latestCreatedAt() {
+        return values.stream()
+                .map(Comment::getCreatedAt)
+                .max(Comparator.naturalOrder())
+                .orElseThrow();
     }
 
     public List<Long> ids() {
@@ -43,6 +69,7 @@ public final class Comments {
                         LinkedHashMap::new,
                         Collectors.toList()));
         return commentsBySentence.values().stream()
+                .map(Comments::new)
                 .map(comments -> CommentedSentence.from(comments, viewedCommentIds))
                 .toList();
     }
