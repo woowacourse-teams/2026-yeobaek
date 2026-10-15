@@ -28,7 +28,7 @@ fun JoinScreen(
     uiState: JoinUiState,
     onCodeValueChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    navigateToHome: () -> Unit,
+    onJoinClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PlatformBackHandler(onBack = onBackClick)
@@ -52,7 +52,7 @@ fun JoinScreen(
         bottomBar = {
             YeobaekButton(
                 text = "모임 참여하기",
-                onClick = navigateToHome,
+                onClick = onJoinClick,
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },
@@ -86,7 +86,7 @@ private fun JoinScreenPreview() {
             uiState = JoinUiState(),
             onCodeValueChange = {},
             onBackClick = {},
-            navigateToHome = {},
+            onJoinClick = {},
         )
     }
 }
