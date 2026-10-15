@@ -3,16 +3,18 @@ package com.yeobaek.feature.reader.component
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
 import android.shared.generated.resources.ic_comment
-import android.shared.generated.resources.ic_new_comment
 import android.shared.generated.resources.ic_table_of_contents
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -98,7 +100,7 @@ fun ReaderTopBar(
                     Icon(
                         painter = painterResource(Res.drawable.ic_table_of_contents),
                         contentDescription = "목차 열기",
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
 
@@ -106,13 +108,22 @@ fun ReaderTopBar(
                     onClick = onCommentCollectionsClick,
                     modifier = Modifier.size(40.dp),
                 ) {
-                    Icon(
-                        painter = painterResource(
-                            if (isNewComment) Res.drawable.ic_new_comment else Res.drawable.ic_comment,
-                        ),
-                        contentDescription = "댓글 모아보기 열기",
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Box(modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_comment),
+                            contentDescription = "댓글 모아보기 열기",
+                            modifier = Modifier.size(24.dp),
+                        )
+                        if (isNewComment) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-1).dp, y = 0.dp)
+                                    .size(8.dp)
+                                    .background(MaterialTheme.colorScheme.error, CircleShape),
+                            )
+                        }
+                    }
                 }
 
                 Box {
@@ -126,7 +137,7 @@ fun ReaderTopBar(
                             Text(
                                 text = "가",
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 15.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 ),
                             )
@@ -138,7 +149,7 @@ fun ReaderTopBar(
                             Text(
                                 text = "가",
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 8.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                 ),
                             )
@@ -168,7 +179,7 @@ private fun ReaderTopBarPreview() {
             title = "데미안",
             author = "헤르만 헤세",
             fontSize = ReaderFontSize.DEFAULT,
-            isNewComment = false,
+            isNewComment = true,
             isTextSettingMenuExpanded = true,
             onBackClick = {},
             onTableOfContentsClick = {},
