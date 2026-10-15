@@ -28,6 +28,8 @@ import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
 
 class CommentRepositoryTest extends IntegrationTest {
@@ -52,6 +54,9 @@ class CommentRepositoryTest extends IntegrationTest {
 
     @Autowired
     private ClubMemberRepository clubMemberRepository;
+
+    @Autowired
+    private PublicRoomRepository publicRoomRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -152,6 +157,42 @@ class CommentRepositoryTest extends IntegrationTest {
             assertThat(comment.getSentence().getContent()).isEqualTo("조회 문장");
             assertThat(comment.getSentence().getPassage().getId()).isEqualTo(passage.getId());
             assertThat(comment.isPublicRoomComment()).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("공개방 댓글과 문장 집계에 필요한 연관 정보를 함께 조회한다")
+    void findAllWithSentenceByPublicRoomId() {
+        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 조회 도서"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(
+                chapter, 1, Collections.singletonList(new SentenceContent("공개방 조회 문장"))));
+        Member member = memberRepository.save(new Member(new Nickname("공개방 작성자")));
+        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 공개방 도서"), null, null, 1, null));
+        Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
+        Passage otherPassage = passageRepository.save(new Passage(
+                otherChapter, 1, Collections.singletonList(new SentenceContent("다른 공개방 문장"))));
+        PublicRoom otherRoom = publicRoomRepository.save(new PublicRoom(otherBook));
+        Comment firstExpected = commentRepository.save(new Comment(
+                room, member, passage.getSentences().getFirst(), new CommentContent("첫 공개방 댓글")));
+        Comment secondExpected = commentRepository.save(new Comment(
+                room, member, passage.getSentences().getFirst(), new CommentContent("둘째 공개방 댓글")));
+        commentRepository.save(new Comment(
+                otherRoom, member, otherPassage.getSentences().getFirst(), new CommentContent("다른 공개방 댓글")));
+        commentRepository.flush();
+        entityManager.clear();
+
+        var comments = commentRepository.findAllWithSentenceByPublicRoomId(room.getId());
+        entityManager.clear();
+
+        assertThat(comments).extracting(Comment::getId)
+                .containsExactlyInAnyOrder(firstExpected.getId(), secondExpected.getId());
+        assertThat(comments).allSatisfy(comment -> {
+            assertThat(comment.getWriter().getNickname()).isEqualTo("공개방 작성자");
+            assertThat(comment.getSentence().getContent()).isEqualTo("공개방 조회 문장");
+            assertThat(comment.getSentence().getPassage().getId()).isEqualTo(passage.getId());
+            assertThat(comment.isPublicRoomComment()).isTrue();
         });
     }
 }

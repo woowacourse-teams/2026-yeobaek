@@ -142,28 +142,15 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                                         @Param("sentenceIds") List<Long> sentenceIds);
 
     @Query("""
-            select s.id as sentenceId,
-                   s.content.value as content,
-                   p.id as passageId,
-                   p.sequence.value as passageSequence,
-                   s.sequence.value as sentenceSequence,
-                   count(distinct c.id) as commentCount,
-                   count(distinct case when cv.id is null then c.id else null end) as unreadCommentCount,
-                   max(c.createdAt) as latestCommentCreatedAt
-            from Comment c
-            join c.sentence s
-            join s.passage p
-            left join CommentView cv on cv.comment.id = c.id and cv.member.id = :memberId
-            where c.publicRoomComment.publicRoom.id = :publicRoomId
-              and not exists (
-                  select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = c.writer.id
-              )
-            group by s.id, s.content.value, p.id, p.sequence.value, s.sequence.value
+            select c from Comment c
+            join fetch c.publicRoomComment prc
+            left join fetch c.clubComment
+            join fetch c.writer
+            join fetch c.sentence s
+            join fetch s.passage
+            where prc.publicRoom.id = :publicRoomId
             """)
-    List<CommentedSentenceSummary> findPublicRoomCommentedSentenceSummaries(
-            @Param(MEMBER_ID) Long memberId,
-            @Param(PUBLIC_ROOM_ID) Long publicRoomId);
+    List<Comment> findAllWithSentenceByPublicRoomId(@Param(PUBLIC_ROOM_ID) Long publicRoomId);
 
     @Query("""
             select count(c) from Comment c

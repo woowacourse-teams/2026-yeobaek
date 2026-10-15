@@ -41,7 +41,6 @@ import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
-import yeobaek.backend.comment.repository.CommentedSentenceSummary;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
@@ -125,7 +124,9 @@ public class CommentService {
     @Transactional(readOnly = true)
     public NewCommentCountResponse countNewPublicRoomComments(Long memberId, Long publicRoomId,
                                                                Long currentPassageId) {
-        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage passage = findPassage(currentPassageId);
+        room.ensureCanRead(passage);
         long count = commentRepository.countNewVisibleCommentsInPublicRoom(
                 memberId, publicRoomId, passage.getSequence().value());
         return new NewCommentCountResponse(count);
@@ -134,13 +135,22 @@ public class CommentService {
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findPublicRoomCommentedSentences(Long memberId, Long publicRoomId,
                                                                        Long currentPassageId) {
-        Passage passage = validatePublicRoomPassageContext(publicRoomId, currentPassageId);
-        int currentPassageSequence = passage.getSequence().value();
-        return new CommentedSentencesResponse(commentRepository
-                .findPublicRoomCommentedSentenceSummaries(memberId, publicRoomId).stream()
-                .map(summary -> toResponse(summary, currentPassageSequence))
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage currentPassage = findPassage(currentPassageId);
+        room.ensureCanRead(currentPassage);
+
+        Comments comments = new Comments(commentRepository.findAllWithSentenceByPublicRoomId(publicRoomId));
+        Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
+        Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
+        Set<Long> viewedCommentIds = visibleComments.isEmpty()
+                ? Set.of()
+                : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
+
+        List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
+                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
-                .toList());
+                .toList();
+        return new CommentedSentencesResponse(responses);
     }
 
     @Transactional(readOnly = true)
@@ -329,22 +339,6 @@ public class CommentService {
         return room;
     }
 
-    private Passage validatePublicRoomPassageContext(Long publicRoomId, Long passageId) {
-        PublicRoom room = findPublicRoom(publicRoomId);
-        Passage passage = passageRepository.findById(passageId)
-                .orElseThrow(() -> new BadRequestException(
-                        ErrorCode.INVALID_REQUEST,
-                        "현재 문단이 존재하지 않습니다: passageId=" + passageId));
-        if (!room.isReading(passage)) {
-            throw new BadRequestException(
-                    ErrorCode.INVALID_REQUEST,
-                    "현재 문단이 해당 공개방의 도서에 속하지 않습니다: publicRoomId=" + publicRoomId
-                            + ", passageId=" + passageId);
-        }
-        room.ensureBookAvailable();
-        return passage;
-    }
-
     private PublicRoom findPublicRoom(Long publicRoomId) {
         return publicRoomRepository.findWithBookById(publicRoomId)
                 .orElseThrow(() -> new NotFoundException(
@@ -362,21 +356,6 @@ public class CommentService {
                 .map(comment -> new CommentView(member, comment))
                 .toList();
         commentViewRepository.saveAll(newViews);
-    }
-
-    private CommentedSentenceResponse toResponse(CommentedSentenceSummary summary, int currentPassageSequence) {
-        boolean future = summary.getPassageSequence() > currentPassageSequence;
-        return new CommentedSentenceResponse(
-                summary.getSentenceId(),
-                summary.getContent(),
-                summary.getPassageId(),
-                summary.getPassageSequence(),
-                summary.getSentenceSequence(),
-                future,
-                summary.getCommentCount(),
-                summary.getUnreadCommentCount(),
-                ContentVisibility.from(future, summary.getUnreadCommentCount()),
-                summary.getLatestCommentCreatedAt());
     }
 
     private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, Passage currentPassage) {
