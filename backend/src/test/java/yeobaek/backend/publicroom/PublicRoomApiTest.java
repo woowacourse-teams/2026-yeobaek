@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -30,11 +32,15 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
@@ -72,6 +78,12 @@ class PublicRoomApiTest extends IntegrationTest {
 
     @Autowired
     private CommentReportRepository commentReportRepository;
+
+    @Autowired
+    private CommentViewRepository commentViewRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     @Autowired
     private PublicRoomService publicRoomService;
@@ -309,6 +321,48 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.commentedSentences[1].sentenceSequence").value(2))
                 .andExpect(jsonPath("$.commentedSentences[2].passageSequence").value(2))
                 .andExpect(jsonPath("$.commentedSentences[2].sentenceSequence").value(1));
+    }
+
+    @Test
+    @DisplayName("공개방 댓글 문장 조회는 차단 댓글을 제외하고 확인 여부와 최신 시각을 도메인에서 집계한다")
+    void commentedSentencesExcludeBlockedWritersAndAggregateVisibleComments() {
+        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 집계 책"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1,
+                List.of(new SentenceContent("혼합 댓글 문장"), new SentenceContent("차단 댓글만 있는 문장"))));
+        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        Member visibleWriter = memberRepository.save(new Member(new Nickname("보이는 작성자")));
+        Member blockedWriter = memberRepository.save(new Member(new Nickname("차단 작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("집계 독자")));
+        Comment visible = commentRepository.saveAndFlush(new Comment(room, visibleWriter,
+                passage.getSentences().getFirst(), new CommentContent("보이는 댓글")));
+        Comment blockedInSameSentence = commentRepository.saveAndFlush(new Comment(room, blockedWriter,
+                passage.getSentences().getFirst(), new CommentContent("더 나중에 작성된 차단 댓글")));
+        Comment blockedInOtherSentence = commentRepository.saveAndFlush(new Comment(room, blockedWriter,
+                passage.getSentences().getLast(), new CommentContent("차단 댓글만 존재")));
+        LocalDateTime visibleCreatedAt = LocalDateTime.of(2026, 10, 15, 10, 0);
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt), visible.getId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt.plusHours(1)), blockedInSameSentence.getId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt.plusHours(2)), blockedInOtherSentence.getId());
+        commentViewRepository.saveAll(List.of(
+                new CommentView(reader, visible),
+                new CommentView(reader, visible)));
+        memberBlockRepository.save(new MemberBlock(reader, blockedWriter));
+        long viewCountBeforeQuery = commentViewRepository.count();
+
+        var response = commentService.findPublicRoomCommentedSentences(
+                reader.getId(), room.getId(), passage.getId());
+
+        assertThat(response.commentedSentences()).singleElement().satisfies(summary -> {
+            assertThat(summary.sentenceId()).isEqualTo(passage.getSentences().getFirst().getId());
+            assertThat(summary.commentCount()).isEqualTo(1);
+            assertThat(summary.unreadCommentCount()).isZero();
+            assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
+        });
+        assertThat(commentViewRepository.count()).isEqualTo(viewCountBeforeQuery);
     }
 
     @Test

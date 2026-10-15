@@ -9,12 +9,16 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 @Entity
 @Table(name = "public_rooms", uniqueConstraints = {
@@ -46,5 +50,26 @@ public class PublicRoom {
 
     public void ensureBookAvailable() {
         book.ensureAvailable();
+    }
+
+    public void ensureCanRead(Passage passage) {
+        if (!isReading(passage)) {
+            throw new BadRequestException(
+                    ErrorCode.INVALID_REQUEST,
+                    "해당 공개방의 도서에 속한 문단이 아닙니다.",
+                    readingLogContext(passage));
+        }
+        ensureBookAvailable();
+    }
+
+    private Map<String, String> readingLogContext(Passage passage) {
+        Map<String, String> context = new HashMap<>();
+        if (id != null) {
+            context.put("publicRoomId", id.toString());
+        }
+        if (passage.getId() != null) {
+            context.put("passageId", passage.getId().toString());
+        }
+        return context;
     }
 }
