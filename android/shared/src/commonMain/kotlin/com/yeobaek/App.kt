@@ -86,20 +86,16 @@ fun App(
                     if (fromMyPage) {
                         navController.navigateToHome(
                             navOptions = navOptions {
-                                navController.currentDestination?.route?.let {
-                                    popUpTo<Home> {
-                                        inclusive = true
-                                    }
+                                popUpTo<Home> {
+                                    inclusive = true
                                 }
                             },
                         )
                     } else {
                         navController.navigateToOnboarding(
                             navOptions = navOptions {
-                                navController.currentDestination?.route?.let {
-                                    popUpTo<Guide> {
-                                        inclusive = true
-                                    }
+                                popUpTo<Guide> {
+                                    inclusive = true
                                 }
                             },
                         )
@@ -115,15 +111,13 @@ fun App(
 
                     navController.navigateToHome(
                         navOptions = navOptions {
-                            navController.currentDestination?.route?.let {
-                                if (hasHome) {
-                                    popUpTo<Home> {
-                                        inclusive = true
-                                    }
-                                } else {
-                                    popUpTo<Onboarding> {
-                                        inclusive = true
-                                    }
+                            if (hasHome) {
+                                popUpTo<Home> {
+                                    inclusive = true
+                                }
+                            } else {
+                                popUpTo<Onboarding> {
+                                    inclusive = true
                                 }
                             }
                         },
