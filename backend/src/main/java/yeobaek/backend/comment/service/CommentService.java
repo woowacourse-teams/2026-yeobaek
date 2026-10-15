@@ -40,6 +40,7 @@ import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.repository.CommentSentenceRow;
 import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
@@ -180,14 +181,15 @@ public class CommentService {
         Passage currentPassage = findPassage(currentPassageId);
         clubMember.ensureCanRead(currentPassage);
 
-        Comments comments = new Comments(commentRepository.findAllWithSentenceByClubId(clubId));
-        Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
-        Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
-        Set<Long> viewedCommentIds = visibleComments.isEmpty()
+        List<CommentSentenceRow> commentRows = commentRepository
+                .findAllVisibleSentenceRowsByMemberIdAndClubId(memberId, clubId);
+        Set<Long> viewedCommentIds = commentRows.isEmpty()
                 ? Set.of()
-                : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
+                : new HashSet<>(commentViewRepository.findViewedCommentIds(
+                        memberId,
+                        commentRows.stream().map(CommentSentenceRow::commentId).toList()));
 
-        List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
+        List<CommentedSentenceResponse> responses = CommentedSentence.summarize(commentRows, viewedCommentIds).stream()
                 .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
