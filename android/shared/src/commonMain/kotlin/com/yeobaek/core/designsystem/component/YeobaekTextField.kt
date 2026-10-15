@@ -20,11 +20,12 @@ fun YeobaekTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    transformInput: (String) -> String = { it },
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = { input ->
-            onValueChange(input.take(PARTICIPATION_CODE_LENGTH))
+            onValueChange(transformInput(input).take(PARTICIPATION_CODE_LENGTH))
         },
         textStyle = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.ExtraBold,

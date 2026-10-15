@@ -32,11 +32,14 @@ fun JoinCodeTextField(
         Spacer(modifier = Modifier.height(8.dp))
         YeobaekTextField(
             value = codeValue,
-            onValueChange = {
-                onCodeValueChange(it)
-            },
+            onValueChange = onCodeValueChange,
             placeholder = "예: BOOK42",
             isError = codeState,
+            transformInput = { input ->
+                input.filter { character ->
+                    character in 'A'..'Z' || character in 'a'..'z' || character in '0'..'9'
+                }.uppercase()
+            },
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
