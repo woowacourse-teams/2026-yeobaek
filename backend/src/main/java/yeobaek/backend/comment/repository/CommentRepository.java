@@ -85,15 +85,29 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                                                               @Param("sentenceIds") List<Long> sentenceIds);
 
     @Query("""
-            select c from Comment c
-            join fetch c.clubComment cc
-            left join fetch c.publicRoomComment
-            join fetch c.writer
-            join fetch c.sentence s
-            join fetch s.passage
-            where cc.club.id = :clubId
+            select new yeobaek.backend.comment.repository.CommentSentenceRow(
+                c.id,
+                c.createdAt,
+                sentence.id,
+                sentence.content.value,
+                passage.id,
+                passage.sequence.value,
+                sentence.sequence.value
+            )
+            from Comment c
+            join c.clubComment clubComment
+            join c.sentence sentence
+            join sentence.passage passage
+            where clubComment.club.id = :clubId
+              and not exists (
+                  select memberBlock.id from MemberBlock memberBlock
+                  where memberBlock.blocker.id = :memberId
+                    and memberBlock.blocked.id = c.writer.id
+              )
             """)
-    List<Comment> findAllWithSentenceByClubId(@Param(CLUB_ID) Long clubId);
+    List<CommentSentenceRow> findAllVisibleSentenceRowsByMemberIdAndClubId(
+            @Param(MEMBER_ID) Long memberId,
+            @Param(CLUB_ID) Long clubId);
 
     @Query("""
             select count(c) from Comment c

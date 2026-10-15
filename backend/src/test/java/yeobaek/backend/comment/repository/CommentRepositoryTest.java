@@ -4,10 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import java.util.Collections;
+import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -26,7 +30,9 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
@@ -54,6 +60,9 @@ class CommentRepositoryTest extends IntegrationTest {
 
     @Autowired
     private ClubMemberRepository clubMemberRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     @Autowired
     private PublicRoomRepository publicRoomRepository;
@@ -127,37 +136,50 @@ class CommentRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 댓글과 문장 집계에 필요한 연관 정보를 함께 조회한다")
-    void findAllWithSentenceByClubId() {
+    @Transactional
+    @DisplayName("모임 댓글 문장 집계에 필요한 스칼라 값만 조회하고 보이지 않는 댓글은 제외한다")
+    void findAllVisibleSentenceRowsByMemberIdAndClubId() {
         Book book = bookRepository.save(new Book(new BookTitle("댓글 문장 조회 도서"), null, null, 1, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(
                 chapter, 1, Collections.singletonList(new SentenceContent("조회 문장"))));
-        Member member = memberRepository.save(new Member(new Nickname("조회 작성자")));
+        Member viewer = memberRepository.save(new Member(new Nickname("조회자")));
+        Member visibleWriter = memberRepository.save(new Member(new Nickname("조회 작성자")));
+        Member blockedWriter = memberRepository.save(new Member(new Nickname("차단 작성자")));
         Club club = clubRepository.save(new Club(new ClubName("조회 모임"), book, new JoinCode("FETCH1")));
         Club otherClub = clubRepository.save(new Club(new ClubName("다른 모임"), book, new JoinCode("FETCH2")));
-        ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
-        ClubMember otherMembership = clubMemberRepository.save(new ClubMember(member, otherClub));
-        Comment firstExpected = commentRepository.save(new Comment(
-                membership, passage.getSentences().getFirst(), new CommentContent("첫 조회 댓글")));
-        Comment secondExpected = commentRepository.save(new Comment(
-                membership, passage.getSentences().getFirst(), new CommentContent("둘째 조회 댓글")));
+        ClubMember visibleMembership = clubMemberRepository.save(new ClubMember(visibleWriter, club));
+        ClubMember blockedMembership = clubMemberRepository.save(new ClubMember(blockedWriter, club));
+        ClubMember otherMembership = clubMemberRepository.save(new ClubMember(visibleWriter, otherClub));
+        Comment expected = commentRepository.save(new Comment(
+                visibleMembership, passage.getSentences().getFirst(), new CommentContent("조회 댓글")));
+        LocalDateTime expectedCreatedAt = LocalDateTime.of(2026, 10, 15, 10, 30, 20, 123_000_000);
+        ReflectionTestUtils.setField(expected, "createdAt", expectedCreatedAt);
         commentRepository.save(new Comment(
                 otherMembership, passage.getSentences().getFirst(), new CommentContent("다른 모임 댓글")));
+        commentRepository.save(new Comment(
+                blockedMembership, passage.getSentences().getFirst(), new CommentContent("차단 댓글")));
+        PublicRoom publicRoom = publicRoomRepository.save(new PublicRoom(book));
+        commentRepository.save(new Comment(
+                publicRoom, visibleWriter, passage.getSentences().getFirst(), new CommentContent("공개방 댓글")));
+        memberBlockRepository.save(new MemberBlock(viewer, blockedWriter));
         commentRepository.flush();
+        Long expectedCommentId = expected.getId();
+        Long sentenceId = passage.getSentences().getFirst().getId();
+        Long passageId = passage.getId();
         entityManager.clear();
 
-        var comments = commentRepository.findAllWithSentenceByClubId(club.getId());
-        entityManager.clear();
+        var rows = commentRepository.findAllVisibleSentenceRowsByMemberIdAndClubId(viewer.getId(), club.getId());
 
-        assertThat(comments).extracting(Comment::getId)
-                .containsExactlyInAnyOrder(firstExpected.getId(), secondExpected.getId());
-        assertThat(comments).allSatisfy(comment -> {
-            assertThat(comment.getWriter().getNickname()).isEqualTo("조회 작성자");
-            assertThat(comment.getSentence().getContent()).isEqualTo("조회 문장");
-            assertThat(comment.getSentence().getPassage().getId()).isEqualTo(passage.getId());
-            assertThat(comment.isPublicRoomComment()).isFalse();
-        });
+        assertThat(rows).containsExactly(new CommentSentenceRow(
+                expectedCommentId,
+                expectedCreatedAt,
+                sentenceId,
+                "조회 문장",
+                passageId,
+                1,
+                1));
+        assertThat(entityManager.unwrap(Session.class).getStatistics().getEntityCount()).isZero();
     }
 
     @Test
