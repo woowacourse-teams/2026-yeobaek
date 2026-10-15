@@ -168,7 +168,6 @@ public class CommentService {
         ClubMember clubMember = findClubMember(memberId, clubId);
         Passage currentPassage = findPassage(currentPassageId);
         clubMember.ensureCanRead(currentPassage);
-        int currentPassageSequence = currentPassage.getSequence().value();
         Comments comments = new Comments(commentRepository.findAllWithSentenceByClubId(clubId));
         Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
         Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
@@ -176,7 +175,7 @@ public class CommentService {
                 ? Set.of()
                 : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
         List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
-                .map(commentedSentence -> toResponse(commentedSentence, currentPassageSequence))
+                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
         var response = new CommentedSentencesResponse(responses);
@@ -376,8 +375,8 @@ public class CommentService {
                 summary.getLatestCommentCreatedAt());
     }
 
-    private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, int currentPassageSequence) {
-        boolean future = commentedSentence.passageSequence().value() > currentPassageSequence;
+    private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, Passage currentPassage) {
+        boolean future = commentedSentence.isFutureOf(currentPassage);
         return new CommentedSentenceResponse(
                 commentedSentence.sentenceId(),
                 commentedSentence.content(),

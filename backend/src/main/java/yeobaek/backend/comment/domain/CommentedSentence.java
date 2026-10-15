@@ -19,6 +19,10 @@ public record CommentedSentence(
         LocalDateTime latestCommentCreatedAt
 ) {
 
+    public boolean isFutureOf(Passage currentPassage) {
+        return passageSequence.isAfter(currentPassage.getSequence());
+    }
+
     public static CommentedSentence from(List<Comment> comments, Set<Long> viewedCommentIds) {
         if (comments.isEmpty()) {
             throw new IllegalArgumentException("집계할 댓글이 필요합니다.");
