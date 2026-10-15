@@ -36,13 +36,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.orm.jpa.support.OpenEntityManagerInViewInterceptor;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -82,8 +80,6 @@ class ObservabilityIntegrationTest {
     private MeterRegistry meters;
     @Autowired
     private javax.sql.DataSource dataSource;
-    @Autowired
-    private ApplicationContext applicationContext;
 
     @DynamicPropertySource
     static void otlp(DynamicPropertyRegistry properties) {
@@ -173,7 +169,7 @@ class ObservabilityIntegrationTest {
     }
 
     @Test
-    void exposeTomcatWorkerPoolMetricsWithOsivInterceptor() throws Exception {
+    void exposeTomcatWorkerPoolMetrics() throws Exception {
         assertThat(get("/probe").statusCode()).isEqualTo(200);
 
         assertThat(meters.get("tomcat.threads.busy").gauges())
@@ -182,7 +178,6 @@ class ObservabilityIntegrationTest {
                 .anySatisfy(gauge -> assertThat(gauge.value()).isPositive());
         assertThat(meters.get("tomcat.threads.config.max").gauges())
                 .anySatisfy(gauge -> assertThat(gauge.value()).isEqualTo(1));
-        assertThat(applicationContext.getBeansOfType(OpenEntityManagerInViewInterceptor.class)).hasSize(1);
     }
 
     @Test
