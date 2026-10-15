@@ -3,6 +3,7 @@ package yeobaek.backend.comment.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -500,6 +501,33 @@ class CommentServiceTest extends IntegrationTest {
         commentService.update(writer.getId(), created.commentId(), new CommentContent("수정 후에도 확인 유지"));
         assertThat(commentService.countNewComments(other.getId(), club.getId(), passage.getId()).newCommentCount())
                 .isZero();
+    }
+
+    @Test
+    @DisplayName("문장 집계는 차단한 작성자의 댓글 수와 최신 작성 시각을 제외한다")
+    void aggregateOnlyVisibleComments() {
+        CommentResponse visible = commentService.create(
+                other.getId(), club.getId(), sentence.getId(), new CommentContent("보이는 댓글"));
+        LocalDateTime visibleCreatedAt = LocalDateTime.of(2026, 10, 14, 10, 0);
+        Comment visibleComment = commentRepository.findById(visible.commentId()).orElseThrow();
+        org.springframework.test.util.ReflectionTestUtils.setField(visibleComment, "createdAt", visibleCreatedAt);
+        commentRepository.saveAndFlush(visibleComment);
+        Member blocked = memberRepository.save(new Member(new Nickname("차단 대상")));
+        clubMemberRepository.save(new ClubMember(blocked, club));
+        CommentResponse hidden = commentService.create(
+                blocked.getId(), club.getId(), sentence.getId(), new CommentContent("더 늦은 숨긴 댓글"));
+        Comment hiddenComment = commentRepository.findById(hidden.commentId()).orElseThrow();
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                hiddenComment, "createdAt", visibleCreatedAt.plusHours(1));
+        commentRepository.saveAndFlush(hiddenComment);
+        memberBlockRepository.save(new MemberBlock(writer, blocked));
+
+        var summary = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences().getFirst();
+
+        assertThat(summary.commentCount()).isEqualTo(1);
+        assertThat(summary.unreadCommentCount()).isEqualTo(1);
+        assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
     }
 
     @Test

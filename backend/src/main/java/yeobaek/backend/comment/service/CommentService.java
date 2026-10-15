@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
+import yeobaek.backend.comment.domain.CommentedSentence;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.Comments;
 import yeobaek.backend.comment.domain.ContentVisibility;
@@ -40,6 +42,7 @@ import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.comment.repository.CommentedSentenceSummary;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
@@ -61,6 +64,7 @@ public class CommentService {
     private final SentenceRepository sentenceRepository;
     private final PassageRepository passageRepository;
     private final MemberRepository memberRepository;
+    private final MemberBlockRepository memberBlockRepository;
     private final PublicRoomRepository publicRoomRepository;
 
     @Transactional
@@ -165,9 +169,14 @@ public class CommentService {
         Passage currentPassage = findPassage(currentPassageId);
         clubMember.ensureCanRead(currentPassage);
         int currentPassageSequence = currentPassage.getSequence().value();
-        List<CommentedSentenceResponse> responses = commentRepository
-                .findCommentedSentenceSummaries(memberId, clubId).stream()
-                .map(summary -> toResponse(summary, currentPassageSequence))
+        Comments comments = new Comments(commentRepository.findAllWithSentenceByClubId(clubId));
+        Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
+        Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
+        Set<Long> viewedCommentIds = visibleComments.isEmpty()
+                ? Set.of()
+                : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
+        List<CommentedSentenceResponse> responses = visibleComments.summarizeBySentence(viewedCommentIds).stream()
+                .map(commentedSentence -> toResponse(commentedSentence, currentPassageSequence))
                 .sorted(commentedSentenceComparator())
                 .toList();
         var response = new CommentedSentencesResponse(responses);
@@ -365,6 +374,21 @@ public class CommentService {
                 summary.getUnreadCommentCount(),
                 ContentVisibility.from(future, summary.getUnreadCommentCount()),
                 summary.getLatestCommentCreatedAt());
+    }
+
+    private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, int currentPassageSequence) {
+        boolean future = commentedSentence.passageSequence().value() > currentPassageSequence;
+        return new CommentedSentenceResponse(
+                commentedSentence.sentenceId(),
+                commentedSentence.content(),
+                commentedSentence.passageId(),
+                commentedSentence.passageSequence().value(),
+                commentedSentence.sentenceSequence().value(),
+                future,
+                commentedSentence.commentCount(),
+                commentedSentence.unreadCommentCount(),
+                ContentVisibility.from(future, commentedSentence.unreadCommentCount()),
+                commentedSentence.latestCommentCreatedAt());
     }
 
     private Comparator<CommentedSentenceResponse> commentedSentenceComparator() {
