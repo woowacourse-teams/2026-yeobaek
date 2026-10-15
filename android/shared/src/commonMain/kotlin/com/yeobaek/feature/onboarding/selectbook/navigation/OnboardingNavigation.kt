@@ -2,22 +2,15 @@ package com.yeobaek.feature.onboarding.selectbook.navigation
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import androidx.navigation.navOptions
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.ReadingOnboardingSkipped
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
-import com.yeobaek.feature.group.join.navigation.navigateToJoin
-import com.yeobaek.feature.home.navigation.Home
-import com.yeobaek.feature.home.navigation.navigateToHome
-import com.yeobaek.feature.onboarding.create.navigation.navigateToOnboardingCreate
 import com.yeobaek.feature.onboarding.selectbook.OnboardingScreen
 import com.yeobaek.feature.onboarding.selectbook.OnboardingViewModel
 import kotlinx.serialization.Serializable
@@ -36,7 +29,9 @@ fun NavController.navigateToOnboarding(
 
 fun NavGraphBuilder.onboardingNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToHome: () -> Unit,
+    navigateToJoin: (Boolean) -> Unit,
+    navigateToOnboardingCreate: (Long, String) -> Unit,
 ) {
     composable<Onboarding> {
         TrackScreen(
@@ -56,24 +51,7 @@ fun NavGraphBuilder.onboardingNavGraph(
         OnboardingScreen(
             uiState = onBoardingViewModel.uiState,
             navigateToHome = {
-                val hasHome = navController.currentBackStack.value.any { entry ->
-                    entry.destination.hasRoute<Home>()
-                }
-                navController.navigateToHome(
-                    navOptions = navOptions {
-                        navController.currentDestination?.route?.let {
-                            if (hasHome) {
-                                popUpTo<Home> {
-                                    inclusive = true
-                                }
-                            } else {
-                                popUpTo<Onboarding> {
-                                    inclusive = true
-                                }
-                            }
-                        }
-                    },
-                )
+                navigateToHome()
                 appContainer.guideOnboardingPreferences.saveOnboardingState(true)
             },
             onClickSkip = {
@@ -83,7 +61,7 @@ fun NavGraphBuilder.onboardingNavGraph(
                 appContainer.analyticsTracker.track(
                     GroupJoinInitiated(GroupJoinEntryPoint.ONBOARDING),
                 )
-                navController.navigateToJoin(fromOnboarding = true)
+                navigateToJoin(true)
             },
             onSelectBook = onBoardingViewModel::onSelectBook,
             onDismissBottomSheet = onBoardingViewModel::dismissDialog,
@@ -94,7 +72,7 @@ fun NavGraphBuilder.onboardingNavGraph(
                 val attemptId = onBoardingViewModel.selectGroupCreate(bookId)
                     ?: return@OnboardingScreen
                 onBoardingViewModel.dismissDialog()
-                navController.navigateToOnboardingCreate(bookId = bookId, attemptId = attemptId)
+                navigateToOnboardingCreate(bookId, attemptId)
             },
             closeBottomSheet = onBoardingViewModel::closeBottomSheet,
         )

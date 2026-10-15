@@ -3,18 +3,14 @@ package com.yeobaek.feature.mypage.navigation
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.AccountDeleteRequested
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
-import com.yeobaek.feature.guide.navigation.Guide
-import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.mypage.MyPageScreen
 import com.yeobaek.feature.mypage.MyPageViewModel
-import com.yeobaek.feature.nickname.navigation.Nickname
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -31,7 +27,8 @@ fun NavController.navigateToMyPage(
 
 fun NavGraphBuilder.myPageNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToNickname: () -> Unit,
+    navigateToGuide: (Boolean) -> Unit,
 ) {
     composable<MyPage> {
         TrackScreen(
@@ -55,19 +52,9 @@ fun NavGraphBuilder.myPageNavGraph(
                 appContainer.analyticsTracker.track(AccountDeleteRequested)
             },
             deleteAccount = myPageViewModel::deleteAccount,
-            navigateToNickname = {
-                navController.navigate(Nickname) {
-                    popUpTo<Home> {
-                        inclusive = true
-                    }
-                }
-            },
+            navigateToNickname = navigateToNickname,
             navigateToGuide = {
-                navController.navigate(Guide(fromMyPage = true)) {
-                    popUpTo<MyPage> {
-                        inclusive = false
-                    }
-                }
+                navigateToGuide(true)
             },
         )
     }

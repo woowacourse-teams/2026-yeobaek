@@ -4,7 +4,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -18,7 +17,6 @@ import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
-import com.yeobaek.feature.reader.navigation.Reader
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -38,7 +36,8 @@ fun NavController.navigateToDetail(
 
 fun NavGraphBuilder.detailNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToReader: (Long) -> Unit,
+    navigateToBack: () -> Unit,
 ) {
     composable<Detail> { backStackEntry ->
         val route = backStackEntry.toRoute<Detail>()
@@ -88,9 +87,7 @@ fun NavGraphBuilder.detailNavGraph(
             onExitRequest = {
                 appContainer.analyticsTracker.track(GroupExitRequested(groupId = route.groupId))
             },
-            onBackClick = {
-                navController.popBackStack()
-            },
+            onBackClick = navigateToBack,
             onReadClick = {
                 appContainer.analyticsTracker.track(
                     ReaderOpened(
@@ -98,14 +95,12 @@ fun NavGraphBuilder.detailNavGraph(
                         bookTitle = detailViewModel.uiState.bookUiModel.title,
                     ),
                 )
-                navController.navigate(Reader(groupId = route.groupId))
+                navigateToReader(route.groupId)
             },
             onExitClick = {
                 detailViewModel.exitGroup(route.groupId)
             },
-            navigateToHome = {
-                navController.popBackStack()
-            },
+            navigateToHome = navigateToBack,
         )
     }
 }

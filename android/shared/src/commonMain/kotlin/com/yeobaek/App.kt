@@ -1,23 +1,38 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navOptions
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.navigation.createNavGraph
+import com.yeobaek.feature.group.create.navigation.navigateToCreate
 import com.yeobaek.feature.group.detail.navigation.detailNavGraph
+import com.yeobaek.feature.group.detail.navigation.navigateToDetail
 import com.yeobaek.feature.group.join.navigation.joinNavGraph
+import com.yeobaek.feature.group.join.navigation.navigateToJoin
 import com.yeobaek.feature.guide.navigation.Guide
 import com.yeobaek.feature.guide.navigation.guideNavGraph
+import com.yeobaek.feature.guide.navigation.navigateToGuide
 import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.home.navigation.homeNavGraph
+import com.yeobaek.feature.home.navigation.navigateToHome
+import com.yeobaek.feature.mypage.navigation.MyPage
 import com.yeobaek.feature.mypage.navigation.myPageNavGraph
+import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.nickname.navigation.Nickname
+import com.yeobaek.feature.nickname.navigation.navigateToNickname
 import com.yeobaek.feature.nickname.navigation.nicknameNavGraph
+import com.yeobaek.feature.onboarding.create.navigation.navigateToOnboardingCreate
 import com.yeobaek.feature.onboarding.create.navigation.onboardingCreateNavGraph
 import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
+import com.yeobaek.feature.onboarding.selectbook.navigation.navigateToOnboarding
 import com.yeobaek.feature.onboarding.selectbook.navigation.onboardingNavGraph
+import com.yeobaek.feature.reader.navigation.Reader
+import com.yeobaek.feature.reader.navigation.navigateToPublicRoomReader
+import com.yeobaek.feature.reader.navigation.navigateToReader
 import com.yeobaek.feature.reader.navigation.publicRoomReaderNavGraph
 import com.yeobaek.feature.reader.navigation.readerNavGraph
 
@@ -54,27 +69,119 @@ fun App(
         ) {
             nicknameNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToGuide = { fromMyPage ->
+                    navController.navigateToGuide(
+                        fromMyPage = fromMyPage,
+                        navOptions = navOptions {
+                            popUpTo<Nickname> {
+                                inclusive = true
+                            }
+                        },
+                    )
+                },
             )
             guideNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                onGuideFinished = { fromMyPage ->
+                    if (fromMyPage) {
+                        navController.navigateToHome(
+                            navOptions = navOptions {
+                                navController.currentDestination?.route?.let {
+                                    popUpTo<Home> {
+                                        inclusive = true
+                                    }
+                                }
+                            },
+                        )
+                    } else {
+                        navController.navigateToOnboarding(
+                            navOptions = navOptions {
+                                navController.currentDestination?.route?.let {
+                                    popUpTo<Guide> {
+                                        inclusive = true
+                                    }
+                                }
+                            },
+                        )
+                    }
+                },
             )
             onboardingNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToHome = {
+                    val hasHome = navController.currentBackStack.value.any { entry ->
+                        entry.destination.hasRoute<Home>()
+                    }
+
+                    navController.navigateToHome(
+                        navOptions = navOptions {
+                            navController.currentDestination?.route?.let {
+                                if (hasHome) {
+                                    popUpTo<Home> {
+                                        inclusive = true
+                                    }
+                                } else {
+                                    popUpTo<Onboarding> {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        },
+                    )
+                },
+                navigateToJoin = { fromOnboarding ->
+                    navController.navigateToJoin(fromOnboarding = fromOnboarding)
+                },
+                navigateToOnboardingCreate = { bookId, attemptId ->
+                    navController.navigateToOnboardingCreate(bookId = bookId, attemptId = attemptId)
+                },
             )
             onboardingCreateNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToHome = {
+                    navController.navigate(Home) {
+                        popUpTo<Onboarding> {
+                            inclusive = true
+                        }
+                    }
+                },
+                navigateToBack = {
+                    navController.popBackStack()
+                },
             )
             homeNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToJoin = { fromOnboarding ->
+                    navController.navigateToJoin(
+                        fromOnboarding = fromOnboarding,
+                    )
+                },
+                navigateToDetail = { groupId ->
+                    navController.navigateToDetail(
+                        groupId = groupId,
+                    )
+                },
+                navigateToCreate = {
+                    navController.navigateToCreate()
+                },
+                navigateToReader = { groupId ->
+                    navController.navigateToReader(groupId = groupId)
+                },
+                navigateToPublicRoomReader = { publicRoomId ->
+                    navController.navigateToPublicRoomReader(publicRoomId = publicRoomId)
+                },
+                navigateToMyPage = {
+                    navController.navigateToMyPage()
+                },
             )
             detailNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToReader = { groupId ->
+                    navController.navigate(Reader(groupId = groupId))
+                },
+                navigateToBack = {
+                    navController.popBackStack()
+                },
             )
             readerNavGraph(
                 appContainer = appContainer,
@@ -86,15 +193,64 @@ fun App(
             )
             joinNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToHome = {
+                    val hasHome = navController.currentBackStack.value.any { entry ->
+                        entry.destination.hasRoute<Home>()
+                    }
+
+                    val homeNavOptions = navOptions {
+                        if (hasHome) {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        } else {
+                            popUpTo<Onboarding> {
+                                inclusive = true
+                            }
+                        }
+                    }
+                    navController.navigateToHome(
+                        navOptions = homeNavOptions,
+                    )
+                },
+                navigateToBack = {
+                    navController.popBackStack()
+                },
             )
             createNavGraph(
                 appContainer = appContainer,
                 navController = navController,
+                navigateToHome = {
+                    navController.navigateToHome(
+                        navOptions = navOptions {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        },
+                    )
+                },
             )
             myPageNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToNickname = {
+                    navController.navigateToNickname(
+                        navOptions = navOptions {
+                            popUpTo<Home> {
+                                inclusive = true
+                            }
+                        },
+                    )
+                },
+                navigateToGuide = { fromMyPage ->
+                    navController.navigateToGuide(
+                        fromMyPage = fromMyPage,
+                        navOptions = navOptions {
+                            popUpTo<MyPage> {
+                                inclusive = false
+                            }
+                        },
+                    )
+                },
             )
         }
     }

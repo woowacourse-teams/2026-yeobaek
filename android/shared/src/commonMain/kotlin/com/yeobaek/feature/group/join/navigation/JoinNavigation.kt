@@ -3,9 +3,7 @@ package com.yeobaek.feature.group.join.navigation
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -19,8 +17,6 @@ import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
-import com.yeobaek.feature.home.navigation.Home
-import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -42,7 +38,8 @@ fun NavController.navigateToJoin(
 
 fun NavGraphBuilder.joinNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToHome: () -> Unit,
+    navigateToBack: () -> Unit,
 ) {
     composable<Join> { backStackEntry ->
         val entryPoint = if (backStackEntry.toRoute<Join>().fromOnboarding) {
@@ -71,20 +68,7 @@ fun NavGraphBuilder.joinNavGraph(
 
         LaunchedEffect(joinViewModel.uiState.successJoin) {
             if (joinViewModel.uiState.successJoin) {
-                val hasHome = navController.currentBackStack.value.any { entry ->
-                    entry.destination.hasRoute<Home>()
-                }
-                navController.navigate(Home) {
-                    if (hasHome) {
-                        popUpTo<Home> {
-                            inclusive = true
-                        }
-                    } else {
-                        popUpTo<Onboarding> {
-                            inclusive = true
-                        }
-                    }
-                }
+                navigateToHome()
                 if (!appContainer.guideOnboardingPreferences.getOnboardingState()) {
                     appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                 }
@@ -101,9 +85,9 @@ fun NavGraphBuilder.joinNavGraph(
                         entryPoint = entryPoint,
                     ),
                 )
-                navController.popBackStack()
+                navigateToBack()
             },
-            navigateToHome = {
+            onJoinClick = {
                 joinViewModel.checkCodeBlank()
                 if (joinViewModel.uiState.codeState) {
                     appContainer.analyticsTracker.track(

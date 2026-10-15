@@ -5,7 +5,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.GroupCreateInitiated
@@ -19,15 +18,9 @@ import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
-import com.yeobaek.feature.group.create.navigation.navigateToCreate
-import com.yeobaek.feature.group.detail.navigation.navigateToDetail
-import com.yeobaek.feature.group.join.navigation.navigateToJoin
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
-import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.reader.ReaderTarget
-import com.yeobaek.feature.reader.navigation.navigateToPublicRoomReader
-import com.yeobaek.feature.reader.navigation.navigateToReader
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -44,7 +37,12 @@ fun NavController.navigateToHome(
 
 fun NavGraphBuilder.homeNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToJoin: (Boolean) -> Unit,
+    navigateToDetail: (Long) -> Unit,
+    navigateToCreate: () -> Unit,
+    navigateToReader: (Long) -> Unit,
+    navigateToPublicRoomReader: (Long) -> Unit,
+    navigateToMyPage: () -> Unit,
 ) {
     composable<Home> {
         TrackScreen(
@@ -75,21 +73,17 @@ fun NavGraphBuilder.homeNavGraph(
                 appContainer.analyticsTracker.track(
                     GroupJoinInitiated(GroupJoinEntryPoint.HOME),
                 )
-                navController.navigateToJoin(
-                    fromOnboarding = false,
-                )
+                navigateToJoin(false)
             },
             navigateToDetail = { groupId ->
                 appContainer.analyticsTracker.track(
                     GroupDetailOpened(groupId = groupId),
                 )
-                navController.navigateToDetail(
-                    groupId = groupId,
-                )
+                navigateToDetail(groupId)
             },
             navigateToCreate = {
                 appContainer.analyticsTracker.track(GroupCreateInitiated)
-                navController.navigateToCreate()
+                navigateToCreate()
             },
             navigateToReader = { readerTarget ->
                 when (readerTarget) {
@@ -100,7 +94,7 @@ fun NavGraphBuilder.homeNavGraph(
                                 bookTitle = homeViewModel.uiState.currentlyReadingBookUiModel?.title,
                             ),
                         )
-                        navController.navigateToReader(groupId = readerTarget.id)
+                        navigateToReader(readerTarget.id)
                     }
 
                     is ReaderTarget.PublicRoom -> {
@@ -110,7 +104,7 @@ fun NavGraphBuilder.homeNavGraph(
                                 entryPoint = PublicRoomEntryPoint.CONTINUE_READING,
                             ),
                         )
-                        navController.navigateToPublicRoomReader(publicRoomId = readerTarget.id)
+                        navigateToPublicRoomReader(readerTarget.id)
                     }
                 }
             },
@@ -118,11 +112,11 @@ fun NavGraphBuilder.homeNavGraph(
                 appContainer.analyticsTracker.track(
                     PublicRoomReaderOpened(publicRoomId, entryPoint, listVisitId),
                 )
-                navController.navigateToPublicRoomReader(publicRoomId)
+                navigateToPublicRoomReader(publicRoomId)
             },
             navigateToMyPage = {
                 appContainer.analyticsTracker.track(MyPageOpened)
-                navController.navigateToMyPage()
+                navigateToMyPage()
             },
         )
     }

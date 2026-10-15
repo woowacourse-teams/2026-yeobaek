@@ -2,15 +2,14 @@ package com.yeobaek.feature.nickname.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
+import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import androidx.navigation.navOptions
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
-import com.yeobaek.feature.guide.navigation.navigateToGuide
 import com.yeobaek.feature.nickname.NicknameScreen
 import com.yeobaek.feature.nickname.NicknameViewModel
 import kotlinx.serialization.Serializable
@@ -18,9 +17,18 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object Nickname
 
+fun NavController.navigateToNickname(
+    navOptions: NavOptions? = null,
+) {
+    navigate(
+        route = Nickname,
+        navOptions = navOptions,
+    )
+}
+
 fun NavGraphBuilder.nicknameNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToGuide: (Boolean) -> Unit,
 ) {
     composable<Nickname> {
         TrackScreen(
@@ -42,16 +50,7 @@ fun NavGraphBuilder.nicknameNavGraph(
                     appContainer.analyticsTracker.identify(userId)
                 }
                 appContainer.analyticsTracker.track(AnalyticsEvent.UserCreated)
-                navController.navigateToGuide(
-                    fromMyPage = false,
-                    navOptions = navOptions {
-                        navController.currentDestination?.route?.let {
-                            popUpTo<Nickname> {
-                                inclusive = true
-                            }
-                        }
-                    },
-                )
+                navigateToGuide(false)
             }
         }
 

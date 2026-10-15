@@ -4,18 +4,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
-import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.onboarding.create.CreateGroupScreen
 import com.yeobaek.feature.onboarding.create.CreateGroupState
 import com.yeobaek.feature.onboarding.create.CreateGroupViewModel
-import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -40,7 +37,8 @@ fun NavController.navigateToOnboardingCreate(
 
 fun NavGraphBuilder.onboardingCreateNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToHome: () -> Unit,
+    navigateToBack: () -> Unit,
 ) {
     composable<OnboardingCreate> {
         val route = it.toRoute<OnboardingCreate>()
@@ -68,21 +66,17 @@ fun NavGraphBuilder.onboardingCreateNavGraph(
             uiState = createGroupViewModel.uiState,
             onClickBack = {
                 createGroupViewModel.abandon()
-                navController.popBackStack()
+                navigateToBack()
             },
             selectOtherBook = {
                 createGroupViewModel.abandon()
-                navController.popBackStack()
+                navigateToBack()
             },
             onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
             onClickCreateGroup = createGroupViewModel::createGroup,
             navigateToHome = {
                 if (createGroupViewModel.uiState.createGroupState is CreateGroupState.Success) {
-                    navController.navigate(Home) {
-                        popUpTo<Onboarding> {
-                            inclusive = true
-                        }
-                    }
+                    navigateToHome()
                     appContainer.guideOnboardingPreferences.saveOnboardingState(true)
                 }
             },

@@ -4,10 +4,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.yeobaek.core.analytics.GuideCompleted
 import com.yeobaek.core.analytics.GuideDirection
@@ -21,9 +19,6 @@ import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.guide.GuideScreen
 import com.yeobaek.feature.guide.GuideViewModel
-import com.yeobaek.feature.home.navigation.Home
-import com.yeobaek.feature.home.navigation.navigateToHome
-import com.yeobaek.feature.onboarding.selectbook.navigation.navigateToOnboarding
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -45,7 +40,7 @@ fun NavController.navigateToGuide(
 
 fun NavGraphBuilder.guideNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    onGuideFinished: (Boolean) -> Unit,
 ) {
     composable<Guide> { backStackEntry ->
         val route = backStackEntry.toRoute<Guide>()
@@ -78,27 +73,7 @@ fun NavGraphBuilder.guideNavGraph(
         GuideScreen(
             uiState = guideViewModel.uiState,
             navigateToRoute = {
-                if (route.fromMyPage) {
-                    navController.navigateToHome(
-                        navOptions = navOptions {
-                            navController.currentDestination?.route?.let {
-                                popUpTo<Home> {
-                                    inclusive = true
-                                }
-                            }
-                        },
-                    )
-                } else {
-                    navController.navigateToOnboarding(
-                        navOptions = navOptions {
-                            navController.currentDestination?.route?.let {
-                                popUpTo<Guide> {
-                                    inclusive = true
-                                }
-                            }
-                        },
-                    )
-                }
+                onGuideFinished(route.fromMyPage)
 
                 appContainer.guideOnboardingPreferences.saveGuideState(true)
                 appContainer.guideOnboardingPreferences.saveGuidePage(1)

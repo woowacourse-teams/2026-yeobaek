@@ -16,7 +16,6 @@ import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStep
 import com.yeobaek.feature.group.create.CreateViewModel
-import com.yeobaek.feature.home.navigation.Home
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -34,6 +33,7 @@ fun NavController.navigateToCreate(
 fun NavGraphBuilder.createNavGraph(
     appContainer: AppContainer,
     navController: NavHostController,
+    navigateToHome: () -> Unit,
 ) {
     composable<Create> {
         TrackScreen(
@@ -91,13 +91,7 @@ fun NavGraphBuilder.createNavGraph(
                     createViewModel.createGroup()
                 }
             },
-            navigateToHome = {
-                navController.navigate(Home) {
-                    popUpTo<Home> {
-                        inclusive = true
-                    }
-                }
-            },
+            navigateToHome = navigateToHome,
         )
     }
 }
