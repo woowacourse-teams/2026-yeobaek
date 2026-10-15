@@ -169,6 +169,18 @@ class ObservabilityIntegrationTest {
     }
 
     @Test
+    void exposeTomcatWorkerPoolMetrics() throws Exception {
+        assertThat(get("/probe").statusCode()).isEqualTo(200);
+
+        assertThat(meters.get("tomcat.threads.busy").gauges())
+                .anySatisfy(gauge -> assertThat(gauge.value()).isGreaterThanOrEqualTo(0));
+        assertThat(meters.get("tomcat.threads.current").gauges())
+                .anySatisfy(gauge -> assertThat(gauge.value()).isPositive());
+        assertThat(meters.get("tomcat.threads.config.max").gauges())
+                .anySatisfy(gauge -> assertThat(gauge.value()).isEqualTo(1));
+    }
+
+    @Test
     void exportAllSignalsAndKeepRequestsWorkingDuringCollectorFailure() throws Exception {
         get("/probe");
         flush();
