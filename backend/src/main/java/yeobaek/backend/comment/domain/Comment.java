@@ -17,6 +17,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -103,6 +104,18 @@ public class Comment {
 
     public boolean isWrittenBy(Long memberId) {
         return getWriter().getId().equals(memberId);
+    }
+
+    public boolean isWrittenByAny(Set<Long> memberIds) {
+        return memberIds.contains(getWriter().getId());
+    }
+
+    public boolean isViewed(Set<Long> viewedCommentIds) {
+        return viewedCommentIds.contains(id);
+    }
+
+    public Long getSentenceId() {
+        return sentence.getId();
     }
 
     public void ensureReportableBy(Long memberId) {

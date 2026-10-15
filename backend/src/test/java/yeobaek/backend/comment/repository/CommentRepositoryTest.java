@@ -120,4 +120,38 @@ class CommentRepositoryTest extends IntegrationTest {
                     assertThat(count.getCommentCount()).isEqualTo(2);
                 });
     }
+
+    @Test
+    @DisplayName("모임 댓글과 문장 집계에 필요한 연관 정보를 함께 조회한다")
+    void findAllWithSentenceByClubId() {
+        Book book = bookRepository.save(new Book(new BookTitle("댓글 문장 조회 도서"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(
+                chapter, 1, Collections.singletonList(new SentenceContent("조회 문장"))));
+        Member member = memberRepository.save(new Member(new Nickname("조회 작성자")));
+        Club club = clubRepository.save(new Club(new ClubName("조회 모임"), book, new JoinCode("FETCH1")));
+        Club otherClub = clubRepository.save(new Club(new ClubName("다른 모임"), book, new JoinCode("FETCH2")));
+        ClubMember membership = clubMemberRepository.save(new ClubMember(member, club));
+        ClubMember otherMembership = clubMemberRepository.save(new ClubMember(member, otherClub));
+        Comment firstExpected = commentRepository.save(new Comment(
+                membership, passage.getSentences().getFirst(), new CommentContent("첫 조회 댓글")));
+        Comment secondExpected = commentRepository.save(new Comment(
+                membership, passage.getSentences().getFirst(), new CommentContent("둘째 조회 댓글")));
+        commentRepository.save(new Comment(
+                otherMembership, passage.getSentences().getFirst(), new CommentContent("다른 모임 댓글")));
+        commentRepository.flush();
+        entityManager.clear();
+
+        var comments = commentRepository.findAllWithSentenceByClubId(club.getId());
+        entityManager.clear();
+
+        assertThat(comments).extracting(Comment::getId)
+                .containsExactlyInAnyOrder(firstExpected.getId(), secondExpected.getId());
+        assertThat(comments).allSatisfy(comment -> {
+            assertThat(comment.getWriter().getNickname()).isEqualTo("조회 작성자");
+            assertThat(comment.getSentence().getContent()).isEqualTo("조회 문장");
+            assertThat(comment.getSentence().getPassage().getId()).isEqualTo(passage.getId());
+            assertThat(comment.isPublicRoomComment()).isFalse();
+        });
+    }
 }
