@@ -9,21 +9,16 @@
 | 경로 | 용도 |
 |---|---|
 | `src/main/`, `src/test/` | 애플리케이션 코드·리소스와 테스트 |
-| `infra/local/` | 로컬 실행 스크립트, Compose, 개인 환경변수 예시 |
+| `infra/local/` | 로컬 Compose 설정 |
 | `infra/prod/` | 운영 이미지, Compose, S3 인프라 설정 |
 | `config/` | PMD·SpotBugs 정적 분석 설정 |
 | `gradle/` | Gradle Wrapper와 동시 실행 잠금 도구·검증 |
 | `docs/` | 온보딩·배포 문서, ADR, 개발 지침과 템플릿 |
 
 루트에는 Gradle 빌드 파일과 Wrapper 진입점, README·에이전트 지침, Git 설정을 둡니다.
-개인 로컬 설정은 `infra/local/.env.local`을 사용하며 같은 디렉터리의 `.env.local.example`에서 복사합니다.
-기존 backend 루트에 `.env.local`이 있다면 `infra/local/.env.local`로 이동해야 합니다.
 `build/`, `.gradle/`, IDE 설정은 Git에서 제외되는 생성물입니다.
-
-로컬 인프라는 `infra/local/`, 운영 인프라는 `infra/prod/`에 모여 있습니다.
-로컬 환경은 아래 `infra/local/local-env.*` 명령으로 실행합니다. 스크립트는 실행 위치와 관계없이
-`backend/`를 기준으로 Compose 설정과 Gradle을 찾습니다. 기존 루트의 `local-env.*` 명령을
-사용했다면 `infra/local/` 경로를 추가하세요.
+로컬 Compose 설정은 [`infra/local/docker-compose.local.yml`](infra/local/docker-compose.local.yml),
+운영 설정은 `infra/prod/`에 있습니다. 아래 명령은 `backend/`에서 실행합니다.
 
 Docker 이미지는 `backend/`를 빌드 컨텍스트로 유지합니다.
 
@@ -32,29 +27,31 @@ Docker 이미지는 `backend/`를 빌드 컨텍스트로 유지합니다.
 docker build -f infra/prod/Dockerfile -t yeobaek-backend .
 ```
 
-## Android/API 로컬 테스트
+## 로컬 실행
 
-Docker만으로 사전 빌드된 백엔드와 MySQL을 실행할 수 있으며 JDK는 필요하지 않습니다.
-
-처음 환경을 준비하는 방법부터 Android 에뮬레이터·실제 기기에서 접속하는 방법, 종료 및 문제 해결 절차까지는 루트의 **[로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)**을 따라 진행하세요.
-
-## 백엔드 코드 개발
-
-백엔드 개발자는 DB만 Docker로 실행하고 애플리케이션은 호스트의 Gradle로 실행할 수 있습니다. JDK 21과 Docker가 필요하며 Gradle은 저장소의 Wrapper를 사용합니다.
-
-```powershell
-# Windows: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-pwsh -NoProfile -File .\infra\local\local-env.ps1 dev
-```
+Android/API 연동용 서버와 MySQL은 Docker로 실행합니다.
 
 ```bash
-# macOS/Linux: DB 시작 → bootRun. Ctrl+C 또는 프로세스 종료 시 DB 컨테이너 정리
-sh ./infra/local/local-env.sh dev
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml --profile api up -d
 ```
 
-로컬 서버는 `local` 프로파일로 실행됩니다. `dev`는 기존 API 컨테이너가 실행 중이면 먼저 중지해 8080 포트 충돌을 막습니다. Windows 명령은 PowerShell 7.2 이상(`pwsh`)을 기준으로 합니다. IDE에서 서버를 실행할 때는 `pwsh -NoProfile -File .\infra\local\local-env.ps1 db`(Windows) 또는 `sh ./infra/local/local-env.sh db`(macOS/Linux)로 DB만 실행하고, 작업 후 공통 `down` 명령으로 종료합니다.
+백엔드 코드를 개발할 때는 JDK 21과 Docker를 준비하고 DB만 실행한 뒤 Wrapper로 서버를 시작합니다.
+이미 API 컨테이너가 실행 중이면 먼저 중지해 호스트 서버와 포트가 충돌하지 않게 합니다.
 
-스크립트는 체크아웃 경로별 Compose 프로젝트명을 사용하므로 다른 clone이나 worktree의 컨테이너를 `down`하지 않습니다. 필요하면 `COMPOSE_PROJECT_NAME`으로 명시적으로 덮어쓸 수 있습니다.
+```bash
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml stop app
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml up -d --wait mysql
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+작업 후 로컬 컨테이너를 종료합니다.
+
+```bash
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml down
+```
+
+다른 clone·worktree를 동시에 실행하면 각각 다른 `--project-name`과 호스트 포트를 사용합니다.
+Windows에서는 `./gradlew`를 `.\gradlew.bat`으로 바꿉니다.
 
 ## 빌드와 테스트
 
@@ -98,11 +95,10 @@ java gradle/WorktreeGradleLockVerification.java
 
 SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
 
-Compose의 로컬 MySQL 기본값은 데이터베이스 `yeobaek`, 사용자 `root`, 비밀번호 `yeobaek`, 호스트 포트 `13306`입니다. 이 값은 PC에 이미 설치된 MySQL의 기본 포트 `3306`과 충돌하지 않도록 분리되어 있으며, 로컬 개발 전용입니다.
-
-DB와 API 포트는 기본적으로 `127.0.0.1`에만 공개됩니다. Android 에뮬레이터와 실제 기기의 접속 설정은 [로컬 백엔드 테스트 환경 구성 방법](../docs/로컬_테스트_방법.md)을 참고합니다.
-
-기본적으로 팀의 `alstj2384/yeobaek-backend:develop` 이미지를 사용합니다. 다른 이미지나 API 바인딩 주소가 필요할 때만 `infra/local/.env.local.example`을 같은 디렉터리의 `.env.local`로 복사해 값을 재정의합니다. `.env.local`은 Git에서 제외됩니다. 기존 backend 루트의 `.env.local`은 `infra/local/.env.local`로 이동해야 합니다. 앞으로 운영 DB 비밀번호나 외부 API 키가 생기면 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
+DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
+실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.
+필요한 이미지 변경은 `BACKEND_IMAGE` 환경변수로 지정합니다. 운영 비밀번호·외부 API 키는
+프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
 
 ### PostHog 로컬 확인
 
@@ -112,16 +108,16 @@ PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝�
 export POSTHOG_ENABLED=true
 export POSTHOG_API_KEY='<US Cloud project API key>'
 export POSTHOG_HOST='https://us.i.posthog.com'
-sh ./infra/local/local-env.sh dev
+./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
-Windows의 PowerShell 7.2 이상에서는 같은 터미널에 환경변수를 설정한 뒤 실행합니다.
+Windows PowerShell에서는 같은 터미널에 환경변수를 설정한 뒤 실행합니다.
 
 ```powershell
 $env:POSTHOG_ENABLED='true'
 $env:POSTHOG_API_KEY='<US Cloud project API key>'
 $env:POSTHOG_HOST='https://us.i.posthog.com'
-pwsh -NoProfile -File .\infra\local\local-env.ps1 dev
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
 ```
 
 서버가 정상 기동하면 Spring의 조건부 설정과 PostHog SDK 초기화가 완료된 것입니다. 실제 US Cloud 수신은 애플리케이션에 테스트 전용 이벤트 코드를 남기지 않고 아래 일회성 요청으로 별도 확인합니다. `distinct_id`는 실제 회원 식별자가 아니며, `$process_person_profile=false`로 인물 프로필을 생성하지 않습니다.

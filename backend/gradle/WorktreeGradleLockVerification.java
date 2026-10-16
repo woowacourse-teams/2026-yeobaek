@@ -35,7 +35,7 @@ public final class WorktreeGradleLockVerification {
 
     public static void main(String[] args) throws Exception {
         Path launcher = Path.of("gradle", "WorktreeGradleLock.java").toAbsolutePath().normalize();
-        Path temporaryDirectory = Files.createTempDirectory("yeobaek-gradle-lock-verification-");
+        Path temporaryDirectory = Files.createTempDirectory("yeobaek-gradle-lock-verification-").toRealPath();
         Process owner = null;
         try {
             Path fakeWrapper = createFakeWrapper(temporaryDirectory);
@@ -240,16 +240,6 @@ public final class WorktreeGradleLockVerification {
             ProcessResult collision = runRepositoryWrapper(appHome, temporaryDirectory);
             require(collision.exitCode() == 75, "The repository wrapper must preserve exit code 75.");
             require(collision.standardError().contains(LOCKED_MARKER), "The repository wrapper lost the marker.");
-
-            ProcessResult localEnvironment = runLocalEnvironmentDev(appHome, temporaryDirectory);
-            require(localEnvironment.exitCode() == 75,
-                    "local-env dev must preserve exit code 75, but was " + localEnvironment.exitCode()
-                            + ": " + localEnvironment.standardError());
-            require(localEnvironment.standardError().contains(LOCKED_MARKER),
-                    "local-env dev lost the collision marker.");
-            String dockerCommands = Files.readString(temporaryDirectory.resolve("fake-docker.log"));
-            require(dockerCommands.lines().noneMatch(line -> line.contains(" down")),
-                    "A colliding local-env dev must not clean up the owner's Compose project.");
         } finally {
             Files.createFile(ownerRelease);
             awaitProcess(owner, "The repository wrapper lock owner did not finish.");
@@ -398,55 +388,6 @@ public final class WorktreeGradleLockVerification {
                 .start();
         awaitProcess(process, "The repository wrapper collision timed out.");
         return new ProcessResult(process.exitValue(), Files.readString(standardOutput), Files.readString(standardError));
-    }
-
-    private static ProcessResult runLocalEnvironmentDev(Path appHome, Path temporaryDirectory) throws Exception {
-        Path fakeBinaryDirectory = Files.createDirectories(temporaryDirectory.resolve("fake-bin"));
-        Path dockerLog = temporaryDirectory.resolve("fake-docker.log");
-        Files.deleteIfExists(dockerLog);
-
-        List<String> command;
-        if (System.getProperty("os.name").startsWith("Windows")) {
-            Path fakeDocker = fakeBinaryDirectory.resolve("docker.cmd");
-            Files.writeString(fakeDocker, "@echo off\r\necho %*>>\"%YEOBAEK_FAKE_DOCKER_LOG%\"\r\nexit /b 0\r\n");
-            command = List.of(
-                    "pwsh.exe",
-                    "-NoLogo",
-                    "-NoProfile",
-                    "-File",
-                    appHome.resolve("infra/local/local-env.ps1").toString(),
-                    "dev"
-            );
-        } else {
-            Path fakeDocker = fakeBinaryDirectory.resolve("docker");
-            Files.writeString(fakeDocker, "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$YEOBAEK_FAKE_DOCKER_LOG\"\n");
-            require(fakeDocker.toFile().setExecutable(true), "The fake Docker command must be executable.");
-            command = List.of("sh", appHome.resolve("infra/local/local-env.sh").toString(), "dev");
-        }
-
-        Path standardOutput = temporaryDirectory.resolve("local-env.out");
-        Path standardError = temporaryDirectory.resolve("local-env.err");
-        ProcessBuilder processBuilder = new ProcessBuilder(command)
-                .directory(appHome.toFile())
-                .redirectOutput(standardOutput.toFile())
-                .redirectError(standardError.toFile());
-        String existingPath = processBuilder.environment().entrySet().stream()
-                .filter(entry -> entry.getKey().equalsIgnoreCase("PATH"))
-                .map(java.util.Map.Entry::getValue)
-                .findFirst()
-                .orElse("");
-        processBuilder.environment().put(
-                "PATH",
-                fakeBinaryDirectory + System.getProperty("path.separator") + existingPath
-        );
-        processBuilder.environment().put("YEOBAEK_FAKE_DOCKER_LOG", dockerLog.toString());
-        Process process = processBuilder.start();
-        awaitProcess(process, "local-env dev timed out.");
-        return new ProcessResult(process.exitValue(), readUtf8Lenient(standardOutput), readUtf8Lenient(standardError));
-    }
-
-    private static String readUtf8Lenient(Path path) throws IOException {
-        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
     }
 
     private static void awaitProcess(Process process, String timeoutMessage) throws InterruptedException {
