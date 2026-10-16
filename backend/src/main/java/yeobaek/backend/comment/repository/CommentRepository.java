@@ -21,26 +21,28 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     Optional<Comment> findByIdForUpdate(@Param("commentId") Long commentId);
 
     @Query("""
-            select c.clubMember.club.id as clubId, count(c) as commentCount
+            select c.clubComment.club.id as clubId, count(c) as commentCount
             from Comment c
-            where c.clubMember.club.id in :clubIds
-            group by c.clubMember.club.id
+            where c.clubComment.club.id in :clubIds
+            group by c.clubComment.club.id
             """)
     List<ClubCommentCount> countCommentsByClubIds(@Param("clubIds") List<Long> clubIds);
 
     @Query("""
             select c from Comment c
-            left join fetch c.clubMember cm
-            left join fetch cm.club club
-            left join fetch club.book
-            left join fetch c.publicRoom publicRoom
+            left join fetch c.clubComment cc
+            left join fetch cc.club club
+            left join fetch club.clubBook clubBook
+            left join fetch clubBook.book
+            left join fetch c.publicRoomComment prc
+            left join fetch prc.publicRoom publicRoom
             left join fetch publicRoom.book
-            left join fetch c.writer writer
+            join fetch c.writer writer
             where c.id = :commentId
               and not exists (
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId
-                    and (mb.blocked.id = writer.id or mb.blocked.id = cm.member.id)
+                    and mb.blocked.id = writer.id
               )
             """)
     Optional<Comment> findVisibleWithContextById(@Param(MEMBER_ID) Long memberId,
@@ -49,19 +51,18 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Modifying
     @Query("""
             delete from Comment c
-            where c.writer.id = :memberId or c.clubMember.id in (
-                select cm.id from ClubMember cm where cm.member.id = :memberId)
+            where c.writer.id = :memberId
             """)
     void deleteAllByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
             select c from Comment c
-            join fetch c.clubMember cm
-            join fetch cm.member
-            where cm.club.id = :clubId and c.sentence.id = :sentenceId
+            join fetch c.writer writer
+            join c.clubComment cc
+            where cc.club.id = :clubId and c.sentence.id = :sentenceId
               and not exists (
                   select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = cm.member.id
+                  where mb.blocker.id = :memberId and mb.blocked.id = writer.id
               )
             order by c.createdAt asc, c.id asc
             """)
@@ -72,10 +73,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("""
             select c.sentence.id as sentenceId, count(c) as commentCount
             from Comment c
-            where c.clubMember.club.id = :clubId and c.sentence.id in :sentenceIds
+            where c.clubComment.club.id = :clubId and c.sentence.id in :sentenceIds
               and not exists (
                   select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+                  where mb.blocker.id = :memberId and mb.blocked.id = c.writer.id
               )
             group by c.sentence.id
             """)
@@ -84,31 +85,33 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                                                               @Param("sentenceIds") List<Long> sentenceIds);
 
     @Query("""
-            select s.id as sentenceId,
-                   s.content.value as content,
-                   p.id as passageId,
-                   p.sequence.value as passageSequence,
-                   s.sequence.value as sentenceSequence,
-                   count(distinct c.id) as commentCount,
-                   count(distinct case when cv.id is null then c.id else null end) as unreadCommentCount,
-                   max(c.createdAt) as latestCommentCreatedAt
+            select new yeobaek.backend.comment.repository.CommentSentenceRow(
+                c.id,
+                c.createdAt,
+                sentence.id,
+                sentence.content.value,
+                passage.id,
+                passage.sequence.value,
+                sentence.sequence.value
+            )
             from Comment c
-            join c.sentence s
-            join s.passage p
-            left join CommentView cv on cv.comment.id = c.id and cv.member.id = :memberId
-            where c.clubMember.club.id = :clubId
+            join c.clubComment clubComment
+            join c.sentence sentence
+            join sentence.passage passage
+            where clubComment.club.id = :clubId
               and not exists (
-                  select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+                  select memberBlock.id from MemberBlock memberBlock
+                  where memberBlock.blocker.id = :memberId
+                    and memberBlock.blocked.id = c.writer.id
               )
-            group by s.id, s.content.value, p.id, p.sequence.value, s.sequence.value
             """)
-    List<CommentedSentenceSummary> findCommentedSentenceSummaries(@Param(MEMBER_ID) Long memberId,
-                                                                  @Param(CLUB_ID) Long clubId);
+    List<CommentSentenceRow> findAllVisibleSentenceRowsByMemberIdAndClubId(
+            @Param(MEMBER_ID) Long memberId,
+            @Param(CLUB_ID) Long clubId);
 
     @Query("""
             select count(c) from Comment c
-            where c.clubMember.club.id = :clubId
+            where c.clubComment.club.id = :clubId
               and c.sentence.passage.sequence.value <= :currentPassageSequence
               and not exists (
                   select cv.id from CommentView cv
@@ -116,7 +119,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
               )
               and not exists (
                   select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = c.clubMember.member.id
+                  where mb.blocker.id = :memberId and mb.blocked.id = c.writer.id
               )
             """)
     long countNewVisibleCommentsWithinProgress(@Param(MEMBER_ID) Long memberId,
@@ -126,7 +129,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("""
             select c from Comment c
             join fetch c.writer writer
-            where c.publicRoom.id = :publicRoomId and c.sentence.id = :sentenceId
+            join c.publicRoomComment prc
+            where prc.publicRoom.id = :publicRoomId and c.sentence.id = :sentenceId
               and not exists (
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId and mb.blocked.id = writer.id
@@ -140,7 +144,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("""
             select c.sentence.id as sentenceId, count(c) as commentCount
             from Comment c
-            where c.publicRoom.id = :publicRoomId and c.sentence.id in :sentenceIds
+            where c.publicRoomComment.publicRoom.id = :publicRoomId and c.sentence.id in :sentenceIds
               and not exists (
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId and mb.blocked.id = c.writer.id
@@ -152,32 +156,19 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                                         @Param("sentenceIds") List<Long> sentenceIds);
 
     @Query("""
-            select s.id as sentenceId,
-                   s.content.value as content,
-                   p.id as passageId,
-                   p.sequence.value as passageSequence,
-                   s.sequence.value as sentenceSequence,
-                   count(distinct c.id) as commentCount,
-                   count(distinct case when cv.id is null then c.id else null end) as unreadCommentCount,
-                   max(c.createdAt) as latestCommentCreatedAt
-            from Comment c
-            join c.sentence s
-            join s.passage p
-            left join CommentView cv on cv.comment.id = c.id and cv.member.id = :memberId
-            where c.publicRoom.id = :publicRoomId
-              and not exists (
-                  select mb.id from MemberBlock mb
-                  where mb.blocker.id = :memberId and mb.blocked.id = c.writer.id
-              )
-            group by s.id, s.content.value, p.id, p.sequence.value, s.sequence.value
+            select c from Comment c
+            join fetch c.publicRoomComment prc
+            left join fetch c.clubComment
+            join fetch c.writer
+            join fetch c.sentence s
+            join fetch s.passage
+            where prc.publicRoom.id = :publicRoomId
             """)
-    List<CommentedSentenceSummary> findPublicRoomCommentedSentenceSummaries(
-            @Param(MEMBER_ID) Long memberId,
-            @Param(PUBLIC_ROOM_ID) Long publicRoomId);
+    List<Comment> findAllWithSentenceByPublicRoomId(@Param(PUBLIC_ROOM_ID) Long publicRoomId);
 
     @Query("""
             select count(c) from Comment c
-            where c.publicRoom.id = :publicRoomId
+            where c.publicRoomComment.publicRoom.id = :publicRoomId
               and c.sentence.passage.sequence.value <= :currentPassageSequence
               and not exists (
                   select cv.id from CommentView cv

@@ -15,7 +15,6 @@ import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.book.repository.SentenceRepository;
-import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
@@ -24,6 +23,7 @@ import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.LogCapture;
@@ -37,17 +37,16 @@ class CommentLoggingTest {
         var clubs = mock(ClubRepository.class);
         var memberships = mock(ClubMemberRepository.class);
         var passages = mock(PassageRepository.class);
-        var club = mock(Club.class);
+        var membership = mock(ClubMember.class);
         var passage = mock(Passage.class);
-        given(clubs.findById(5L)).willReturn(Optional.of(club));
-        given(memberships.findJoinedByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(mock(ClubMember.class)));
+        given(memberships.findByMemberIdAndClubId(7L, 5L)).willReturn(Optional.of(membership));
         given(passages.findById(13L)).willReturn(Optional.of(passage));
-        given(club.isReading(passage)).willReturn(true);
         given(passage.getSequence()).willReturn(new ContentSequence(4));
         given(comments.countNewVisibleCommentsWithinProgress(7L, 5L, 4)).willReturn(3L);
         var service = new CommentService(comments, mock(CommentReportRepository.class),
                 mock(CommentViewRepository.class), clubs, memberships, mock(SentenceRepository.class),
-                passages, mock(MemberRepository.class), mock(PublicRoomRepository.class));
+                passages, mock(MemberRepository.class), mock(MemberBlockRepository.class),
+                mock(PublicRoomRepository.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {
@@ -80,7 +79,8 @@ class CommentLoggingTest {
         given(members.getReferenceById(7L)).willReturn(mock(Member.class));
         var service = new CommentService(comments, reports, mock(CommentViewRepository.class),
                 mock(ClubRepository.class), memberships, mock(SentenceRepository.class),
-                mock(PassageRepository.class), members, mock(PublicRoomRepository.class));
+                mock(PassageRepository.class), members, mock(MemberBlockRepository.class),
+                mock(PublicRoomRepository.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {

@@ -17,7 +17,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.support.InvalidRequestException;
 
 @Service
@@ -28,7 +28,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final CommentRepository commentRepository;
     private final ClubMemberRepository clubMemberRepository;
-    private final PublicRoomActivityRepository publicRoomActivityRepository;
+    private final PublicRoomMemberRepository publicRoomMemberRepository;
 
     @Transactional
     public MemberCreateResponse create(Nickname nickname) {
@@ -51,7 +51,7 @@ public class MemberService {
     public void delete(Long memberId) {
         log.atInfo().addKeyValue(OPERATION, "member.delete").log("회원을 삭제합니다.");
         deleteComments(memberId);
-        deletePublicRoomActivities(memberId);
+        deletePublicRoomMemberships(memberId);
         deleteClubMemberships(memberId);
         deleteMember(memberId);
         log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(RESULT, SUCCESS)
@@ -64,9 +64,9 @@ public class MemberService {
         logPersistenceSuccess("member.deleteComments");
     }
 
-    private void deletePublicRoomActivities(Long memberId) {
+    private void deletePublicRoomMemberships(Long memberId) {
         logPersistenceAttempt("member.deletePublicRoomActivities");
-        publicRoomActivityRepository.deleteAllByMemberId(memberId);
+        publicRoomMemberRepository.deleteAllByMemberId(memberId);
         logPersistenceSuccess("member.deletePublicRoomActivities");
     }
 

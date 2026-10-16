@@ -26,4 +26,10 @@ public interface MemberBlockRepository extends JpaRepository<MemberBlock, Long> 
             """)
     List<Long> findBlockedMemberIds(@Param("blockerId") Long blockerId,
                                     @Param("memberIds") List<Long> memberIds);
+
+    @Query("""
+            select mb.blocked.id from MemberBlock mb
+            where mb.blocker.id = :blockerId
+            """)
+    List<Long> findBlockedMemberIdsByBlockerId(@Param("blockerId") Long blockerId);
 }

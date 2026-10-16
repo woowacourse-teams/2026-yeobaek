@@ -3,8 +3,10 @@ package com.yeobaek.feature.group.create
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -26,12 +28,15 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val groupRepository: GroupRepository,
     private val bookRepository: BookRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
-    var uiState by mutableStateOf(CreateUiState())
+    var uiState by mutableStateOf(
+        CreateUiState(groupNameValue = savedStateHandle.get<String>(GROUP_NAME_KEY).orEmpty().take(20)),
+    )
         private set
 
     init {
@@ -46,8 +51,21 @@ class CreateViewModel(
         viewModelScope.launch {
             try {
                 val groups = bookRepository.getBooks()
+                val books = groups.map { book -> book.toUiModel() }
+                val selectedBook = books.firstOrNull { book ->
+                    book.id == savedStateHandle.get<Long>(SELECTED_BOOK_ID_KEY)
+                }
                 uiState = uiState.copy(
-                    bookList = groups.map { book -> book.toUiModel() },
+                    bookList = books,
+                    selectedBook = selectedBook,
+                    step = if (
+                        selectedBook != null &&
+                        savedStateHandle.get<String>(CREATE_STEP_KEY) == CreateStep.GroupName.name
+                    ) {
+                        CreateStep.GroupName
+                    } else {
+                        CreateStep.BookSelection
+                    },
                     bookState = BookState.Success,
                 )
                 crashReporter.track(
@@ -74,10 +92,12 @@ class CreateViewModel(
     }
 
     fun updateGroupNameValue(value: String) {
+        val groupName = value.take(20)
         uiState = uiState.copy(
-            groupNameValue = value.take(20),
+            groupNameValue = groupName,
             isGroupNameValid = true,
         )
+        savedStateHandle[GROUP_NAME_KEY] = groupName
     }
 
     // 스크롤마다 이벤트를 보내지 않고, 가장 아래까지 본 위치만 기억했다가 화면을 떠날 때 함께 보낸다.
@@ -104,6 +124,11 @@ class CreateViewModel(
         uiState = uiState.copy(
             selectedBook = targetBook.takeUnless { isAlreadySelected },
         )
+        if (isAlreadySelected) {
+            savedStateHandle.remove<Long>(SELECTED_BOOK_ID_KEY)
+        } else {
+            savedStateHandle[SELECTED_BOOK_ID_KEY] = targetBook.id
+        }
 
         if (!isAlreadySelected) {
             analyticsTracker.track(
@@ -118,10 +143,12 @@ class CreateViewModel(
     fun moveToGroupName() {
         if (uiState.bookState !is BookState.Success || uiState.selectedBook == null) return
         uiState = uiState.copy(step = CreateStep.GroupName)
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.GroupName.name
     }
 
     fun moveToBookSelection() {
         uiState = uiState.copy(step = CreateStep.BookSelection)
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookSelection.name
     }
 
     fun createGroup() {
@@ -204,6 +231,7 @@ class CreateViewModel(
             groupNameValue = if (isGroupNameValid) uiState.groupNameValue else "",
             isGroupNameValid = isGroupNameValid,
         )
+        if (!isGroupNameValid) savedStateHandle[GROUP_NAME_KEY] = ""
     }
 
     fun createConditionCheck(): Boolean {
@@ -212,6 +240,10 @@ class CreateViewModel(
     }
 
     companion object {
+        private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
+        private const val CREATE_STEP_KEY = "createStep"
+        private const val GROUP_NAME_KEY = "groupName"
+
         fun createViewModelFactory(
             groupRepository: GroupRepository,
             bookRepository: BookRepository,
@@ -220,6 +252,7 @@ class CreateViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 CreateViewModel(
+                    savedStateHandle = createSavedStateHandle(),
                     groupRepository = groupRepository,
                     bookRepository = bookRepository,
                     crashReporter = crashReporter,

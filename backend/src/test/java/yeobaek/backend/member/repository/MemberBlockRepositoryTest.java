@@ -38,6 +38,24 @@ class MemberBlockRepositoryTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("요청한 회원이 차단한 회원 ID만 조회한다")
+    void findBlockedMemberIdsByBlockerId() {
+        Member blocker = memberRepository.save(new Member(new Nickname("민서")));
+        Member otherBlocker = memberRepository.save(new Member(new Nickname("지수")));
+        Member firstBlocked = memberRepository.save(new Member(new Nickname("첫 차단")));
+        Member secondBlocked = memberRepository.save(new Member(new Nickname("둘째 차단")));
+        Member blockedByOther = memberRepository.save(new Member(new Nickname("다른 차단")));
+        memberBlockRepository.saveAll(List.of(
+                new MemberBlock(blocker, firstBlocked),
+                new MemberBlock(blocker, secondBlocked),
+                new MemberBlock(otherBlocker, blockedByOther)));
+
+        List<Long> blockedMemberIds = memberBlockRepository.findBlockedMemberIdsByBlockerId(blocker.getId());
+
+        assertThat(blockedMemberIds).containsExactlyInAnyOrder(firstBlocked.getId(), secondBlocked.getId());
+    }
+
+    @Test
     @DisplayName("차단자 계정이 삭제되면 DB cascade로 차단 관계가 삭제된다")
     void deleteByBlockerCascade() {
         Member blocker = memberRepository.save(new Member(new Nickname("민서")));

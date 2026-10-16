@@ -72,6 +72,8 @@ class AppContainer(
 
     val posthogApiKey = if (isDebug) BuildKonfig.POSTHOG_DEBUG_API_KEY else BuildKonfig.POSTHOG_RELEASE_API_KEY
 
+    val apiBaseUrl = networkProvider.baseUrl
+
     init {
         analyticsClient.setup(
             apiKey = posthogApiKey,

@@ -109,13 +109,24 @@ INSERT INTO members (id, nickname)
 VALUES (1, '민서'),
        (2, '지수');
 
-INSERT INTO clubs (id, name, book_id, join_code)
-VALUES (1, '교환독서 1기', 1, 'A3F9KQ');
+INSERT INTO clubs (id, name, join_code)
+VALUES (1, '교환독서 1기', 'A3F9KQ');
 
-INSERT INTO club_members (id, member_id, club_id, last_read_passage_id, last_read_at, status)
-VALUES (1, 1, 1, 10, '2026-08-05 14:30:00', 'JOINED'),
-       (2, 2, 1, 20, '2026-08-05 15:00:00', 'JOINED');
+INSERT INTO club_books (id, club_id, book_id)
+VALUES (1, 1, 1);
 
-INSERT INTO comments (id, club_member_id, sentence_id, content, created_at, updated_at)
+INSERT INTO club_members (id, member_id, club_id, status)
+VALUES (1, 1, 1, 'JOINED'),
+       (2, 2, 1, 'JOINED');
+
+INSERT INTO club_member_last_reads (id, club_member_id, last_read_passage_id, last_read_at)
+VALUES (1, 1, 10, '2026-08-05 14:30:00'),
+       (2, 2, 20, '2026-08-05 15:00:00');
+
+INSERT INTO comments (id, writer_id, sentence_id, content, created_at, updated_at)
 VALUES (1, 1, 2, '이 문장에서 멈칫했어요.', CURRENT_TIMESTAMP, NULL),
        (2, 2, 2, '저도 이 대목의 분위기가 오래 남았어요.', CURRENT_TIMESTAMP, NULL);
+
+INSERT INTO club_comments (id, comment_id, club_id)
+VALUES (1, 1, 1),
+       (2, 2, 1);

@@ -137,7 +137,7 @@ fun DetailScreen(
                 containerColor = MaterialTheme.colorScheme.background,
             ) {
                 YeobaekButton(
-                    text = "책 이어 읽기 ->",
+                    text = if (uiState.bookUiModel.currentProgress == 0) "읽기 시작" else "이어 읽기",
                     onClick = onReadClick,
                     modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
                 )

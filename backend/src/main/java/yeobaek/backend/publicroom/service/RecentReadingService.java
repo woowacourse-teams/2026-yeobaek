@@ -12,11 +12,11 @@ import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.publicroom.domain.PublicRoomActivity;
+import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.dto.ClubReadingSpaceResponse;
 import yeobaek.backend.publicroom.dto.PublicRoomReadingSpaceResponse;
 import yeobaek.backend.publicroom.dto.RecentReadingResponse;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -24,14 +24,14 @@ import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
 public class RecentReadingService {
 
     private final ClubMemberRepository clubMemberRepository;
-    private final PublicRoomActivityRepository activityRepository;
+    private final PublicRoomMemberRepository publicRoomMemberRepository;
     private final AuthorBookRepository authorBookRepository;
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     public Optional<RecentReadingResponse> findRecent(Long memberId) {
         ClubMember clubReading = clubMemberRepository.findAllJoinedWithLastReadingByMemberId(memberId).stream()
                 .findFirst().orElse(null);
-        PublicRoomActivity publicReading = activityRepository.findReadingsByMemberId(memberId).stream()
+        PublicRoomMember publicReading = publicRoomMemberRepository.findReadingsByMemberId(memberId).stream()
                 .findFirst().orElse(null);
         if (clubReading == null && publicReading == null) {
             return Optional.empty();
@@ -51,7 +51,7 @@ public class RecentReadingService {
                 reading.progressRate(), reading.getLastReadAt());
     }
 
-    private RecentReadingResponse toPublicRoomResponse(PublicRoomActivity reading) {
+    private RecentReadingResponse toPublicRoomResponse(PublicRoomMember reading) {
         Book book = reading.getPublicRoom().getBook();
         return new RecentReadingResponse(new PublicRoomReadingSpaceResponse(reading.getPublicRoom().getId()),
                 toBook(book), reading.getLastReadPassage().getSequence().value(),

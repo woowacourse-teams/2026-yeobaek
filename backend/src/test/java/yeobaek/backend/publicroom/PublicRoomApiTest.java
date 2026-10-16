@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
@@ -29,14 +32,18 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.repository.CommentViewRepository;
 import yeobaek.backend.comment.service.CommentService;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
+import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
-import yeobaek.backend.publicroom.repository.PublicRoomActivityRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.publicroom.service.PublicRoomBackfill;
 import yeobaek.backend.publicroom.service.PublicRoomService;
@@ -64,13 +71,19 @@ class PublicRoomApiTest extends IntegrationTest {
     private PublicRoomRepository publicRoomRepository;
 
     @Autowired
-    private PublicRoomActivityRepository activityRepository;
+    private PublicRoomMemberRepository publicRoomMemberRepository;
 
     @Autowired
     private CommentRepository commentRepository;
 
     @Autowired
     private CommentReportRepository commentReportRepository;
+
+    @Autowired
+    private CommentViewRepository commentViewRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
 
     @Autowired
     private PublicRoomService publicRoomService;
@@ -80,6 +93,9 @@ class PublicRoomApiTest extends IntegrationTest {
 
     @Autowired
     private CommentService commentService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("같은 공개방 댓글의 동시 반복 신고는 신고 한 건만 저장한다")
@@ -142,11 +158,11 @@ class PublicRoomApiTest extends IntegrationTest {
             progress.get(10, TimeUnit.SECONDS);
         }
 
-        var activity = activityRepository.findByMemberIdAndPublicRoomId(
+        var membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(
                 member.getId(), fixture.room().getId()).orElseThrow();
-        assertThat(activity.getLastVisitedAt()).isNotNull();
-        assertThat(activity.getLastReadPassage()).isNotNull();
-        assertThat(activityRepository.count()).isOne();
+        assertThat(membership.getLastVisitedAt()).isNotNull();
+        assertThat(membership.getLastReadPassage()).isNotNull();
+        assertThat(publicRoomMemberRepository.count()).isOne();
     }
 
     @Test
@@ -169,7 +185,7 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.publicRooms[0].publicRoomId").value(second.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].publicRoomId").value(first.room().getId()))
                 .andExpect(jsonPath("$.publicRooms[1].myProgress").value((Object) null));
-        assertThat(activityRepository.count()).isEqualTo(3);
+        assertThat(publicRoomMemberRepository.count()).isEqualTo(3);
 
         Passage lastPassage = first.passages().getLast();
         mockMvc.perform(put("/api/public-rooms/{publicRoomId}/progress", first.room().getId())
@@ -308,13 +324,59 @@ class PublicRoomApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("공개방 댓글 문장 조회는 차단 댓글을 제외하고 확인 여부와 최신 시각을 도메인에서 집계한다")
+    void commentedSentencesExcludeBlockedWritersAndAggregateVisibleComments() {
+        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 집계 책"), null, null, 1, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage passage = passageRepository.save(new Passage(chapter, 1,
+                List.of(new SentenceContent("혼합 댓글 문장"), new SentenceContent("차단 댓글만 있는 문장"))));
+        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        Member visibleWriter = memberRepository.save(new Member(new Nickname("보이는 작성자")));
+        Member blockedWriter = memberRepository.save(new Member(new Nickname("차단 작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("집계 독자")));
+        Comment visible = commentRepository.saveAndFlush(new Comment(room, visibleWriter,
+                passage.getSentences().getFirst(), new CommentContent("보이는 댓글")));
+        Comment blockedInSameSentence = commentRepository.saveAndFlush(new Comment(room, blockedWriter,
+                passage.getSentences().getFirst(), new CommentContent("더 나중에 작성된 차단 댓글")));
+        Comment blockedInOtherSentence = commentRepository.saveAndFlush(new Comment(room, blockedWriter,
+                passage.getSentences().getLast(), new CommentContent("차단 댓글만 존재")));
+        LocalDateTime visibleCreatedAt = LocalDateTime.of(2026, 10, 15, 10, 0);
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt), visible.getId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt.plusHours(1)), blockedInSameSentence.getId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                Timestamp.valueOf(visibleCreatedAt.plusHours(2)), blockedInOtherSentence.getId());
+        commentViewRepository.saveAll(List.of(
+                new CommentView(reader, visible),
+                new CommentView(reader, visible)));
+        memberBlockRepository.save(new MemberBlock(reader, blockedWriter));
+        long viewCountBeforeQuery = commentViewRepository.count();
+
+        var response = commentService.findPublicRoomCommentedSentences(
+                reader.getId(), room.getId(), passage.getId());
+
+        assertThat(response.commentedSentences()).singleElement().satisfies(summary -> {
+            assertThat(summary.sentenceId()).isEqualTo(passage.getSentences().getFirst().getId());
+            assertThat(summary.commentCount()).isEqualTo(1);
+            assertThat(summary.unreadCommentCount()).isZero();
+            assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
+        });
+        assertThat(commentViewRepository.count()).isEqualTo(viewCountBeforeQuery);
+    }
+
+    @Test
     @DisplayName("계정 삭제는 공개방 활동과 댓글을 제거해 인기 집계에서도 제외한다")
     void memberDeletion() throws Exception {
         ReadingFixture fixture = createRoom("탈퇴 책", 1);
         Member leaving = memberRepository.save(new Member(new Nickname("탈퇴자")));
         Member remaining = memberRepository.save(new Member(new Nickname("잔여자")));
         visit(fixture.room(), leaving);
+        publicRoomService.updateProgress(leaving.getId(), fixture.room().getId(),
+                fixture.passages().getFirst().getId());
         visit(fixture.room(), remaining);
+        publicRoomService.updateProgress(remaining.getId(), fixture.room().getId(),
+                fixture.passages().getFirst().getId());
         Long sentenceId = fixture.passages().getFirst().getSentences().getFirst().getId();
         mockMvc.perform(post("/api/public-rooms/{roomId}/sentences/{sentenceId}/comments",
                         fixture.room().getId(), sentenceId)
@@ -327,8 +389,10 @@ class PublicRoomApiTest extends IntegrationTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        assertThat(activityRepository.findAll()).hasSize(1)
-                .allMatch(activity -> activity.getMember().getId().equals(remaining.getId()));
+        assertThat(publicRoomMemberRepository.findAll()).hasSize(1)
+                .allMatch(membership -> membership.getMember().getId().equals(remaining.getId()));
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from public_room_member_last_reads", Long.class)).isOne();
         assertThat(commentRepository.findAll()).isEmpty();
         assertThat(publicRoomRepository.findAll()).hasSize(1);
     }

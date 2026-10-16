@@ -11,16 +11,17 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
 
     @Query("""
             select c from Club c
-            join fetch c.book
+            join fetch c.clubBook cb
+            join fetch cb.book
             order by c.id asc
             """)
     List<Club> findAllWithBookByOrderByIdAsc();
 
     @Query("""
-            select c.book.id as bookId, count(c) as clubCount
+            select c.clubBook.book.id as bookId, count(c) as clubCount
             from Club c
-            where c.book.id in :bookIds
-            group by c.book.id
+            where c.clubBook.book.id in :bookIds
+            group by c.clubBook.book.id
             """)
     List<BookClubCount> countClubsByBookIds(@Param("bookIds") List<Long> bookIds);
 

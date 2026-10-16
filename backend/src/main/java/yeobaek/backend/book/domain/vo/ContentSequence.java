@@ -13,4 +13,8 @@ public record ContentSequence(@Column(name = "value", nullable = false) int valu
             throw new IllegalArgumentException("콘텐츠 순서는 1 이상이어야 합니다.");
         }
     }
+
+    public boolean isAfter(ContentSequence other) {
+        return value > other.value;
+    }
 }

@@ -17,8 +17,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import yeobaek.backend.member.domain.Member;
 
 @Entity
-@Table(name = "comment_reports", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_comment_reports_reporter_comment", columnNames = {"reporter_id", "comment_id"})
+@Table(name = "reports", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_reports_reporter_comment", columnNames = {"reporter_id", "comment_id"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
