@@ -100,6 +100,67 @@ DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 필요한 이미지 변경은 `BACKEND_IMAGE` 환경변수로 지정합니다. 운영 비밀번호·외부 API 키는
 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
 
+### 실제 서버로 FCM 웹 푸시 확인
+
+FCM 서버 설정은 `application.properties`의 `fcm.project-id=${FIREBASE_PROJECT_ID}`와
+`FcmConfiguration`을 그대로 사용합니다. JDK 21, Python 3, Docker와 Firebase 서비스 계정 JSON을 준비합니다.
+JSON은 저장소 밖에 보관하고 경로만 환경변수에 지정합니다.
+
+| 환경변수 | 용도·입력할 값 |
+|---|---|
+| `FIREBASE_PROJECT_ID` | 서버와 웹이 함께 사용할 Firebase 프로젝트 ID |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 서버 인증용 서비스 계정 JSON의 절대 경로 |
+| `FIREBASE_WEB_API_KEY` | 같은 프로젝트의 웹 앱 `apiKey` |
+| `FIREBASE_WEB_APP_ID` | 웹 앱 `appId` |
+| `FIREBASE_MESSAGING_SENDER_ID` | 웹 앱 `messagingSenderId` |
+| `FIREBASE_WEB_VAPID_KEY` | Cloud Messaging의 Web Push 인증서 공개 키 |
+
+앞의 두 값은 실제 서버에 필요하고, 나머지 네 값은 정적 테스트 웹에 필요합니다.
+Firebase Console에서 Cloud Messaging API가 활성화되어 있어야 합니다.
+현재 댓글·등록 테스트에는 S3·PostHog·관측 로그 내보내기용 환경변수가 필요하지 않습니다.
+DB 접속은 기존 `application-local.properties`와 Compose 기본값을 사용합니다.
+
+처음 한 번 아래 템플릿을 복사하고 빈 값을 직접 채웁니다. 실제 값 파일은 기존 `.gitignore`로 제외됩니다.
+
+```bash
+cp -n infra/local/.env.local.example infra/local/.env.local
+# infra/local/.env.local을 열어 값을 입력
+```
+
+이후 아래 명령을 **같은 터미널에서** 실행합니다. 이미 여섯 값을 export했다면
+`set -a`부터 `set +a`까지는 생략합니다. 다른 터미널에서 export한 값은 자동으로 공유되지 않습니다.
+
+```bash
+set -a
+source infra/local/.env.local
+set +a
+
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml stop app
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml up -d --wait mysql
+python3 src/main/resources/static/fcm-test/configure.py
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+정적 테스트 웹은 이 작업 환경의 `src/main/resources/static/fcm-test/`에 있으며 Git에서 제외됩니다.
+`configure.py`는 export된 공개 웹 설정만 `firebase-config.js`로 생성합니다.
+서비스 계정 JSON과 서버 인증 환경변수는 웹 파일에 넣지 않습니다.
+웹 설정을 바꾸면 생성 명령을 다시 실행하고 서버를 재시작합니다.
+이 웹 파일은 Git에 포함되지 않으므로 다른 clone에는 제공되지 않습니다.
+
+서버 기동 후 [FCM 테스트 웹](http://localhost:8080/fcm-test/index.html)을 엽니다.
+댓글 조회·작성과 FID 등록은 실제 서버의 `/api/...` Controller를 호출하며, 발송도 실제 FCM 설정을 사용합니다.
+웹 등록은 Firebase의 [FID 등록 방식](https://firebase.google.com/docs/cloud-messaging/web/get-started)에 따라
+`register()`와 `onRegistered()`를 사용해 얻은 FID를 실제 등록 API에 전달합니다.
+터미널에서 서버 로그를 보고, 종료하려면 `Ctrl+C`를 누릅니다.
+
+`local/data.sql`에 회원 1~4와 같은 클럽(1)·문장(2)의 댓글이 준비됩니다.
+서로 다른 Chrome 일반 프로필에서 회원 2·3·4를 각각 선택해 알림을 허용하고 등록한 뒤,
+회원 1로 문장 2에 댓글을 작성해 세 수신 브라우저를 확인합니다.
+회원 1도 별도 프로필에서 등록하면 작성자 본인에게 알림이 오지 않는지 함께 확인할 수 있습니다.
+같은 브라우저 프로필의 탭들은 FID를 공유하므로 여러 수신자 검증에는 별도 프로필을 사용합니다.
+현재 등록 API는 기존 등록을 삭제하거나 다른 회원으로 이전하지 않으므로 프로필별 수신 회원을 고정합니다.
+`local` 서버를 재시작하면 DB와 등록 내역도 재생성되므로 각 프로필에서 다시 등록합니다.
+
 ### PostHog 로컬 확인
 
 PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝트에서 사용자 API 행동 이벤트를 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.

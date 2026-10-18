@@ -44,7 +44,8 @@ class LocalDataSqlStartupTest {
 
     private ConfigurableApplicationContext startApplication(
             MySQLContainer<?> mysql, String profile, boolean recreateSchema) {
-        SpringApplication application = new SpringApplication(yeobaek.backend.BackendApplication.class);
+        SpringApplication application = new SpringApplication(
+                yeobaek.backend.BackendApplication.class, FirebaseTestConfiguration.class);
         application.setWebApplicationType(WebApplicationType.NONE);
 
         List<String> arguments = new ArrayList<>(List.of(
@@ -56,6 +57,7 @@ class LocalDataSqlStartupTest {
                 "--storage.s3.region=ap-northeast-2",
                 "--storage.s3.public-base-url=https://example.com",
                 "--posthog.enabled=false",
+                "--fcm.project-id=yeobaek-test",
                 "--spring.main.banner-mode=off",
                 "--logging.level.root=ERROR"));
         if (!"default".equals(profile)) {
@@ -81,7 +83,7 @@ class LocalDataSqlStartupTest {
                 .containsExactlyElementsOf(java.util.stream.IntStream.rangeClosed(1, 30).boxed().toList());
         assertThat(jdbcTemplate.queryForList(
                 "select concat(id, ':', nickname) from members order by id", String.class))
-                .containsExactly("1:민서", "2:지수");
+                .containsExactly("1:민서", "2:지수", "3:회원3", "4:회원4");
         assertThat(jdbcTemplate.queryForObject(
                 "select concat(id, ':', name, ':', join_code) from clubs", String.class))
                 .isEqualTo("1:교환독서 1기:A3F9KQ");
@@ -105,7 +107,9 @@ class LocalDataSqlStartupTest {
                         row.getTimestamp("last_read_at").toLocalDateTime(), row.getString("status"))))
                 .containsExactly(
                         tuple("민서", 10, LocalDateTime.of(2026, 8, 5, 14, 30), "JOINED"),
-                        tuple("지수", 20, LocalDateTime.of(2026, 8, 5, 15, 0), "JOINED"));
+                        tuple("지수", 20, LocalDateTime.of(2026, 8, 5, 15, 0), "JOINED"),
+                        tuple("회원3", 2, LocalDateTime.of(2026, 8, 5, 15, 0), "JOINED"),
+                        tuple("회원4", 2, LocalDateTime.of(2026, 8, 5, 15, 0), "JOINED"));
         assertThat(jdbcTemplate.queryForList("""
                 select concat(m.nickname, ':', c.content)
                 from comments c
@@ -116,14 +120,16 @@ class LocalDataSqlStartupTest {
                 """, String.class))
                 .containsExactly(
                         "민서:이 문장에서 멈칫했어요.",
-                        "지수:저도 이 대목의 분위기가 오래 남았어요.");
+                        "지수:저도 이 대목의 분위기가 오래 남았어요.",
+                        "회원3:회원3도 같은 문장의 댓글 알림을 받을 준비가 됐어요.",
+                        "회원4:회원4도 같은 문장의 댓글 알림을 받을 준비가 됐어요.");
         assertThat(jdbcTemplate.queryForList(
                 "select created_at from comments order by id", LocalDateTime.class))
                 .allSatisfy(createdAt -> assertThat(createdAt).isNotNull());
 
         jdbcTemplate.update("insert into members (nickname) values (?)", "다음 회원");
         assertThat(jdbcTemplate.queryForObject(
-                "select id from members where nickname = '다음 회원'", Long.class)).isEqualTo(3L);
+                "select id from members where nickname = '다음 회원'", Long.class)).isEqualTo(5L);
     }
 
     private void verifySeedIsAbsent(ConfigurableApplicationContext context) {

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
+import yeobaek.backend.support.FirebaseTestConfiguration;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -250,8 +251,20 @@ class ReadingSchemaMigrationTest {
         }
     }
 
-    private void validateJpaMappings() {
-        SpringApplication application = new SpringApplication(yeobaek.backend.BackendApplication.class);
+    private void validateJpaMappings() throws SQLException {
+        // 독서 스키마 전환 이후 추가된 엔티티의 테이블을 준비하고 현재 매핑 전체를 검증한다.
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE notification_registrations (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                        member_id BIGINT NOT NULL,
+                        fid VARCHAR(255) NOT NULL,
+                        FOREIGN KEY (member_id) REFERENCES members(id)
+                    )
+                    """);
+        }
+        SpringApplication application = new SpringApplication(
+                yeobaek.backend.BackendApplication.class, FirebaseTestConfiguration.class);
         application.setWebApplicationType(WebApplicationType.NONE);
         try (ConfigurableApplicationContext context = application.run(
                 "--spring.datasource.url=" + MYSQL.getJdbcUrl(),
@@ -263,6 +276,7 @@ class ReadingSchemaMigrationTest {
                 "--storage.s3.region=ap-northeast-2",
                 "--storage.s3.public-base-url=https://example.com",
                 "--posthog.enabled=false",
+                "--fcm.project-id=yeobaek-test",
                 "--spring.main.banner-mode=off",
                 "--logging.level.root=ERROR")) {
             assertThat(context.isActive()).isTrue();

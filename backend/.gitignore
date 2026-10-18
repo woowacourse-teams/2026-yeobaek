@@ -41,3 +41,6 @@ out/
 
 # 개인 로컬 환경 설정. infra/local/.env.local.example만 커밋한다.
 .env.local
+
+# Local static FCM client; no alternate Spring server or settings.
+/src/main/resources/static/fcm-test/
