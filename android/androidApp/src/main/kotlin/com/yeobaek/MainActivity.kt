@@ -10,6 +10,8 @@ import com.yeobaek.core.app.AppContainer
 
 class MainActivity : ComponentActivity() {
 
+    private val notificationPermissionRequester = NotificationPermissionRequester(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -24,6 +26,8 @@ class MainActivity : ComponentActivity() {
                 appContainer = appContainer,
             )
         }
+
+        notificationPermissionRequester.requestOnce()
     }
 }
 

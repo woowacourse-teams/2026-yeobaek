@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
 
 class DebugMainActivity : ComponentActivity() {
 
+    private val notificationPermissionRequester = NotificationPermissionRequester(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -44,6 +46,8 @@ class DebugMainActivity : ComponentActivity() {
                 }
             }
         }
+
+        notificationPermissionRequester.requestOnce()
     }
 }
 
