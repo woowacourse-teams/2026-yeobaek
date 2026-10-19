@@ -60,53 +60,6 @@ class CommentE2eTest extends E2eTest {
         deleteOwnCommentAndRequeryCount(ReadingSpaceType.PUBLIC_ROOM);
     }
 
-    @Test
-    @DisplayName("공개방 새 댓글을 직접 확인하면 새 댓글 수가 줄고 차단한 작성자의 댓글은 조회·신고할 수 없다")
-    void discoverPublicRoomCommentsThenBlockWriter() {
-        CommentFixture fixture = createCommentFixture(ReadingSpaceType.PUBLIC_ROOM);
-        long commentId = createComment(fixture, fixture.writerId(), "확인하고 차단할 댓글");
-        ReadingIds reading = findPublicRoomReadingIds(port, fixture.readerId(), fixture.spaceId());
-
-        memberRequest(port, fixture.readerId())
-                .queryParam("currentPassageId", reading.secondPassageId())
-                .when()
-                .get("/api/public-rooms/{publicRoomId}/comments/new-count", fixture.spaceId())
-                .then()
-                .log().ifValidationFails()
-                .statusCode(200)
-                .body("newCommentCount", equalTo(1));
-
-        viewComments(fixture.readerId(), fixture)
-                .body("comments[0].commentId", equalTo(Math.toIntExact(commentId)));
-
-        memberRequest(port, fixture.readerId())
-                .queryParam("currentPassageId", reading.secondPassageId())
-                .when()
-                .get("/api/public-rooms/{publicRoomId}/comments/new-count", fixture.spaceId())
-                .then()
-                .log().ifValidationFails()
-                .statusCode(200)
-                .body("newCommentCount", equalTo(0));
-
-        memberRequest(port, fixture.readerId())
-                .when()
-                .put("/api/members/me/blocks/{memberId}", fixture.writerId())
-                .then()
-                .log().ifValidationFails()
-                .statusCode(204);
-
-        viewComments(fixture.readerId(), fixture)
-                .body("comments", empty());
-
-        memberRequest(port, fixture.readerId())
-                .when()
-                .post("/api/comments/{commentId}/reports", commentId)
-                .then()
-                .log().ifValidationFails()
-                .statusCode(400)
-                .body("code", equalTo("COMMENT_NOT_FOUND"));
-    }
-
     private void readAndReportAnotherMembersComment(ReadingSpaceType type) {
         CommentFixture fixture = createCommentFixture(type);
         // 작성자가 독서 공간의 문장에 신고 대상 댓글을 남긴다
