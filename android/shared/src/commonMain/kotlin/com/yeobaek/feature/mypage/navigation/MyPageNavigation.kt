@@ -1,5 +1,6 @@
 package com.yeobaek.feature.mypage.navigation
 
+import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -10,7 +11,9 @@ import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.mypage.MyPageScreen
+import com.yeobaek.feature.mypage.MyPageUiState
 import com.yeobaek.feature.mypage.MyPageViewModel
+import com.yeobaek.feature.mypage.systemNotificationChecker
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -46,7 +49,7 @@ fun NavGraphBuilder.myPageNavGraph(
             ),
         )
 
-        MyPageScreen(
+        MyPageRoute(
             uiState = myPageViewModel.uiState,
             appVersion = appContainer.appVersion,
             onDeleteAccountClick = {
@@ -60,4 +63,27 @@ fun NavGraphBuilder.myPageNavGraph(
             },
         )
     }
+}
+
+@Composable
+private fun MyPageRoute(
+    uiState: MyPageUiState,
+    appVersion: String,
+    onDeleteAccountClick: () -> Unit,
+    deleteAccount: () -> Unit,
+    navigateToNickname: () -> Unit,
+    navigateToGuide: () -> Unit,
+    onNotificationsEnabledChange: (Boolean) -> Unit,
+) {
+    val notificationChecker = systemNotificationChecker()
+    MyPageScreen(
+        uiState = uiState,
+        appVersion = appVersion,
+        onDeleteAccountClick = onDeleteAccountClick,
+        deleteAccount = deleteAccount,
+        navigateToNickname = navigateToNickname,
+        navigateToGuide = navigateToGuide,
+        onNotificationsEnabledChange = onNotificationsEnabledChange,
+        isSystemNotificationEnabled = notificationChecker::isSystemNotificationEnabled,
+    )
 }
