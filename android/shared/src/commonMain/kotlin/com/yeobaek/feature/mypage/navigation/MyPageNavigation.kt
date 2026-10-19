@@ -1,6 +1,12 @@
 package com.yeobaek.feature.mypage.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -76,6 +82,19 @@ private fun MyPageRoute(
     onNotificationsEnabledChange: (Boolean) -> Unit,
 ) {
     val notificationChecker = systemNotificationChecker()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentNotificationsEnabled by rememberUpdatedState(uiState.notificationsEnabled)
+    val currentOnNotificationsEnabledChange by rememberUpdatedState(onNotificationsEnabledChange)
+    val currentNotificationChecker by rememberUpdatedState(notificationChecker)
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (!currentNotificationChecker.isSystemNotificationEnabled() && currentNotificationsEnabled) {
+                currentOnNotificationsEnabledChange(false)
+            }
+        }
+    }
+
     MyPageScreen(
         uiState = uiState,
         appVersion = appVersion,
