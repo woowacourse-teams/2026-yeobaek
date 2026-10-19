@@ -3,6 +3,9 @@ package yeobaek.backend.publicroom.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,6 +31,7 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.dto.PublicRoomSort;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -56,6 +60,57 @@ class PublicRoomServiceTest extends IntegrationTest {
 
     @Autowired
     private PublicRoomService publicRoomService;
+
+    @Autowired
+    private PublicRoomMemberRepository publicRoomMemberRepository;
+
+    @Test
+    @DisplayName("동시 최초 방문과 진도 저장은 활동 한 건에 두 상태를 모두 보존한다")
+    void concurrentFirstWrites() throws Exception {
+        ReadingFixture fixture = createRoom("동시성 책", 1);
+        Member member = memberRepository.save(new Member(new Nickname("동시 독자")));
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var visit = executor.submit(() -> {
+                await(start);
+                publicRoomService.visit(member.getId(), fixture.room().getId());
+            });
+            var progress = executor.submit(() -> {
+                await(start);
+                publicRoomService.updateProgress(member.getId(), fixture.room().getId(),
+                        fixture.passages().getFirst().getId());
+            });
+            start.countDown();
+            visit.get(10, TimeUnit.SECONDS);
+            progress.get(10, TimeUnit.SECONDS);
+        }
+
+        var membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(
+                member.getId(), fixture.room().getId()).orElseThrow();
+        assertThat(membership.getLastVisitedAt()).isNotNull();
+        assertThat(membership.getLastReadPassage()).isNotNull();
+        assertThat(publicRoomMemberRepository.count()).isOne();
+    }
+
+    @Test
+    @DisplayName("공개방 목록은 중복 방문을 제외한 누적 방문 회원 수 내림차순으로 반환한다")
+    void findAllByDistinctVisitorCount() {
+        ReadingFixture first = createRoom("첫 번째 책", 2);
+        ReadingFixture second = createRoom("두 번째 책", 1);
+        Member member = memberRepository.save(new Member(new Nickname("독자")));
+        Member other = memberRepository.save(new Member(new Nickname("다른 독자")));
+        publicRoomService.visit(member.getId(), first.room().getId());
+        publicRoomService.visit(member.getId(), first.room().getId());
+        publicRoomService.visit(other.getId(), second.room().getId());
+        publicRoomService.visit(member.getId(), second.room().getId());
+
+        var response = publicRoomService.findAll(member.getId(), PublicRoomSort.MOST_VISITED, null);
+
+        assertThat(response.publicRooms()).extracting(room -> room.publicRoomId())
+                .containsExactly(second.room().getId(), first.room().getId());
+        assertThat(response.publicRooms()).allSatisfy(room -> assertThat(room.myProgress()).isNull());
+        assertThat(publicRoomMemberRepository.count()).isEqualTo(3);
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"운수", "현진"})
@@ -154,6 +209,15 @@ class PublicRoomServiceTest extends IntegrationTest {
                 .toList();
         PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
         return new ReadingFixture(book, room, passages);
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(exception);
+        }
     }
 
     private record ReadingFixture(Book book, PublicRoom room, List<Passage> passages) {
