@@ -4,14 +4,13 @@ import com.yeobaek.data.api.BookApi
 import com.yeobaek.data.dto.toModel
 import com.yeobaek.data.model.BookDetailModel
 import com.yeobaek.data.model.BookModel
-import com.yeobaek.data.model.SearchBooksModel
 import com.yeobaek.data.repository.BookRepository
 
 class BookRepositoryImpl(
     private val bookApi: BookApi,
 ) : BookRepository {
-    override suspend fun getBooks(): List<BookModel> {
-        val response = bookApi.getBooks()
+    override suspend fun getBooks(keyword: String): List<BookModel> {
+        val response = bookApi.getBooks(keyword)
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("책 정보가 없네요")
         } else {
@@ -26,13 +25,4 @@ class BookRepositoryImpl(
     override suspend fun getBookDetail(bookId: Long): BookDetailModel = bookApi
         .getBookDetail(bookId = bookId)
         .toModel()
-
-    override suspend fun getSearchBooks(keyword: String): SearchBooksModel {
-        val response = bookApi.getSearchBooks(keyword = keyword)
-        return if (response.isSuccessful) {
-            response.body()?.toModel() ?: throw IllegalArgumentException("책 정보가 없네요")
-        } else {
-            throw IllegalArgumentException("책 정보를 가져오는데 실패했습니다 ${response.status}")
-        }
-    }
 }

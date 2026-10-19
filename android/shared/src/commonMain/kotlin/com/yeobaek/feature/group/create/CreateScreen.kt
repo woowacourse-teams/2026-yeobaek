@@ -53,6 +53,10 @@ fun CreateScreen(
         }
     }
 
+    LaunchedEffect(uiState.searchTextValue) {
+        bookGridState.scrollToItem(0)
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {

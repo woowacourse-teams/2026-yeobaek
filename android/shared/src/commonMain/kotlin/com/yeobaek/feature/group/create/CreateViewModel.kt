@@ -25,6 +25,9 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
@@ -38,6 +41,8 @@ class CreateViewModel(
         CreateUiState(groupNameValue = savedStateHandle.get<String>(GROUP_NAME_KEY).orEmpty().take(20)),
     )
         private set
+
+    private var searchJob: Job? = null
 
     init {
         initBookList()
@@ -94,7 +99,28 @@ class CreateViewModel(
     fun updateSearchTextValue(value: String) {
         uiState = uiState.copy(
             searchTextValue = value,
+            searchState = SearchState.Loading,
         )
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            try {
+                if (value.isNotBlank()) delay(300.milliseconds)
+
+                val searchBooks = bookRepository.getBooks(value)
+                uiState = uiState.copy(
+                    bookList = searchBooks.map { book -> book.toUiModel() },
+                    searchState = SearchState.Success,
+                )
+                println("searchBooks: $searchBooks")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    searchState = SearchState.Failure(e.message ?: "책 목록을 가져오는데 실패했습니다."),
+                )
+            }
+        }
     }
 
     fun updateGroupNameValue(value: String) {
@@ -286,4 +312,11 @@ sealed class CreateState {
     data object Loading : CreateState()
     data object Success : CreateState()
     data class Failure(val message: String) : CreateState()
+}
+
+sealed class SearchState {
+    data object Idle : SearchState()
+    data object Loading : SearchState()
+    data object Success : SearchState()
+    data class Failure(val message: String) : SearchState()
 }
