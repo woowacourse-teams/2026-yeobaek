@@ -37,6 +37,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBottomSheetContent
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingJoinCard
+import com.yeobaek.feature.onboarding.selectbook.component.OnboardingSearchTextField
 import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +52,7 @@ fun OnboardingScreen(
     onClickPublicRoom: (Long) -> Unit,
     onClickCreateRoom: (Long) -> Unit,
     closeBottomSheet: () -> Unit,
+    updateSearchTextValue: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isLoading by remember { mutableStateOf(false) }
@@ -135,6 +137,12 @@ fun OnboardingScreen(
             Text("책을 고르면 함께 읽는 방식을 선택할 수 있어요.", style = MaterialTheme.typography.bodyMedium)
             OnboardingJoinCard(
                 navigateToJoin = navigateToJoin,
+            )
+            OnboardingSearchTextField(
+                searchTextValue = uiState.searchTextValue,
+                updateSearchTextValue = { newValue ->
+                    updateSearchTextValue(newValue)
+                },
             )
             Text("책 목록", style = MaterialTheme.typography.headlineMedium)
             LazyVerticalGrid(
@@ -223,6 +231,7 @@ private fun OnboardingScreenPreview() {
                     ),
                 ),
             ),
+            updateSearchTextValue = {},
             navigateToHome = {},
             onClickSkip = {},
             navigateToJoin = {},

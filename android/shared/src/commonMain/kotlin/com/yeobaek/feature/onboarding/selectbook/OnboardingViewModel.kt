@@ -76,6 +76,10 @@ class OnboardingViewModel(
         }
     }
 
+    fun updateSearchTextValue(newValue: String) {
+        uiState = uiState.copy(searchTextValue = newValue)
+    }
+
     fun onSelectBook(id: Long) {
         if (uiState.publicRoomState is PublicRoomState.Loading) return
         val selectedBook = uiState.bookUiModelList.firstOrNull { bookUiModel -> bookUiModel.id == id }
