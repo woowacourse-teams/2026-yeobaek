@@ -1,22 +1,38 @@
 package yeobaek.backend.notification.comment;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import ch.qos.logback.classic.Level;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
+import yeobaek.backend.notification.domain.FcmRetryTask;
+import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
+import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
+import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.support.LogCapture;
 
 class CommentNotificationServiceTest {
+
+    private static final String FID = "c" + "a".repeat(21);
+    private static final String TITLE = "새로운 댓글이 달렸어요!";
+    private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
     private final CommentNotificationRecipientReader reader = mock(CommentNotificationRecipientReader.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
@@ -37,7 +53,7 @@ class CommentNotificationServiceTest {
         given(sender.send(fids, "새로운 댓글이 달렸어요!", "댓글을 남겼던 문장의 이야기를 확인해 보세요."))
                 .willReturn(result);
 
-        notify(club);
+        assertThat(notify(club)).isEmpty();
 
         var order = inOrder(registrationService, sender, handler);
         order.verify(registrationService).snapshotForSend(fids);
@@ -51,9 +67,108 @@ class CommentNotificationServiceTest {
     void skipEmptyRecipients(boolean club) throws FirebaseMessagingException {
         stubRecipients(club, List.of());
 
-        notify(club);
+        assertThat(notify(club)).isEmpty();
 
         verifyNoInteractions(registrationService, sender, handler);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("부분 실패 중 재시도 후보만 원래 등록 ID와 메시지를 담아 반환하고 추가 발송하지 않는다")
+    void createOnlyRetryableTasks(boolean club) throws FirebaseMessagingException {
+        String unregisteredFid = "d" + "a".repeat(21);
+        String invalidFid = "e" + "a".repeat(21);
+        List<String> fids = List.of(FID, unregisteredFid, invalidFid, "f" + "a".repeat(21));
+        var failure = new FcmSendFailure(FID, "UNAVAILABLE", "UNAVAILABLE", 503, "120");
+        var snapshot = new NotificationRegistrations(List.of(
+                registration(1L, FID), registration(2L, FID),
+                registration(3L, unregisteredFid), registration(4L, invalidFid)));
+        var result = new FcmSendResult(1, List.of(failure,
+                new FcmSendFailure(unregisteredFid, "UNREGISTERED", "NOT_FOUND", 404, null),
+                new FcmSendFailure(invalidFid, "INVALID_ARGUMENT", "INVALID_ARGUMENT", 400, null)));
+        stubRecipients(club, fids);
+        given(registrationService.snapshotForSend(fids)).willReturn(snapshot);
+        given(sender.send(fids, TITLE, BODY)).willReturn(result);
+
+        List<FcmRetryTask> tasks = notify(club);
+
+        assertThat(tasks).containsExactly(new FcmRetryTask(11L, List.of(1L, 2L), TITLE, BODY, failure));
+        verify(handler).handle(result, snapshot);
+        verify(sender).send(fids, TITLE, BODY);
+        verifyNoMoreInteractions(sender);
+        assertThatThrownBy(tasks::clear).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("접수 불명확·할당량 초과가 함께 있으면 대상별 작업에 원래 실패 메타데이터를 유지한다")
+    void preserveMultipleRetryableFailures() throws FirebaseMessagingException {
+        String quotaFid = "d" + "a".repeat(21);
+        var failure = new FcmSendFailure(FID, "UNKNOWN", "DEADLINE_EXCEEDED", null, null);
+        var quotaFailure = new FcmSendFailure(quotaFid, "QUOTA_EXCEEDED", "RESOURCE_EXHAUSTED", 429, "120");
+        List<String> fids = List.of(FID, quotaFid);
+        stubRecipients(true, fids);
+        given(registrationService.snapshotForSend(fids)).willReturn(
+                new NotificationRegistrations(List.of(registration(1L, FID), registration(2L, quotaFid))));
+        given(sender.send(fids, TITLE, BODY)).willReturn(new FcmSendResult(0, List.of(failure, quotaFailure)));
+
+        List<FcmRetryTask> tasks = notify(true);
+
+        assertThat(tasks).containsExactly(
+                new FcmRetryTask(11L, List.of(1L), TITLE, BODY, failure),
+                new FcmRetryTask(11L, List.of(2L), TITLE, BODY, quotaFailure));
+    }
+
+    @Test
+    @DisplayName("발송 당시 등록이 없는 후보는 작업을 만들지 않고 민감 정보 없이 경고한다")
+    void skipMissingSnapshot() throws FirebaseMessagingException {
+        var failure = new FcmSendFailure(FID, "INTERNAL", "INTERNAL", 500, null);
+        stubSend(failure, new NotificationRegistrations(List.of()));
+
+        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+            assertThat(notify(true)).isEmpty();
+
+            var event = logs.event("notification.comment.createRetryTasks", "rejected");
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(logs.field(event, "reason")).isEqualTo("registrationSnapshotMissing");
+            assertThat(logs.field(event, "commentId")).isEqualTo(11L);
+            assertThat(logs.structuredText()).doesNotContain(FID, TITLE, BODY);
+        }
+    }
+
+    @Test
+    @DisplayName("재시도하지 않는 실패는 기존 실패 처리에 넘기고 작업은 반환하지 않는다")
+    void skipPermanentFailure() throws FirebaseMessagingException {
+        var failure = new FcmSendFailure(FID, "INVALID_ARGUMENT", "INVALID_ARGUMENT", 400, null);
+        stubSend(failure, new NotificationRegistrations(List.of(registration(1L, FID))));
+
+        assertThat(notify(true)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("SDK 호출 자체가 실패하면 개별 응답을 만들지 않고 기존 호출 실패 경로로 전달한다")
+    void propagateWholeCallFailure() throws FirebaseMessagingException {
+        List<String> fids = List.of(FID);
+        var exception = mock(FirebaseMessagingException.class);
+        stubRecipients(true, fids);
+        given(registrationService.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of()));
+        given(sender.send(fids, TITLE, BODY)).willThrow(exception);
+
+        assertThatThrownBy(() -> notify(true)).isSameAs(exception);
+        verifyNoInteractions(handler);
+        verify(sender).send(fids, TITLE, BODY);
+        verifyNoMoreInteractions(sender);
+    }
+
+    private void stubSend(FcmSendFailure failure, NotificationRegistrations snapshot)
+            throws FirebaseMessagingException {
+        List<String> fids = List.of(FID);
+        stubRecipients(true, fids);
+        given(registrationService.snapshotForSend(fids)).willReturn(snapshot);
+        given(sender.send(fids, TITLE, BODY)).willReturn(new FcmSendResult(0, List.of(failure)));
+    }
+
+    private NotificationRegistration registration(Long id, String fid) {
+        return new NotificationRegistration(id, mock(Member.class), new FirebaseInstallationId(fid));
     }
 
     private void stubRecipients(boolean club, List<String> fids) {
@@ -64,11 +179,11 @@ class CommentNotificationServiceTest {
         }
     }
 
-    private void notify(boolean club) throws FirebaseMessagingException {
+    private List<FcmRetryTask> notify(boolean club) throws FirebaseMessagingException {
         if (club) {
-            service.notifyReadersInClub(5L, 13L, 7L);
+            return service.notifyReadersInClub(11L, 5L, 13L, 7L);
         } else {
-            service.notifyPreviousCommentersInPublicRoom(8L, 13L, 7L);
+            return service.notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L);
         }
     }
 }

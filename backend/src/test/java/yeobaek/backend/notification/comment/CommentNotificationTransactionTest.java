@@ -15,8 +15,12 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.ErrorCode;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +33,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -37,6 +43,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.book.domain.vo.ContentSequence;
@@ -122,11 +129,15 @@ class CommentNotificationTransactionTest {
     @MockitoBean
     private FcmPushSender pushSender;
 
+    @Autowired
+    private QueuedTaskExecutor executor;
+
     private Connection commentConnection;
     private Connection recipientConnection;
 
     @BeforeEach
     void setUp() throws SQLException, FirebaseMessagingException {
+        executor.reset();
         commentConnection = mock(Connection.class);
         recipientConnection = mock(Connection.class);
         given(dataSource.getConnection()).willReturn(commentConnection, recipientConnection);
@@ -180,11 +191,12 @@ class CommentNotificationTransactionTest {
     @DisplayName("모임 알림은 댓글 커밋과 별도 수신자 조회 커밋이 끝난 뒤 발송한다")
     void sendClubNotificationAfterBothCommits() throws Exception {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            var response = commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
+            commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
 
-            assertThat(response.commentId()).isEqualTo(11L);
             verifyNoInteractions(pushSender, registrationService);
         });
+
+        executor.runNextOnWorker();
 
         var order = inOrder(commentConnection, recipientConnection, pushSender);
         order.verify(commentConnection).commit();
@@ -193,22 +205,21 @@ class CommentNotificationTransactionTest {
     }
 
     @Test
-    @DisplayName("공개방 알림은 별도 조회를 마친 뒤 요청 스레드에서 동기로 발송한다")
-    void sendPublicRoomNotificationOnRequestThread() throws Exception {
+    @DisplayName("공개방 알림은 응답 후 다른 스레드에서 조회하고 DB 트랜잭션 밖에서 발송한다")
+    void sendPublicRoomNotificationOnWorkerThread() throws Exception {
         Thread requestThread = Thread.currentThread();
         doAnswer(invocation -> {
-            assertThat(Thread.currentThread()).isSameAs(requestThread);
+            assertThat(Thread.currentThread()).isNotSameAs(requestThread);
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return new FcmSendResult(1, List.of());
         }).when(pushSender).send(any(), any(), any());
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
 
         assertThat(response.commentId()).isEqualTo(11L);
-        var order = inOrder(commentConnection, recipientQueryRepository, recipientConnection, pushSender);
-        order.verify(commentConnection).commit();
-        order.verify(recipientQueryRepository).findFidsForPublicRoomComment(8L, 13L, 7L);
-        order.verify(recipientConnection).commit();
-        order.verify(pushSender).send(any(), any(), any());
+        verifyNoInteractions(recipientQueryRepository, pushSender);
+        executor.runNextOnWorker();
+        verify(pushSender).send(any(), any(), any());
     }
 
     @Test
@@ -221,6 +232,7 @@ class CommentNotificationTransactionTest {
 
         verify(commentConnection).rollback();
         verifyNoInteractions(registrationService, pushSender);
+        assertThat(executor.tasks).isEmpty();
     }
 
     @Test
@@ -232,6 +244,7 @@ class CommentNotificationTransactionTest {
                 .isInstanceOf(TransactionSystemException.class);
 
         verifyNoInteractions(recipientQueryRepository, pushSender);
+        assertThat(executor.tasks).isEmpty();
     }
 
     @Test
@@ -243,6 +256,7 @@ class CommentNotificationTransactionTest {
 
         try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
             var response = commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
+            executor.runNextOnWorker();
 
             assertThat(response.commentId()).isEqualTo(11L);
             assertThat(logs.field(logs.event("notification.fcm.logFailure", "failure"), "commentId"))
@@ -261,6 +275,7 @@ class CommentNotificationTransactionTest {
             var response = club
                     ? commentService.create(7L, 5L, 13L, new CommentContent("댓글"))
                     : commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+            executor.runNextOnWorker();
 
             assertThat(response.commentId()).isEqualTo(11L);
             assertThat(logs.field(logs.event("notification.fcm.handleInvalidRequest", "failure"), "handlingCode"))
@@ -272,15 +287,16 @@ class CommentNotificationTransactionTest {
 
     @Test
     @DisplayName("수신자 DB 조회 실패는 댓글 식별자와 함께 기록하고 댓글 응답을 유지한다")
-    void logRecipientDatabaseFailure() {
+    void logRecipientDatabaseFailure() throws Exception {
         given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L))
                 .willThrow(new DataAccessResourceFailureException("database unavailable"));
 
-        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+        try (var logs = new LogCapture(CommentNotificationWorker.class.getName())) {
             var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+            executor.runNextOnWorker();
 
             assertThat(response.commentId()).isEqualTo(11L);
-            assertThat(logs.field(logs.event("notification.comment.send", "failure"), "commentId"))
+            assertThat(logs.field(logs.event("notification.comment.logFailure", "failure"), "commentId"))
                     .isEqualTo(11L);
         }
         verifyNoInteractions(pushSender);
@@ -288,11 +304,12 @@ class CommentNotificationTransactionTest {
 
     @Test
     @DisplayName("커밋 후 조회 예외도 댓글 응답을 바꾸지 않고 조회 트랜잭션만 롤백한다")
-    void keepResponseWhenRecipientQueryFails() throws SQLException {
+    void keepResponseWhenRecipientQueryFails() throws Exception {
         given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L))
                 .willThrow(new IllegalStateException("query failed"));
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+        executor.runNextOnWorker();
 
         assertThat(response.commentId()).isEqualTo(11L);
         verify(commentConnection).commit();
@@ -306,13 +323,65 @@ class CommentNotificationTransactionTest {
         eventPublisher.publishEvent(new ClubCommentCreated(11L, 5L, 13L, 7L));
 
         verifyNoInteractions(registrationService, pushSender, dataSource);
+        assertThat(executor.tasks).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("작업 제출이 거절돼도 댓글은 커밋하고 WARN으로 알림 누락을 기록한다")
+    void keepCommentWhenSubmissionIsRejected(boolean club) throws SQLException {
+        executor.reject = true;
+
+        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+            var response = club
+                    ? commentService.create(7L, 5L, 13L, new CommentContent("댓글"))
+                    : commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+
+            assertThat(response.commentId()).isEqualTo(11L);
+            assertThat(logs.field(logs.event("notification.comment.submit", "rejected"), "commentId"))
+                    .isEqualTo(11L);
+        }
+        verify(commentConnection).commit();
+        verifyNoInteractions(registrationService, pushSender, recipientQueryRepository);
+        assertThat(executor.tasks).isEmpty();
+    }
+
+    static class QueuedTaskExecutor implements TaskExecutor {
+
+        private final Deque<Runnable> tasks = new ArrayDeque<>();
+        private boolean reject;
+
+        @Override
+        public void execute(Runnable task) {
+            if (reject) {
+                throw new TaskRejectedException("queue full");
+            }
+            tasks.addLast(task);
+        }
+
+        void runNextOnWorker() throws Exception {
+            Runnable task = tasks.removeFirst();
+            try (var worker = Executors.newSingleThreadExecutor()) {
+                worker.submit(task).get(5, TimeUnit.SECONDS);
+            }
+        }
+
+        void reset() {
+            tasks.clear();
+            reject = false;
+        }
     }
 
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
     @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            CommentNotificationRecipientReader.class, FcmFailureHandler.class})
+            CommentNotificationRecipientReader.class, CommentNotificationWorker.class, FcmFailureHandler.class})
     static class TestConfig {
+
+        @Bean
+        QueuedTaskExecutor notificationTaskExecutor() {
+            return new QueuedTaskExecutor();
+        }
 
         @Bean
         PlatformTransactionManager transactionManager(DataSource dataSource) {
