@@ -1,8 +1,10 @@
 package yeobaek.backend.notification.registration.service;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.Members;
@@ -36,5 +38,19 @@ public class NotificationRegistrationService {
     @Transactional(readOnly = true)
     public NotificationRegistrations findByMembers(Members members) {
         return new NotificationRegistrations(registrationRepository.findAllByMember_IdIn(members.ids()));
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public NotificationRegistrations snapshotForSend(List<String> fids) {
+        return new NotificationRegistrations(registrationRepository.findAllByFirebaseInstallationId_ValueIn(fids));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int deleteUnregistered(NotificationRegistrations sentRegistrations, FirebaseInstallationId fid) {
+        List<Long> ids = sentRegistrations.idsFor(fid);
+        if (ids.isEmpty()) {
+            return 0;
+        }
+        return registrationRepository.deleteUnregistered(ids, fid);
     }
 }

@@ -2,14 +2,14 @@ package yeobaek.backend.notification;
 
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.Notification;
-import java.util.Set;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
 public class FcmMessageFactory {
-    public MulticastMessage createMulticastMessage(Set<String> fids, String title, String body) {
+    public MulticastMessage createMulticastMessage(List<String> fids, String title, String body) {
         return MulticastMessage.builder()
                 .addAllFids(fids)
                 .setNotification(createNotification(title, body))

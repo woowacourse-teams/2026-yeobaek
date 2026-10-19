@@ -1,6 +1,6 @@
 package yeobaek.backend.notification.comment;
 
-import java.util.Set;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,7 +23,7 @@ public class CommentNotificationRecipientReader {
     private final MemberRepository memberRepository;
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public Set<String> findReadersInClub(Long clubId, Long sentenceId, Long writerId) {
+    public List<String> findReadersInClub(Long clubId, Long sentenceId, Long writerId) {
         ClubMembers targets = new ClubMembers(clubMemberRepository.findAllJoinedWithMemberByClubId(clubId));
         Members recipients = new Members(targets.otherMembersAheadOf(
                 sentenceRepository.getReferenceById(sentenceId), memberRepository.getReferenceById(writerId)));
@@ -31,7 +31,7 @@ public class CommentNotificationRecipientReader {
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public Set<String> findPreviousCommentersInPublicRoom(Long publicRoomId, Long sentenceId, Long writerId) {
+    public List<String> findPreviousCommentersInPublicRoom(Long publicRoomId, Long sentenceId, Long writerId) {
         return recipientQueryRepository.findFidsForPublicRoomComment(publicRoomId, sentenceId, writerId);
     }
 }

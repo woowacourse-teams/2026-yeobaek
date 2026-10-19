@@ -1,6 +1,6 @@
 package yeobaek.backend.notification.comment;
 
-import java.util.Set;
+import java.util.List;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -34,7 +34,7 @@ public interface CommentNotificationRecipientQueryRepository extends Repository<
                     and memberBlock.blocked.id = :writerId
               )
             """)
-    Set<String> findFidsForPublicRoomComment(
+    List<String> findFidsForPublicRoomComment(
             @Param("publicRoomId") Long publicRoomId,
             @Param("sentenceId") Long sentenceId,
             @Param("writerId") Long writerId

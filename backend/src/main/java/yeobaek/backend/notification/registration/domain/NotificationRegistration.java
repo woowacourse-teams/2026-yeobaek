@@ -37,4 +37,8 @@ public class NotificationRegistration {
         this.member = Objects.requireNonNull(member);
         this.firebaseInstallationId = Objects.requireNonNull(firebaseInstallationId);
     }
+
+    public boolean isFor(FirebaseInstallationId fid) {
+        return firebaseInstallationId.equals(fid);
+    }
 }

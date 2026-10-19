@@ -13,6 +13,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import yeobaek.backend.comment.domain.ClubCommentCreated;
 import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
+import yeobaek.backend.notification.FcmFailureHandler;
 
 @Component
 @RequiredArgsConstructor
@@ -20,12 +21,17 @@ import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
 public class CommentNotificationListener {
 
     private final CommentNotificationService notificationService;
+    private final FcmFailureHandler failureHandler;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onClubCommentCreated(ClubCommentCreated event) {
         try {
             notificationService.notifyReadersInClub(event.clubId(), event.sentenceId(), event.writerId());
-        } catch (FirebaseMessagingException | DataAccessException exception) {
+        } catch (FirebaseMessagingException exception) {
+            failureHandler.handleCallFailure(event.commentId(), exception);
+        } catch (IllegalArgumentException exception) {
+            failureHandler.handleInvalidRequest(event.commentId());
+        } catch (DataAccessException exception) {
             logFailure(event.commentId(), exception);
         }
     }
@@ -35,7 +41,11 @@ public class CommentNotificationListener {
         try {
             notificationService.notifyPreviousCommentersInPublicRoom(
                     event.publicRoomId(), event.sentenceId(), event.writerId());
-        } catch (FirebaseMessagingException | DataAccessException exception) {
+        } catch (FirebaseMessagingException exception) {
+            failureHandler.handleCallFailure(event.commentId(), exception);
+        } catch (IllegalArgumentException exception) {
+            failureHandler.handleInvalidRequest(event.commentId());
+        } catch (DataAccessException exception) {
             logFailure(event.commentId(), exception);
         }
     }

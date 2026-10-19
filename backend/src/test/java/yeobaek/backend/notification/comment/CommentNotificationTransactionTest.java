@@ -12,15 +12,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.ErrorCode;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -55,8 +57,9 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.notification.FcmMessageFactory;
 import yeobaek.backend.notification.FcmPushSender;
+import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
@@ -123,7 +126,7 @@ class CommentNotificationTransactionTest {
     private Connection recipientConnection;
 
     @BeforeEach
-    void setUp() throws SQLException {
+    void setUp() throws SQLException, FirebaseMessagingException {
         commentConnection = mock(Connection.class);
         recipientConnection = mock(Connection.class);
         given(dataSource.getConnection()).willReturn(commentConnection, recipientConnection);
@@ -168,7 +171,9 @@ class CommentNotificationTransactionTest {
         var room = mock(PublicRoom.class);
         given(room.isReading(sentence)).willReturn(true);
         given(publicRoomRepository.findWithBookById(8L)).willReturn(Optional.of(room));
-        given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L)).willReturn(Set.of(fid));
+        given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L)).willReturn(List.of(fid));
+        given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of()));
+        given(pushSender.send(any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }
 
     @Test
@@ -184,7 +189,7 @@ class CommentNotificationTransactionTest {
         var order = inOrder(commentConnection, recipientConnection, pushSender);
         order.verify(commentConnection).commit();
         order.verify(recipientConnection).commit();
-        order.verify(pushSender).send(any());
+        order.verify(pushSender).send(any(), any(), any());
     }
 
     @Test
@@ -193,8 +198,8 @@ class CommentNotificationTransactionTest {
         Thread requestThread = Thread.currentThread();
         doAnswer(invocation -> {
             assertThat(Thread.currentThread()).isSameAs(requestThread);
-            return null;
-        }).when(pushSender).send(any());
+            return new FcmSendResult(1, List.of());
+        }).when(pushSender).send(any(), any(), any());
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
 
@@ -203,7 +208,7 @@ class CommentNotificationTransactionTest {
         order.verify(commentConnection).commit();
         order.verify(recipientQueryRepository).findFidsForPublicRoomComment(8L, 13L, 7L);
         order.verify(recipientConnection).commit();
-        order.verify(pushSender).send(any());
+        order.verify(pushSender).send(any(), any(), any());
     }
 
     @Test
@@ -232,14 +237,35 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("FCM 예외는 실패 로그를 남기고 커밋된 댓글의 응답을 유지한다")
     void keepResponseWhenFcmFails() throws Exception {
-        doThrow(mock(FirebaseMessagingException.class)).when(pushSender).send(any());
+        FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
+        given(exception.getErrorCode()).willReturn(ErrorCode.UNKNOWN);
+        doThrow(exception).when(pushSender).send(any(), any(), any());
 
-        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+        try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
             var response = commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
 
             assertThat(response.commentId()).isEqualTo(11L);
-            assertThat(logs.field(logs.event("notification.comment.send", "failure"), "commentId"))
+            assertThat(logs.field(logs.event("notification.fcm.logFailure", "failure"), "commentId"))
                     .isEqualTo(11L);
+        }
+        verify(commentConnection).commit();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("SDK 요청값 검증에 실패해도 ERROR를 남기고 커밋한 댓글 응답을 유지한다")
+    void keepResponseWhenRequestIsInvalid(boolean club) throws Exception {
+        doThrow(new IllegalArgumentException("민감한 요청값")).when(pushSender).send(any(), any(), any());
+
+        try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
+            var response = club
+                    ? commentService.create(7L, 5L, 13L, new CommentContent("댓글"))
+                    : commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+
+            assertThat(response.commentId()).isEqualTo(11L);
+            assertThat(logs.field(logs.event("notification.fcm.handleInvalidRequest", "failure"), "handlingCode"))
+                    .isEqualTo("INVALID_ARGUMENT");
+            assertThat(logs.structuredText()).doesNotContain("민감한 요청값");
         }
         verify(commentConnection).commit();
     }
@@ -285,7 +311,7 @@ class CommentNotificationTransactionTest {
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
     @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            CommentNotificationRecipientReader.class, FcmMessageFactory.class})
+            CommentNotificationRecipientReader.class, FcmFailureHandler.class})
     static class TestConfig {
 
         @Bean
