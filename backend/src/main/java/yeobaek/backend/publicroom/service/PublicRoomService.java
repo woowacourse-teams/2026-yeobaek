@@ -52,8 +52,8 @@ public class PublicRoomService {
     private final BookCoverUrlResolver bookCoverUrlResolver;
 
     @Transactional(readOnly = true)
-    public PublicRoomsResponse findAll(Long memberId, PublicRoomSort sort) {
-        List<PublicRoom> rooms = publicRoomRepository.findAllActiveWithBook();
+    public PublicRoomsResponse findAll(Long memberId, PublicRoomSort sort, String keyword) {
+        List<PublicRoom> rooms = search(keyword);
         Map<Long, PublicRoomMember> memberships = memberships(memberId, rooms);
         Map<Long, Long> visitorCounts = visitorCounts(rooms);
         Map<Long, List<String>> authorNames = authorNames(rooms.stream()
@@ -145,6 +145,13 @@ public class PublicRoomService {
                         memberRepository.getReferenceById(memberId), room)));
         membership.updateProgress(passage, LocalDateTime.now());
         return toProgress(membership);
+    }
+
+    private List<PublicRoom> search(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return publicRoomRepository.findAllActiveWithBook();
+        }
+        return publicRoomRepository.searchActiveByTitleOrAuthorName(keyword);
     }
 
     private PublicRoom findRoom(Long publicRoomId) {
