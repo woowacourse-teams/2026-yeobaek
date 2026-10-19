@@ -25,6 +25,7 @@ import com.yeobaek.feature.group.create.model.SelectBookUiModel
 fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
+    updateSearchTextValue: (String) -> Unit,
     selectBook: (SelectBookUiModel) -> Unit,
     onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     onNextStep: () -> Unit,
@@ -90,6 +91,8 @@ fun CreateScreen(
             when (uiState.step) {
                 CreateStep.BookSelection -> CreateBookSelectionContent(
                     books = uiState.bookList,
+                    searchTextValue = uiState.searchTextValue,
+                    updateSearchTextValue = updateSearchTextValue,
                     bookState = uiState.bookState,
                     selectedBookId = uiState.selectedBook?.id,
                     gridState = bookGridState,
@@ -124,6 +127,7 @@ private fun CreateScreenPreview() {
                     ),
                 ),
             ),
+            updateSearchTextValue = {},
             updateGroupNameValue = {},
             selectBook = {},
             onLastVisibleBookChanged = {},

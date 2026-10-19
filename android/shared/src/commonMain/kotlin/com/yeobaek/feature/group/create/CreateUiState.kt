@@ -10,6 +10,7 @@ data class CreateUiState(
     val isGroupNameValid: Boolean = true,
     val createState: CreateState = CreateState.Idle,
     val bookState: BookState = BookState.Idle,
+    val searchTextValue: String = "",
 )
 
 enum class CreateStep {

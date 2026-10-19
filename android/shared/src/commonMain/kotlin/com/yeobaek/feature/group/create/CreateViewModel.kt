@@ -91,6 +91,12 @@ class CreateViewModel(
         }
     }
 
+    fun updateSearchTextValue(value: String) {
+        uiState = uiState.copy(
+            searchTextValue = value,
+        )
+    }
+
     fun updateGroupNameValue(value: String) {
         val groupName = value.take(20)
         uiState = uiState.copy(

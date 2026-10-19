@@ -1,5 +1,7 @@
 package com.yeobaek.feature.group.create
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_search
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,14 +33,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.component.BookItem
+import com.yeobaek.core.designsystem.component.YeobaekTextField
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CreateBookSelectionContent(
     books: List<SelectBookUiModel>,
+    searchTextValue: String,
+    updateSearchTextValue: (String) -> Unit,
     bookState: BookState,
     selectedBookId: Long?,
     gridState: LazyGridState,
@@ -60,6 +67,12 @@ fun CreateBookSelectionContent(
         modifier = modifier.fillMaxSize(),
     ) {
         CreateBookSelectionHeader(
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        CreateBookSearchTextField(
+            searchTextValue = searchTextValue,
+            updateSearchTextValue = updateSearchTextValue,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -90,6 +103,28 @@ private fun CreateBookSelectionHeader(
             style = MaterialTheme.typography.bodyMedium,
         )
     }
+}
+
+@Composable
+private fun CreateBookSearchTextField(
+    searchTextValue: String,
+    updateSearchTextValue: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    YeobaekTextField(
+        value = searchTextValue,
+        onValueChange = { value ->
+            updateSearchTextValue(value)
+        },
+        placeholder = "책 제목을 검색해 주세요",
+        modifier = modifier,
+        leadingIcon = {
+            Icon(
+                painter = painterResource(Res.drawable.ic_search),
+                contentDescription = "검색 아이콘",
+            )
+        },
+    )
 }
 
 @Composable
@@ -218,6 +253,8 @@ private fun SuccessCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = previewBooks,
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Success,
             selectedBookId = 1L,
             gridState = rememberLazyGridState(),
@@ -233,6 +270,8 @@ private fun LoadingCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = emptyList(),
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Loading,
             selectedBookId = null,
             gridState = rememberLazyGridState(),
@@ -248,6 +287,8 @@ private fun FailureCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = emptyList(),
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Failure("책 목록을 가져오는데 실패했습니다."),
             selectedBookId = null,
             gridState = rememberLazyGridState(),

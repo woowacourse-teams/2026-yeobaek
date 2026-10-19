@@ -52,6 +52,7 @@ fun NavGraphBuilder.createNavGraph(
 
         CreateScreen(
             uiState = createViewModel.uiState,
+            updateSearchTextValue = createViewModel::updateSearchTextValue,
             updateGroupNameValue = createViewModel::updateGroupNameValue,
             selectBook = createViewModel::selectBook,
             onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,

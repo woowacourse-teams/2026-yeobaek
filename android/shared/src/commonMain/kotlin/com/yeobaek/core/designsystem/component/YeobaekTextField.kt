@@ -11,8 +11,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
-private const val PARTICIPATION_CODE_LENGTH = 6
-
 @Composable
 fun YeobaekTextField(
     value: String,
@@ -21,11 +19,12 @@ fun YeobaekTextField(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     transformInput: (String) -> String = { it },
+    leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = { input ->
-            onValueChange(transformInput(input).take(PARTICIPATION_CODE_LENGTH))
+            onValueChange(transformInput(input))
         },
         textStyle = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.ExtraBold,
@@ -42,6 +41,7 @@ fun YeobaekTextField(
                 ),
             )
         },
+        leadingIcon = leadingIcon,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
         singleLine = true,

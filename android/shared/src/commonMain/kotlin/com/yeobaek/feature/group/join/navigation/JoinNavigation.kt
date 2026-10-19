@@ -55,7 +55,6 @@ fun NavGraphBuilder.joinNavGraph(
         val joinViewModel: JoinViewModel = viewModel(
             factory = JoinViewModel.joinViewModelFactory(
                 entryPoint = entryPoint,
-                userRepository = appContainer.userRepository,
                 groupRepository = appContainer.groupRepository,
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
