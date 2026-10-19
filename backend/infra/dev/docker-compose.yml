@@ -9,7 +9,8 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      # 운영 DB/S3 설정을 재사용하되 개발 서버 전용 기능은 dev로 활성화한다.
+      SPRING_PROFILES_ACTIVE: "prod,dev"
       SPRING_APPLICATION_NAME: yeobaek-api
       OBSERVABILITY_ENABLED: "true"
       OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318

@@ -82,7 +82,7 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## CI 이미지 흐름
 
-- `develop` push: 서버 코드·빌드·정적 분석 설정 변경 시 `backend-dev`가 테스트와 정적 분석 후 `linux/amd64`, `linux/arm64` 이미지를 Docker Hub의 `:develop`, `:<commit-sha>` 태그로 push하고, `ec2-dev` 러너에서 해당 커밋 이미지를 개발 서버에 배포합니다. 서버에 개발 전용 `~/yeobaek-dev/docker-compose.yml`과 `.env`를 먼저 준비해야 합니다.
+- `develop` push: 서버 코드·빌드·정적 분석 설정 변경 시 `backend-dev`가 테스트와 정적 분석 후 `linux/amd64`, `linux/arm64` 이미지를 Docker Hub의 `:develop`, `:<commit-sha>` 태그로 push하고, `ec2-dev` 러너에서 해당 커밋 이미지를 `prod,dev` 프로파일로 개발 서버에 배포합니다. 서버에 개발 전용 `~/yeobaek-dev/docker-compose.yml`과 `.env`를 먼저 준비해야 합니다.
 - `main` push: `backend-prod`가 운영 서버 배포를 담당합니다.
 - 테스트만 변경한 PR은 `backend-pr-ci`에서 검증하며 개발·운영 자동 배포를 실행하지 않습니다. 수동 배포는 각각 `develop`, `main` 브랜치에서만 실행합니다.
 - Android/API 개발자는 `:develop` 이미지를 로컬 Compose에서 사용합니다.

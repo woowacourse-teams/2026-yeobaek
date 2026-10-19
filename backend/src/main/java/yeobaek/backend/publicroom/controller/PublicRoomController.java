@@ -43,13 +43,15 @@ public class PublicRoomController {
     private final PublicRoomService publicRoomService;
     private final CommentService commentService;
 
-    @Operation(summary = "전체 공개방 목록 조회",
-            description = "이용 가능한 책의 공개방을 전체 반환한다. 현재 기본 정렬과 MOST_VISITED는 중복을 제외한 누적 방문 회원 수 내림차순이며 동률 순서는 보장하지 않는다. 삭제 도서의 공개방은 제외한다.")
+    @Operation(summary = "전체 공개방 목록 조회 · 검색",
+            description = "이용 가능한 책의 공개방을 전체 반환한다. keyword를 주면 제목 또는 작가 이름 부분 일치로 검색한다. 현재 기본 정렬과 MOST_VISITED는 중복을 제외한 누적 방문 회원 수 내림차순이며 동률 순서는 보장하지 않는다. 삭제 도서의 공개방은 제외한다.")
     @GetMapping("/api/public-rooms")
     public PublicRoomsResponse findAll(@AuthMember Long memberId,
                                        @Parameter(description = "정렬 기준. 생략하면 서비스 기본 정렬, 지원 값은 MOST_VISITED. 빈 문자열·미지원 값은 400(INVALID_REQUEST).")
-                                       @RequestParam(required = false) String sort) {
-        return publicRoomService.findAll(memberId, PublicRoomSort.from(sort));
+                                       @RequestParam(required = false) String sort,
+                                       @Parameter(description = "제목 또는 작가 이름 부분 일치 검색어. 미지정·빈 문자열·공백만 있으면 전체 목록")
+                                       @RequestParam(required = false) String keyword) {
+        return publicRoomService.findAll(memberId, PublicRoomSort.from(sort), keyword);
     }
 
     @Operation(summary = "내가 방문한 공개방 목록 조회",

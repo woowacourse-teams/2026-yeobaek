@@ -22,6 +22,65 @@ import yeobaek.backend.e2e.utils.ReadingIds;
 
 class PublicRoomE2eTest extends E2eTest {
 
+    @ParameterizedTest
+    @ValueSource(strings = {"운수", "현진"})
+    @DisplayName("제목이나 작가 이름으로 공개방을 검색해 방문하고 책 본문을 읽는다")
+    void searchPublicRoomAndRead(String keyword) {
+        long memberId = createMember(port, "공개방 검색 독자");
+        String passageContent = "검색해서 찾은 공개방의 본문입니다.";
+        long bookId = createBook(port, "운수 좋은 날", List.of("현진건", "현진영"), List.of(passageContent));
+        createBook(port, "다른 책");
+
+        // 제목 또는 작가 이름의 일부로 검색하고 결과에서 공개방을 선택한다
+        long publicRoomId = memberRequest(port, memberId)
+                .queryParam("keyword", keyword)
+                .queryParam("sort", "MOST_VISITED")
+                .when()
+                .get("/api/public-rooms")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("publicRooms", hasSize(1))
+                .body("publicRooms[0].book.bookId", equalTo(Math.toIntExact(bookId)))
+                .body("publicRooms[0].book.title", equalTo("운수 좋은 날"))
+                .body("publicRooms[0].book.authors", hasSize(2))
+                .body("publicRooms[0].myProgress", nullValue())
+                .extract().jsonPath().getLong("publicRooms[0].publicRoomId");
+
+        // 검색과 정보 조회만으로는 방문 기록을 만들지 않는다
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/public-rooms/{publicRoomId}", publicRoomId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("book.bookId", equalTo(Math.toIntExact(bookId)))
+                .body("lastVisitedAt", nullValue());
+
+        visit(memberId, publicRoomId);
+
+        // 검색 결과에서 선택한 공개방을 통해 본문을 읽는다
+        memberRequest(port, memberId)
+                .queryParam("from", 1)
+                .queryParam("to", 1)
+                .when()
+                .get("/api/public-rooms/{publicRoomId}/passages", publicRoomId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("passages", hasSize(1))
+                .body("passages[0].sentences[0].content", equalTo(passageContent));
+
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/members/me/public-rooms")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("publicRooms", hasSize(1))
+                .body("publicRooms[0].publicRoomId", equalTo(Math.toIntExact(publicRoomId)));
+    }
+
     @Test
     @DisplayName("새로운 공개방에 처음 방문하고 책 본문을 읽는다")
     void visitNewPublicRoomAndRead() {
