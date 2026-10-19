@@ -23,8 +23,11 @@ import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentLike;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.dto.CommentResponse;
+import yeobaek.backend.comment.repository.CommentLikeRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
@@ -59,6 +62,9 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentLikeRepository commentLikeRepository;
 
     @Autowired
     private CommentReportRepository commentReportRepository;
@@ -165,6 +171,58 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
             assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
         });
         assertThat(commentViewRepository.count()).isEqualTo(viewCountBeforeQuery);
+    }
+
+    @Test
+    @DisplayName("공개방 댓글 작성 응답은 좋아요 0개와 false로 시작한다")
+    void createCommentWithoutLikes() {
+        ReadingFixture fixture = createRoom("좋아요 초기값", 1);
+        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
+
+        var response = commentService.createInPublicRoom(writer.getId(), fixture.room().getId(),
+                fixture.passages().getFirst().getSentences().getFirst().getId(), new CommentContent("댓글"));
+
+        assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly(0L, false);
+        assertThat(commentLikeRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("공개방 댓글 목록에도 댓글별 좋아요 집계를 반환하며 좋아요가 없으면 0과 false다")
+    void findCommentsWithLikeSummaries() {
+        ReadingFixture fixture = createRoom("공개방 좋아요 집계", 1);
+        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("독자")));
+        var sentence = fixture.passages().getFirst().getSentences().getFirst();
+        Comment first = commentRepository.save(new Comment(fixture.room(), writer, sentence, new CommentContent("둘이 좋아요")));
+        Comment second = commentRepository.save(new Comment(fixture.room(), writer, sentence, new CommentContent("작성자만 좋아요")));
+        Comment third = commentRepository.save(new Comment(fixture.room(), writer, sentence, new CommentContent("좋아요 없음")));
+        commentLikeRepository.saveAll(List.of(new CommentLike(writer, first), new CommentLike(reader, first),
+                new CommentLike(writer, second)));
+
+        var response = commentService.findPublicRoomComments(reader.getId(), fixture.room().getId(), sentence.getId());
+
+        assertThat(response.comments())
+                .extracting(CommentResponse::commentId, CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly(tuple(first.getId(), 2L, true), tuple(second.getId(), 1L, false),
+                        tuple(third.getId(), 0L, false));
+    }
+
+    @Test
+    @DisplayName("공개방 댓글 수정 응답에도 기존 좋아요를 반영한다")
+    void updateCommentWithLikes() {
+        ReadingFixture fixture = createRoom("공개방 좋아요 유지", 1);
+        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("독자")));
+        Comment comment = commentRepository.save(new Comment(fixture.room(), writer,
+                fixture.passages().getFirst().getSentences().getFirst(), new CommentContent("댓글")));
+        commentLikeRepository.saveAll(List.of(new CommentLike(writer, comment), new CommentLike(reader, comment)));
+
+        var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
+
+        assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly(2L, true);
+        assertThat(commentLikeRepository.count()).isEqualTo(2);
     }
 
     private ReadingFixture createRoom(String title, int passageCount) {

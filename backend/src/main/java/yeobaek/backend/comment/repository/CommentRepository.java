@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.dto.CommentResponse;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
@@ -56,19 +57,27 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     void deleteAllByMemberId(@Param(MEMBER_ID) Long memberId);
 
     @Query("""
-            select c from Comment c
-            join fetch c.writer writer
+            select new yeobaek.backend.comment.dto.CommentResponse(
+                c.id, writer.id, writer.nickname.value, c.content.value, c.createdAt, c.updatedAt,
+                writer.id = :memberId,
+                count(cl),
+                sum(case when cl.member.id = :memberId then 1 else 0 end) > 0
+            )
+            from Comment c
+            join c.writer writer
             join c.clubComment cc
+            left join CommentLike cl on cl.comment.id = c.id
             where cc.club.id = :clubId and c.sentence.id = :sentenceId
               and not exists (
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId and mb.blocked.id = writer.id
               )
+            group by c.id, writer.id, writer.nickname.value, c.content.value, c.createdAt, c.updatedAt
             order by c.createdAt asc, c.id asc
             """)
-    List<Comment> findAllVisibleWithWriterByClubIdAndSentenceId(@Param(MEMBER_ID) Long memberId,
-                                                                @Param(CLUB_ID) Long clubId,
-                                                                @Param("sentenceId") Long sentenceId);
+    List<CommentResponse> findVisibleResponsesByClubIdAndSentenceId(@Param(MEMBER_ID) Long memberId,
+                                                @Param(CLUB_ID) Long clubId,
+                                                @Param("sentenceId") Long sentenceId);
 
     @Query("""
             select c.sentence.id as sentenceId, count(c) as commentCount
@@ -127,19 +136,27 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                                                @Param("currentPassageSequence") int currentPassageSequence);
 
     @Query("""
-            select c from Comment c
-            join fetch c.writer writer
+            select new yeobaek.backend.comment.dto.CommentResponse(
+                c.id, writer.id, writer.nickname.value, c.content.value, c.createdAt, c.updatedAt,
+                writer.id = :memberId,
+                count(cl),
+                sum(case when cl.member.id = :memberId then 1 else 0 end) > 0
+            )
+            from Comment c
+            join c.writer writer
             join c.publicRoomComment prc
+            left join CommentLike cl on cl.comment.id = c.id
             where prc.publicRoom.id = :publicRoomId and c.sentence.id = :sentenceId
               and not exists (
                   select mb.id from MemberBlock mb
                   where mb.blocker.id = :memberId and mb.blocked.id = writer.id
               )
+            group by c.id, writer.id, writer.nickname.value, c.content.value, c.createdAt, c.updatedAt
             order by c.createdAt asc, c.id asc
             """)
-    List<Comment> findAllVisibleInPublicRoom(@Param(MEMBER_ID) Long memberId,
-                                             @Param(PUBLIC_ROOM_ID) Long publicRoomId,
-                                             @Param("sentenceId") Long sentenceId);
+    List<CommentResponse> findVisibleResponsesInPublicRoom(@Param(MEMBER_ID) Long memberId,
+                                                @Param(PUBLIC_ROOM_ID) Long publicRoomId,
+                                                @Param("sentenceId") Long sentenceId);
 
     @Query("""
             select c.sentence.id as sentenceId, count(c) as commentCount

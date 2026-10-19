@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.comment.dto.CommentCreateRequest;
+import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentUpdateRequest;
@@ -42,6 +43,7 @@ import yeobaek.backend.support.analytics.AnalyticsTracker;
 public class CommentController {
 
     private static final String CLUB_ID_DESCRIPTION = "모임 ID";
+    private static final String COMMENT_ID_DESCRIPTION = "댓글 ID";
 
     private final CommentService commentService;
     private final AnalyticsTracker analyticsTracker;
@@ -129,7 +131,7 @@ public class CommentController {
     @Operation(summary = "댓글 수정", description = "본인 댓글이 아니면 403.")
     @PutMapping("/api/comments/{commentId}")
     public CommentResponse update(@AuthMember Long memberId,
-                                  @Parameter(description = "댓글 ID") @PathVariable Long commentId,
+                                  @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId,
                                   @Valid @RequestBody CommentUpdateRequest request) {
         log.atInfo().addKeyValue(OPERATION, "comment.update")
                 .addKeyValue(COMMENT_ID, commentId).log("댓글 수정 API 처리를 시작합니다.");
@@ -143,17 +145,39 @@ public class CommentController {
     @Operation(summary = "댓글 삭제", description = "하드 삭제(PRD 3.5). 본인 댓글이 아니면 403.")
     @DeleteMapping("/api/comments/{commentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
+    public void delete(@AuthMember Long memberId, @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
         logCommentMutationAttempt("comment.delete", commentId);
         commentService.delete(memberId, commentId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentDelete(commentId));
         logCommentMutationSuccess("comment.delete", commentId);
     }
 
+    @Operation(summary = "댓글 좋아요 추가",
+            description = "모임·공개방 공통. 본인 댓글에도 가능하며 반복 요청해도 좋아요는 한 개만 유지한다.")
+    @PutMapping("/api/comments/{commentId}/likes/me")
+    public CommentLikeResponse addLike(@AuthMember Long memberId,
+                                       @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
+        logCommentMutationAttempt("comment.addLike", commentId);
+        CommentLikeResponse response = commentService.addLike(memberId, commentId);
+        logCommentMutationSuccess("comment.addLike", commentId);
+        return response;
+    }
+
+    @Operation(summary = "댓글 좋아요 취소",
+            description = "모임·공개방 공통. 좋아요가 없어도 성공하며 처리 후 좋아요 수와 내 좋아요 여부를 반환한다.")
+    @DeleteMapping("/api/comments/{commentId}/likes/me")
+    public CommentLikeResponse cancelLike(@AuthMember Long memberId,
+                                          @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
+        logCommentMutationAttempt("comment.cancelLike", commentId);
+        CommentLikeResponse response = commentService.cancelLike(memberId, commentId);
+        logCommentMutationSuccess("comment.cancelLike", commentId);
+        return response;
+    }
+
     @Operation(summary = "댓글 신고", description = "같은 회원의 동일 댓글 재신고는 새 신고를 만들지 않는다.")
     @PostMapping("/api/comments/{commentId}/reports")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void report(@AuthMember Long memberId, @Parameter(description = "댓글 ID") @PathVariable Long commentId) {
+    public void report(@AuthMember Long memberId, @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
         logCommentMutationAttempt("comment.report", commentId);
         commentService.report(memberId, commentId);
         analyticsTracker.track(memberId, AnalyticsEvent.commentReport(commentId));
