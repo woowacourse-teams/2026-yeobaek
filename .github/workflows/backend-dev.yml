@@ -85,7 +85,8 @@ jobs:
           # 가변 develop 태그 대신 이 실행에서 빌드한 커밋의 이미지를 지정한다.
           override_file=$(mktemp ./deploy-image.XXXXXX)
           trap 'rm -f "$override_file"' EXIT
-          printf 'services:\n  app:\n    image: "%s"\n' "$DEPLOY_IMAGE" > "$override_file"
+          # 서버에 남아 있는 기존 Compose 설정과 관계없이 개발 프로파일을 함께 활성화한다.
+          printf 'services:\n  app:\n    image: "%s"\n    environment:\n      SPRING_PROFILES_ACTIVE: "prod,dev"\n' "$DEPLOY_IMAGE" > "$override_file"
 
           docker compose -p yeobaek-dev -f docker-compose.yml -f "$override_file" pull app
           docker compose -p yeobaek-dev -f docker-compose.yml -f "$override_file" up -d
