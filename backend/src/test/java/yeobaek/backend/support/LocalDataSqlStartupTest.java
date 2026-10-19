@@ -28,18 +28,42 @@ class LocalDataSqlStartupTest {
             mysql.start();
 
             try (ConfigurableApplicationContext localContext = startApplication(mysql, "local", false)) {
-                verifyLocalSeed(localContext.getBean(JdbcTemplate.class));
+                verifyLocalContext(localContext);
             }
 
             try (ConfigurableApplicationContext defaultContext = startApplication(mysql, "default", true)) {
-                assertThat(defaultContext.getEnvironment().getActiveProfiles()).isEmpty();
-                verifySeedIsAbsent(defaultContext);
+                verifyDefaultContext(defaultContext);
             }
 
             try (ConfigurableApplicationContext prodContext = startApplication(mysql, "prod", true)) {
-                verifySeedIsAbsent(prodContext);
+                verifyProdContext(prodContext);
+            }
+
+            try (ConfigurableApplicationContext devContext = startApplication(mysql, "prod,dev", true)) {
+                verifyDevContext(devContext);
             }
         }
+    }
+
+    private void verifyLocalContext(ConfigurableApplicationContext context) {
+        verifyLocalSeed(context.getBean(JdbcTemplate.class));
+        verifySwaggerEnabled(context);
+    }
+
+    private void verifyDefaultContext(ConfigurableApplicationContext context) {
+        assertThat(context.getEnvironment().getActiveProfiles()).isEmpty();
+        verifySeedIsAbsent(context);
+        verifySwaggerDisabled(context);
+    }
+
+    private void verifyProdContext(ConfigurableApplicationContext context) {
+        verifySeedIsAbsent(context);
+        verifySwaggerDisabled(context);
+    }
+
+    private void verifyDevContext(ConfigurableApplicationContext context) {
+        verifySeedIsAbsent(context);
+        verifySwaggerEnabled(context);
     }
 
     private ConfigurableApplicationContext startApplication(
@@ -131,5 +155,15 @@ class LocalDataSqlStartupTest {
         assertThat(context.getEnvironment().getProperty("spring.sql.init.mode")).isEqualTo("never");
         assertThat(context.getBean(JdbcTemplate.class)
                 .queryForObject("select count(*) from books", Integer.class)).isZero();
+    }
+
+    private void verifySwaggerEnabled(ConfigurableApplicationContext context) {
+        assertThat(context.getEnvironment().getProperty("springdoc.api-docs.enabled", Boolean.class)).isTrue();
+        assertThat(context.getEnvironment().getProperty("springdoc.swagger-ui.enabled", Boolean.class)).isTrue();
+    }
+
+    private void verifySwaggerDisabled(ConfigurableApplicationContext context) {
+        assertThat(context.getEnvironment().getProperty("springdoc.api-docs.enabled", Boolean.class)).isFalse();
+        assertThat(context.getEnvironment().getProperty("springdoc.swagger-ui.enabled", Boolean.class)).isFalse();
     }
 }
