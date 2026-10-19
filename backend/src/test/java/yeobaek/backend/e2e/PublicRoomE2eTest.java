@@ -2,6 +2,8 @@ package yeobaek.backend.e2e;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static yeobaek.backend.e2e.utils.BookE2eUtils.createBook;
@@ -14,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import yeobaek.backend.e2e.utils.ReadingIds;
 
 class PublicRoomE2eTest extends E2eTest {
@@ -199,6 +203,98 @@ class PublicRoomE2eTest extends E2eTest {
                 .statusCode(200)
                 .body("myProgress.lastReadPassageSequence", equalTo(2))
                 .body("myProgress.progressRate", equalTo(50));
+    }
+
+    @Test
+    @DisplayName("읽던 공개방의 도서가 삭제돼도 상세와 최근 읽기는 보존하고 본문과 목록에서는 제외한다")
+    void keepDeletedBookInDetailAndRecentReading() {
+        long memberId = createMember(port, "삭제 도서 독자");
+        long bookId = createBook(port, "삭제할 공개방의 책", List.of("첫 문단", "마지막 문단"));
+        long publicRoomId = findPublicRoomId(port, memberId);
+        long availableBookId = createBook(port, "계속 이용할 수 있는 책");
+        visit(memberId, publicRoomId);
+        ReadingIds reading = findPublicRoomReadingIds(port, memberId, publicRoomId);
+
+        memberRequest(port, memberId)
+                .body(Map.of("passageId", reading.secondPassageId()))
+                .when()
+                .put("/api/public-rooms/{publicRoomId}/progress", publicRoomId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("lastReadPassageSequence", equalTo(2))
+                .body("progressRate", equalTo(100));
+
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/members/me/recent-reading")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("space.type", equalTo("PUBLIC_ROOM"))
+                .body("space.publicRoomId", equalTo(Math.toIntExact(publicRoomId)))
+                .body("space", not(hasKey("clubId")));
+
+        memberRequest(port, memberId)
+                .header("X-Admin-Token", "e2e-admin-token")
+                .when()
+                .delete("/api/admin/books/{bookId}", bookId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(204);
+
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/public-rooms/{publicRoomId}", publicRoomId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("book.status", equalTo("DELETED"))
+                .body("myProgress.lastReadPassageSequence", equalTo(2));
+
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/members/me/recent-reading")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("space.publicRoomId", equalTo(Math.toIntExact(publicRoomId)))
+                .body("book.status", equalTo("DELETED"));
+
+        memberRequest(port, memberId)
+                .queryParam("from", 1)
+                .queryParam("to", 2)
+                .when()
+                .get("/api/public-rooms/{publicRoomId}/passages", publicRoomId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(400)
+                .body("code", equalTo("BOOK_NOT_AVAILABLE"));
+
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/public-rooms")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("publicRooms", hasSize(1))
+                .body("publicRooms[0].book.bookId", equalTo(Math.toIntExact(availableBookId)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "RECENT"})
+    @DisplayName("빈 문자열과 지원하지 않는 공개방 정렬은 INVALID_REQUEST로 거부한다")
+    void rejectInvalidSort(String sort) {
+        long memberId = createMember(port, "정렬 독자");
+
+        memberRequest(port, memberId)
+                .queryParam("sort", sort)
+                .when()
+                .get("/api/public-rooms")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(400)
+                .body("code", equalTo("INVALID_REQUEST"));
     }
 
     private void visit(long memberId, long publicRoomId) {

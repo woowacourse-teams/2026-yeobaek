@@ -33,6 +33,7 @@ public final class CommentE2eUtils {
                 .log().ifValidationFails()
                 .statusCode(201)
                 .body("content", equalTo(content))
+                .body("mine", equalTo(true))
                 .extract().jsonPath().getLong("commentId");
     }
 }
