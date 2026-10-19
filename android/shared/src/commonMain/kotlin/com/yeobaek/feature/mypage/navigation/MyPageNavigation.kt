@@ -39,6 +39,7 @@ fun NavGraphBuilder.myPageNavGraph(
         val myPageViewModel: MyPageViewModel = viewModel(
             factory = MyPageViewModel.myPageViewModelFactory(
                 guideOnboardingPreferences = appContainer.guideOnboardingPreferences,
+                notificationPreferences = appContainer.notificationPreferences,
                 userRepository = appContainer.userRepository,
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
@@ -53,6 +54,7 @@ fun NavGraphBuilder.myPageNavGraph(
             },
             deleteAccount = myPageViewModel::deleteAccount,
             navigateToNickname = navigateToNickname,
+            onNotificationsEnabledChange = myPageViewModel::setNotificationsEnabled,
             navigateToGuide = {
                 navigateToGuide(true)
             },

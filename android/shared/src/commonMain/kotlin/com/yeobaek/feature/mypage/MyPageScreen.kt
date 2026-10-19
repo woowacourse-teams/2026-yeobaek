@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import com.yeobaek.feature.mypage.component.MyPageFeatureCard
+import com.yeobaek.feature.mypage.component.NotificationSetting
 
 @Composable
 fun MyPageScreen(
@@ -50,6 +53,7 @@ fun MyPageScreen(
     deleteAccount: () -> Unit,
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
+    onNotificationsEnabledChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -90,7 +94,9 @@ fun MyPageScreen(
             )
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+        Column(
+            modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()),
+        ) {
             Card(
                 modifier = Modifier.padding(20.dp),
                 colors = CardDefaults.cardColors(MaterialTheme.colorScheme.onPrimary),
@@ -105,12 +111,17 @@ fun MyPageScreen(
                             .border(width = 1.dp, color = Color.Black, shape = CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(uiState.name.first().toString())
+                        Text(uiState.name.take(1))
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(uiState.name)
                 }
             }
+            NotificationSetting(
+                enabled = uiState.notificationsEnabled,
+                onEnabledChange = onNotificationsEnabledChange,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             MyPageFeatureCard(
                 text = "가이드",
                 icon = Res.drawable.ic_guide,
@@ -161,6 +172,7 @@ private fun MyPageScreenPreview() {
             deleteAccount = {},
             navigateToNickname = {},
             navigateToGuide = {},
+            onNotificationsEnabledChange = {},
         )
     }
 }
