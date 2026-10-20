@@ -12,6 +12,7 @@ import org.jetbrains.compose.resources.painterResource
 fun OnboardingSearchTextField(
     searchTextValue: String,
     updateSearchTextValue: (String) -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     YeobaekTextField(
@@ -21,6 +22,7 @@ fun OnboardingSearchTextField(
         },
         placeholder = "책 제목을 검색해 주세요",
         modifier = modifier,
+        enabled = enabled,
         leadingIcon = {
             Icon(
                 painter = painterResource(Res.drawable.ic_search),

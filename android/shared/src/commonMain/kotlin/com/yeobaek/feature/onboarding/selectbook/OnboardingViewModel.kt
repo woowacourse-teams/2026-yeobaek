@@ -22,8 +22,13 @@ import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.feature.onboarding.selectbook.model.toUiModel
-import io.ktor.utils.io.CancellationException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
@@ -36,14 +41,17 @@ class OnboardingViewModel(
         private set
     var currentAttemptId: String? = null
         private set
+    private var searchJob: Job? = null
 
     init {
         initList()
     }
 
     fun initList() {
+        searchJob?.cancel()
         uiState = uiState.copy(
             initBookState = InitBookState.Loading,
+            searchState = SearchState.Idle,
         )
 
         viewModelScope.launch {
@@ -77,7 +85,32 @@ class OnboardingViewModel(
     }
 
     fun updateSearchTextValue(newValue: String) {
-        uiState = uiState.copy(searchTextValue = newValue)
+        if (uiState.initBookState !is InitBookState.Success) return
+
+        uiState = uiState.copy(
+            searchTextValue = newValue,
+            searchState = SearchState.Loading,
+        )
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            try {
+                if (newValue.isNotBlank()) delay(300.milliseconds)
+
+                val books = bookRepository.getBooks(newValue)
+                currentCoroutineContext().ensureActive()
+                uiState = uiState.copy(
+                    bookUiModelList = books.map { it.toUiModel() },
+                    searchState = SearchState.Success,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    searchState = SearchState.Failure(e.message ?: "책 검색에 실패했습니다."),
+                )
+            }
+        }
     }
 
     fun onSelectBook(id: Long) {
@@ -240,4 +273,11 @@ sealed class PublicRoomState {
     data object Loading : PublicRoomState()
     data object Success : PublicRoomState()
     data class Failure(val message: String) : PublicRoomState()
+}
+
+sealed class SearchState {
+    data object Idle : SearchState()
+    data object Loading : SearchState()
+    data object Success : SearchState()
+    data class Failure(val message: String) : SearchState()
 }

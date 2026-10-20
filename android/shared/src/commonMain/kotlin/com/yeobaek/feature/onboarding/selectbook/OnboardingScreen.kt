@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +60,11 @@ fun OnboardingScreen(
     var isLoading by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState()
+    val bookGridState = rememberLazyGridState()
+
+    LaunchedEffect(uiState.searchTextValue) {
+        bookGridState.scrollToItem(0)
+    }
 
     LaunchedEffect(uiState.initBookState) {
         when (uiState.initBookState) {
@@ -140,25 +147,55 @@ fun OnboardingScreen(
             )
             OnboardingSearchTextField(
                 searchTextValue = uiState.searchTextValue,
-                updateSearchTextValue = { newValue ->
-                    updateSearchTextValue(newValue)
-                },
+                updateSearchTextValue = updateSearchTextValue,
+                enabled = uiState.initBookState is InitBookState.Success,
             )
             Text("책 목록", style = MaterialTheme.typography.headlineMedium)
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(getGridCount()),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-            ) {
-                items(uiState.bookUiModelList, key = { it.id }) { bookUiModel ->
-                    OnboardingBookCard(
-                        title = bookUiModel.title,
-                        authors = bookUiModel.authors,
-                        coverUrl = bookUiModel.coverUrl,
-                        onClick = {
-                            onSelectBook(bookUiModel.id)
-                        },
-                    )
+            val initialFailure = uiState.initBookState as? InitBookState.Failure
+            val searchFailure = uiState.searchState as? SearchState.Failure
+            when {
+                initialFailure != null -> BookListStatus(
+                    message = initialFailure.message,
+                    modifier = Modifier.weight(1f),
+                    isError = true,
+                )
+
+                uiState.initBookState !is InitBookState.Success -> BookListStatus(
+                    message = "책 로딩중...",
+                    modifier = Modifier.weight(1f),
+                )
+
+                searchFailure != null -> BookListStatus(
+                    message = searchFailure.message,
+                    modifier = Modifier.weight(1f),
+                    isError = true,
+                )
+
+                uiState.searchState is SearchState.Loading -> BookListStatus(
+                    message = "책 검색중...",
+                    modifier = Modifier.weight(1f),
+                )
+
+                uiState.bookUiModelList.isEmpty() -> BookListStatus(
+                    message = if (uiState.searchTextValue.isBlank()) "선택할 수 있는 책이 없어요." else "검색 결과가 없어요.",
+                    modifier = Modifier.weight(1f),
+                )
+
+                else -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(getGridCount()),
+                    state = bookGridState,
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    items(uiState.bookUiModelList, key = { it.id }) { bookUiModel ->
+                        OnboardingBookCard(
+                            title = bookUiModel.title,
+                            authors = bookUiModel.authors,
+                            coverUrl = bookUiModel.coverUrl,
+                            onClick = { onSelectBook(bookUiModel.id) },
+                        )
+                    }
                 }
             }
         }
@@ -183,6 +220,24 @@ fun OnboardingScreen(
     }
     if (isLoading) {
         LoadingIndicator()
+    }
+}
+
+@Composable
+private fun BookListStatus(
+    message: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = message,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
