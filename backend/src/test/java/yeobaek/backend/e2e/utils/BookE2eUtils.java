@@ -23,12 +23,16 @@ public final class BookE2eUtils {
     }
 
     public static long createBook(int port, String title, List<String> passageContents) {
+        return createBook(port, title, List.of("테스트 작가"), passageContents);
+    }
+
+    public static long createBook(int port, String title, List<String> authorNames, List<String> passageContents) {
         List<Map<String, Object>> passages = passageContents.stream()
                 .map(BookE2eUtils::passage)
                 .toList();
         Map<String, Object> body = Map.of(
                 "title", title,
-                "authors", List.of(Map.of("name", "테스트 작가")),
+                "authors", authorNames.stream().map(name -> Map.of("name", name)).toList(),
                 "chapters", List.of(Map.of("title", "테스트 목차", "passages", passages)));
 
         return request(port)

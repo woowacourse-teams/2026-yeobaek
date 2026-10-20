@@ -137,7 +137,7 @@ class HomeViewModel(
                 }
 
                 uiState = uiState.copy(
-                    publicRoomTab = PublicRoomTabUiState(
+                    publicRoomTab = uiState.publicRoomTab.copy(
                         visitedPublicRooms = visitedPublicRooms.map { it.publicRoom.toUiModel() },
                         publicRooms = publicRooms.map { it.toUiModel() },
                         screenState = ScreenState.Success,
@@ -160,12 +160,22 @@ class HomeViewModel(
                     context = crashContext(CrashOperation.HOME_PUBLIC_ROOMS_FAILED),
                 )
                 uiState = uiState.copy(
-                    publicRoomTab = PublicRoomTabUiState(
+                    publicRoomTab = uiState.publicRoomTab.copy(
+                        visitedPublicRooms = emptyList(),
+                        publicRooms = emptyList(),
                         screenState = ScreenState.Error("공개방 정보를 가져오는데 실패했습니다."),
                     ),
                 )
             }
         }
+    }
+
+    fun updatePublicRoomSearchTextValue(value: String) {
+        if (value == uiState.publicRoomTab.searchTextValue) return
+
+        uiState = uiState.copy(
+            publicRoomTab = uiState.publicRoomTab.copy(searchTextValue = value),
+        )
     }
 
     private fun updateMovePublicRoomIfReady() {

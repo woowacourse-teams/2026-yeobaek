@@ -68,6 +68,7 @@ fun NavGraphBuilder.homeNavGraph(
         HomeScreen(
             appName = appContainer.appName,
             uiState = homeViewModel.uiState,
+            updatePublicRoomSearchTextValue = homeViewModel::updatePublicRoomSearchTextValue,
             onAnalyticsEvent = { event -> appContainer.analyticsTracker.track(event) },
             navigateToJoin = {
                 appContainer.analyticsTracker.track(
