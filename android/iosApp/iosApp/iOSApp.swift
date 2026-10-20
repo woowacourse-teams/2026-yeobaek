@@ -25,13 +25,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         Messaging.messaging().apnsToken = deviceToken
-        Messaging.messaging().token { token, error in
+        Messaging.messaging().register { error in
             if let error {
-                NSLog("FCM token request failed: %@", error.localizedDescription)
-            } else if let token {
-                #if DEBUG
-                NSLog("FCM token: %@", token)
-                #endif
+                NSLog("FCM registration failed: %@", error.localizedDescription)
             }
         }
     }
@@ -67,11 +63,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 extension AppDelegate: MessagingDelegate {
     func messaging(
         _ messaging: Messaging,
-        didReceiveRegistrationToken fcmToken: String?
+        didReceiveRegistration installationId: String?
     ) {
         #if DEBUG
-        if let fcmToken {
-            NSLog("FCM token refreshed: %@", fcmToken)
+        if let installationId {
+            NSLog("FCM registered installation ID: %@", installationId)
         }
         #endif
     }
