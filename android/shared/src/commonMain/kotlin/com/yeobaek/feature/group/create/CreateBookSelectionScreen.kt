@@ -46,6 +46,7 @@ fun CreateBookSelectionContent(
     searchTextValue: String,
     updateSearchTextValue: (String) -> Unit,
     bookState: BookState,
+    searchState: SearchState,
     selectedBookId: Long?,
     gridState: LazyGridState,
     onClickBook: (SelectBookUiModel) -> Unit,
@@ -73,12 +74,14 @@ fun CreateBookSelectionContent(
         CreateBookSearchTextField(
             searchTextValue = searchTextValue,
             updateSearchTextValue = updateSearchTextValue,
+            enabled = bookState is BookState.Success,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        CreateBookSelectionContent(
+        BookSelectionContent(
             books = books,
             bookState = bookState,
+            searchState = searchState,
             selectedBookId = selectedBookId,
             gridState = gridState,
             onClickBook = onClickBook,
@@ -109,6 +112,7 @@ private fun CreateBookSelectionHeader(
 private fun CreateBookSearchTextField(
     searchTextValue: String,
     updateSearchTextValue: (String) -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     YeobaekTextField(
@@ -118,6 +122,7 @@ private fun CreateBookSearchTextField(
         },
         placeholder = "책 제목을 검색해 주세요",
         modifier = modifier,
+        enabled = enabled,
         leadingIcon = {
             Icon(
                 painter = painterResource(Res.drawable.ic_search),
@@ -125,6 +130,47 @@ private fun CreateBookSearchTextField(
             )
         },
     )
+}
+
+@Composable
+private fun BookSelectionContent(
+    books: List<SelectBookUiModel>,
+    bookState: BookState,
+    searchState: SearchState,
+    selectedBookId: Long?,
+    gridState: LazyGridState,
+    onClickBook: (SelectBookUiModel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (searchState) {
+        is SearchState.Idle, SearchState.Success -> {
+            if (books.isEmpty()) {
+                BookSelectionStatus(
+                    message = "검색 결과가 없습니다.",
+                    modifier = modifier,
+                )
+            } else {
+                CreateBookSelectionContent(
+                    books = books,
+                    bookState = bookState,
+                    selectedBookId = selectedBookId,
+                    gridState = gridState,
+                    onClickBook = onClickBook,
+                )
+            }
+        }
+
+        is SearchState.Failure -> BookSelectionStatus(
+            message = searchState.message,
+            modifier = modifier,
+            isError = true,
+        )
+
+        is SearchState.Loading -> BookSelectionStatus(
+            message = "책 검색중...",
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
@@ -256,6 +302,7 @@ private fun SuccessCreateBookSelectionScreenPreview() {
             searchTextValue = "",
             updateSearchTextValue = {},
             bookState = BookState.Success,
+            searchState = SearchState.Idle,
             selectedBookId = 1L,
             gridState = rememberLazyGridState(),
             onClickBook = {},
@@ -273,6 +320,7 @@ private fun LoadingCreateBookSelectionScreenPreview() {
             searchTextValue = "",
             updateSearchTextValue = {},
             bookState = BookState.Loading,
+            searchState = SearchState.Idle,
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},
@@ -290,6 +338,7 @@ private fun FailureCreateBookSelectionScreenPreview() {
             searchTextValue = "",
             updateSearchTextValue = {},
             bookState = BookState.Failure("책 목록을 가져오는데 실패했습니다."),
+            searchState = SearchState.Idle,
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},

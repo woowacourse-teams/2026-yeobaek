@@ -42,6 +42,7 @@ class CreateViewModel(
     )
         private set
 
+    private var initJob: Job? = null
     private var searchJob: Job? = null
 
     init {
@@ -53,7 +54,7 @@ class CreateViewModel(
             bookState = BookState.Loading,
         )
 
-        viewModelScope.launch {
+        initJob = viewModelScope.launch {
             try {
                 val groups = bookRepository.getBooks()
                 val books = groups.map { book -> book.toUiModel() }
@@ -97,6 +98,8 @@ class CreateViewModel(
     }
 
     fun updateSearchTextValue(value: String) {
+        if (initJob?.isCompleted == false) return
+
         uiState = uiState.copy(
             searchTextValue = value,
             searchState = SearchState.Loading,

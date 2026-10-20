@@ -76,7 +76,10 @@ fun CreateScreen(
                     CreateStep.GroupName -> onCreateGroup
                 },
                 enabled = when (uiState.step) {
-                    CreateStep.BookSelection -> uiState.bookState is BookState.Success && uiState.selectedBook != null
+                    CreateStep.BookSelection ->
+                        uiState.bookState is BookState.Success &&
+                            uiState.selectedBook != null &&
+                            (uiState.searchState is SearchState.Success || uiState.searchState is SearchState.Idle)
 
                     CreateStep.GroupName ->
                         uiState.createState !is CreateState.Loading &&
@@ -98,6 +101,7 @@ fun CreateScreen(
                     searchTextValue = uiState.searchTextValue,
                     updateSearchTextValue = updateSearchTextValue,
                     bookState = uiState.bookState,
+                    searchState = uiState.searchState,
                     selectedBookId = uiState.selectedBook?.id,
                     gridState = bookGridState,
                     onClickBook = selectBook,

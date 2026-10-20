@@ -19,6 +19,7 @@ fun YeobaekTextField(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     transformInput: (String) -> String = { it },
+    enabled: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     OutlinedTextField(
@@ -41,6 +42,7 @@ fun YeobaekTextField(
                 ),
             )
         },
+        enabled = enabled,
         leadingIcon = leadingIcon,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.small,
