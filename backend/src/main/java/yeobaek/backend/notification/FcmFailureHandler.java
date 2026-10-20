@@ -64,7 +64,6 @@ public class FcmFailureHandler {
     }
 
     private void logFailure(FcmSendFailure failure, Long commentId, String scope) {
-        // TODO: 로그 레벨을 이렇게 관리하는 부분은 추후 수정이 필요해 보입니다. "재시도 가능 여부"가 로글 레벨을 결정하는 건 아닌 거 같아서요.
         var event = failure.isRetryable() ? log.atWarn() : log.atError();
         event.addKeyValue(OPERATION, "notification.fcm.logFailure").addKeyValue(RESULT, "failure")
                 .addKeyValue(COMMENT_ID, commentId).addKeyValue("scope", scope)

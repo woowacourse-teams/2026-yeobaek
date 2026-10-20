@@ -116,7 +116,6 @@ public class Comment {
     }
 
     public boolean isIn(Club club, Sentence sentence) {
-        // TODO: 수정 필요
         return clubComment != null
                 && clubComment.getClub().getId().equals(club.getId())
                 && this.sentence.getId().equals(sentence.getId());

@@ -27,9 +27,7 @@ public class FcmPushSender {
     public FcmSendResult send(List<String> orderedFids, String title, String body) throws FirebaseMessagingException {
         MulticastMessage message = messageFactory.createMulticastMessage(orderedFids, title, body);
         log.atInfo().addKeyValue(OPERATION, "notification.fcm.send").log("FCM 전송을 요청합니다.");
-        // TODO message가 500건을 초과하는 경우, 500건씩 나눠서 보낸다.
         BatchResponse response = messaging.sendEachForMulticast(message);
-        // TODO: DTO 변환을 FcmSendResult로 캡슐화하세요
         FcmSendResult result = toResult(orderedFids, response);
         int successCount = result.successCount();
         int failureCount = result.failureCount();
