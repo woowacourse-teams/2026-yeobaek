@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import yeobaek.backend.comment.domain.ClubCommentCreated;
 import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
 import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.FcmRetryProcessor;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 
 @Component
@@ -22,11 +23,12 @@ public class CommentNotificationWorker {
 
     private final CommentNotificationService notificationService;
     private final FcmFailureHandler failureHandler;
+    private final FcmRetryProcessor retryProcessor;
 
     public void notifyClub(ClubCommentCreated event) {
         try {
             List<FcmRetryTask> tasks = notificationService.notifyReadersInClub(
-                    event.commentId(), event.clubId(), event.sentenceId(), event.writerId());
+                    event.commentId(), event.clubId(), event.sentenceId(), event.writerId(), event.commentCreatedAt());
             logRetryTasks(event.commentId(), tasks);
         } catch (FirebaseMessagingException exception) {
             failureHandler.handleCallFailure(event.commentId(), exception);
@@ -40,7 +42,7 @@ public class CommentNotificationWorker {
     public void notifyPublicRoom(PublicRoomCommentCreated event) {
         try {
             List<FcmRetryTask> tasks = notificationService.notifyPreviousCommentersInPublicRoom(
-                    event.commentId(), event.publicRoomId(), event.sentenceId(), event.writerId());
+                    event.commentId(), event.publicRoomId(), event.sentenceId(), event.writerId(), event.commentCreatedAt());
             logRetryTasks(event.commentId(), tasks);
         } catch (FirebaseMessagingException exception) {
             failureHandler.handleCallFailure(event.commentId(), exception);
@@ -52,6 +54,7 @@ public class CommentNotificationWorker {
     }
 
     private void logRetryTasks(Long commentId, List<FcmRetryTask> tasks) {
+        tasks.forEach(retryProcessor::schedule);
         log.atInfo().addKeyValue(OPERATION, "notification.comment.logRetryTasks")
                 .addKeyValue(RESULT, "success").addKeyValue(COMMENT_ID, commentId)
                 .addKeyValue("retryTaskCount", tasks.size())

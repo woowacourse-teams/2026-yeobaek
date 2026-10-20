@@ -10,6 +10,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import ch.qos.logback.classic.Level;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -27,11 +28,14 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import yeobaek.backend.comment.domain.ClubCommentCreated;
 import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
 import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.FcmRetryProcessor;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.support.LogCapture;
 import yeobaek.backend.support.notification.NotificationExecutorConfiguration;
 
 class CommentNotificationAsyncTest {
+
+    private static final Instant CREATED_AT = Instant.parse("2026-10-19T00:00:00Z");
 
     private final CommentNotificationService service = mock(CommentNotificationService.class);
     private final FcmFailureHandler failureHandler = mock(FcmFailureHandler.class);
@@ -42,7 +46,7 @@ class CommentNotificationAsyncTest {
     void setUp() {
         executor = new NotificationExecutorConfiguration().notificationTaskExecutor(1, 1);
         executor.initialize();
-        listener = new CommentNotificationListener(new CommentNotificationWorker(service, failureHandler), executor);
+        listener = new CommentNotificationListener(new CommentNotificationWorker(service, failureHandler, mock(FcmRetryProcessor.class)), executor);
     }
 
     @AfterEach
@@ -71,9 +75,9 @@ class CommentNotificationAsyncTest {
             }
         };
         if (club) {
-            doAnswer(blockedSend).when(service).notifyReadersInClub(11L, 5L, 13L, 7L);
+            doAnswer(blockedSend).when(service).notifyReadersInClub(11L, 5L, 13L, 7L, CREATED_AT);
         } else {
-            doAnswer(blockedSend).when(service).notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L);
+            doAnswer(blockedSend).when(service).notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, CREATED_AT);
         }
 
         try (var requests = Executors.newSingleThreadExecutor()) {
@@ -107,14 +111,14 @@ class CommentNotificationAsyncTest {
                 secondFinished.countDown();
             }
             return List.of();
-        }).when(service).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L));
+        }).when(service).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(CREATED_AT));
 
         try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
-            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L));
+            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L, CREATED_AT));
             try {
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                listener.onClubCommentCreated(new ClubCommentCreated(12L, 5L, 13L, 7L));
-                listener.onClubCommentCreated(new ClubCommentCreated(13L, 5L, 13L, 7L));
+                listener.onClubCommentCreated(new ClubCommentCreated(12L, 5L, 13L, 7L, CREATED_AT));
+                listener.onClubCommentCreated(new ClubCommentCreated(13L, 5L, 13L, 7L, CREATED_AT));
 
                 var event = logs.event("notification.comment.submit", "rejected");
                 assertThat(event.getLevel()).isEqualTo(Level.WARN);
@@ -124,14 +128,14 @@ class CommentNotificationAsyncTest {
             }
             assertThat(secondFinished.await(5, TimeUnit.SECONDS)).isTrue();
         }
-        verify(service, times(2)).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L));
+        verify(service, times(2)).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(CREATED_AT));
     }
 
     @Test
     @DisplayName("워커의 예기치 않은 예외는 댓글 ID·요청 MDC와 함께 기록하고 다음 작업을 처리한다")
     void recordUnexpectedWorkerFailureAndContinue() throws Exception {
         doThrow(new IllegalStateException("unexpected failure"))
-                .when(service).notifyReadersInClub(11L, 5L, 13L, 7L);
+                .when(service).notifyReadersInClub(11L, 5L, 13L, 7L, CREATED_AT);
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
 
@@ -158,9 +162,9 @@ class CommentNotificationAsyncTest {
 
     private void notify(boolean club) {
         if (club) {
-            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L));
+            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L, CREATED_AT));
         } else {
-            listener.onPublicRoomCommentCreated(new PublicRoomCommentCreated(11L, 8L, 13L, 7L));
+            listener.onPublicRoomCommentCreated(new PublicRoomCommentCreated(11L, 8L, 13L, 7L, CREATED_AT));
         }
     }
 }

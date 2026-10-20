@@ -120,4 +120,35 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         return registrationRepository.save(new NotificationRegistration(
                 member, new FirebaseInstallationId(prefix + "a".repeat(21))));
     }
+
+    @Test
+    @DisplayName("재시도 조회는 원래 등록 ID와 FID를 모두 확인해 같은 FID의 새 등록을 가져오지 않는다")
+    void excludeReplacementRegistrationFromRetry() {
+        Member member = memberRepository.save(new Member(new Nickname("독자")));
+        var phone = save(member, 'c');
+        var tablet = save(member, 'd');
+        List<Long> originalIds = List.of(phone.getId());
+        registrationRepository.deleteById(phone.getId());
+        var replacement = save(member, 'c');
+
+        var snapshot = registrationService.snapshotForRetry(originalIds, phone.getFirebaseInstallationId());
+
+        assertThat(snapshot.idsFor(phone.getFirebaseInstallationId())).isEmpty();
+        assertThat(registrationRepository.findAll()).extracting(NotificationRegistration::getId)
+                .containsExactlyInAnyOrder(tablet.getId(), replacement.getId());
+    }
+
+    @Test
+    @DisplayName("원래 등록 행의 FID가 변경되면 재시도 대상에서 제외한다")
+    void excludeChangedFidFromRetry() {
+        Member member = memberRepository.save(new Member(new Nickname("독자")));
+        var phone = save(member, 'c');
+        jdbcTemplate.update("update notification_registrations set fid = ? where id = ?",
+                "d" + "a".repeat(21), phone.getId());
+
+        var snapshot = registrationService.snapshotForRetry(List.of(phone.getId()), phone.getFirebaseInstallationId());
+
+        assertThat(snapshot.idsFor(phone.getFirebaseInstallationId())).isEmpty();
+        assertThat(registrationRepository.findById(phone.getId())).isPresent();
+    }
 }

@@ -9,6 +9,7 @@ import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.SENTENCE_ID;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -98,7 +99,8 @@ public class CommentService {
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
 
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
-        eventPublisher.publishEvent(new ClubCommentCreated(comment.getId(), clubId, sentenceId, memberId));
+        eventPublisher.publishEvent(new ClubCommentCreated(comment.getId(), clubId, sentenceId, memberId,
+                comment.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
         var response = CommentResponse.of(comment, memberId);
         log.atInfo().addKeyValue(OPERATION, "comment.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
@@ -127,7 +129,8 @@ public class CommentService {
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
 
         eventPublisher.publishEvent(new PublicRoomCommentCreated(
-                comment.getId(), publicRoomId, sentenceId, memberId));
+                comment.getId(), publicRoomId, sentenceId, memberId,
+                comment.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
         return CommentResponse.of(comment, memberId);
     }
 

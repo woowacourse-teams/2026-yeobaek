@@ -1,8 +1,10 @@
 package yeobaek.backend.notification.comment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -11,11 +13,17 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ch.qos.logback.classic.Level;
 import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.ErrorCode;
+import com.google.firebase.IncomingHttpResponse;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
@@ -29,6 +37,8 @@ import yeobaek.backend.notification.registration.service.NotificationRegistratio
 import yeobaek.backend.support.LogCapture;
 
 class CommentNotificationServiceTest {
+
+    private static final Instant CREATED_AT = Instant.parse("2026-10-19T00:00:00Z");
 
     private static final String FID = "c" + "a".repeat(21);
     private static final String TITLE = "새로운 댓글이 달렸어요!";
@@ -92,7 +102,9 @@ class CommentNotificationServiceTest {
 
         List<FcmRetryTask> tasks = notify(club);
 
-        assertThat(tasks).containsExactly(new FcmRetryTask(11L, List.of(1L, 2L), TITLE, BODY, failure));
+        assertThat(tasks).extracting(FcmRetryTask::commentId, FcmRetryTask::registrationIds,
+                        FcmRetryTask::title, FcmRetryTask::body, FcmRetryTask::failure)
+                .containsExactly(tuple(11L, List.of(1L, 2L), TITLE, BODY, failure));
         verify(handler).handle(result, snapshot);
         verify(sender).send(fids, TITLE, BODY);
         verifyNoMoreInteractions(sender);
@@ -113,9 +125,8 @@ class CommentNotificationServiceTest {
 
         List<FcmRetryTask> tasks = notify(true);
 
-        assertThat(tasks).containsExactly(
-                new FcmRetryTask(11L, List.of(1L), TITLE, BODY, failure),
-                new FcmRetryTask(11L, List.of(2L), TITLE, BODY, quotaFailure));
+        assertThat(tasks).extracting(FcmRetryTask::registrationIds, FcmRetryTask::failure)
+                .containsExactly(tuple(List.of(1L), failure), tuple(List.of(2L), quotaFailure));
     }
 
     @Test
@@ -149,6 +160,7 @@ class CommentNotificationServiceTest {
     void propagateWholeCallFailure() throws FirebaseMessagingException {
         List<String> fids = List.of(FID);
         var exception = mock(FirebaseMessagingException.class);
+        given(exception.getErrorCode()).willReturn(ErrorCode.UNKNOWN);
         stubRecipients(true, fids);
         given(registrationService.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of()));
         given(sender.send(fids, TITLE, BODY)).willThrow(exception);
@@ -157,6 +169,73 @@ class CommentNotificationServiceTest {
         verifyNoInteractions(handler);
         verify(sender).send(fids, TITLE, BODY);
         verifyNoMoreInteractions(sender);
+    }
+
+    @Test
+    @DisplayName("최초 실패 작업은 댓글 생성 시각과 결과 확인 시각을 보관하고 추가 발송 이력은 0회다")
+    void initializeRetryHistoryBeforeCleanup() throws FirebaseMessagingException {
+        var failure = new FcmSendFailure(FID, "INTERNAL", "INTERNAL", 500, null);
+        var snapshot = new NotificationRegistrations(List.of(registration(1L, FID)));
+        var cleanupStartedAt = new AtomicReference<Instant>();
+        stubSend(failure, snapshot);
+        doAnswer(invocation -> {
+            cleanupStartedAt.set(Instant.now());
+            return null;
+        }).when(handler).handle(new FcmSendResult(0, List.of(failure)), snapshot);
+        Instant beforeSend = Instant.now();
+
+        FcmRetryTask task = notify(true).getFirst();
+
+        assertThat(task.commentCreatedAt()).isEqualTo(CREATED_AT);
+        assertThat(task.observedAt()).isBetween(beforeSend, cleanupStartedAt.get());
+        assertThat(task.retriesPerformed()).isZero();
+        assertThat(task.uncertainRetryUsed()).isFalse();
+        verify(sender).send(List.of(FID), TITLE, BODY);
+    }
+
+    @Test
+    @DisplayName("응답 없는 최초 호출 실패는 개별 실패 응답을 만들지 않고 원래 등록에만 추가 시도 대상을 연결한다")
+    void preserveCallScopeForInitialUncertainty() throws FirebaseMessagingException {
+        String second = "d" + "a".repeat(21);
+        List<String> fids = List.of(FID, second);
+        var exception = mock(FirebaseMessagingException.class);
+        given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
+        stubRecipients(true, fids);
+        given(registrationService.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of(
+                registration(1L, FID), registration(2L, second))));
+        given(sender.send(fids, TITLE, BODY)).willThrow(exception);
+
+        List<FcmRetryTask> tasks = notify(true);
+
+        assertThat(tasks).extracting(FcmRetryTask::fid).containsExactly(FID, second);
+        assertThat(tasks).extracting(task -> task.failure().fid()).containsOnlyNulls();
+        assertThat(tasks).extracting(FcmRetryTask::isCallFailure).containsOnly(true);
+        assertThat(tasks).extracting(FcmRetryTask::registrationIds).containsExactly(List.of(1L), List.of(2L));
+        verify(handler).handleCallFailure(11L, exception);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"500,INTERNAL", "429,RESOURCE_EXHAUSTED", "503,UNAVAILABLE"})
+    @DisplayName("호출 전체 일시 오류도 원래 오류·Retry-After를 유지하며 접수 불명확과 구분한다")
+    void retainRetryableCallError(int httpStatus, String sdkCode) throws FirebaseMessagingException {
+        var exception = mock(FirebaseMessagingException.class);
+        var response = mock(IncomingHttpResponse.class);
+        given(exception.getErrorCode()).willReturn(ErrorCode.valueOf(sdkCode));
+        given(exception.getHttpResponse()).willReturn(response);
+        given(response.getStatusCode()).willReturn(httpStatus);
+        given(response.getHeaders()).willReturn(Map.of("Retry-After", "300"));
+        stubRecipients(true, List.of(FID));
+        given(registrationService.snapshotForSend(List.of(FID)))
+                .willReturn(new NotificationRegistrations(List.of(registration(1L, FID))));
+        given(sender.send(List.of(FID), TITLE, BODY)).willThrow(exception);
+
+        FcmRetryTask task = service.notifyReadersInClub(11L, 5L, 13L, 7L, Instant.now()).getFirst();
+
+        assertThat(task.isCallFailure()).isTrue();
+        assertThat(task.failure().isReceiptUncertain()).isFalse();
+        assertThat(task.failure().httpStatus()).isEqualTo(httpStatus);
+        assertThat(task.nextRetryAt(0)).contains(task.observedAt().plusSeconds(300));
+        verify(handler).handleCallFailure(11L, exception);
     }
 
     private void stubSend(FcmSendFailure failure, NotificationRegistrations snapshot)
@@ -181,9 +260,9 @@ class CommentNotificationServiceTest {
 
     private List<FcmRetryTask> notify(boolean club) throws FirebaseMessagingException {
         if (club) {
-            return service.notifyReadersInClub(11L, 5L, 13L, 7L);
+            return service.notifyReadersInClub(11L, 5L, 13L, 7L, CREATED_AT);
         } else {
-            return service.notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L);
+            return service.notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, CREATED_AT);
         }
     }
 }

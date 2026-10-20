@@ -45,6 +45,11 @@ public class NotificationRegistrationService {
         return new NotificationRegistrations(registrationRepository.findAllByFirebaseInstallationId_ValueIn(fids));
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid) {
+        return new NotificationRegistrations(registrationRepository.findAllByIdInAndFirebaseInstallationId(ids, fid));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int deleteUnregistered(NotificationRegistrations sentRegistrations, FirebaseInstallationId fid) {
         List<Long> ids = sentRegistrations.idsFor(fid);

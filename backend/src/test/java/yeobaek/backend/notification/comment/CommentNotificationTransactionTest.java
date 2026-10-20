@@ -3,6 +3,7 @@ package yeobaek.backend.notification.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -15,6 +16,9 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.ErrorCode;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -22,6 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,6 +71,9 @@ import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.FcmRetryProcessor;
+import yeobaek.backend.notification.domain.FcmRetryTask;
+import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
@@ -129,6 +137,9 @@ class CommentNotificationTransactionTest {
     @MockitoBean
     private FcmPushSender pushSender;
 
+    @MockitoBean
+    private FcmRetryProcessor retryProcessor;
+
     @Autowired
     private QueuedTaskExecutor executor;
 
@@ -174,7 +185,8 @@ class CommentNotificationTransactionTest {
         given(lastRead.getSequence()).willReturn(new ContentSequence(2));
         given(readerMembership.getLastReadPassage()).willReturn(lastRead);
         given(readerMembership.getMember()).willReturn(reader);
-        given(clubMemberRepository.findAllJoinedWithMemberByClubId(5L)).willReturn(List.of(readerMembership));
+        given(clubMemberRepository.findAllJoinedWithMemberByClubIdExcludingBlockers(5L, 7L))
+                .willReturn(List.of(readerMembership));
         String fid = "c" + "a".repeat(21);
         given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(reader, new FirebaseInstallationId(fid)))));
@@ -320,7 +332,7 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("트랜잭션 없이 발행한 이벤트는 알림을 보내지 않는다")
     void skipNotificationWithoutTransaction() {
-        eventPublisher.publishEvent(new ClubCommentCreated(11L, 5L, 13L, 7L));
+        eventPublisher.publishEvent(new ClubCommentCreated(11L, 5L, 13L, 7L, Instant.now()));
 
         verifyNoInteractions(registrationService, pushSender, dataSource);
         assertThat(executor.tasks).isEmpty();
@@ -344,6 +356,37 @@ class CommentNotificationTransactionTest {
         verify(commentConnection).commit();
         verifyNoInteractions(registrationService, pushSender, recipientQueryRepository);
         assertThat(executor.tasks).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("모임·공개방 모두 저장된 댓글 생성 시각이 워커까지 전달되어 30분 만료를 판단한다")
+    void retainCommentCreationTimeThroughEvent(boolean club) throws Exception {
+        LocalDateTime createdAt = LocalDateTime.now().minusMinutes(31);
+        given(commentRepository.save(any(Comment.class))).willAnswer(invocation -> {
+            Comment comment = invocation.getArgument(0);
+            ReflectionTestUtils.setField(comment, "id", 11L);
+            ReflectionTestUtils.setField(comment, "createdAt", createdAt);
+            return comment;
+        });
+        String fid = "c" + "a".repeat(21);
+        given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of(
+                new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
+        given(pushSender.send(any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
+                new FcmSendFailure(fid, "UNAVAILABLE", "UNAVAILABLE", 503, null))));
+
+        if (club) {
+            commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
+        } else {
+            commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+        }
+        executor.runNextOnWorker();
+
+        var task = ArgumentCaptor.forClass(FcmRetryTask.class);
+        verify(retryProcessor).schedule(task.capture());
+        assertThat(task.getValue().commentCreatedAt()).isEqualTo(createdAt.atZone(ZoneId.systemDefault()).toInstant());
+        assertThat(task.getValue().stopReason(0)).contains("EXPIRED");
+        verify(pushSender, times(1)).send(any(), any(), any());
     }
 
     static class QueuedTaskExecutor implements TaskExecutor {

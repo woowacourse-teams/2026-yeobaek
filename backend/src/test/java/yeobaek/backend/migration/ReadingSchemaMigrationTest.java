@@ -38,6 +38,10 @@ class ReadingSchemaMigrationTest {
             "src", "test", "resources", "migration", "2026-10-12-reading-schema-seed.sql");
     private static final Path VERIFICATION = Path.of(
             "docs", "migrations", "2026-10-12-reading-schema-verify.sql");
+    private static final Path NOTIFICATION_MIGRATION = Path.of(
+            "docs", "migrations", "2026-10-20-notification-registrations.sql");
+    private static final Path NOTIFICATION_VERIFICATION = Path.of(
+            "docs", "migrations", "2026-10-20-notification-registrations-verify.sql");
     private static final Set<String> TARGET_TABLES = Set.of(
             "authors", "author_books", "books", "chapters", "passages", "sentences",
             "members", "member_blocks", "public_rooms", "public_room_members",
@@ -251,17 +255,50 @@ class ReadingSchemaMigrationTest {
         }
     }
 
-    private void validateJpaMappings() throws SQLException {
-        // 독서 스키마 전환 이후 추가된 엔티티의 테이블을 준비하고 현재 매핑 전체를 검증한다.
+    @Test
+    void migratesNotificationSchemaAndRefusesRerunWithoutDataLoss() throws Exception {
         try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE notification_registrations (
-                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                        member_id BIGINT NOT NULL,
-                        fid VARCHAR(255) NOT NULL,
-                        FOREIGN KEY (member_id) REFERENCES members(id)
-                    )
+            executeScript(connection, MIGRATION);
+            executeScript(connection, NOTIFICATION_MIGRATION);
+            verifyNotificationSchema(connection);
+            String fid = "c" + "a".repeat(21);
+            statement.executeUpdate("""
+                    INSERT INTO notification_registrations (member_id, fid)
+                    VALUES (40, 'caaaaaaaaaaaaaaaaaaaaa'), (40, 'caaaaaaaaaaaaaaaaaaaaa'),
+                           (41, 'cAaaaaaaaaaaaaaaaaaaaa')
                     """);
+
+            assertThat(queryLong(connection, "SELECT COUNT(*) FROM notification_registrations WHERE fid = ?", fid))
+                    .isEqualTo(2);
+            Map<String, Long> beforeRerun = databaseFingerprint(connection);
+
+            assertThatThrownBy(() -> executeScript(connection, NOTIFICATION_MIGRATION))
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(databaseFingerprint(connection)).isEqualTo(beforeRerun);
+            verifyNotificationSchema(connection);
+        }
+    }
+
+    @Test
+    void rejectsInvalidNotificationReferences() throws Exception {
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            executeScript(connection, MIGRATION);
+            executeScript(connection, NOTIFICATION_MIGRATION);
+
+            assertThatThrownBy(() -> statement.executeUpdate("""
+                    INSERT INTO notification_registrations (member_id, fid) VALUES (999999, 'caaaaaaaaaaaaaaaaaaaaa')
+                    """)).isInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> statement.executeUpdate("""
+                    INSERT INTO notification_registrations (member_id, fid) VALUES (40, NULL)
+                    """)).isInstanceOf(SQLException.class);
+        }
+    }
+
+    private void validateJpaMappings() throws SQLException, IOException {
+        // 독서 스키마 전환 이후 추가된 엔티티의 테이블을 준비하고 현재 매핑 전체를 검증한다.
+        try (Connection connection = connection()) {
+            executeScript(connection, NOTIFICATION_MIGRATION);
+            verifyNotificationSchema(connection);
         }
         SpringApplication application = new SpringApplication(
                 yeobaek.backend.BackendApplication.class, FirebaseTestConfiguration.class);
@@ -280,6 +317,18 @@ class ReadingSchemaMigrationTest {
                 "--spring.main.banner-mode=off",
                 "--logging.level.root=ERROR")) {
             assertThat(context.isActive()).isTrue();
+        }
+    }
+
+    private void verifyNotificationSchema(Connection connection) throws IOException, SQLException {
+        try (Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery(readStatements(NOTIFICATION_VERIFICATION).getFirst())) {
+            int checks = 0;
+            while (result.next()) {
+                assertThat(result.getLong("failure_count")).as(result.getString("check_name")).isZero();
+                checks++;
+            }
+            assertThat(checks).isEqualTo(7);
         }
     }
 

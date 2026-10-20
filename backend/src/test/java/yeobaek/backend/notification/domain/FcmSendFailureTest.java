@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -175,6 +176,36 @@ class FcmSendFailureTest {
         assertThatThrownBy(() -> failure.nextRetryAt(
                 CREATED_AT, CREATED_AT, retriesPerformed, false, jitterPercent))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @ParameterizedTest
+    @CsvSource(value = {
+            "0,0,null,null",
+            "5,0,null,RETRY_LIMIT_REACHED",
+            "0,1800,null,EXPIRED",
+            "0,1740,null,NEXT_RETRY_AT_OR_AFTER_EXPIRY",
+            "0,0,1800,NEXT_RETRY_AT_OR_AFTER_EXPIRY",
+            "0,0,999999999999999999999999999999,NEXT_RETRY_AT_OR_AFTER_EXPIRY"
+    }, nullValues = "null")
+    @DisplayName("다음 시도 시각이 없으면 횟수·유효기간·서버 대기에 따른 종료 사유를 구분한다")
+    void identifyRetryStopReason(int retriesPerformed, long observedAfterSeconds,
+                                String retryAfter, String expectedReason) {
+        var failure = internal(retryAfter);
+
+        assertThat(failure.retryStopReason(
+                CREATED_AT, CREATED_AT.plusSeconds(observedAfterSeconds), retriesPerformed, false, 0))
+                .isEqualTo(Optional.ofNullable(expectedReason));
+    }
+
+    @Test
+    @DisplayName("접수 불명확 한도와 재시도하지 않는 오류의 종료 사유를 구분한다")
+    void identifyIneligibleOrUncertainStopReason() {
+        var uncertain = new FcmSendFailure("fid", "UNKNOWN", "DEADLINE_EXCEEDED", null, null);
+        var invalid = new FcmSendFailure("fid", "INVALID_ARGUMENT", "INVALID_ARGUMENT", 400, null);
+
+        assertThat(uncertain.retryStopReason(CREATED_AT, CREATED_AT.plusSeconds(60), 1, true, 0))
+                .contains("UNCERTAIN_RETRY_LIMIT_REACHED");
+        assertThat(invalid.retryStopReason(CREATED_AT, CREATED_AT, 0, false, 0)).contains("NOT_RETRYABLE");
     }
 
     private FcmSendFailure internal(String retryAfter) {

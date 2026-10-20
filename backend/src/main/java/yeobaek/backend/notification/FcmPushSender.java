@@ -45,7 +45,6 @@ public class FcmPushSender {
     private FcmSendResult toResult(List<String> orderedFids, BatchResponse response) {
         List<SendResponse> outcomes = response.getResponses();
         if (orderedFids.size() != outcomes.size()) {
-            // TODO: 이 부분을 비동기로 처리했을 때, 이 예외는 어디로 가는가? 서비스 호출자로 가고 거기서 최종적으로 처리되나?
             throw new IllegalStateException("FCM 요청 대상 수와 응답 수가 일치하지 않습니다.");
         }
 

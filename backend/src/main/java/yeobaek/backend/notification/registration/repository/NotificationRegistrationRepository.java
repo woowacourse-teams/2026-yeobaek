@@ -15,6 +15,9 @@ public interface NotificationRegistrationRepository extends JpaRepository<Notifi
 
     List<NotificationRegistration> findAllByFirebaseInstallationId_ValueIn(List<String> fids);
 
+    List<NotificationRegistration> findAllByIdInAndFirebaseInstallationId(
+            List<Long> ids, FirebaseInstallationId fid);
+
     @Modifying
     @Query("""
             delete from NotificationRegistration registration

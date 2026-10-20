@@ -21,13 +21,14 @@ public record FcmSendFailure(
         String retryAfter
 ) {
 
+    public static final int MAX_JITTER_PERCENT = 20;
+
     private static final String RETRY_AFTER_HEADER = "Retry-After";
     private static final String UNKNOWN = "UNKNOWN";
     private static final String RECEIPT_UNCERTAIN = "RECEIPT_UNCERTAIN";
     private static final String UNREGISTERED = "UNREGISTERED";
     private static final String UNAVAILABLE = "UNAVAILABLE";
     private static final int MAX_RETRIES = 5;
-    private static final int MAX_JITTER_PERCENT = 20;
     private static final Duration VALIDITY = Duration.ofMinutes(30);
     private static final List<Duration> RETRY_DELAYS = List.of(
             Duration.ofMinutes(1), Duration.ofMinutes(2), Duration.ofMinutes(4),
@@ -119,6 +120,30 @@ public record FcmSendFailure(
         } catch (DateTimeException exception) {
             return Optional.empty();
         }
+    }
+
+    public Optional<String> retryStopReason(Instant commentCreatedAt, Instant observedAt,
+                                          int retriesPerformed, boolean uncertainRetryUsed, int jitterPercent) {
+        if (nextRetryAt(commentCreatedAt, observedAt, retriesPerformed, uncertainRetryUsed, jitterPercent).isPresent()) {
+            return Optional.empty();
+        }
+        if (!isRetryable()) {
+            return Optional.of("NOT_RETRYABLE");
+        }
+        if (retriesPerformed >= MAX_RETRIES) {
+            return Optional.of("RETRY_LIMIT_REACHED");
+        }
+        if (!observedAt.isBefore(commentCreatedAt.plus(VALIDITY))) {
+            return Optional.of("EXPIRED");
+        }
+        if (isReceiptUncertain() && uncertainRetryUsed) {
+            return Optional.of("UNCERTAIN_RETRY_LIMIT_REACHED");
+        }
+        return Optional.of("NEXT_RETRY_AT_OR_AFTER_EXPIRY");
+    }
+
+    public boolean isExpired(Instant commentCreatedAt, Instant now) {
+        return !now.isBefore(commentCreatedAt.plus(VALIDITY));
     }
 
     private Instant retryAfterAt(Instant observedAt) {
