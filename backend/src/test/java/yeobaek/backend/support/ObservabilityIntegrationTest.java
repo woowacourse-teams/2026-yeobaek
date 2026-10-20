@@ -102,20 +102,24 @@ class ObservabilityIntegrationTest {
         assertThat(client.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
         flush();
 
-        var http = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
-                && span.getKind() == io.opentelemetry.api.trace.SpanKind.SERVER).toList();
-        var sql = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
-                && span.getName().contains("query")).toList();
-        assertThat(http).hasSize(1);
-        assertThat(sql).hasSize(1).allSatisfy(span -> assertThat(span.getParentSpanId()).isEqualTo(http.getFirst().getSpanId()));
-        assertThat(signals.logs.stream().filter(log -> log.getSpanContext().getTraceId().equals(traceId)))
-                .hasSize(4).anySatisfy(log -> {
-                    assertThat(log.getSpanContext().getSpanId()).isEqualTo(sql.getFirst().getSpanId());
-                    assertThat(log.getBodyValue().asString()).isEqualTo("SQL probe");
-                }).anySatisfy(log -> {
-                    assertThat(log.getBodyValue().asString()).isEqualTo("HTTP 요청 처리를 완료했습니다.");
-                    assertThat(log.getSpanContext().getSpanId()).isEqualTo(http.getFirst().getSpanId());
-                });
+        // 응답 수신 시점에는 서버 span이 아직 종료·수집되지 않았을 수 있다.
+        org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var http = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
+                    && span.getKind() == io.opentelemetry.api.trace.SpanKind.SERVER).toList();
+            var sql = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
+                    && span.getName().contains("query")).toList();
+            assertThat(http).hasSize(1);
+            assertThat(sql).hasSize(1)
+                    .allSatisfy(span -> assertThat(span.getParentSpanId()).isEqualTo(http.getFirst().getSpanId()));
+            assertThat(signals.logs.stream().filter(log -> log.getSpanContext().getTraceId().equals(traceId)))
+                    .hasSize(4).anySatisfy(log -> {
+                        assertThat(log.getSpanContext().getSpanId()).isEqualTo(sql.getFirst().getSpanId());
+                        assertThat(log.getBodyValue().asString()).isEqualTo("SQL probe");
+                    }).anySatisfy(log -> {
+                        assertThat(log.getBodyValue().asString()).isEqualTo("HTTP 요청 처리를 완료했습니다.");
+                        assertThat(log.getSpanContext().getSpanId()).isEqualTo(http.getFirst().getSpanId());
+                    });
+        });
     }
 
     @Test
