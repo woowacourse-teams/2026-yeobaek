@@ -306,7 +306,7 @@ class CommentControllerTest extends ControllerTest {
         givenValidMember(4L);
         given(commentService.addLike(4L, 9L)).willReturn(new CommentLikeResponse(3, true));
 
-        mockMvc.perform(put("/api/comments/{commentId}/likes/me", 9L)
+        mockMvc.perform(put("/api/comments/{commentId}/likes", 9L)
                         .header("X-Member-Id", "4"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -322,7 +322,7 @@ class CommentControllerTest extends ControllerTest {
         givenValidMember(5L);
         given(commentService.cancelLike(5L, 12L)).willReturn(new CommentLikeResponse(0, false));
 
-        mockMvc.perform(delete("/api/comments/{commentId}/likes/me", 12L)
+        mockMvc.perform(delete("/api/comments/{commentId}/likes", 12L)
                         .header("X-Member-Id", "5"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))

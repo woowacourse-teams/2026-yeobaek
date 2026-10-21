@@ -154,7 +154,7 @@ public class CommentController {
 
     @Operation(summary = "댓글 좋아요 추가",
             description = "모임·공개방 공통. 본인 댓글에도 가능하며 반복 요청해도 좋아요는 한 개만 유지한다.")
-    @PutMapping("/api/comments/{commentId}/likes/me")
+    @PutMapping("/api/comments/{commentId}/likes")
     public CommentLikeResponse addLike(@AuthMember Long memberId,
                                        @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
         logCommentMutationAttempt("comment.addLike", commentId);
@@ -165,7 +165,7 @@ public class CommentController {
 
     @Operation(summary = "댓글 좋아요 취소",
             description = "모임·공개방 공통. 좋아요가 없어도 성공하며 처리 후 좋아요 수와 내 좋아요 여부를 반환한다.")
-    @DeleteMapping("/api/comments/{commentId}/likes/me")
+    @DeleteMapping("/api/comments/{commentId}/likes")
     public CommentLikeResponse cancelLike(@AuthMember Long memberId,
                                           @Parameter(description = COMMENT_ID_DESCRIPTION) @PathVariable Long commentId) {
         logCommentMutationAttempt("comment.cancelLike", commentId);

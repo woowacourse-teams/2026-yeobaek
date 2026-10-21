@@ -613,8 +613,8 @@
 
 | 동작 | API | 성공 응답 |
 |---|---|---|
-| 추가 | `PUT /api/comments/{commentId}/likes/me` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
-| 취소 | `DELETE /api/comments/{commentId}/likes/me` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
+| 추가 | `PUT /api/comments/{commentId}/likes` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
+| 취소 | `DELETE /api/comments/{commentId}/likes` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
 
 응답 예시 (추가):
 ```json
@@ -1033,8 +1033,8 @@
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
 | POST | /api/comments/{commentId}/reports | 댓글 신고 |
-| PUT | /api/comments/{commentId}/likes/me | 댓글 좋아요 추가 |
-| DELETE | /api/comments/{commentId}/likes/me | 댓글 좋아요 취소 |
+| PUT | /api/comments/{commentId}/likes | 댓글 좋아요 추가 |
+| DELETE | /api/comments/{commentId}/likes | 댓글 좋아요 취소 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
@@ -1367,8 +1367,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | `PUT /api/comments/{commentId}` | 요청 `{"content": "수정된 내용"}`, 1~1000자. 본인 댓글만 수정, `200` 댓글 객체 |
 | `DELETE /api/comments/{commentId}` | 본인 댓글만 삭제, `204 No Content` |
 | `POST /api/comments/{commentId}/reports` | 본문 없음. 보이는 타인 댓글 신고, 반복 신고도 `204 No Content` |
-| `PUT /api/comments/{commentId}/likes/me` | 좋아요 추가. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
-| `DELETE /api/comments/{commentId}/likes/me` | 좋아요 취소. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
+| `PUT /api/comments/{commentId}/likes` | 좋아요 추가. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
+| `DELETE /api/comments/{commentId}/likes` | 좋아요 취소. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
 | `GET /api/members/me/blocks` | 기존 차단 목록 계약 그대로 사용 |
 | `PUT /api/members/me/blocks/{memberId}` | 기존 서비스 전체 단방향 차단을 공개방 댓글에도 적용 |
 | `DELETE /api/members/me/blocks/{memberId}` | 기존 차단 해제 계약 그대로 사용 |
