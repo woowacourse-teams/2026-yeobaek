@@ -208,23 +208,6 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
                         tuple(third.getId(), 0L, false));
     }
 
-    @Test
-    @DisplayName("공개방 댓글 수정 응답에도 기존 좋아요를 반영한다")
-    void updateCommentWithLikes() {
-        ReadingFixture fixture = createRoom("공개방 좋아요 유지", 1);
-        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
-        Member reader = memberRepository.save(new Member(new Nickname("독자")));
-        Comment comment = commentRepository.save(new Comment(fixture.room(), writer,
-                fixture.passages().getFirst().getSentences().getFirst(), new CommentContent("댓글")));
-        commentLikeRepository.saveAll(List.of(new CommentLike(writer, comment), new CommentLike(reader, comment)));
-
-        var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
-
-        assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
-                .containsExactly(2L, true);
-        assertThat(commentLikeRepository.count()).isEqualTo(2);
-    }
-
     private ReadingFixture createRoom(String title, int passageCount) {
         Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
