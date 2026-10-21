@@ -25,8 +25,8 @@ public class CommentNotificationRecipientReader {
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<String> findReadersInClub(Long clubId, Long sentenceId, Long writerId) {
         ClubMembers targets = new ClubMembers(
-                clubMemberRepository.findAllJoinedWithMemberByClubIdExcludingBlockers(clubId, writerId));
-        Members recipients = new Members(targets.otherMembersAheadOf(
+                clubMemberRepository.findNotificationCandidatesWithReadingProgress(clubId, writerId));
+        Members recipients = new Members(targets.otherMembersAheadInReadingProgress(
                 sentenceRepository.getReferenceById(sentenceId), memberRepository.getReferenceById(writerId)));
         return registrationService.findByMembers(recipients).firebaseInstallationIds();
     }

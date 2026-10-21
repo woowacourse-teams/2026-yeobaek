@@ -8,14 +8,14 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
-@Service
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class FcmFailureHandler {

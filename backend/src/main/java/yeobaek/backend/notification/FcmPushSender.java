@@ -8,6 +8,7 @@ import com.google.firebase.messaging.BatchResponse;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.MulticastMessage;
+import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,11 +24,10 @@ import yeobaek.backend.notification.domain.FcmSendResult;
 @Slf4j
 public class FcmPushSender {
     private final FirebaseMessaging messaging;
-    private final FcmMessageFactory messageFactory;
 
     public FcmSendResult send(List<String> orderedFids, String title, String body, Map<String, String> data)
             throws FirebaseMessagingException {
-        MulticastMessage message = messageFactory.createMulticastMessage(orderedFids, title, body, data);
+        MulticastMessage message = createMulticastMessage(orderedFids, title, body, data);
         log.atInfo().addKeyValue(OPERATION, "notification.fcm.send").log("FCM 전송을 요청합니다.");
         BatchResponse response = messaging.sendEachForMulticast(message);
         FcmSendResult result = toResult(orderedFids, response);
@@ -40,6 +40,15 @@ public class FcmPushSender {
                 .addKeyValue("failureCount", failureCount)
                 .log("FCM 접수 결과를 기록합니다.");
         return result;
+    }
+
+    private MulticastMessage createMulticastMessage(
+            List<String> fids, String title, String body, Map<String, String> data) {
+        return MulticastMessage.builder()
+                .addAllFids(fids)
+                .setNotification(Notification.builder().setTitle(title).setBody(body).build())
+                .putAllData(data)
+                .build();
     }
 
     private FcmSendResult toResult(List<String> orderedFids, BatchResponse response) {

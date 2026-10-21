@@ -187,7 +187,7 @@ class CommentNotificationTransactionTest {
         given(lastRead.getSequence()).willReturn(new ContentSequence(2));
         given(readerMembership.getLastReadPassage()).willReturn(lastRead);
         given(readerMembership.getMember()).willReturn(reader);
-        given(clubMemberRepository.findAllJoinedWithMemberByClubIdExcludingBlockers(5L, 7L))
+        given(clubMemberRepository.findNotificationCandidatesWithReadingProgress(5L, 7L))
                 .willReturn(List.of(readerMembership));
         String fid = "c" + "a".repeat(21);
         given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(

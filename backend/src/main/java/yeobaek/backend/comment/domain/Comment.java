@@ -22,7 +22,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
@@ -113,12 +112,6 @@ public class Comment {
 
     public boolean isViewed(Set<Long> viewedCommentIds) {
         return viewedCommentIds.contains(id);
-    }
-
-    public boolean isIn(Club club, Sentence sentence) {
-        return clubComment != null
-                && clubComment.getClub().getId().equals(club.getId())
-                && this.sentence.getId().equals(sentence.getId());
     }
 
     public Long getSentenceId() {

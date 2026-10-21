@@ -3,10 +3,8 @@ package yeobaek.backend.notification;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import ch.qos.logback.classic.Level;
@@ -32,8 +30,7 @@ import yeobaek.backend.support.LogCapture;
 class FcmPushSenderTest {
 
     private final FirebaseMessaging messaging = mock(FirebaseMessaging.class);
-    private final FcmMessageFactory messageFactory = spy(new FcmMessageFactory());
-    private final FcmPushSender sender = new FcmPushSender(messaging, messageFactory);
+    private final FcmPushSender sender = new FcmPushSender(messaging);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
@@ -102,10 +99,9 @@ class FcmPushSenderTest {
 
         var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
 
-        ArgumentCaptor<List<String>> orderedFids = ArgumentCaptor.captor();
-        verify(messageFactory).createMulticastMessage(
-                orderedFids.capture(), eq("댓글 알림"), eq("비공개 댓글 본문"), eq(Map.of()));
-        assertThat(orderedFids.getValue()).containsExactly(fid(2), fid(0), fid(3), fid(1));
+        var message = ArgumentCaptor.forClass(MulticastMessage.class);
+        verify(messaging).sendEachForMulticast(message.capture());
+        assertThat(message.getValue()).extracting("fids").isEqualTo(fids);
         assertThat(result.failures()).containsExactly(
                 new FcmSendFailure(fid(0), "UNREGISTERED", "UNKNOWN", null, null),
                 new FcmSendFailure(fid(1), "UNAVAILABLE", "UNKNOWN", null, null));

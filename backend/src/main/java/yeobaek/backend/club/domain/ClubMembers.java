@@ -39,7 +39,7 @@ public final class ClubMembers {
                 .toList();
     }
 
-    public List<Member> otherMembersAheadOf(Sentence currentSentence, Member writer) {
+    public List<Member> otherMembersAheadInReadingProgress(Sentence currentSentence, Member writer) {
         ContentSequence currentSequence = currentSentence.getPassage().getSequence();
         return values.stream()
                 .filter(member -> member.getLastReadPassage() != null)

@@ -111,6 +111,6 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
               )
             order by cm.id asc
             """)
-    List<ClubMember> findAllJoinedWithMemberByClubIdExcludingBlockers(
+    List<ClubMember> findNotificationCandidatesWithReadingProgress(
             @Param("clubId") Long clubId, @Param("writerId") Long writerId);
 }
