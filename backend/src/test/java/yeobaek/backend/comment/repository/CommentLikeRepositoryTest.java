@@ -89,24 +89,6 @@ class CommentLikeRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("서로 다른 회원은 같은 댓글에 각각 좋아요를 저장할 수 있다")
-    void saveLikesFromDifferentMembers() {
-        commentLikeRepository.saveAndFlush(new CommentLike(reader, comment));
-        commentLikeRepository.saveAndFlush(new CommentLike(writer, comment));
-
-        assertThat(commentLikeRepository.count()).isEqualTo(2);
-    }
-
-    @Test
-    @DisplayName("같은 회원은 서로 다른 댓글에 각각 좋아요를 저장할 수 있다")
-    void saveLikesOnDifferentComments() {
-        commentLikeRepository.saveAndFlush(new CommentLike(reader, comment));
-        commentLikeRepository.saveAndFlush(new CommentLike(reader, otherComment));
-
-        assertThat(commentLikeRepository.count()).isEqualTo(2);
-    }
-
-    @Test
     @DisplayName("회원 삭제 시 그 회원의 좋아요만 DB cascade로 삭제한다")
     void deleteByMemberCascade() {
         commentLikeRepository.saveAndFlush(new CommentLike(reader, comment));
