@@ -25,6 +25,9 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class CreateViewModel(
@@ -39,6 +42,9 @@ class CreateViewModel(
     )
         private set
 
+    private var initJob: Job? = null
+    private var searchJob: Job? = null
+
     init {
         initBookList()
     }
@@ -48,7 +54,7 @@ class CreateViewModel(
             bookState = BookState.Loading,
         )
 
-        viewModelScope.launch {
+        initJob = viewModelScope.launch {
             try {
                 val groups = bookRepository.getBooks()
                 val books = groups.map { book -> book.toUiModel() }
@@ -86,6 +92,35 @@ class CreateViewModel(
                 uiState = uiState.copy(
                     bookState = BookState.Failure(e.message ?: "책 목록을 가져오는데 실패했습니다."),
                     bookList = emptyList(),
+                )
+            }
+        }
+    }
+
+    fun updateSearchTextValue(value: String) {
+        if (initJob?.isCompleted == false) return
+
+        uiState = uiState.copy(
+            searchTextValue = value,
+            searchState = SearchState.Loading,
+        )
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            try {
+                if (value.isNotBlank()) delay(300.milliseconds)
+
+                val searchBooks = bookRepository.getBooks(value)
+                uiState = uiState.copy(
+                    bookList = searchBooks.map { book -> book.toUiModel() },
+                    searchState = SearchState.Success,
+                )
+                println("searchBooks: $searchBooks")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                uiState = uiState.copy(
+                    searchState = SearchState.Failure(e.message ?: "책 목록을 가져오는데 실패했습니다."),
                 )
             }
         }
@@ -280,4 +315,11 @@ sealed class CreateState {
     data object Loading : CreateState()
     data object Success : CreateState()
     data class Failure(val message: String) : CreateState()
+}
+
+sealed class SearchState {
+    data object Idle : SearchState()
+    data object Loading : SearchState()
+    data object Success : SearchState()
+    data class Failure(val message: String) : SearchState()
 }

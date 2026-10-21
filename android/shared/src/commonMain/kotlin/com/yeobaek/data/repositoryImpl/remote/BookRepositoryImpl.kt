@@ -9,8 +9,8 @@ import com.yeobaek.data.repository.BookRepository
 class BookRepositoryImpl(
     private val bookApi: BookApi,
 ) : BookRepository {
-    override suspend fun getBooks(): List<BookModel> {
-        val response = bookApi.getBooks()
+    override suspend fun getBooks(keyword: String): List<BookModel> {
+        val response = bookApi.getBooks(keyword)
         return if (response.isSuccessful) {
             response.body()?.toModel() ?: throw IllegalArgumentException("책 정보가 없네요")
         } else {

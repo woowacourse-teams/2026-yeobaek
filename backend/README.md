@@ -91,9 +91,14 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
-`local` 프로파일로 시작하면 Hibernate가 스키마를 생성한 뒤 `src/main/resources/local/data.sql`을 자동 실행합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 별도 시더 실행은 필요하지 않습니다. 기존 `ddl-auto=create` 설정에 따라 재시작할 때 DB를 재생성하고 같은 테스트 데이터를 다시 넣습니다.
+`local` 프로파일로 시작하면 Flyway가 공통 스키마와 `src/main/resources/db/local/V1.1__local_seed.sql`을 한 번 적용합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 재시작해도 기존 데이터를 보존합니다.
 
-SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
+기본 SQL 초기화는 모든 프로파일에서 비활성화합니다. `local`만 Flyway의 `db/local` 경로를 추가하며, 기본·`prod`·`prod,dev`에서는 로컬 시드를 실행하지 않습니다.
+
+스키마 변경은 `src/main/resources/db/migration`에 다음 버전 SQL로 추가하며, 적용한 SQL은 수정하지 않습니다.
+앱은 시작 시 Flyway 마이그레이션 후 Hibernate `validate`로 엔티티 매핑을 검증합니다.
+통합 테스트도 같은 SQL로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
+Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.

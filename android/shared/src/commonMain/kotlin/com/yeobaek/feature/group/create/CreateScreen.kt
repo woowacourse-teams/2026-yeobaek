@@ -25,6 +25,7 @@ import com.yeobaek.feature.group.create.model.SelectBookUiModel
 fun CreateScreen(
     uiState: CreateUiState,
     updateGroupNameValue: (String) -> Unit,
+    updateSearchTextValue: (String) -> Unit,
     selectBook: (SelectBookUiModel) -> Unit,
     onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     onNextStep: () -> Unit,
@@ -52,6 +53,10 @@ fun CreateScreen(
         }
     }
 
+    LaunchedEffect(uiState.searchTextValue) {
+        bookGridState.scrollToItem(0)
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -71,7 +76,10 @@ fun CreateScreen(
                     CreateStep.GroupName -> onCreateGroup
                 },
                 enabled = when (uiState.step) {
-                    CreateStep.BookSelection -> uiState.bookState is BookState.Success && uiState.selectedBook != null
+                    CreateStep.BookSelection ->
+                        uiState.bookState is BookState.Success &&
+                            uiState.selectedBook != null &&
+                            (uiState.searchState is SearchState.Success || uiState.searchState is SearchState.Idle)
 
                     CreateStep.GroupName ->
                         uiState.createState !is CreateState.Loading &&
@@ -90,7 +98,10 @@ fun CreateScreen(
             when (uiState.step) {
                 CreateStep.BookSelection -> CreateBookSelectionContent(
                     books = uiState.bookList,
+                    searchTextValue = uiState.searchTextValue,
+                    updateSearchTextValue = updateSearchTextValue,
                     bookState = uiState.bookState,
+                    searchState = uiState.searchState,
                     selectedBookId = uiState.selectedBook?.id,
                     gridState = bookGridState,
                     onClickBook = selectBook,
@@ -124,6 +135,7 @@ private fun CreateScreenPreview() {
                     ),
                 ),
             ),
+            updateSearchTextValue = {},
             updateGroupNameValue = {},
             selectBook = {},
             onLastVisibleBookChanged = {},

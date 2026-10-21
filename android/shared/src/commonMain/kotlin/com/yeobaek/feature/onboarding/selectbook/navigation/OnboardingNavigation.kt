@@ -50,6 +50,7 @@ fun NavGraphBuilder.onboardingNavGraph(
 
         OnboardingScreen(
             uiState = onBoardingViewModel.uiState,
+            updateSearchTextValue = onBoardingViewModel::updateSearchTextValue,
             navigateToHome = {
                 navigateToHome()
                 appContainer.guideOnboardingPreferences.saveOnboardingState(true)
