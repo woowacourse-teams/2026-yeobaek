@@ -95,7 +95,7 @@ public class CommentService {
         SentenceContext context = validateSentenceContext(memberId, clubId, sentenceId);
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
-        var response = CommentResponse.of(comment, memberId, 0, false);
+        var response = CommentResponse.withoutLike(comment, memberId);
         log.atInfo().addKeyValue(OPERATION, "comment.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(SENTENCE_ID, sentenceId)
                 .addKeyValue(COMMENT_ID, response.commentId()).log("댓글을 작성했습니다.");
@@ -119,7 +119,7 @@ public class CommentService {
                 memberRepository.getReferenceById(memberId),
                 sentenceRepository.getReferenceById(sentenceId), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
-        return CommentResponse.of(comment, memberId, 0, false);
+        return CommentResponse.withoutLike(comment, memberId);
     }
 
     @Transactional(readOnly = true)

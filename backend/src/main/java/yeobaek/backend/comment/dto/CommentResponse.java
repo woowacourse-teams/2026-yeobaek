@@ -16,6 +16,10 @@ public record CommentResponse(
         @Schema(description = "요청 회원의 좋아요 여부") boolean likedByMe
 ) {
 
+    public static CommentResponse withoutLike(Comment comment, Long requesterId) {
+        return of(comment, requesterId, 0, false);
+    }
+
     public static CommentResponse of(Comment comment, Long requesterId, long likeCount, boolean likedByMe) {
         Long writerId = comment.getWriter().getId();
         return new CommentResponse(comment.getId(), writerId,
