@@ -16,6 +16,9 @@ import org.testcontainers.containers.MySQLContainer;
 
 class LocalDataSqlStartupTest {
 
+    private static final String DEFAULT_PROFILE = "default";
+    private static final String DEV_PROFILES = "prod,dev";
+
     private static final String MAIN_CONFIG_LOCATION = Path.of(
             "src", "main", "resources", "application.properties")
             .toAbsolutePath()
@@ -23,24 +26,40 @@ class LocalDataSqlStartupTest {
             .toString();
 
     @Test
-    void localProfileSeedsDataAfterSchemaCreationAndOtherProfilesDoNot() {
+    void localProfileSeedsDataOnceAndPreservesDataOnRestart() {
         try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4")) {
             mysql.start();
 
-            try (ConfigurableApplicationContext localContext = startApplication(mysql, "local", false)) {
+            try (ConfigurableApplicationContext localContext = startApplication(mysql, "local")) {
                 verifyLocalContext(localContext);
             }
 
-            try (ConfigurableApplicationContext defaultContext = startApplication(mysql, "default", true)) {
-                verifyDefaultContext(defaultContext);
+            try (ConfigurableApplicationContext restartedContext = startApplication(mysql, "local")) {
+                JdbcTemplate jdbcTemplate = restartedContext.getBean(JdbcTemplate.class);
+                assertThat(jdbcTemplate.queryForObject("select count(*) from books", Integer.class)).isEqualTo(1);
+                assertThat(jdbcTemplate.queryForObject("select count(*) from members", Integer.class)).isEqualTo(3);
+                assertThat(jdbcTemplate.queryForObject(
+                        "select id from members where nickname = '다음 회원'", Long.class)).isEqualTo(3L);
             }
+        }
+    }
 
-            try (ConfigurableApplicationContext prodContext = startApplication(mysql, "prod", true)) {
-                verifyProdContext(prodContext);
-            }
-
-            try (ConfigurableApplicationContext devContext = startApplication(mysql, "prod,dev", true)) {
-                verifyDevContext(devContext);
+    @Test
+    void otherProfilesDoNotLoadLocalSeed() {
+        for (String profile : List.of(DEFAULT_PROFILE, "prod", DEV_PROFILES)) {
+            try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4")) {
+                mysql.start();
+                try (ConfigurableApplicationContext context = startApplication(mysql, profile)) {
+                    verifySeedIsAbsent(context);
+                    if (DEV_PROFILES.equals(profile)) {
+                        verifySwaggerEnabled(context);
+                    } else {
+                        verifySwaggerDisabled(context);
+                    }
+                    if (DEFAULT_PROFILE.equals(profile)) {
+                        assertThat(context.getEnvironment().getActiveProfiles()).isEmpty();
+                    }
+                }
             }
         }
     }
@@ -50,24 +69,7 @@ class LocalDataSqlStartupTest {
         verifySwaggerEnabled(context);
     }
 
-    private void verifyDefaultContext(ConfigurableApplicationContext context) {
-        assertThat(context.getEnvironment().getActiveProfiles()).isEmpty();
-        verifySeedIsAbsent(context);
-        verifySwaggerDisabled(context);
-    }
-
-    private void verifyProdContext(ConfigurableApplicationContext context) {
-        verifySeedIsAbsent(context);
-        verifySwaggerDisabled(context);
-    }
-
-    private void verifyDevContext(ConfigurableApplicationContext context) {
-        verifySeedIsAbsent(context);
-        verifySwaggerEnabled(context);
-    }
-
-    private ConfigurableApplicationContext startApplication(
-            MySQLContainer<?> mysql, String profile, boolean recreateSchema) {
+    private ConfigurableApplicationContext startApplication(MySQLContainer<?> mysql, String profile) {
         SpringApplication application = new SpringApplication(yeobaek.backend.BackendApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
 
@@ -82,13 +84,9 @@ class LocalDataSqlStartupTest {
                 "--posthog.enabled=false",
                 "--spring.main.banner-mode=off",
                 "--logging.level.root=ERROR"));
-        if (!"default".equals(profile)) {
+        if (!DEFAULT_PROFILE.equals(profile)) {
             arguments.add("--spring.profiles.active=" + profile);
         }
-        if (recreateSchema) {
-            arguments.add("--spring.jpa.hibernate.ddl-auto=create");
-        }
-
         return application.run(arguments.toArray(String[]::new));
     }
 

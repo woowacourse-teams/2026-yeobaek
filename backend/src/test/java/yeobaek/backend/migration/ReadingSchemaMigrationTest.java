@@ -258,6 +258,7 @@ class ReadingSchemaMigrationTest {
                 "--spring.datasource.username=" + MYSQL.getUsername(),
                 "--spring.datasource.password=" + MYSQL.getPassword(),
                 "--spring.jpa.hibernate.ddl-auto=validate",
+                "--spring.flyway.enabled=false",
                 "--spring.sql.init.mode=never",
                 "--storage.s3.bucket=yeobaek-migration-test",
                 "--storage.s3.region=ap-northeast-2",
