@@ -13,8 +13,6 @@ import yeobaek.backend.notification.registration.domain.NotificationRegistration
 public interface NotificationRegistrationRepository extends JpaRepository<NotificationRegistration, Long> {
     List<NotificationRegistration> findAllByMember_IdIn(List<Long> memberIds);
 
-    List<NotificationRegistration> findAllByFirebaseInstallationId_ValueIn(List<String> fids);
-
     List<NotificationRegistration> findAllByIdInAndFirebaseInstallationId(
             List<Long> ids, FirebaseInstallationId fid);
 

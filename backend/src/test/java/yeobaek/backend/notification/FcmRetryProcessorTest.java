@@ -38,7 +38,7 @@ import org.springframework.scheduling.TaskScheduler;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
-import yeobaek.backend.notification.comment.CommentNotificationRecipientReader;
+import yeobaek.backend.notification.comment.CommentNotificationRecipientService;
 import yeobaek.backend.notification.comment.CommentNotificationService;
 import yeobaek.backend.notification.comment.CommentNotificationWorker;
 import yeobaek.backend.notification.domain.FcmRetryTask;
@@ -415,17 +415,17 @@ class FcmRetryProcessorTest {
         String body = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
         Map<String, String> data = club ? DATA : Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
-        var reader = mock(CommentNotificationRecipientReader.class);
+        var reader = mock(CommentNotificationRecipientService.class);
+        var snapshot = new NotificationRegistrations(List.of(
+                registration(1L, FID), registration(2L, second), registration(3L, third)));
         if (club) {
-            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(snapshot);
         } else {
-            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(fids);
+            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(snapshot);
         }
-        given(registrations.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of(
-                registration(1L, FID), registration(2L, second), registration(3L, third))));
         given(sender.send(fids, title, body, data)).willReturn(new FcmSendResult(1, List.of(
                 internal(null), new FcmSendFailure(second, "UNREGISTERED", "NOT_FOUND", 404, null))));
-        var service = new CommentNotificationService(reader, sender, registrations, handler);
+        var service = new CommentNotificationService(reader, sender, handler);
         var worker = new CommentNotificationWorker(service, handler, processor);
 
         if (club) {
@@ -455,17 +455,17 @@ class FcmRetryProcessorTest {
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
         Map<String, String> data = club ? DATA : Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
-        var reader = mock(CommentNotificationRecipientReader.class);
+        var reader = mock(CommentNotificationRecipientService.class);
+        var snapshot = new NotificationRegistrations(List.of(
+                registration(1L, FID), registration(2L, second)));
         if (club) {
-            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(snapshot);
         } else {
-            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(fids);
+            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(snapshot);
         }
-        given(registrations.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of(
-                registration(1L, FID), registration(2L, second))));
         given(sender.send(fids, title, body, data)).willThrow(exception);
         given(sender.send(List.of(FID), title, body, data)).willThrow(exception);
-        var service = new CommentNotificationService(reader, sender, registrations, handler);
+        var service = new CommentNotificationService(reader, sender, handler);
         var worker = new CommentNotificationWorker(service, handler, processor);
 
         if (club) {

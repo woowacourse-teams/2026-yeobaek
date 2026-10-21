@@ -41,11 +41,6 @@ public class NotificationRegistrationService {
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public NotificationRegistrations snapshotForSend(List<String> fids) {
-        return new NotificationRegistrations(registrationRepository.findAllByFirebaseInstallationId_ValueIn(fids));
-    }
-
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid) {
         return new NotificationRegistrations(registrationRepository.findAllByIdInAndFirebaseInstallationId(ids, fid));
     }

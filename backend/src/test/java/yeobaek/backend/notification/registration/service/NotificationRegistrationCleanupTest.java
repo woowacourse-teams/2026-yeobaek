@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.Members;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
@@ -45,7 +46,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         var tablet = save(member, 'd');
         Member other = memberRepository.save(new Member(new Nickname("다른독자")));
         var otherPhone = save(other, 'e');
-        var snapshot = registrationService.snapshotForSend(List.of(phone.getFirebaseInstallationId().value()));
+        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
         var newPhone = save(member, 'c');
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
@@ -61,7 +62,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
         save(member, 'c');
-        var snapshot = registrationService.snapshotForSend(List.of(phone.getFirebaseInstallationId().value()));
+        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
 
@@ -74,7 +75,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void preserveChangedFid() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.snapshotForSend(List.of(phone.getFirebaseInstallationId().value()));
+        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
         String changedFid = "d" + "a".repeat(21);
         jdbcTemplate.update("update notification_registrations set fid = ? where id = ?", changedFid, phone.getId());
 
@@ -90,7 +91,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void commitCleanupAfterOriginalTransaction() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.snapshotForSend(List.of(phone.getFirebaseInstallationId().value()));
+        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

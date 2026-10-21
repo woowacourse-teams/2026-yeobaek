@@ -24,6 +24,9 @@ import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
@@ -32,12 +35,16 @@ import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
+import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.domain.PublicRoomMember;
+import yeobaek.backend.publicroom.repository.PublicRoomRepository;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.support.IntegrationTest;
 
-class CommentNotificationRecipientReaderTest extends IntegrationTest {
+class CommentNotificationRecipientServiceTest extends IntegrationTest {
 
     @Autowired
-    private CommentNotificationRecipientReader recipientReader;
+    private CommentNotificationRecipientService recipientService;
 
     @Autowired
     private BookManagementRepository bookRepository;
@@ -63,6 +70,15 @@ class CommentNotificationRecipientReaderTest extends IntegrationTest {
     @Autowired
     private NotificationRegistrationRepository registrationRepository;
 
+    @Autowired
+    private PublicRoomRepository publicRoomRepository;
+
+    @Autowired
+    private PublicRoomMemberRepository publicRoomMemberRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
+
     private Club club;
     private Sentence sentence;
     private Passage nextPassage;
@@ -87,9 +103,9 @@ class CommentNotificationRecipientReaderTest extends IntegrationTest {
         saveReader("일반 독자", 'f');
         memberBlockRepository.save(new MemberBlock(blocker, writer));
 
-        var fids = recipientReader.findReadersInClub(club.getId(), sentence.getId(), writer.getId());
+        var fids = recipientService.findReadersInClub(club.getId(), sentence.getId(), writer.getId());
 
-        assertThat(fids).containsExactly("f" + "a".repeat(21));
+        assertThat(fids.firebaseInstallationIds()).containsExactly("f" + "a".repeat(21));
     }
 
     @Test
@@ -98,9 +114,9 @@ class CommentNotificationRecipientReaderTest extends IntegrationTest {
         Member reader = saveReader("독자", 'd');
         memberBlockRepository.save(new MemberBlock(writer, reader));
 
-        var fids = recipientReader.findReadersInClub(club.getId(), sentence.getId(), writer.getId());
+        var fids = recipientService.findReadersInClub(club.getId(), sentence.getId(), writer.getId());
 
-        assertThat(fids).containsExactly("d" + "a".repeat(21));
+        assertThat(fids.firebaseInstallationIds()).containsExactly("d" + "a".repeat(21));
     }
 
     @Test
@@ -108,11 +124,11 @@ class CommentNotificationRecipientReaderTest extends IntegrationTest {
     void includeRecipientAfterUnblockingWriter() {
         Member reader = saveReader("독자", 'd');
         var block = memberBlockRepository.save(new MemberBlock(reader, writer));
-        assertThat(recipientReader.findReadersInClub(club.getId(), sentence.getId(), writer.getId())).isEmpty();
+        assertThat(recipientService.findReadersInClub(club.getId(), sentence.getId(), writer.getId()).firebaseInstallationIds()).isEmpty();
 
         memberBlockRepository.deleteById(block.getId());
 
-        assertThat(recipientReader.findReadersInClub(club.getId(), sentence.getId(), writer.getId()))
+        assertThat(recipientService.findReadersInClub(club.getId(), sentence.getId(), writer.getId()).firebaseInstallationIds())
                 .containsExactly("d" + "a".repeat(21));
     }
 
@@ -125,8 +141,47 @@ class CommentNotificationRecipientReaderTest extends IntegrationTest {
         return member;
     }
 
-    private void saveRegistration(Member member, char prefix) {
-        registrationRepository.save(new NotificationRegistration(
+    @Test
+    @DisplayName("모임 수신자의 중복 FID 등록 ID를 모두 보관하고 같은 FID의 차단자 등록은 포함하지 않는다")
+    void retainOnlySelectedClubRegistrationIds() {
+        Member reader = saveReader("독자", 'd');
+        var duplicate = saveRegistration(reader, 'd');
+        Member blocker = saveReader("차단자", 'd');
+        memberBlockRepository.save(new MemberBlock(blocker, writer));
+        var fid = duplicate.getFirebaseInstallationId();
+        var selectedIds = registrationRepository.findAllByMember_IdIn(List.of(reader.getId())).stream()
+                .map(NotificationRegistration::getId).toList();
+
+        var snapshot = recipientService.findReadersInClub(club.getId(), sentence.getId(), writer.getId());
+        var later = saveRegistration(reader, 'd');
+
+        assertThat(snapshot.idsFor(fid)).containsExactlyInAnyOrderElementsOf(selectedIds)
+                .doesNotContain(later.getId());
+        assertThat(snapshot.firebaseInstallationIds()).containsExactly(fid.value());
+    }
+
+    @Test
+    @DisplayName("공개방은 이전 댓글 작성자의 등록 ID를 보관하고 같은 FID의 비참여자 등록은 제외한다")
+    void retainOnlySelectedPublicRoomRegistrationIds() {
+        var room = publicRoomRepository.save(new PublicRoom(club.getBook()));
+        Member reader = saveReader("댓글 독자", 'd');
+        publicRoomMemberRepository.save(new PublicRoomMember(reader, room));
+        commentRepository.save(new Comment(room, reader, sentence, new CommentContent("이전 댓글")));
+        var duplicate = saveRegistration(reader, 'd');
+        saveReader("비참여자", 'd');
+        var fid = duplicate.getFirebaseInstallationId();
+        var selectedIds = registrationRepository.findAllByMember_IdIn(List.of(reader.getId())).stream()
+                .map(NotificationRegistration::getId).toList();
+
+        var snapshot = recipientService.findPreviousCommentersInPublicRoom(
+                room.getId(), sentence.getId(), writer.getId());
+
+        assertThat(snapshot.idsFor(fid)).containsExactlyInAnyOrderElementsOf(selectedIds);
+        assertThat(snapshot.firebaseInstallationIds()).containsExactly(fid.value());
+    }
+
+    private NotificationRegistration saveRegistration(Member member, char prefix) {
+        return registrationRepository.save(new NotificationRegistration(
                 member, new FirebaseInstallationId(prefix + "a".repeat(21))));
     }
 }

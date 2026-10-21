@@ -19,7 +19,6 @@ import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 @Service
 @RequiredArgsConstructor
@@ -28,45 +27,44 @@ public class CommentNotificationService {
     private static final String TITLE = "새로운 댓글이 달렸어요!";
     private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
-    private final CommentNotificationRecipientReader recipientReader;
+    private final CommentNotificationRecipientService recipientService;
     private final FcmPushSender pushSender;
-    private final NotificationRegistrationService registrationService;
     private final FcmFailureHandler failureHandler;
 
     public List<FcmRetryTask> notifyReadersInClub(
             Long commentId, Long clubId, Long sentenceId, Long writerId,
             int passageSequence, Instant commentCreatedAt)
             throws FirebaseMessagingException {
-        List<String> firebaseInstallationIds = recipientReader.findReadersInClub(clubId, sentenceId, writerId);
+        NotificationRegistrations sentRegistrations = recipientService.findReadersInClub(clubId, sentenceId, writerId);
 
         Map<String, String> data = Map.of(
                 "type", "CLUB_COMMENT", "clubId", clubId.toString(),
                 "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
-        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds, data);
+        return notifyRecipients(commentId, commentCreatedAt, sentRegistrations, data);
     }
 
     public List<FcmRetryTask> notifyPreviousCommentersInPublicRoom(
             Long commentId, Long publicRoomId, Long sentenceId, Long writerId,
             int passageSequence, Instant commentCreatedAt)
             throws FirebaseMessagingException {
-        List<String> firebaseInstallationIds = recipientReader.findPreviousCommentersInPublicRoom(
+        NotificationRegistrations sentRegistrations = recipientService.findPreviousCommentersInPublicRoom(
                 publicRoomId, sentenceId, writerId);
 
         Map<String, String> data = Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", publicRoomId.toString(),
                 "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
-        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds, data);
+        return notifyRecipients(commentId, commentCreatedAt, sentRegistrations, data);
     }
 
     private List<FcmRetryTask> notifyRecipients(
-            Long commentId, Instant commentCreatedAt, List<String> firebaseInstallationIds, Map<String, String> data)
+            Long commentId, Instant commentCreatedAt, NotificationRegistrations sentRegistrations, Map<String, String> data)
             throws FirebaseMessagingException {
+        List<String> firebaseInstallationIds = sentRegistrations.firebaseInstallationIds();
         if (firebaseInstallationIds.isEmpty()) {
             log.debug("알림 수신 대상이 존재하지 않아 알림을 보내지 않습니다.");
             return List.of();
         }
 
-        NotificationRegistrations sentRegistrations = registrationService.snapshotForSend(firebaseInstallationIds);
         FcmSendResult result;
         try {
             result = pushSender.send(firebaseInstallationIds, TITLE, BODY, data);

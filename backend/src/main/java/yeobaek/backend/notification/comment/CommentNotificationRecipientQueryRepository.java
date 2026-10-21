@@ -10,7 +10,7 @@ import yeobaek.backend.notification.registration.domain.NotificationRegistration
 public interface CommentNotificationRecipientQueryRepository extends Repository<NotificationRegistration, Long> {
 
     @Query("""
-            select distinct registration.firebaseInstallationId.value
+            select registration
             from NotificationRegistration registration
             where registration.member.id <> :writerId
               and exists (
@@ -34,7 +34,7 @@ public interface CommentNotificationRecipientQueryRepository extends Repository<
                     and memberBlock.blocked.id = :writerId
               )
             """)
-    List<String> findFidsForPublicRoomComment(
+    List<NotificationRegistration> findRegistrationsForPublicRoomComment(
             @Param("publicRoomId") Long publicRoomId,
             @Param("sentenceId") Long sentenceId,
             @Param("writerId") Long writerId

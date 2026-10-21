@@ -191,13 +191,13 @@ class CommentNotificationTransactionTest {
                 .willReturn(List.of(readerMembership));
         String fid = "c" + "a".repeat(21);
         given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(
-                new NotificationRegistration(reader, new FirebaseInstallationId(fid)))));
+                new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid)))));
 
         var room = mock(PublicRoom.class);
         given(room.isReading(sentence)).willReturn(true);
         given(publicRoomRepository.findWithBookById(8L)).willReturn(Optional.of(room));
-        given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L)).willReturn(List.of(fid));
-        given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of()));
+        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(List.of(
+                new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid))));
         given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }
 
@@ -324,7 +324,7 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("수신자 DB 조회 실패는 댓글 식별자와 함께 기록하고 댓글 응답을 유지한다")
     void logRecipientDatabaseFailure() throws Exception {
-        given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L))
+        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
                 .willThrow(new DataAccessResourceFailureException("database unavailable"));
 
         try (var logs = new LogCapture(CommentNotificationWorker.class.getName())) {
@@ -341,7 +341,7 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("커밋 후 조회 예외도 댓글 응답을 바꾸지 않고 조회 트랜잭션만 롤백한다")
     void keepResponseWhenRecipientQueryFails() throws Exception {
-        given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L))
+        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
                 .willThrow(new IllegalStateException("query failed"));
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
@@ -394,8 +394,10 @@ class CommentNotificationTransactionTest {
             return comment;
         });
         String fid = "c" + "a".repeat(21);
-        given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of(
-                new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
+        var registration = new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid));
+        given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(registration)));
+        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
+                .willReturn(List.of(registration));
         given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
                 new FcmSendFailure(fid, "UNAVAILABLE", "UNAVAILABLE", 503, null))));
 
@@ -442,7 +444,7 @@ class CommentNotificationTransactionTest {
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
     @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            CommentNotificationRecipientReader.class, CommentNotificationWorker.class, FcmFailureHandler.class})
+            CommentNotificationRecipientService.class, CommentNotificationWorker.class, FcmFailureHandler.class})
     static class TestConfig {
 
         @Bean
