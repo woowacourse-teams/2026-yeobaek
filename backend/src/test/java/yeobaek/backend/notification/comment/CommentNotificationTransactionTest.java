@@ -220,6 +220,40 @@ class CommentNotificationTransactionTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisplayName("모임·공개방 수신 등록은 읽기 전용 트랜잭션에서 조회하고 발송 전에 종료한다")
+    void finishReadOnlyLookupBeforeSend(boolean club) throws Exception {
+        var registration = new NotificationRegistration(
+                1L, mock(Member.class), new FirebaseInstallationId("c" + "a".repeat(21)));
+        if (club) {
+            doAnswer(invocation -> {
+                assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
+                        TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
+                return new NotificationRegistrations(List.of(registration));
+            }).when(registrationService).findByMembers(any());
+        } else {
+            doAnswer(invocation -> {
+                assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
+                        TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
+                return List.of(registration);
+            }).when(recipientQueryRepository).findRegistrationsForPublicRoomComment(8L, 13L, 7L);
+        }
+        doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            return new FcmSendResult(1, List.of());
+        }).when(pushSender).send(any(), any(), any(), any());
+
+        if (club) {
+            commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
+        } else {
+            commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+        }
+        executor.runNextOnWorker();
+
+        verify(recipientConnection).commit();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     @DisplayName("저장 트랜잭션에서 확보한 문단 순서와 공간 정보를 이벤트를 거쳐 워커에 전달한다")
     void preserveNavigationDataThroughEvent(boolean club) throws Exception {
         Passage passage = sentenceRepository.findById(13L).orElseThrow().getPassage();
@@ -444,7 +478,7 @@ class CommentNotificationTransactionTest {
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
     @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            CommentNotificationRecipientService.class, FcmFailureHandler.class})
+            FcmFailureHandler.class})
     static class TestConfig {
 
         @Bean

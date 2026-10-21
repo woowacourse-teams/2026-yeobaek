@@ -14,8 +14,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import yeobaek.backend.book.repository.SentenceRepository;
+import yeobaek.backend.club.domain.ClubMembers;
+import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
+import yeobaek.backend.member.domain.Members;
+import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmRetryService;
@@ -24,6 +31,7 @@ import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 @Service
 @RequiredArgsConstructor
@@ -32,17 +40,22 @@ public class CommentNotificationService {
     private static final String TITLE = "새로운 댓글이 달렸어요!";
     private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
-    private final CommentNotificationRecipientService recipientService;
     private final FcmPushSender pushSender;
     private final FcmFailureHandler failureHandler;
     private final FcmRetryService retryService;
+    private final NotificationRegistrationService registrationService;
+    private final CommentNotificationRecipientQueryRepository recipientQueryRepository;
+    private final ClubMemberRepository clubMemberRepository;
+    private final SentenceRepository sentenceRepository;
+    private final MemberRepository memberRepository;
+    private final PlatformTransactionManager transactionManager;
 
     public void notifyClub(ClubSentenceCommentCreatedEvent event) {
         Map<String, String> data = Map.of(
                 "type", "CLUB_COMMENT", "clubId", event.clubId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
         notifyRecipients(event.commentId(), event.commentCreatedAt(),
-                () -> recipientService.findReadersInClub(event.clubId(), event.sentenceId(), event.writerId()), data);
+                () -> findReadersInClub(event.clubId(), event.sentenceId(), event.writerId()), data);
     }
 
     public void notifyPublicRoom(PublicRoomSentenceCommentCreatedEvent event) {
@@ -50,14 +63,17 @@ public class CommentNotificationService {
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", event.publicRoomId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
         notifyRecipients(event.commentId(), event.commentCreatedAt(),
-                () -> recipientService.findPreviousCommentersInPublicRoom(
+                () -> findPreviousCommentersInPublicRoom(
                         event.publicRoomId(), event.sentenceId(), event.writerId()), data);
     }
 
     private void notifyRecipients(Long commentId, Instant commentCreatedAt,
                                   Supplier<NotificationRegistrations> recipients, Map<String, String> data) {
         try {
-            NotificationRegistrations sentRegistrations = recipients.get();
+            // 조회에만 트랜잭션을 적용하고 FCM 호출 전에 종료한다.
+            TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+            transaction.setReadOnly(true);
+            NotificationRegistrations sentRegistrations = transaction.execute(status -> recipients.get());
             List<FcmRetryTask> tasks = sendAndCreateRetryTasks(commentId, commentCreatedAt, sentRegistrations, data);
             tasks.forEach(retryService::schedule);
             log.atInfo().addKeyValue(OPERATION, "notification.comment.logRetryTasks")
@@ -73,6 +89,20 @@ public class CommentNotificationService {
                     .addKeyValue(RESULT, "failure").addKeyValue(COMMENT_ID, commentId)
                     .setCause(exception).log("댓글 저장 후 알림 처리에 실패했습니다.");
         }
+    }
+
+    private NotificationRegistrations findReadersInClub(Long clubId, Long sentenceId, Long writerId) {
+        ClubMembers targets = new ClubMembers(
+                clubMemberRepository.findNotificationCandidatesWithReadingProgress(clubId, writerId));
+        Members recipients = new Members(targets.otherMembersAheadInReadingProgress(
+                sentenceRepository.getReferenceById(sentenceId), memberRepository.getReferenceById(writerId)));
+        return registrationService.findByMembers(recipients);
+    }
+
+    private NotificationRegistrations findPreviousCommentersInPublicRoom(
+            Long publicRoomId, Long sentenceId, Long writerId) {
+        return new NotificationRegistrations(
+                recipientQueryRepository.findRegistrationsForPublicRoomComment(publicRoomId, sentenceId, writerId));
     }
 
     private List<FcmRetryTask> sendAndCreateRetryTasks(

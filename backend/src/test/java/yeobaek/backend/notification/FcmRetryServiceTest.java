@@ -38,7 +38,14 @@ import org.springframework.scheduling.TaskScheduler;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
-import yeobaek.backend.notification.comment.CommentNotificationRecipientService;
+import org.springframework.transaction.PlatformTransactionManager;
+import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.repository.SentenceRepository;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.notification.comment.CommentNotificationRecipientQueryRepository;
 import yeobaek.backend.notification.comment.CommentNotificationService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
@@ -414,17 +421,11 @@ class FcmRetryServiceTest {
         String body = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
         Map<String, String> data = club ? DATA : Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
-        var reader = mock(CommentNotificationRecipientService.class);
         var snapshot = new NotificationRegistrations(List.of(
                 registration(1L, FID), registration(2L, second), registration(3L, third)));
-        if (club) {
-            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(snapshot);
-        } else {
-            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(snapshot);
-        }
         given(sender.send(fids, title, body, data)).willReturn(new FcmSendResult(1, List.of(
                 internal(null), new FcmSendFailure(second, "UNREGISTERED", "NOT_FOUND", 404, null))));
-        var service = new CommentNotificationService(reader, sender, handler, retryService);
+        var service = initialNotificationService(club, snapshot);
 
         if (club) {
             service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
@@ -453,17 +454,11 @@ class FcmRetryServiceTest {
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
         Map<String, String> data = club ? DATA : Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
-        var reader = mock(CommentNotificationRecipientService.class);
         var snapshot = new NotificationRegistrations(List.of(
                 registration(1L, FID), registration(2L, second)));
-        if (club) {
-            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(snapshot);
-        } else {
-            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(snapshot);
-        }
         given(sender.send(fids, title, body, data)).willThrow(exception);
         given(sender.send(List.of(FID), title, body, data)).willThrow(exception);
-        var service = new CommentNotificationService(reader, sender, handler, retryService);
+        var service = initialNotificationService(club, snapshot);
 
         if (club) {
             service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
@@ -477,6 +472,30 @@ class FcmRetryServiceTest {
         verify(sender).send(List.of(FID), title, body, data);
         verify(sender).send(List.of(second), title, body, data);
         assertThat(timers).isEmpty();
+    }
+
+    private CommentNotificationService initialNotificationService(boolean club, NotificationRegistrations snapshot) {
+        var query = mock(CommentNotificationRecipientQueryRepository.class);
+        var clubMembers = mock(ClubMemberRepository.class);
+        var sentences = mock(SentenceRepository.class);
+        var members = mock(MemberRepository.class);
+        if (club) {
+            var sentence = mock(Sentence.class);
+            var passage = mock(Passage.class);
+            given(passage.getSequence()).willReturn(new ContentSequence(1));
+            given(sentence.getPassage()).willReturn(passage);
+            given(sentences.getReferenceById(13L)).willReturn(sentence);
+            given(members.getReferenceById(7L)).willReturn(mock(Member.class));
+            given(clubMembers.findNotificationCandidatesWithReadingProgress(5L, 7L)).willReturn(List.of());
+            given(registrations.findByMembers(any())).willReturn(snapshot);
+        } else {
+            List<NotificationRegistration> selected = snapshot.firebaseInstallationIds().stream()
+                    .flatMap(fid -> snapshot.idsFor(new FirebaseInstallationId(fid)).stream()
+                            .map(id -> registration(id, fid))).toList();
+            given(query.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(selected);
+        }
+        return new CommentNotificationService(sender, handler, retryService, registrations, query,
+                clubMembers, sentences, members, mock(PlatformTransactionManager.class));
     }
 
     private NotificationRegistration registration(Long id, String fid) {

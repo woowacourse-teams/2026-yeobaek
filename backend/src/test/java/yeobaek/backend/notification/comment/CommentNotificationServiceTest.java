@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.transaction.PlatformTransactionManager;
+import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.repository.SentenceRepository;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.member.domain.Member;
@@ -39,6 +47,7 @@ import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
 import yeobaek.backend.support.LogCapture;
+import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 class CommentNotificationServiceTest {
 
@@ -48,13 +57,18 @@ class CommentNotificationServiceTest {
     private static final String TITLE = "새로운 댓글이 달렸어요!";
     private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
-    private final CommentNotificationRecipientService reader = mock(CommentNotificationRecipientService.class);
+    private final NotificationRegistrationService registrations = mock(NotificationRegistrationService.class);
+    private final CommentNotificationRecipientQueryRepository query = mock(CommentNotificationRecipientQueryRepository.class);
+    private final ClubMemberRepository clubMembers = mock(ClubMemberRepository.class);
+    private final SentenceRepository sentences = mock(SentenceRepository.class);
+    private final MemberRepository members = mock(MemberRepository.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
     private final FcmFailureHandler handler = mock(FcmFailureHandler.class);
     private final FcmRetryService retryService = mock(FcmRetryService.class);
     private final List<FcmRetryTask> scheduledTasks = new ArrayList<>();
     private final CommentNotificationService service = new CommentNotificationService(
-            reader, sender, handler, retryService);
+            sender, handler, retryService, registrations, query, clubMembers, sentences, members,
+            mock(PlatformTransactionManager.class));
 
     @BeforeEach
     void captureScheduledTasks() {
@@ -77,14 +91,14 @@ class CommentNotificationServiceTest {
 
         assertThat(notify(club)).isEmpty();
 
-        var order = inOrder(reader, sender, handler);
+        var order = inOrder(registrations, query, sender, handler);
         if (club) {
-            order.verify(reader).findReadersInClub(5L, 13L, 7L);
+            order.verify(registrations).findByMembers(any());
         } else {
-            order.verify(reader).findPreviousCommentersInPublicRoom(8L, 13L, 7L);
+            order.verify(query).findRegistrationsForPublicRoomComment(8L, 13L, 7L);
         }
         order.verify(sender).send(fids, "새로운 댓글이 달렸어요!", "댓글을 남겼던 문장의 이야기를 확인해 보세요.", data(club));
-        order.verify(handler).handle(result, snapshot);
+        order.verify(handler).handle(eq(result), any(NotificationRegistrations.class));
     }
 
     @ParameterizedTest
@@ -120,7 +134,7 @@ class CommentNotificationServiceTest {
         assertThat(tasks).extracting(FcmRetryTask::commentId, FcmRetryTask::registrationIds,
                         FcmRetryTask::title, FcmRetryTask::body, FcmRetryTask::data, FcmRetryTask::failure)
                 .containsExactly(tuple(11L, List.of(1L, 2L), TITLE, BODY, data(club), failure));
-        verify(handler).handle(result, snapshot);
+        verify(handler).handle(eq(result), any(NotificationRegistrations.class));
         verify(sender).send(fids, TITLE, BODY, data(club));
         verifyNoMoreInteractions(sender);
     }
@@ -271,9 +285,19 @@ class CommentNotificationServiceTest {
 
     private void stubRecipients(boolean club, NotificationRegistrations snapshot) {
         if (club) {
-            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(snapshot);
+            var sentence = mock(Sentence.class);
+            var passage = mock(Passage.class);
+            given(passage.getSequence()).willReturn(new ContentSequence(1));
+            given(sentence.getPassage()).willReturn(passage);
+            given(sentences.getReferenceById(13L)).willReturn(sentence);
+            given(members.getReferenceById(7L)).willReturn(mock(Member.class));
+            given(clubMembers.findNotificationCandidatesWithReadingProgress(5L, 7L)).willReturn(List.of());
+            given(registrations.findByMembers(any())).willReturn(snapshot);
         } else {
-            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(snapshot);
+            List<NotificationRegistration> selected = snapshot.firebaseInstallationIds().stream()
+                    .flatMap(fid -> snapshot.idsFor(new FirebaseInstallationId(fid)).stream()
+                            .map(id -> registration(id, fid))).toList();
+            given(query.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(selected);
         }
     }
 
