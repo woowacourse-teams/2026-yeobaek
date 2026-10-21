@@ -16,21 +16,17 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.local.GuideOnboardingPreferences
-import com.yeobaek.data.local.NotificationPreferences
 import com.yeobaek.data.repository.UserRepository
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
 class MyPageViewModel(
     private val guideOnboardingPreferences: GuideOnboardingPreferences,
-    private val notificationPreferences: NotificationPreferences,
     private val userRepository: UserRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
-    var uiState by mutableStateOf(
-        MyPageUiState(notificationsEnabled = notificationPreferences.isEnabled()),
-    )
+    var uiState by mutableStateOf(MyPageUiState())
         private set
 
     init {
@@ -60,7 +56,6 @@ class MyPageViewModel(
                     deleteState = DeleteState.Success,
                 )
                 guideOnboardingPreferences.clearGuideState()
-                notificationPreferences.clear()
                 analyticsTracker.track(AccountDeleted(result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
@@ -80,15 +75,9 @@ class MyPageViewModel(
         }
     }
 
-    fun setNotificationsEnabled(enabled: Boolean) {
-        notificationPreferences.setEnabled(enabled)
-        uiState = uiState.copy(notificationsEnabled = enabled)
-    }
-
     companion object {
         fun myPageViewModelFactory(
             guideOnboardingPreferences: GuideOnboardingPreferences,
-            notificationPreferences: NotificationPreferences,
             userRepository: UserRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
@@ -96,7 +85,6 @@ class MyPageViewModel(
             initializer {
                 MyPageViewModel(
                     guideOnboardingPreferences = guideOnboardingPreferences,
-                    notificationPreferences = notificationPreferences,
                     userRepository = userRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,

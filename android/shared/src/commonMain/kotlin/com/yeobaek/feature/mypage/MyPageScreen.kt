@@ -32,7 +32,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,8 +43,6 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import com.yeobaek.feature.mypage.component.MyPageFeatureCard
-import com.yeobaek.feature.mypage.component.NotificationSetting
-import kotlinx.coroutines.launch
 
 @Composable
 fun MyPageScreen(
@@ -55,14 +52,10 @@ fun MyPageScreen(
     deleteAccount: () -> Unit,
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
-    onNotificationsEnabledChange: (Boolean) -> Unit,
-    isSystemNotificationEnabled: suspend () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var checkingNotificationPermission by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.deleteState) {
         when (uiState.deleteState) {
@@ -122,34 +115,6 @@ fun MyPageScreen(
                     Text(uiState.name)
                 }
             }
-            NotificationSetting(
-                enabled = uiState.notificationsEnabled,
-                onEnabledChange = { enabled ->
-                    if (!enabled) {
-                        onNotificationsEnabledChange(false)
-                    } else if (!uiState.notificationsEnabled && !checkingNotificationPermission) {
-                        checkingNotificationPermission = true
-                        coroutineScope.launch {
-                            val systemNotificationsEnabled = try {
-                                isSystemNotificationEnabled()
-                            } finally {
-                                checkingNotificationPermission = false
-                            }
-
-                            if (systemNotificationsEnabled) {
-                                onNotificationsEnabledChange(true)
-                            } else {
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                snackbarHostState.showSnackbar(
-                                    message = "휴대폰 설정에서 알림을 허용해 주세요.",
-                                    duration = SnackbarDuration.Short,
-                                )
-                            }
-                        }
-                    }
-                },
-            )
-            Spacer(modifier = Modifier.height(16.dp))
             MyPageFeatureCard(
                 text = "가이드",
                 icon = Res.drawable.ic_guide,
@@ -200,8 +165,6 @@ private fun MyPageScreenPreview() {
             deleteAccount = {},
             navigateToNickname = {},
             navigateToGuide = {},
-            onNotificationsEnabledChange = {},
-            isSystemNotificationEnabled = { true },
         )
     }
 }

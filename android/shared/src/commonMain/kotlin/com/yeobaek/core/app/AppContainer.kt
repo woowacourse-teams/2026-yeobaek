@@ -9,7 +9,6 @@ import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.data.local.GuideOnboardingPreferences
-import com.yeobaek.data.local.NotificationPreferences
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
@@ -35,7 +34,6 @@ class AppContainer(
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
     val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
-    val notificationPreferences = NotificationPreferences(settings)
 
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 
