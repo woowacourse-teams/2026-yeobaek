@@ -40,7 +40,6 @@ import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.comment.CommentNotificationRecipientService;
 import yeobaek.backend.notification.comment.CommentNotificationService;
-import yeobaek.backend.notification.comment.CommentNotificationWorker;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
@@ -50,7 +49,7 @@ import yeobaek.backend.notification.registration.domain.NotificationRegistration
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.support.LogCapture;
 
-class FcmRetryProcessorTest {
+class FcmRetryServiceTest {
 
     private static final Instant CREATED_AT = Instant.parse("2026-10-19T00:00:00Z");
     private static final String FID = "c" + "a".repeat(21);
@@ -67,7 +66,7 @@ class FcmRetryProcessorTest {
     private final Deque<Runnable> timers = new ArrayDeque<>();
     private final Deque<Instant> scheduledTimes = new ArrayDeque<>();
     private final Deque<Runnable> workers = new ArrayDeque<>();
-    private FcmRetryProcessor processor;
+    private FcmRetryService retryService;
 
     @BeforeEach
     void setUp() throws FirebaseMessagingException {
@@ -76,13 +75,13 @@ class FcmRetryProcessorTest {
         given(registrations.snapshotForRetry(anyList(), any(FirebaseInstallationId.class)))
                 .willAnswer(invocation -> snapshot(invocation.getArgument(0), invocation.getArgument(1)));
         given(sender.send(anyList(), anyString(), anyString(), any())).willReturn(new FcmSendResult(1, List.of()));
-        processor = newProcessor(workers::addLast, handler, 10);
+        retryService = newRetryService(workers::addLast, handler, 10);
     }
 
     @Test
     @DisplayName("예약기는 발송하지 않고 실행기에 넘기며 성공하면 해당 실패 FID의 작업을 끝낸다")
     void dispatchOnlyFailedTargetAndStopOnSuccess() throws FirebaseMessagingException {
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
         verifyNoInteractions(sender, registrations);
 
         fireTimer();
@@ -97,7 +96,7 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("Retry-After보다 짧게 예약하지 않고 지연 비율까지 반영한다")
     void respectServerWait() {
-        processor.schedule(task(internal("120"), 0, false));
+        retryService.schedule(task(internal("120"), 0, false));
 
         assertThat(scheduledTimes.getFirst()).isBetween(CREATED_AT.plusSeconds(120), CREATED_AT.plusSeconds(132));
         verifyNoInteractions(sender);
@@ -109,7 +108,7 @@ class FcmRetryProcessorTest {
         var quota = new FcmSendFailure(FID, "QUOTA_EXCEEDED", "RESOURCE_EXHAUSTED", 429, "300");
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(quota)), new FcmSendResult(1, List.of()));
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
         completeNext();
 
         assertThat(scheduledTimes.getFirst()).isBetween(now.get().plusSeconds(300), now.get().plusSeconds(324));
@@ -126,7 +125,7 @@ class FcmRetryProcessorTest {
         given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(snapshot(List.of(2L), fid));
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(internal(null))), new FcmSendResult(1, List.of()));
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
         completeNext();
@@ -140,8 +139,8 @@ class FcmRetryProcessorTest {
     @DisplayName("일시 실패가 계속되면 최초 발송 외 정확히 다섯 번 시도하고 종료한다")
     void retryAtMostFiveTimes() throws FirebaseMessagingException {
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0, List.of(internal(null))));
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             for (int attempt = 0; attempt < 5; attempt++) {
                 completeNext();
             }
@@ -160,8 +159,8 @@ class FcmRetryProcessorTest {
     void retryUncertainReceiptOnlyOnce() throws FirebaseMessagingException {
         var uncertain = uncertain();
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0, List.of(uncertain)));
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(uncertain, 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(uncertain, 0, false));
             completeNext();
 
             var event = logs.event("notification.retry.logStopped", "rejected");
@@ -180,8 +179,8 @@ class FcmRetryProcessorTest {
                 new FcmSendResult(0, List.of(uncertain())),
                 new FcmSendResult(0, List.of(internal(null))),
                 new FcmSendResult(0, List.of(uncertain())));
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             completeNext();
             completeNext();
             completeNext();
@@ -201,7 +200,7 @@ class FcmRetryProcessorTest {
         var exception = mock(FirebaseMessagingException.class);
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willThrow(exception);
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
         completeNext();
@@ -224,8 +223,8 @@ class FcmRetryProcessorTest {
     void stopPermanentFailure(String detail, String sdk, int status) throws FirebaseMessagingException {
         var result = new FcmSendResult(0, List.of(new FcmSendFailure(FID, detail, sdk, status, null)));
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(result);
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             completeNext();
 
             assertThat(timers).isEmpty();
@@ -243,8 +242,8 @@ class FcmRetryProcessorTest {
         given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(remaining);
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0,
                 List.of(new FcmSendFailure(FID, "UNREGISTERED", "NOT_FOUND", 404, null))));
-        processor = newProcessor(workers::addLast, new FcmFailureHandler(registrations), 10);
-        processor.schedule(task(internal(null), 0, false));
+        retryService = newRetryService(workers::addLast, new FcmFailureHandler(registrations), 10);
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
@@ -257,7 +256,7 @@ class FcmRetryProcessorTest {
     @DisplayName("원래 등록이 삭제되거나 FID가 바뀌었다면 새 등록으로 대체하지 않고 종료한다")
     void stopWhenOriginalRegistrationDisappears() {
         given(registrations.snapshotForRetry(anyList(), any())).willReturn(new NotificationRegistrations(List.of()));
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
@@ -269,7 +268,7 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("실행기 대기 중 30분이 지나면 DB 조회와 발송 없이 종료한다")
     void stopExpiredWhileQueued() {
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
         fireTimer();
         now.set(CREATED_AT.plusSeconds(1800));
 
@@ -286,7 +285,7 @@ class FcmRetryProcessorTest {
             now.set(CREATED_AT.plusSeconds(1800));
             return snapshot(List.of(1L), new FirebaseInstallationId(FID));
         });
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
@@ -297,8 +296,8 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("서버 대기 요구가 유효기간을 넘으면 예약도 발송도 하지 않는다")
     void stopWhenRetryAfterExceedsValidity() {
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal("1800"), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal("1800"), 0, false));
 
             assertThat(timers).isEmpty();
             assertThat(logs.field(logs.event("notification.retry.logStopped", "rejected"), "stopReason"))
@@ -310,16 +309,16 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("예약 수 제한을 넘는 작업은 버리고 타이머가 실행되면 예약 공간을 다시 사용할 수 있다")
     void boundPendingTimersAndReleaseOnDispatch() {
-        processor = newProcessor(workers::addLast, handler, 1);
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
-            processor.schedule(task(internal(null), 0, false));
+        retryService = newRetryService(workers::addLast, handler, 1);
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
+            retryService.schedule(task(internal(null), 0, false));
 
             assertThat(timers).hasSize(1);
             assertThat(logs.field(logs.event("notification.retry.logRejected", "rejected"), "reason"))
                     .isEqualTo("pendingCapacityExceeded");
             fireTimer();
-            processor.schedule(task(internal(null), 0, false));
+            retryService.schedule(task(internal(null), 0, false));
             assertThat(timers).hasSize(1);
         }
         verifyNoInteractions(sender);
@@ -328,12 +327,12 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("스케줄러 제출 거절로 확보했던 예약 공간을 잃지 않는다")
     void releaseCapacityAfterSchedulerRejection() {
-        processor = newProcessor(workers::addLast, handler, 1);
+        retryService = newRetryService(workers::addLast, handler, 1);
         given(scheduler.schedule(any(Runnable.class), any(Instant.class))).willThrow(new TaskRejectedException("closed"));
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
         captureSchedules();
 
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         assertThat(timers).hasSize(1);
         verifyNoInteractions(sender);
@@ -342,11 +341,11 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("실행기가 거절하면 타이머 스레드에서 발송하지 않고 예약 공간도 반환한다")
     void dropOnExecutorRejectionWithoutCallerRuns() {
-        processor = newProcessor(task -> { throw new TaskRejectedException("full"); }, handler, 1);
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        retryService = newRetryService(task -> { throw new TaskRejectedException("full"); }, handler, 1);
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             fireTimer();
-            processor.schedule(task(internal(null), 0, false));
+            retryService.schedule(task(internal(null), 0, false));
 
             assertThat(logs.field(logs.event("notification.retry.logRejected", "rejected"), "reason"))
                     .isEqualTo("executorRejected");
@@ -360,8 +359,8 @@ class FcmRetryProcessorTest {
     void stopOnDatabaseFailure() {
         given(registrations.snapshotForRetry(anyList(), any()))
                 .willThrow(new DataAccessResourceFailureException("민감한 SQL " + FID));
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             completeNext();
 
             assertThat(logs.field(logs.event("notification.retry.execute", "failure"), "exceptionType"))
@@ -376,8 +375,8 @@ class FcmRetryProcessorTest {
     @DisplayName("예상하지 못한 오류를 관찰하고 후속 작업을 계속 처리한다")
     void observeUnexpectedFailureAndContinue() throws FirebaseMessagingException {
         given(registrations.snapshotForRetry(anyList(), any())).willThrow(new IllegalStateException(FID));
-        try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
-            processor.schedule(task(internal(null), 0, false));
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task(internal(null), 0, false));
             completeNext();
 
             assertThat(logs.field(logs.event("notification.retry.submit", "failure"), "reason"))
@@ -386,7 +385,7 @@ class FcmRetryProcessorTest {
         }
         doReturn(snapshot(List.of(1L), new FirebaseInstallationId(FID)))
                 .when(registrations).snapshotForRetry(anyList(), any());
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
         completeNext();
         verify(sender).send(List.of(FID), TITLE, BODY, DATA);
     }
@@ -395,7 +394,7 @@ class FcmRetryProcessorTest {
     @DisplayName("SDK 요청 검증 실패는 재예약하지 않는다")
     void stopInvalidRequest() throws FirebaseMessagingException {
         doThrow(new IllegalArgumentException(BODY)).when(sender).send(List.of(FID), TITLE, BODY, DATA);
-        processor.schedule(task(internal(null), 0, false));
+        retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
@@ -425,13 +424,12 @@ class FcmRetryProcessorTest {
         }
         given(sender.send(fids, title, body, data)).willReturn(new FcmSendResult(1, List.of(
                 internal(null), new FcmSendFailure(second, "UNREGISTERED", "NOT_FOUND", 404, null))));
-        var service = new CommentNotificationService(reader, sender, handler);
-        var worker = new CommentNotificationWorker(service, handler, processor);
+        var service = new CommentNotificationService(reader, sender, handler, retryService);
 
         if (club) {
-            worker.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
+            service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
         } else {
-            worker.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
+            service.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
         }
         assertThat(timers).hasSize(1);
         completeNext();
@@ -465,13 +463,12 @@ class FcmRetryProcessorTest {
         }
         given(sender.send(fids, title, body, data)).willThrow(exception);
         given(sender.send(List.of(FID), title, body, data)).willThrow(exception);
-        var service = new CommentNotificationService(reader, sender, handler);
-        var worker = new CommentNotificationWorker(service, handler, processor);
+        var service = new CommentNotificationService(reader, sender, handler, retryService);
 
         if (club) {
-            worker.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
+            service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
         } else {
-            worker.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
+            service.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
         }
         assertThat(timers).hasSize(2);
         completeNext();
@@ -507,8 +504,8 @@ class FcmRetryProcessorTest {
         workers.removeFirst().run();
     }
 
-    private FcmRetryProcessor newProcessor(TaskExecutor executor, FcmFailureHandler failureHandler, int capacity) {
-        return new FcmRetryProcessor(scheduler, executor, clock, sender, registrations, failureHandler, new Semaphore(capacity));
+    private FcmRetryService newRetryService(TaskExecutor executor, FcmFailureHandler failureHandler, int capacity) {
+        return new FcmRetryService(scheduler, executor, clock, sender, registrations, failureHandler, new Semaphore(capacity));
     }
 
     private FcmRetryTask task(FcmSendFailure failure, int retriesPerformed, boolean uncertainRetryUsed) {

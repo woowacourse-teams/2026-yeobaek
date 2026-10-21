@@ -9,11 +9,16 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
+import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
@@ -30,33 +35,47 @@ public class CommentNotificationService {
     private final CommentNotificationRecipientService recipientService;
     private final FcmPushSender pushSender;
     private final FcmFailureHandler failureHandler;
+    private final FcmRetryService retryService;
 
-    public List<FcmRetryTask> notifyReadersInClub(
-            Long commentId, Long clubId, Long sentenceId, Long writerId,
-            int passageSequence, Instant commentCreatedAt)
-            throws FirebaseMessagingException {
-        NotificationRegistrations sentRegistrations = recipientService.findReadersInClub(clubId, sentenceId, writerId);
-
+    public void notifyClub(ClubSentenceCommentCreatedEvent event) {
         Map<String, String> data = Map.of(
-                "type", "CLUB_COMMENT", "clubId", clubId.toString(),
-                "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
-        return notifyRecipients(commentId, commentCreatedAt, sentRegistrations, data);
+                "type", "CLUB_COMMENT", "clubId", event.clubId().toString(),
+                "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
+        notifyRecipients(event.commentId(), event.commentCreatedAt(),
+                () -> recipientService.findReadersInClub(event.clubId(), event.sentenceId(), event.writerId()), data);
     }
 
-    public List<FcmRetryTask> notifyPreviousCommentersInPublicRoom(
-            Long commentId, Long publicRoomId, Long sentenceId, Long writerId,
-            int passageSequence, Instant commentCreatedAt)
-            throws FirebaseMessagingException {
-        NotificationRegistrations sentRegistrations = recipientService.findPreviousCommentersInPublicRoom(
-                publicRoomId, sentenceId, writerId);
-
+    public void notifyPublicRoom(PublicRoomSentenceCommentCreatedEvent event) {
         Map<String, String> data = Map.of(
-                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", publicRoomId.toString(),
-                "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
-        return notifyRecipients(commentId, commentCreatedAt, sentRegistrations, data);
+                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", event.publicRoomId().toString(),
+                "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
+        notifyRecipients(event.commentId(), event.commentCreatedAt(),
+                () -> recipientService.findPreviousCommentersInPublicRoom(
+                        event.publicRoomId(), event.sentenceId(), event.writerId()), data);
     }
 
-    private List<FcmRetryTask> notifyRecipients(
+    private void notifyRecipients(Long commentId, Instant commentCreatedAt,
+                                  Supplier<NotificationRegistrations> recipients, Map<String, String> data) {
+        try {
+            NotificationRegistrations sentRegistrations = recipients.get();
+            List<FcmRetryTask> tasks = sendAndCreateRetryTasks(commentId, commentCreatedAt, sentRegistrations, data);
+            tasks.forEach(retryService::schedule);
+            log.atInfo().addKeyValue(OPERATION, "notification.comment.logRetryTasks")
+                    .addKeyValue(RESULT, "success").addKeyValue(COMMENT_ID, commentId)
+                    .addKeyValue("retryTaskCount", tasks.size())
+                    .log("댓글 알림의 재시도 후보 작업 수를 확인했습니다.");
+        } catch (FirebaseMessagingException exception) {
+            failureHandler.handleCallFailure(commentId, exception);
+        } catch (IllegalArgumentException exception) {
+            failureHandler.handleInvalidRequest(commentId);
+        } catch (DataAccessException exception) {
+            log.atError().addKeyValue(OPERATION, "notification.comment.logFailure")
+                    .addKeyValue(RESULT, "failure").addKeyValue(COMMENT_ID, commentId)
+                    .setCause(exception).log("댓글 저장 후 알림 처리에 실패했습니다.");
+        }
+    }
+
+    private List<FcmRetryTask> sendAndCreateRetryTasks(
             Long commentId, Instant commentCreatedAt, NotificationRegistrations sentRegistrations, Map<String, String> data)
             throws FirebaseMessagingException {
         List<String> firebaseInstallationIds = sentRegistrations.firebaseInstallationIds();

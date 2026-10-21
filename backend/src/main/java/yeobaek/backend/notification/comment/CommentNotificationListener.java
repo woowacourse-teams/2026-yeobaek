@@ -19,23 +19,23 @@ import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 @Slf4j
 public class CommentNotificationListener {
 
-    private final CommentNotificationWorker worker;
+    private final CommentNotificationService notificationService;
     private final TaskExecutor executor;
 
-    public CommentNotificationListener(CommentNotificationWorker worker,
+    public CommentNotificationListener(CommentNotificationService notificationService,
                                        @Qualifier("notificationTaskExecutor") TaskExecutor executor) {
-        this.worker = worker;
+        this.notificationService = notificationService;
         this.executor = executor;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onClubSentenceCommentCreated(ClubSentenceCommentCreatedEvent event) {
-        submit(event.commentId(), () -> worker.notifyClub(event));
+        submit(event.commentId(), () -> notificationService.notifyClub(event));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPublicRoomSentenceCommentCreated(PublicRoomSentenceCommentCreatedEvent event) {
-        submit(event.commentId(), () -> worker.notifyPublicRoom(event));
+        submit(event.commentId(), () -> notificationService.notifyPublicRoom(event));
     }
 
     private void submit(Long commentId, Runnable task) {

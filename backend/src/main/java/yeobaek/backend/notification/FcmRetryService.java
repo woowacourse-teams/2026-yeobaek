@@ -27,7 +27,7 @@ import yeobaek.backend.notification.registration.service.NotificationRegistratio
 
 @RequiredArgsConstructor
 @Slf4j
-public class FcmRetryProcessor {
+public class FcmRetryService {
 
     private final TaskScheduler scheduler;
     private final TaskExecutor executor;

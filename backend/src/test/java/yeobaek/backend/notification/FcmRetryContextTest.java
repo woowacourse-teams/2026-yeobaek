@@ -55,7 +55,7 @@ class FcmRetryContextTest {
             finished.countDown();
             return new FcmSendResult(1, List.of());
         });
-        var processor = new FcmRetryProcessor(scheduler, executor, clock, sender, registrations, handler, new Semaphore(1));
+        var retryService = new FcmRetryService(scheduler, executor, clock, sender, registrations, handler, new Semaphore(1));
         Instant now = clock.instant();
         var task = new FcmRetryTask(11L, List.of(1L), "제목", "내용", Map.of(),
                 new FcmSendFailure(fid, "INTERNAL", "INTERNAL", 500, null),
@@ -64,7 +64,7 @@ class FcmRetryContextTest {
         executor.initialize();
         try {
             MDC.put("traceId", "original-request");
-            Context.current().with(REQUEST, "original-context").wrap(() -> processor.schedule(task)).run();
+            Context.current().with(REQUEST, "original-context").wrap(() -> retryService.schedule(task)).run();
             MDC.clear();
 
             assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();

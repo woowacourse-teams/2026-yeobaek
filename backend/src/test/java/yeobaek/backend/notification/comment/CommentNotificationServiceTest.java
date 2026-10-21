@@ -2,8 +2,8 @@ package yeobaek.backend.notification.comment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -11,27 +11,34 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import ch.qos.logback.classic.Level;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.ErrorCode;
 import com.google.firebase.IncomingHttpResponse;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
+import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.support.LogCapture;
 
 class CommentNotificationServiceTest {
 
@@ -44,8 +51,18 @@ class CommentNotificationServiceTest {
     private final CommentNotificationRecipientService reader = mock(CommentNotificationRecipientService.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
     private final FcmFailureHandler handler = mock(FcmFailureHandler.class);
+    private final FcmRetryService retryService = mock(FcmRetryService.class);
+    private final List<FcmRetryTask> scheduledTasks = new ArrayList<>();
     private final CommentNotificationService service = new CommentNotificationService(
-            reader, sender, handler);
+            reader, sender, handler, retryService);
+
+    @BeforeEach
+    void captureScheduledTasks() {
+        doAnswer(invocation -> {
+            scheduledTasks.add(invocation.getArgument(0));
+            return null;
+        }).when(retryService).schedule(any(FcmRetryTask.class));
+    }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
@@ -83,7 +100,7 @@ class CommentNotificationServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("부분 실패 중 재시도 후보만 원래 등록 ID와 메시지를 담아 반환하고 추가 발송하지 않는다")
+    @DisplayName("부분 실패 중 재시도 후보만 원래 등록 ID와 메시지를 담아 예약하고 즉시 추가 발송하지 않는다")
     void createOnlyRetryableTasks(boolean club) throws FirebaseMessagingException {
         String unregisteredFid = "d" + "a".repeat(21);
         String invalidFid = "e" + "a".repeat(21);
@@ -106,7 +123,6 @@ class CommentNotificationServiceTest {
         verify(handler).handle(result, snapshot);
         verify(sender).send(fids, TITLE, BODY, data(club));
         verifyNoMoreInteractions(sender);
-        assertThatThrownBy(tasks::clear).isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
@@ -127,7 +143,7 @@ class CommentNotificationServiceTest {
     }
 
     @Test
-    @DisplayName("재시도하지 않는 실패는 기존 실패 처리에 넘기고 작업은 반환하지 않는다")
+    @DisplayName("재시도하지 않는 실패는 기존 실패 처리에 넘기고 작업은 예약하지 않는다")
     void skipPermanentFailure() throws FirebaseMessagingException {
         var failure = new FcmSendFailure(FID, "INVALID_ARGUMENT", "INVALID_ARGUMENT", 400, null);
         stubSend(failure, new NotificationRegistrations(List.of(registration(1L, FID))));
@@ -135,19 +151,45 @@ class CommentNotificationServiceTest {
         assertThat(notify(true)).isEmpty();
     }
 
-    @Test
-    @DisplayName("SDK 호출 자체가 실패하면 개별 응답을 만들지 않고 기존 호출 실패 경로로 전달한다")
-    void propagateWholeCallFailure() throws FirebaseMessagingException {
-        List<String> fids = List.of(FID);
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("재시도하지 않는 SDK 호출 실패는 기존 실패 처리에 넘기고 후보 수를 기록하지 않는다")
+    void handlePermanentWholeCallFailure(boolean club) throws FirebaseMessagingException {
         var exception = mock(FirebaseMessagingException.class);
         given(exception.getErrorCode()).willReturn(ErrorCode.UNKNOWN);
-        stubRecipients(true, new NotificationRegistrations(List.of(registration(1L, FID))));
-        given(sender.send(fids, TITLE, BODY, data(true))).willThrow(exception);
+        stubRecipients(club, new NotificationRegistrations(List.of(registration(1L, FID))));
+        given(sender.send(List.of(FID), TITLE, BODY, data(club))).willThrow(exception);
 
-        assertThatThrownBy(() -> notify(true)).isSameAs(exception);
-        verifyNoInteractions(handler);
-        verify(sender).send(fids, TITLE, BODY, data(true));
+        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+            notify(club);
+
+            assertThat(logs.structuredText()).doesNotContain("retryTaskCount");
+        }
+        verify(handler).handleCallFailure(11L, exception);
+        verifyNoInteractions(retryService);
+        verify(sender).send(List.of(FID), TITLE, BODY, data(club));
         verifyNoMoreInteractions(sender);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("모임·공개방 모두 재시도 후보를 예약하고 민감 정보 없이 후보 수를 기록한다")
+    void recordCreatedTaskCount(boolean club) throws FirebaseMessagingException {
+        var failure = new FcmSendFailure(FID, "INTERNAL", "INTERNAL", 500, null);
+        stubRecipients(club, new NotificationRegistrations(List.of(registration(1L, FID))));
+        given(sender.send(List.of(FID), TITLE, BODY, data(club)))
+                .willReturn(new FcmSendResult(0, List.of(failure)));
+
+        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+            List<FcmRetryTask> tasks = notify(club);
+
+            var event = logs.event("notification.comment.logRetryTasks", "success");
+            assertThat(event.getLevel()).isEqualTo(Level.INFO);
+            assertThat(logs.field(event, "commentId")).isEqualTo(11L);
+            assertThat(logs.field(event, "retryTaskCount")).isEqualTo(1);
+            assertThat(logs.structuredText()).doesNotContain(FID, TITLE, BODY);
+            verify(retryService).schedule(tasks.getFirst());
+        }
     }
 
     @Test
@@ -206,7 +248,8 @@ class CommentNotificationServiceTest {
         stubRecipients(true, new NotificationRegistrations(List.of(registration(1L, FID))));
         given(sender.send(List.of(FID), TITLE, BODY, data(true))).willThrow(exception);
 
-        FcmRetryTask task = service.notifyReadersInClub(11L, 5L, 13L, 7L, 3, Instant.now()).getFirst();
+        service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, Instant.now()));
+        FcmRetryTask task = scheduledTasks.getFirst();
 
         assertThat(task.isCallFailure()).isTrue();
         assertThat(task.failure().isReceiptUncertain()).isFalse();
@@ -240,11 +283,12 @@ class CommentNotificationServiceTest {
                 "passageSequence", "3", "sentenceId", "13");
     }
 
-    private List<FcmRetryTask> notify(boolean club) throws FirebaseMessagingException {
+    private List<FcmRetryTask> notify(boolean club) {
         if (club) {
-            return service.notifyReadersInClub(11L, 5L, 13L, 7L, 3, CREATED_AT);
+            service.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
         } else {
-            return service.notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, 3, CREATED_AT);
+            service.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, CREATED_AT));
         }
+        return List.copyOf(scheduledTasks);
     }
 }

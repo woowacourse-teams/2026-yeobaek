@@ -14,7 +14,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
-import yeobaek.backend.notification.FcmRetryProcessor;
+import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 class NotificationRetryConfigurationTest {
@@ -30,7 +30,7 @@ class NotificationRetryConfigurationTest {
     @DisplayName("재시도 예약기는 전용 시계와 단일 타이머를 쓰고 종료 시 지연 작업을 폐기한다")
     void configureRetryBeansAndShutdownPolicy() {
         contextRunner.withPropertyValues("notification.retry.pending-capacity=2").run(context -> {
-            assertThat(context).hasSingleBean(FcmRetryProcessor.class);
+            assertThat(context).hasSingleBean(FcmRetryService.class);
             var scheduler = context.getBean("notificationRetryScheduler", ThreadPoolTaskScheduler.class);
             assertThat(scheduler.getScheduledThreadPoolExecutor().getCorePoolSize()).isEqualTo(1);
             assertThat(scheduler.getClock()).isSameAs(context.getBean("notificationRetryClock", Clock.class));

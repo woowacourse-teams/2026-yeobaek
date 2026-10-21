@@ -1,8 +1,7 @@
 package yeobaek.backend.notification.comment;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -11,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import ch.qos.logback.classic.Level;
 import java.time.Instant;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -27,9 +25,6 @@ import org.slf4j.MDC;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
-import yeobaek.backend.notification.FcmFailureHandler;
-import yeobaek.backend.notification.FcmRetryProcessor;
-import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.support.LogCapture;
 import yeobaek.backend.support.notification.NotificationExecutorConfiguration;
 
@@ -38,7 +33,6 @@ class CommentNotificationAsyncTest {
     private static final Instant CREATED_AT = Instant.parse("2026-10-19T00:00:00Z");
 
     private final CommentNotificationService service = mock(CommentNotificationService.class);
-    private final FcmFailureHandler failureHandler = mock(FcmFailureHandler.class);
     private ThreadPoolTaskExecutor executor;
     private CommentNotificationListener listener;
 
@@ -46,7 +40,7 @@ class CommentNotificationAsyncTest {
     void setUp() {
         executor = new NotificationExecutorConfiguration().notificationTaskExecutor(1, 1);
         executor.initialize();
-        listener = new CommentNotificationListener(new CommentNotificationWorker(service, failureHandler, mock(FcmRetryProcessor.class)), executor);
+        listener = new CommentNotificationListener(service, executor);
     }
 
     @AfterEach
@@ -62,22 +56,22 @@ class CommentNotificationAsyncTest {
         var release = new CountDownLatch(1);
         var finished = new CountDownLatch(1);
         var workerThread = new AtomicReference<String>();
-        org.mockito.stubbing.Answer<List<FcmRetryTask>> blockedSend = invocation -> {
+        org.mockito.stubbing.Answer<Void> blockedSend = invocation -> {
             workerThread.set(Thread.currentThread().getName());
             started.countDown();
             try {
                 if (!release.await(5, TimeUnit.SECONDS)) {
                     throw new IllegalStateException("test release timed out");
                 }
-                return List.of();
+                return null;
             } finally {
                 finished.countDown();
             }
         };
         if (club) {
-            doAnswer(blockedSend).when(service).notifyReadersInClub(11L, 5L, 13L, 7L, 3, CREATED_AT);
+            doAnswer(blockedSend).when(service).notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
         } else {
-            doAnswer(blockedSend).when(service).notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, 3, CREATED_AT);
+            doAnswer(blockedSend).when(service).notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, CREATED_AT));
         }
 
         try (var requests = Executors.newSingleThreadExecutor()) {
@@ -110,8 +104,8 @@ class CommentNotificationAsyncTest {
             } else {
                 secondFinished.countDown();
             }
-            return List.of();
-        }).when(service).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(3), eq(CREATED_AT));
+            return null;
+        }).when(service).notifyClub(any(ClubSentenceCommentCreatedEvent.class));
 
         try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
             listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
@@ -128,14 +122,14 @@ class CommentNotificationAsyncTest {
             }
             assertThat(secondFinished.await(5, TimeUnit.SECONDS)).isTrue();
         }
-        verify(service, times(2)).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(3), eq(CREATED_AT));
+        verify(service, times(2)).notifyClub(any(ClubSentenceCommentCreatedEvent.class));
     }
 
     @Test
     @DisplayName("워커의 예기치 않은 예외는 댓글 ID·요청 MDC와 함께 기록하고 다음 작업을 처리한다")
     void recordUnexpectedWorkerFailureAndContinue() throws Exception {
         doThrow(new IllegalStateException("unexpected failure"))
-                .when(service).notifyReadersInClub(11L, 5L, 13L, 7L, 3, CREATED_AT);
+                .when(service).notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
 

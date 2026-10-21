@@ -8,8 +8,8 @@ import yeobaek.backend.club.domain.ClubMembers;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.member.domain.Members;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 @Service
 @RequiredArgsConstructor

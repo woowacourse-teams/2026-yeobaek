@@ -73,7 +73,7 @@ import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmFailureHandler;
-import yeobaek.backend.notification.FcmRetryProcessor;
+import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
@@ -140,7 +140,7 @@ class CommentNotificationTransactionTest {
     private FcmPushSender pushSender;
 
     @MockitoBean
-    private FcmRetryProcessor retryProcessor;
+    private FcmRetryService retryService;
 
     @Autowired
     private QueuedTaskExecutor executor;
@@ -327,7 +327,7 @@ class CommentNotificationTransactionTest {
         given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
                 .willThrow(new DataAccessResourceFailureException("database unavailable"));
 
-        try (var logs = new LogCapture(CommentNotificationWorker.class.getName())) {
+        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
             var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
             executor.runNextOnWorker();
 
@@ -409,7 +409,7 @@ class CommentNotificationTransactionTest {
         executor.runNextOnWorker();
 
         var task = ArgumentCaptor.forClass(FcmRetryTask.class);
-        verify(retryProcessor).schedule(task.capture());
+        verify(retryService).schedule(task.capture());
         assertThat(task.getValue().commentCreatedAt()).isEqualTo(createdAt.atZone(ZoneId.systemDefault()).toInstant());
         assertThat(task.getValue().stopReason(0)).contains("EXPIRED");
         verify(pushSender, times(1)).send(any(), any(), any(), any());
@@ -444,7 +444,7 @@ class CommentNotificationTransactionTest {
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
     @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            CommentNotificationRecipientService.class, CommentNotificationWorker.class, FcmFailureHandler.class})
+            CommentNotificationRecipientService.class, FcmFailureHandler.class})
     static class TestConfig {
 
         @Bean
