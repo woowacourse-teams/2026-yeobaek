@@ -91,9 +91,14 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
-`local` 프로파일로 시작하면 Flyway가 공통 스키마와 `src/main/resources/db/local/V1.1__local_seed.sql`을 한 번 적용합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 재시작해도 기존 데이터를 보존합니다. 기존 DB 편입과 이후 SQL 추가 방법은 [Flyway 안내](docs/migrations/flyway.md)를 따릅니다.
+`local` 프로파일로 시작하면 Flyway가 공통 스키마와 `src/main/resources/db/local/V1.1__local_seed.sql`을 한 번 적용합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 재시작해도 기존 데이터를 보존합니다.
 
 기본 SQL 초기화는 모든 프로파일에서 비활성화합니다. `local`만 Flyway의 `db/local` 경로를 추가하며, 기본·`prod`·`prod,dev`에서는 로컬 시드를 실행하지 않습니다.
+
+스키마 변경은 `src/main/resources/db/migration`에 다음 버전 SQL로 추가하며, 적용한 SQL은 수정하지 않습니다.
+앱은 시작 시 Flyway 마이그레이션 후 Hibernate `validate`로 엔티티 매핑을 검증합니다.
+통합 테스트도 같은 SQL로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
+Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.
