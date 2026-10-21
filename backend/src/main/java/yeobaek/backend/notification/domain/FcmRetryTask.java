@@ -2,6 +2,7 @@ package yeobaek.backend.notification.domain;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -11,6 +12,7 @@ public record FcmRetryTask(
         List<Long> registrationIds,
         String title,
         String body,
+        Map<String, String> data,
         FcmSendFailure failure,
         Instant commentCreatedAt,
         Instant observedAt,
@@ -20,9 +22,9 @@ public record FcmRetryTask(
 ) {
 
     public FcmRetryTask(Long commentId, List<Long> registrationIds, String title, String body,
-                        FcmSendFailure failure, Instant commentCreatedAt, Instant observedAt,
+                        Map<String, String> data, FcmSendFailure failure, Instant commentCreatedAt, Instant observedAt,
                         int retriesPerformed, boolean uncertainRetryUsed) {
-        this(commentId, registrationIds, title, body, failure, commentCreatedAt, observedAt,
+        this(commentId, registrationIds, title, body, data, failure, commentCreatedAt, observedAt,
                 retriesPerformed, uncertainRetryUsed, failure.fid());
     }
 
@@ -35,6 +37,7 @@ public record FcmRetryTask(
         Objects.requireNonNull(commentCreatedAt);
         Objects.requireNonNull(observedAt);
         registrationIds = List.copyOf(registrationIds);
+        data = Map.copyOf(data);
         if (registrationIds.isEmpty() || !failure.isRetryable()) {
             throw new IllegalArgumentException("발송 당시 등록과 재시도 가능한 실패가 필요합니다.");
         }
@@ -75,7 +78,7 @@ public record FcmRetryTask(
         if (!nextFailure.isRetryable()) {
             return Optional.empty();
         }
-        return Optional.of(new FcmRetryTask(commentId, remainingRegistrationIds, title, body, nextFailure,
+        return Optional.of(new FcmRetryTask(commentId, remainingRegistrationIds, title, body, data, nextFailure,
                 commentCreatedAt, nextObservedAt, retriesPerformed + 1,
                 uncertainRetryUsed || failure.isReceiptUncertain(), targetFid));
     }

@@ -8,6 +8,7 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,24 +34,32 @@ public class CommentNotificationService {
     private final FcmFailureHandler failureHandler;
 
     public List<FcmRetryTask> notifyReadersInClub(
-            Long commentId, Long clubId, Long sentenceId, Long writerId, Instant commentCreatedAt)
+            Long commentId, Long clubId, Long sentenceId, Long writerId,
+            int passageSequence, Instant commentCreatedAt)
             throws FirebaseMessagingException {
         List<String> firebaseInstallationIds = recipientReader.findReadersInClub(clubId, sentenceId, writerId);
 
-        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds);
+        Map<String, String> data = Map.of(
+                "type", "CLUB_COMMENT", "clubId", clubId.toString(),
+                "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
+        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds, data);
     }
 
     public List<FcmRetryTask> notifyPreviousCommentersInPublicRoom(
-            Long commentId, Long publicRoomId, Long sentenceId, Long writerId, Instant commentCreatedAt)
+            Long commentId, Long publicRoomId, Long sentenceId, Long writerId,
+            int passageSequence, Instant commentCreatedAt)
             throws FirebaseMessagingException {
         List<String> firebaseInstallationIds = recipientReader.findPreviousCommentersInPublicRoom(
                 publicRoomId, sentenceId, writerId);
 
-        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds);
+        Map<String, String> data = Map.of(
+                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", publicRoomId.toString(),
+                "passageSequence", Integer.toString(passageSequence), "sentenceId", sentenceId.toString());
+        return notifyRecipients(commentId, commentCreatedAt, firebaseInstallationIds, data);
     }
 
     private List<FcmRetryTask> notifyRecipients(
-            Long commentId, Instant commentCreatedAt, List<String> firebaseInstallationIds)
+            Long commentId, Instant commentCreatedAt, List<String> firebaseInstallationIds, Map<String, String> data)
             throws FirebaseMessagingException {
         if (firebaseInstallationIds.isEmpty()) {
             log.debug("알림 수신 대상이 존재하지 않아 알림을 보내지 않습니다.");
@@ -60,7 +69,7 @@ public class CommentNotificationService {
         NotificationRegistrations sentRegistrations = registrationService.snapshotForSend(firebaseInstallationIds);
         FcmSendResult result;
         try {
-            result = pushSender.send(firebaseInstallationIds, TITLE, BODY);
+            result = pushSender.send(firebaseInstallationIds, TITLE, BODY, data);
         } catch (FirebaseMessagingException exception) {
             Instant observedAt = Instant.now();
             FcmSendFailure failure = FcmSendFailure.from(null, exception);
@@ -68,17 +77,17 @@ public class CommentNotificationService {
                 throw exception;
             }
             failureHandler.handleCallFailure(commentId, exception);
-            return createCallRetryTasks(commentId, commentCreatedAt, observedAt, failure, sentRegistrations);
+            return createCallRetryTasks(commentId, commentCreatedAt, observedAt, failure, sentRegistrations, data);
         }
         // SDK 개별 HTTP 수신 시각이 아니라, 호출이 끝나 결과를 확인한 애플리케이션 시각이다.
         Instant observedAt = Instant.now();
         failureHandler.handle(result, sentRegistrations);
-        return createRetryTasks(commentId, commentCreatedAt, observedAt, result, sentRegistrations);
+        return createRetryTasks(commentId, commentCreatedAt, observedAt, result, sentRegistrations, data);
     }
 
     private List<FcmRetryTask> createRetryTasks(
             Long commentId, Instant commentCreatedAt, Instant observedAt,
-            FcmSendResult result, NotificationRegistrations sentRegistrations) {
+            FcmSendResult result, NotificationRegistrations sentRegistrations, Map<String, String> data) {
         List<FcmRetryTask> tasks = new ArrayList<>();
         for (FcmSendFailure failure : result.retryableFailures()) {
             List<Long> registrationIds = sentRegistrations.idsFor(new FirebaseInstallationId(failure.fid()));
@@ -89,19 +98,20 @@ public class CommentNotificationService {
                         .log("발송 당시 등록이 없어 재시도 후보 작업을 만들지 않았습니다.");
                 continue;
             }
-            tasks.add(new FcmRetryTask(commentId, registrationIds, TITLE, BODY, failure,
+            tasks.add(new FcmRetryTask(commentId, registrationIds, TITLE, BODY, data, failure,
                     commentCreatedAt, observedAt, 0, false));
         }
         return List.copyOf(tasks);
     }
 
     private List<FcmRetryTask> createCallRetryTasks(Long commentId, Instant commentCreatedAt, Instant observedAt,
-                                                  FcmSendFailure failure, NotificationRegistrations sentRegistrations) {
+                                                  FcmSendFailure failure, NotificationRegistrations sentRegistrations,
+                                                  Map<String, String> data) {
         // 개별 결과는 알 수 없으므로 failure.fid는 null로 유지하고 원래 등록에만 추가 시도 대상을 연결한다.
         List<FcmRetryTask> tasks = new ArrayList<>();
         for (String fid : sentRegistrations.firebaseInstallationIds()) {
             tasks.add(new FcmRetryTask(commentId, sentRegistrations.idsFor(new FirebaseInstallationId(fid)),
-                    TITLE, BODY, failure, commentCreatedAt, observedAt, 0, false, fid));
+                    TITLE, BODY, data, failure, commentCreatedAt, observedAt, 0, false, fid));
         }
         if (tasks.isEmpty()) {
             log.atWarn().addKeyValue(OPERATION, "notification.comment.createCallRetryTasks")

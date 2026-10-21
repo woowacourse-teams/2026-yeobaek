@@ -28,20 +28,20 @@ import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.CommentedSentence;
 import yeobaek.backend.comment.domain.Comments;
 import yeobaek.backend.comment.domain.ContentVisibility;
-import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentSentenceRow;
@@ -99,7 +99,8 @@ public class CommentService {
         Comment comment = commentRepository.save(new Comment(context.clubMember(), context.sentence(), content));
 
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
-        eventPublisher.publishEvent(new ClubCommentCreated(comment.getId(), clubId, sentenceId, memberId,
+        eventPublisher.publishEvent(new ClubSentenceCommentCreatedEvent(comment.getId(), clubId, sentenceId, memberId,
+                context.sentence().getPassage().getSequence().value(),
                 comment.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
         var response = CommentResponse.of(comment, memberId);
         log.atInfo().addKeyValue(OPERATION, "comment.create").addKeyValue(RESULT, SUCCESS)
@@ -110,7 +111,7 @@ public class CommentService {
 
     @Transactional
     public CommentsResponse findPublicRoomComments(Long memberId, Long publicRoomId, Long sentenceId) {
-        PublicRoom room = validatePublicRoomSentenceContext(publicRoomId, sentenceId);
+        PublicRoom room = validatePublicRoomSentenceContext(publicRoomId, sentenceId).room();
         Comments comments = new Comments(commentRepository.findAllVisibleInPublicRoom(
                 memberId, room.getId(), sentenceId));
         markAsViewed(memberId, comments);
@@ -122,14 +123,14 @@ public class CommentService {
     @Transactional
     public CommentResponse createInPublicRoom(Long memberId, Long publicRoomId, Long sentenceId,
                                               CommentContent content) {
-        PublicRoom room = validatePublicRoomSentenceContext(publicRoomId, sentenceId);
-        Comment comment = commentRepository.save(new Comment(room,
-                memberRepository.getReferenceById(memberId),
-                sentenceRepository.getReferenceById(sentenceId), content));
+        PublicRoomSentenceContext context = validatePublicRoomSentenceContext(publicRoomId, sentenceId);
+        Comment comment = commentRepository.save(new Comment(context.room(),
+                memberRepository.getReferenceById(memberId), context.sentence(), content));
         commentViewRepository.save(new CommentView(memberRepository.getReferenceById(memberId), comment));
 
-        eventPublisher.publishEvent(new PublicRoomCommentCreated(
+        eventPublisher.publishEvent(new PublicRoomSentenceCommentCreatedEvent(
                 comment.getId(), publicRoomId, sentenceId, memberId,
+                context.sentence().getPassage().getSequence().value(),
                 comment.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
         return CommentResponse.of(comment, memberId);
     }
@@ -337,7 +338,7 @@ public class CommentService {
                         Map.of("passageId", passageId.toString())));
     }
 
-    private PublicRoom validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
+    private PublicRoomSentenceContext validatePublicRoomSentenceContext(Long publicRoomId, Long sentenceId) {
         PublicRoom room = findPublicRoom(publicRoomId);
         Sentence sentence = sentenceRepository.findById(sentenceId)
                 .orElseThrow(() -> new NotFoundException(
@@ -350,7 +351,10 @@ public class CommentService {
                             + ", sentenceId=" + sentenceId);
         }
         room.ensureBookAvailable();
-        return room;
+        return new PublicRoomSentenceContext(room, sentence);
+    }
+
+    private record PublicRoomSentenceContext(PublicRoom room, Sentence sentence) {
     }
 
     private PublicRoom findPublicRoom(Long publicRoomId) {

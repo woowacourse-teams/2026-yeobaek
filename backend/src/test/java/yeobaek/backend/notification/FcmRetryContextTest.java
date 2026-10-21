@@ -12,6 +12,7 @@ import io.opentelemetry.context.ContextKey;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -49,14 +50,14 @@ class FcmRetryContextTest {
         String fid = "c" + "a".repeat(21);
         given(registrations.snapshotForRetry(anyList(), any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
-        given(sender.send(anyList(), anyString(), anyString())).willAnswer(invocation -> {
+        given(sender.send(anyList(), anyString(), anyString(), any())).willAnswer(invocation -> {
             observed.set(List.of(MDC.get("traceId"), Context.current().get(REQUEST), Thread.currentThread().getName()));
             finished.countDown();
             return new FcmSendResult(1, List.of());
         });
         var processor = new FcmRetryProcessor(scheduler, executor, clock, sender, registrations, handler, new Semaphore(1));
         Instant now = clock.instant();
-        var task = new FcmRetryTask(11L, List.of(1L), "제목", "내용",
+        var task = new FcmRetryTask(11L, List.of(1L), "제목", "내용", Map.of(),
                 new FcmSendFailure(fid, "INTERNAL", "INTERNAL", 500, null),
                 now.minusSeconds(300), now.minusSeconds(120), 0, false);
         scheduler.initialize();

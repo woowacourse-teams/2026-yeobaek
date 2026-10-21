@@ -3,6 +3,7 @@ package yeobaek.backend.notification.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
@@ -22,6 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +60,7 @@ import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentReportRepository;
@@ -196,7 +198,7 @@ class CommentNotificationTransactionTest {
         given(publicRoomRepository.findWithBookById(8L)).willReturn(Optional.of(room));
         given(recipientQueryRepository.findFidsForPublicRoomComment(8L, 13L, 7L)).willReturn(List.of(fid));
         given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of()));
-        given(pushSender.send(any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
+        given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }
 
     @Test
@@ -213,7 +215,29 @@ class CommentNotificationTransactionTest {
         var order = inOrder(commentConnection, recipientConnection, pushSender);
         order.verify(commentConnection).commit();
         order.verify(recipientConnection).commit();
-        order.verify(pushSender).send(any(), any(), any());
+        order.verify(pushSender).send(any(), any(), any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("저장 트랜잭션에서 확보한 문단 순서와 공간 정보를 이벤트를 거쳐 워커에 전달한다")
+    void preserveNavigationDataThroughEvent(boolean club) throws Exception {
+        Passage passage = sentenceRepository.findById(13L).orElseThrow().getPassage();
+        given(passage.getSequence()).willReturn(new ContentSequence(12));
+
+        if (club) {
+            commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
+        } else {
+            commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
+        }
+        given(passage.getSequence()).willReturn(new ContentSequence(1));
+        executor.runNextOnWorker();
+
+        Map<String, String> expected = Map.of(
+                "type", club ? "CLUB_COMMENT" : "PUBLIC_ROOM_COMMENT",
+                club ? "clubId" : "publicRoomId", club ? "5" : "8",
+                "passageSequence", "12", "sentenceId", "13");
+        verify(pushSender).send(any(), any(), any(), eq(expected));
     }
 
     @Test
@@ -224,14 +248,14 @@ class CommentNotificationTransactionTest {
             assertThat(Thread.currentThread()).isNotSameAs(requestThread);
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return new FcmSendResult(1, List.of());
-        }).when(pushSender).send(any(), any(), any());
+        }).when(pushSender).send(any(), any(), any(), any());
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
 
         assertThat(response.commentId()).isEqualTo(11L);
         verifyNoInteractions(recipientQueryRepository, pushSender);
         executor.runNextOnWorker();
-        verify(pushSender).send(any(), any(), any());
+        verify(pushSender).send(any(), any(), any(), any());
     }
 
     @Test
@@ -264,7 +288,7 @@ class CommentNotificationTransactionTest {
     void keepResponseWhenFcmFails() throws Exception {
         FirebaseMessagingException exception = mock(FirebaseMessagingException.class);
         given(exception.getErrorCode()).willReturn(ErrorCode.UNKNOWN);
-        doThrow(exception).when(pushSender).send(any(), any(), any());
+        doThrow(exception).when(pushSender).send(any(), any(), any(), any());
 
         try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
             var response = commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
@@ -281,7 +305,7 @@ class CommentNotificationTransactionTest {
     @ValueSource(booleans = {true, false})
     @DisplayName("SDK 요청값 검증에 실패해도 ERROR를 남기고 커밋한 댓글 응답을 유지한다")
     void keepResponseWhenRequestIsInvalid(boolean club) throws Exception {
-        doThrow(new IllegalArgumentException("민감한 요청값")).when(pushSender).send(any(), any(), any());
+        doThrow(new IllegalArgumentException("민감한 요청값")).when(pushSender).send(any(), any(), any(), any());
 
         try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
             var response = club
@@ -332,7 +356,7 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("트랜잭션 없이 발행한 이벤트는 알림을 보내지 않는다")
     void skipNotificationWithoutTransaction() {
-        eventPublisher.publishEvent(new ClubCommentCreated(11L, 5L, 13L, 7L, Instant.now()));
+        eventPublisher.publishEvent(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, Instant.now()));
 
         verifyNoInteractions(registrationService, pushSender, dataSource);
         assertThat(executor.tasks).isEmpty();
@@ -372,7 +396,7 @@ class CommentNotificationTransactionTest {
         String fid = "c" + "a".repeat(21);
         given(registrationService.snapshotForSend(List.of(fid))).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
-        given(pushSender.send(any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
+        given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
                 new FcmSendFailure(fid, "UNAVAILABLE", "UNAVAILABLE", 503, null))));
 
         if (club) {
@@ -386,7 +410,7 @@ class CommentNotificationTransactionTest {
         verify(retryProcessor).schedule(task.capture());
         assertThat(task.getValue().commentCreatedAt()).isEqualTo(createdAt.atZone(ZoneId.systemDefault()).toInstant());
         assertThat(task.getValue().stopReason(0)).contains("EXPIRED");
-        verify(pushSender, times(1)).send(any(), any(), any());
+        verify(pushSender, times(1)).send(any(), any(), any(), any());
     }
 
     static class QueuedTaskExecutor implements TaskExecutor {

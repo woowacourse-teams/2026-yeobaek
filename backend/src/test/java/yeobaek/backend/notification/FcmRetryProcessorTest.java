@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,12 +30,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.scheduling.TaskScheduler;
 import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.comment.CommentNotificationRecipientReader;
 import yeobaek.backend.notification.comment.CommentNotificationService;
 import yeobaek.backend.notification.comment.CommentNotificationWorker;
@@ -53,6 +56,8 @@ class FcmRetryProcessorTest {
     private static final String FID = "c" + "a".repeat(21);
     private static final String TITLE = "민감한 제목";
     private static final String BODY = "민감한 본문";
+    private static final Map<String, String> DATA = Map.of(
+            "type", "CLUB_COMMENT", "clubId", "5", "passageSequence", "3", "sentenceId", "13");
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final Clock clock = mock(Clock.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
@@ -70,7 +75,7 @@ class FcmRetryProcessorTest {
         captureSchedules();
         given(registrations.snapshotForRetry(anyList(), any(FirebaseInstallationId.class)))
                 .willAnswer(invocation -> snapshot(invocation.getArgument(0), invocation.getArgument(1)));
-        given(sender.send(anyList(), anyString(), anyString())).willReturn(new FcmSendResult(1, List.of()));
+        given(sender.send(anyList(), anyString(), anyString(), any())).willReturn(new FcmSendResult(1, List.of()));
         processor = newProcessor(workers::addLast, handler, 10);
     }
 
@@ -85,7 +90,7 @@ class FcmRetryProcessorTest {
         verifyNoInteractions(sender, registrations);
         workers.removeFirst().run();
 
-        verify(sender).send(List.of(FID), TITLE, BODY);
+        verify(sender).send(List.of(FID), TITLE, BODY, DATA);
         assertThat(timers).isEmpty();
     }
 
@@ -102,7 +107,7 @@ class FcmRetryProcessorTest {
     @DisplayName("추가 발송이 429로 실패하면 새 Retry-After를 다음 예약에 반영한다")
     void respectNewQuotaResponseOnNextAttempt() throws FirebaseMessagingException {
         var quota = new FcmSendFailure(FID, "QUOTA_EXCEEDED", "RESOURCE_EXHAUSTED", 429, "300");
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(quota)), new FcmSendResult(1, List.of()));
         processor.schedule(task(internal(null), 0, false));
         completeNext();
@@ -111,7 +116,7 @@ class FcmRetryProcessorTest {
         completeNext();
 
         assertThat(timers).isEmpty();
-        verify(sender, times(2)).send(List.of(FID), TITLE, BODY);
+        verify(sender, times(2)).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
@@ -119,7 +124,7 @@ class FcmRetryProcessorTest {
     void shrinkRegistrationSnapshotForNextAttempt() throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
         given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(snapshot(List.of(2L), fid));
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(internal(null))), new FcmSendResult(1, List.of()));
         processor.schedule(task(internal(null), 0, false));
 
@@ -134,7 +139,7 @@ class FcmRetryProcessorTest {
     @Test
     @DisplayName("일시 실패가 계속되면 최초 발송 외 정확히 다섯 번 시도하고 종료한다")
     void retryAtMostFiveTimes() throws FirebaseMessagingException {
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(new FcmSendResult(0, List.of(internal(null))));
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0, List.of(internal(null))));
         try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
             processor.schedule(task(internal(null), 0, false));
             for (int attempt = 0; attempt < 5; attempt++) {
@@ -147,14 +152,14 @@ class FcmRetryProcessorTest {
             assertThat(timers).isEmpty();
             assertThat(workers).isEmpty();
         }
-        verify(sender, times(5)).send(List.of(FID), TITLE, BODY);
+        verify(sender, times(5)).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
     @DisplayName("접수 불명확에 따른 추가 발송이 다시 불명확하면 한 번으로 종료한다")
     void retryUncertainReceiptOnlyOnce() throws FirebaseMessagingException {
         var uncertain = uncertain();
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(new FcmSendResult(0, List.of(uncertain)));
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0, List.of(uncertain)));
         try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
             processor.schedule(task(uncertain, 0, false));
             completeNext();
@@ -165,13 +170,13 @@ class FcmRetryProcessorTest {
             assertThat(logs.field(event, "uncertainRetryUsed")).isEqualTo(true);
             assertThat(timers).isEmpty();
         }
-        verify(sender).send(List.of(FID), TITLE, BODY);
+        verify(sender).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
     @DisplayName("오류 종류가 바뀌어도 이미 사용한 접수 불명확 추가 발송 이력을 유지한다")
     void retainUncertaintyHistoryAcrossFailureTypes() throws FirebaseMessagingException {
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(uncertain())),
                 new FcmSendResult(0, List.of(internal(null))),
                 new FcmSendResult(0, List.of(uncertain())));
@@ -187,7 +192,7 @@ class FcmRetryProcessorTest {
             assertThat(logs.field(event, "uncertainRetryUsed")).isEqualTo(true);
             assertThat(timers).isEmpty();
         }
-        verify(sender, times(3)).send(List.of(FID), TITLE, BODY);
+        verify(sender, times(3)).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
@@ -195,13 +200,13 @@ class FcmRetryProcessorTest {
     void classifyRetryCallTimeoutWithoutBatchResponse() throws FirebaseMessagingException {
         var exception = mock(FirebaseMessagingException.class);
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
-        given(sender.send(List.of(FID), TITLE, BODY)).willThrow(exception);
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willThrow(exception);
         processor.schedule(task(internal(null), 0, false));
 
         completeNext();
         completeNext();
 
-        verify(sender, times(2)).send(List.of(FID), TITLE, BODY);
+        verify(sender, times(2)).send(List.of(FID), TITLE, BODY, DATA);
         verify(handler, times(2)).handleCallFailure(11L, exception);
         assertThat(timers).isEmpty();
     }
@@ -218,7 +223,7 @@ class FcmRetryProcessorTest {
     @DisplayName("요청·인증·미확인 오류는 실패 처리 후 재예약하지 않고 실제 시도 횟수를 남긴다")
     void stopPermanentFailure(String detail, String sdk, int status) throws FirebaseMessagingException {
         var result = new FcmSendResult(0, List.of(new FcmSendFailure(FID, detail, sdk, status, null)));
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(result);
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(result);
         try (var logs = new LogCapture(FcmRetryProcessor.class.getName())) {
             processor.schedule(task(internal(null), 0, false));
             completeNext();
@@ -236,7 +241,7 @@ class FcmRetryProcessorTest {
         var fid = new FirebaseInstallationId(FID);
         var remaining = snapshot(List.of(1L), fid);
         given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(remaining);
-        given(sender.send(List.of(FID), TITLE, BODY)).willReturn(new FcmSendResult(0,
+        given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0,
                 List.of(new FcmSendFailure(FID, "UNREGISTERED", "NOT_FOUND", 404, null))));
         processor = newProcessor(workers::addLast, new FcmFailureHandler(registrations), 10);
         processor.schedule(task(internal(null), 0, false));
@@ -245,7 +250,7 @@ class FcmRetryProcessorTest {
 
         verify(registrations).deleteUnregistered(remaining, fid);
         assertThat(timers).isEmpty();
-        verify(sender).send(List.of(FID), TITLE, BODY);
+        verify(sender).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
@@ -383,13 +388,13 @@ class FcmRetryProcessorTest {
                 .when(registrations).snapshotForRetry(anyList(), any());
         processor.schedule(task(internal(null), 0, false));
         completeNext();
-        verify(sender).send(List.of(FID), TITLE, BODY);
+        verify(sender).send(List.of(FID), TITLE, BODY, DATA);
     }
 
     @Test
     @DisplayName("SDK 요청 검증 실패는 재예약하지 않는다")
     void stopInvalidRequest() throws FirebaseMessagingException {
-        doThrow(new IllegalArgumentException(BODY)).when(sender).send(List.of(FID), TITLE, BODY);
+        doThrow(new IllegalArgumentException(BODY)).when(sender).send(List.of(FID), TITLE, BODY, DATA);
         processor.schedule(task(internal(null), 0, false));
 
         completeNext();
@@ -398,37 +403,49 @@ class FcmRetryProcessorTest {
         assertThat(timers).isEmpty();
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     @DisplayName("최초 부분 실패부터 연결하면 재시도 가능한 실패 FID만 한 번 추가 발송한다")
-    void retryOnlyEligibleTargetFromInitialBatch() throws FirebaseMessagingException {
+    void retryOnlyEligibleTargetFromInitialBatch(boolean club) throws FirebaseMessagingException {
         now.set(Instant.now());
         String second = "d" + "a".repeat(21);
         String third = "e" + "a".repeat(21);
         List<String> fids = List.of(FID, second, third);
         String title = "새로운 댓글이 달렸어요!";
         String body = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
+        Map<String, String> data = club ? DATA : Map.of(
+                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
         var reader = mock(CommentNotificationRecipientReader.class);
-        given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+        if (club) {
+            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+        } else {
+            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(fids);
+        }
         given(registrations.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of(
                 registration(1L, FID), registration(2L, second), registration(3L, third))));
-        given(sender.send(fids, title, body)).willReturn(new FcmSendResult(1, List.of(
+        given(sender.send(fids, title, body, data)).willReturn(new FcmSendResult(1, List.of(
                 internal(null), new FcmSendFailure(second, "UNREGISTERED", "NOT_FOUND", 404, null))));
         var service = new CommentNotificationService(reader, sender, registrations, handler);
         var worker = new CommentNotificationWorker(service, handler, processor);
 
-        worker.notifyClub(new ClubCommentCreated(11L, 5L, 13L, 7L, now.get()));
+        if (club) {
+            worker.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
+        } else {
+            worker.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
+        }
         assertThat(timers).hasSize(1);
         completeNext();
 
-        verify(sender).send(fids, title, body);
-        verify(sender).send(List.of(FID), title, body);
-        verify(sender, never()).send(List.of(second), title, body);
-        verify(sender, never()).send(List.of(third), title, body);
+        verify(sender).send(fids, title, body, data);
+        verify(sender).send(List.of(FID), title, body, data);
+        verify(sender, never()).send(List.of(second), title, body, data);
+        verify(sender, never()).send(List.of(third), title, body, data);
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     @DisplayName("최초 호출 전체가 접수 불명확하면 원래 대상별로 한 번 더 보내고 반복 타임아웃은 종료한다")
-    void retryInitialUncertainCallOncePerOriginalTarget() throws FirebaseMessagingException {
+    void retryInitialUncertainCallOncePerOriginalTarget(boolean club) throws FirebaseMessagingException {
         now.set(Instant.now());
         String second = "d" + "a".repeat(21);
         List<String> fids = List.of(FID, second);
@@ -436,22 +453,32 @@ class FcmRetryProcessorTest {
         String body = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
         var exception = mock(FirebaseMessagingException.class);
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
+        Map<String, String> data = club ? DATA : Map.of(
+                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", "8", "passageSequence", "3", "sentenceId", "13");
         var reader = mock(CommentNotificationRecipientReader.class);
-        given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+        if (club) {
+            given(reader.findReadersInClub(5L, 13L, 7L)).willReturn(fids);
+        } else {
+            given(reader.findPreviousCommentersInPublicRoom(8L, 13L, 7L)).willReturn(fids);
+        }
         given(registrations.snapshotForSend(fids)).willReturn(new NotificationRegistrations(List.of(
                 registration(1L, FID), registration(2L, second))));
-        given(sender.send(fids, title, body)).willThrow(exception);
-        given(sender.send(List.of(FID), title, body)).willThrow(exception);
+        given(sender.send(fids, title, body, data)).willThrow(exception);
+        given(sender.send(List.of(FID), title, body, data)).willThrow(exception);
         var service = new CommentNotificationService(reader, sender, registrations, handler);
         var worker = new CommentNotificationWorker(service, handler, processor);
 
-        worker.notifyClub(new ClubCommentCreated(11L, 5L, 13L, 7L, now.get()));
+        if (club) {
+            worker.notifyClub(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, now.get()));
+        } else {
+            worker.notifyPublicRoom(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, now.get()));
+        }
         assertThat(timers).hasSize(2);
         completeNext();
         completeNext();
 
-        verify(sender).send(List.of(FID), title, body);
-        verify(sender).send(List.of(second), title, body);
+        verify(sender).send(List.of(FID), title, body, data);
+        verify(sender).send(List.of(second), title, body, data);
         assertThat(timers).isEmpty();
     }
 
@@ -485,7 +512,7 @@ class FcmRetryProcessorTest {
     }
 
     private FcmRetryTask task(FcmSendFailure failure, int retriesPerformed, boolean uncertainRetryUsed) {
-        return new FcmRetryTask(11L, List.of(1L, 2L), TITLE, BODY, failure,
+        return new FcmRetryTask(11L, List.of(1L, 2L), TITLE, BODY, DATA, failure,
                 CREATED_AT, now.get(), retriesPerformed, uncertainRetryUsed);
     }
 

@@ -12,8 +12,8 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
-import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 
 @Component
 @Slf4j
@@ -29,12 +29,12 @@ public class CommentNotificationListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onClubCommentCreated(ClubCommentCreated event) {
+    public void onClubSentenceCommentCreated(ClubSentenceCommentCreatedEvent event) {
         submit(event.commentId(), () -> worker.notifyClub(event));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onPublicRoomCommentCreated(PublicRoomCommentCreated event) {
+    public void onPublicRoomSentenceCommentCreated(PublicRoomSentenceCommentCreatedEvent event) {
         submit(event.commentId(), () -> worker.notifyPublicRoom(event));
     }
 

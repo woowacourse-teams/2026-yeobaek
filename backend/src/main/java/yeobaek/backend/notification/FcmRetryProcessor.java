@@ -113,7 +113,7 @@ public class FcmRetryProcessor {
 
     private void send(FcmRetryTask task, NotificationRegistrations snapshot, List<Long> remainingIds) {
         try {
-            FcmSendResult result = sender.send(List.of(task.fid()), task.title(), task.body());
+            FcmSendResult result = sender.send(List.of(task.fid()), task.title(), task.body(), task.data());
             Instant observedAt = clock.instant();
             failureHandler.handle(result, snapshot);
             if (result.failureCount() == 0) {

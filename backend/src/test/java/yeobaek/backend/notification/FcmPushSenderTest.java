@@ -35,6 +35,25 @@ class FcmPushSenderTest {
     private final FcmMessageFactory messageFactory = spy(new FcmMessageFactory());
     private final FcmPushSender sender = new FcmPushSender(messaging, messageFactory);
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("모임·공개방의 화면 이동 정보를 notification과 함께 실제 SDK 메시지에 담는다")
+    void includeNavigationDataInSdkMessage(boolean club) throws FirebaseMessagingException {
+        List<String> fids = fids(2);
+        Map<String, String> data = Map.of(
+                "type", club ? "CLUB_COMMENT" : "PUBLIC_ROOM_COMMENT",
+                club ? "clubId" : "publicRoomId", "42", "passageSequence", "12", "sentenceId", "345");
+        BatchResponse response = response(success(), success());
+        given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
+
+        sender.send(fids, "댓글 알림", "새 댓글을 확인해 보세요.", data);
+
+        var message = ArgumentCaptor.forClass(MulticastMessage.class);
+        verify(messaging).sendEachForMulticast(message.capture());
+        assertThat(message.getValue()).extracting("fids", "notification.title", "notification.body", "data")
+                .containsExactly(fids, "댓글 알림", "새 댓글을 확인해 보세요.", data);
+    }
+
     @Test
     @DisplayName("모든 대상이 접수되면 INFO로 건수를 기록하고 빈 실패 목록을 반환한다")
     void logSuccessfulBatch() throws FirebaseMessagingException {
@@ -43,7 +62,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문");
+            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
             assertThat(result.failures()).isEmpty();
 
             var event = logs.event("notification.fcm.send", "success");
@@ -62,7 +81,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문");
+            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
 
             var event = logs.event("notification.fcm.send", "failure");
             assertThat(event.getLevel()).isEqualTo(Level.WARN);
@@ -81,11 +100,11 @@ class FcmPushSenderTest {
                 success(), failure(MessagingErrorCode.UNAVAILABLE));
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
-        var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문");
+        var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
 
         ArgumentCaptor<List<String>> orderedFids = ArgumentCaptor.captor();
         verify(messageFactory).createMulticastMessage(
-                orderedFids.capture(), eq("댓글 알림"), eq("비공개 댓글 본문"));
+                orderedFids.capture(), eq("댓글 알림"), eq("비공개 댓글 본문"), eq(Map.of()));
         assertThat(orderedFids.getValue()).containsExactly(fid(2), fid(0), fid(3), fid(1));
         assertThat(result.failures()).containsExactly(
                 new FcmSendFailure(fid(0), "UNREGISTERED", "UNKNOWN", null, null),
@@ -101,7 +120,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문");
+            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
 
             assertThat(result.failures()).containsExactly(
                     new FcmSendFailure(fid(0), "INTERNAL", "UNKNOWN", null, null),
@@ -122,7 +141,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문");
+            var result = sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of());
 
             assertThat(result.failures()).containsExactly(
                     new FcmSendFailure(fid(0), "UNKNOWN", "DEADLINE_EXCEEDED", null, null));
@@ -142,7 +161,7 @@ class FcmPushSenderTest {
                 failure(MessagingErrorCode.UNAVAILABLE, ErrorCode.UNAVAILABLE, unavailableResponse));
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
-        var result = sender.send(fids(2), "댓글 알림", "비공개 댓글 본문");
+        var result = sender.send(fids(2), "댓글 알림", "비공개 댓글 본문", Map.of());
 
         assertThat(result.failures()).containsExactly(
                 new FcmSendFailure(fid(0), "QUOTA_EXCEEDED", "RESOURCE_EXHAUSTED", 429, "120"),
@@ -156,7 +175,7 @@ class FcmPushSenderTest {
         BatchResponse response = response(failure(null, ErrorCode.UNAUTHENTICATED, httpResponse));
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
-        var result = sender.send(fids(1), "댓글 알림", "비공개 댓글 본문");
+        var result = sender.send(fids(1), "댓글 알림", "비공개 댓글 본문", Map.of());
 
         assertThat(result.failures()).containsExactly(
                 new FcmSendFailure(fid(0), "UNKNOWN", "UNAUTHENTICATED", 401, null));
@@ -170,7 +189,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willThrow(exception);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            assertThatThrownBy(() -> sender.send(fids, "댓글 알림", "비공개 댓글 본문")).isSameAs(exception);
+            assertThatThrownBy(() -> sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of())).isSameAs(exception);
             assertThat(logs.events("notification.fcm.send")).isNotEmpty()
                     .allSatisfy(event -> assertThat(logs.hasField(event, "result")).isFalse());
         }
@@ -187,7 +206,7 @@ class FcmPushSenderTest {
         given(messaging.sendEachForMulticast(any(MulticastMessage.class))).willReturn(response);
 
         try (var logs = new LogCapture(FcmPushSender.class.getName())) {
-            assertThatThrownBy(() -> sender.send(fids, "댓글 알림", "비공개 댓글 본문"))
+            assertThatThrownBy(() -> sender.send(fids, "댓글 알림", "비공개 댓글 본문", Map.of()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("FCM 요청 대상 수와 응답 수가 일치하지 않습니다.");
             assertThat(logs.events("notification.fcm.send")).isNotEmpty()

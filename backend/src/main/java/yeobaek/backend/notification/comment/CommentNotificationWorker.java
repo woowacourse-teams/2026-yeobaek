@@ -10,8 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
-import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmRetryProcessor;
 import yeobaek.backend.notification.domain.FcmRetryTask;
@@ -25,10 +25,11 @@ public class CommentNotificationWorker {
     private final FcmFailureHandler failureHandler;
     private final FcmRetryProcessor retryProcessor;
 
-    public void notifyClub(ClubCommentCreated event) {
+    public void notifyClub(ClubSentenceCommentCreatedEvent event) {
         try {
             List<FcmRetryTask> tasks = notificationService.notifyReadersInClub(
-                    event.commentId(), event.clubId(), event.sentenceId(), event.writerId(), event.commentCreatedAt());
+                    event.commentId(), event.clubId(), event.sentenceId(), event.writerId(),
+                    event.passageSequence(), event.commentCreatedAt());
             logRetryTasks(event.commentId(), tasks);
         } catch (FirebaseMessagingException exception) {
             failureHandler.handleCallFailure(event.commentId(), exception);
@@ -39,10 +40,11 @@ public class CommentNotificationWorker {
         }
     }
 
-    public void notifyPublicRoom(PublicRoomCommentCreated event) {
+    public void notifyPublicRoom(PublicRoomSentenceCommentCreatedEvent event) {
         try {
             List<FcmRetryTask> tasks = notificationService.notifyPreviousCommentersInPublicRoom(
-                    event.commentId(), event.publicRoomId(), event.sentenceId(), event.writerId(), event.commentCreatedAt());
+                    event.commentId(), event.publicRoomId(), event.sentenceId(), event.writerId(),
+                    event.passageSequence(), event.commentCreatedAt());
             logRetryTasks(event.commentId(), tasks);
         } catch (FirebaseMessagingException exception) {
             failureHandler.handleCallFailure(event.commentId(), exception);

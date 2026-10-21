@@ -11,6 +11,7 @@ import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.SendResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,8 +25,9 @@ public class FcmPushSender {
     private final FirebaseMessaging messaging;
     private final FcmMessageFactory messageFactory;
 
-    public FcmSendResult send(List<String> orderedFids, String title, String body) throws FirebaseMessagingException {
-        MulticastMessage message = messageFactory.createMulticastMessage(orderedFids, title, body);
+    public FcmSendResult send(List<String> orderedFids, String title, String body, Map<String, String> data)
+            throws FirebaseMessagingException {
+        MulticastMessage message = messageFactory.createMulticastMessage(orderedFids, title, body, data);
         log.atInfo().addKeyValue(OPERATION, "notification.fcm.send").log("FCM 전송을 요청합니다.");
         BatchResponse response = messaging.sendEachForMulticast(message);
         FcmSendResult result = toResult(orderedFids, response);

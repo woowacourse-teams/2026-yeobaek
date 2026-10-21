@@ -25,8 +25,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import yeobaek.backend.comment.domain.ClubCommentCreated;
-import yeobaek.backend.comment.domain.PublicRoomCommentCreated;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
+import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmRetryProcessor;
 import yeobaek.backend.notification.domain.FcmRetryTask;
@@ -75,9 +75,9 @@ class CommentNotificationAsyncTest {
             }
         };
         if (club) {
-            doAnswer(blockedSend).when(service).notifyReadersInClub(11L, 5L, 13L, 7L, CREATED_AT);
+            doAnswer(blockedSend).when(service).notifyReadersInClub(11L, 5L, 13L, 7L, 3, CREATED_AT);
         } else {
-            doAnswer(blockedSend).when(service).notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, CREATED_AT);
+            doAnswer(blockedSend).when(service).notifyPreviousCommentersInPublicRoom(11L, 8L, 13L, 7L, 3, CREATED_AT);
         }
 
         try (var requests = Executors.newSingleThreadExecutor()) {
@@ -111,14 +111,14 @@ class CommentNotificationAsyncTest {
                 secondFinished.countDown();
             }
             return List.of();
-        }).when(service).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(CREATED_AT));
+        }).when(service).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(3), eq(CREATED_AT));
 
         try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
-            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L, CREATED_AT));
+            listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
             try {
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
-                listener.onClubCommentCreated(new ClubCommentCreated(12L, 5L, 13L, 7L, CREATED_AT));
-                listener.onClubCommentCreated(new ClubCommentCreated(13L, 5L, 13L, 7L, CREATED_AT));
+                listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(12L, 5L, 13L, 7L, 3, CREATED_AT));
+                listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(13L, 5L, 13L, 7L, 3, CREATED_AT));
 
                 var event = logs.event("notification.comment.submit", "rejected");
                 assertThat(event.getLevel()).isEqualTo(Level.WARN);
@@ -128,14 +128,14 @@ class CommentNotificationAsyncTest {
             }
             assertThat(secondFinished.await(5, TimeUnit.SECONDS)).isTrue();
         }
-        verify(service, times(2)).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(CREATED_AT));
+        verify(service, times(2)).notifyReadersInClub(anyLong(), eq(5L), eq(13L), eq(7L), eq(3), eq(CREATED_AT));
     }
 
     @Test
     @DisplayName("워커의 예기치 않은 예외는 댓글 ID·요청 MDC와 함께 기록하고 다음 작업을 처리한다")
     void recordUnexpectedWorkerFailureAndContinue() throws Exception {
         doThrow(new IllegalStateException("unexpected failure"))
-                .when(service).notifyReadersInClub(11L, 5L, 13L, 7L, CREATED_AT);
+                .when(service).notifyReadersInClub(11L, 5L, 13L, 7L, 3, CREATED_AT);
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
 
@@ -162,9 +162,9 @@ class CommentNotificationAsyncTest {
 
     private void notify(boolean club) {
         if (club) {
-            listener.onClubCommentCreated(new ClubCommentCreated(11L, 5L, 13L, 7L, CREATED_AT));
+            listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
         } else {
-            listener.onPublicRoomCommentCreated(new PublicRoomCommentCreated(11L, 8L, 13L, 7L, CREATED_AT));
+            listener.onPublicRoomSentenceCommentCreated(new PublicRoomSentenceCommentCreatedEvent(11L, 8L, 13L, 7L, 3, CREATED_AT));
         }
     }
 }

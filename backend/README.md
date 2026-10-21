@@ -161,6 +161,22 @@ python3 src/main/resources/static/fcm-test/configure.py
 현재 등록 API는 기존 등록을 삭제하거나 다른 회원으로 이전하지 않으므로 프로필별 수신 회원을 고정합니다.
 `local` 서버를 재시작하면 DB와 등록 내역도 재생성되므로 각 프로필에서 다시 등록합니다.
 
+### 댓글 푸시의 화면 이동 데이터
+
+댓글 푸시는 제목·본문의 `notification`과 함께 아래 `data`를 전달합니다. 모든 값은 문자열입니다.
+
+| 필드 | 모임 댓글 | 공개방 댓글 |
+|---|---|---|
+| `type` | `CLUB_COMMENT` | `PUBLIC_ROOM_COMMENT` |
+| 공간 ID | `clubId` | `publicRoomId` |
+| `passageSequence` | 댓글 문장이 속한 문단의 순서 | 동일 |
+| `sentenceId` | 댓글이 달린 문장 ID | 동일 |
+
+`passageSequence`는 문단 ID나 문장 순서가 아닙니다. 댓글 저장 트랜잭션에서 읽은 값을
+`comment.event`의 `ClubSentenceCommentCreatedEvent` 또는 `PublicRoomSentenceCommentCreatedEvent`에 복사합니다.
+워커가 이 값으로 메시지를 만들며, 부분 실패와 호출 전체 실패로 생성된 재시도 작업도 같은 데이터를 보관합니다.
+앱에서는 `type`과 해당 공간 ID로 화면을 고른 뒤 문단 순서·문장 ID로 댓글 위치를 연결합니다.
+
 ### PostHog 로컬 확인
 
 PostHog는 기본적으로 비활성화되어 있습니다. US Cloud 프로젝트에서 사용자 API 행동 이벤트를 확인하려면 프로젝트 API 키를 환경변수로 주입해 개발 서버를 시작합니다. API 키는 저장소나 채팅에 남기지 않습니다.
