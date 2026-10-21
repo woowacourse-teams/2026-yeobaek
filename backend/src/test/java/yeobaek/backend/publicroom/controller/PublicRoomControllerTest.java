@@ -243,8 +243,8 @@ class PublicRoomControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("공개방 댓글 상세 응답에도 좋아요 수와 내 좋아요 여부를 포함한다")
-    void findCommentDetailsWithLikes() throws Exception {
+    @DisplayName("공개방 댓글 상세 응답 계약을 검증한다")
+    void findCommentDetailsResponse() throws Exception {
         givenValidMember(1L);
         var comment = new CommentResponse(9L, 2L, "작성자", "댓글",
                 LocalDateTime.of(2026, 9, 30, 10, 0), null, false, 3, true);
