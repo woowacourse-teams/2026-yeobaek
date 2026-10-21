@@ -301,7 +301,7 @@ class CommentControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("본문 없는 좋아요 추가 요청을 서비스에 전달하고 처리 후 좋아요 정보를 반환한다")
+    @DisplayName("좋아요 추가 요청을 서비스에 전달하고 처리 결과를 반환한다")
     void addLike() throws Exception {
         givenValidMember(4L);
         given(commentService.addLike(4L, 9L)).willReturn(new CommentLikeResponse(3, true));
@@ -317,7 +317,7 @@ class CommentControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("본문 없는 좋아요 취소 요청을 서비스에 전달하고 좋아요 0개와 취소 상태를 반환한다")
+    @DisplayName("좋아요 취소 요청을 서비스에 전달하고 처리 결과를 반환한다")
     void cancelLike() throws Exception {
         givenValidMember(5L);
         given(commentService.cancelLike(5L, 12L)).willReturn(new CommentLikeResponse(0, false));
