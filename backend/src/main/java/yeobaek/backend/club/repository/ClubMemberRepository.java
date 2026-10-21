@@ -23,17 +23,6 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
         return existsByMemberIdAndClubIdAndStatus(memberId, clubId, ClubMemberStatus.JOINED);
     }
 
-    @Query("""
-            select count(cm) > 0 from ClubMember cm
-            where cm.member.id = :memberId
-              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-              and cm.club.id = (
-                  select comment.clubComment.club.id from Comment comment where comment.id = :commentId
-              )
-            """)
-    boolean existsJoinedByMemberIdAndCommentId(@Param(MEMBER_ID) Long memberId,
-                                               @Param("commentId") Long commentId);
-
     Optional<ClubMember> findByMemberIdAndClubId(Long memberId, Long clubId);
 
     Optional<ClubMember> findByMemberIdAndClubIdAndStatus(Long memberId, Long clubId, ClubMemberStatus status);

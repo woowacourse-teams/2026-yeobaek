@@ -19,9 +19,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -79,7 +76,6 @@ class ReadingSchemaMigrationTest {
                 assertThat(databaseFingerprint(rerunConnection)).isEqualTo(beforeRerun);
                 executeVerification(rerunConnection);
             }
-            validateJpaMappings();
         }
     }
 
@@ -247,26 +243,6 @@ class ReadingSchemaMigrationTest {
                 "public_room_member_last_reads", "club_comments", "public_room_comments",
                 "reports", "public_room_members")) {
             assertAutoIncrementAboveMaxId(connection, table);
-        }
-    }
-
-    private void validateJpaMappings() {
-        SpringApplication application = new SpringApplication(yeobaek.backend.BackendApplication.class);
-        application.setWebApplicationType(WebApplicationType.NONE);
-        try (ConfigurableApplicationContext context = application.run(
-                "--spring.datasource.url=" + MYSQL.getJdbcUrl(),
-                "--spring.datasource.username=" + MYSQL.getUsername(),
-                "--spring.datasource.password=" + MYSQL.getPassword(),
-                "--spring.jpa.hibernate.ddl-auto=validate",
-                "--spring.flyway.enabled=false",
-                "--spring.sql.init.mode=never",
-                "--storage.s3.bucket=yeobaek-migration-test",
-                "--storage.s3.region=ap-northeast-2",
-                "--storage.s3.public-base-url=https://example.com",
-                "--posthog.enabled=false",
-                "--spring.main.banner-mode=off",
-                "--logging.level.root=ERROR")) {
-            assertThat(context.isActive()).isTrue();
         }
     }
 

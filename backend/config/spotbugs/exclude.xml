@@ -34,7 +34,7 @@
         <Method name="&lt;init&gt;" params="yeobaek.backend.book.domain.Book" returns="void"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
-    <!-- CommentView와 CommentReport도 원본 Comment의 JPA 식별성을 공유하므로 comment 필드만 제외한다. -->
+    <!-- CommentView, CommentReport, CommentLike도 원본 Comment의 JPA 식별성을 공유하므로 comment 필드만 제외한다. -->
     <Match>
         <Class name="yeobaek.backend.comment.domain.CommentView"/>
         <Method name="&lt;init&gt;" params="yeobaek.backend.member.domain.Member,yeobaek.backend.comment.domain.Comment" returns="void"/>
@@ -43,6 +43,12 @@
     </Match>
     <Match>
         <Class name="yeobaek.backend.comment.domain.CommentReport"/>
+        <Method name="&lt;init&gt;" params="yeobaek.backend.member.domain.Member,yeobaek.backend.comment.domain.Comment" returns="void"/>
+        <Field name="comment" type="yeobaek.backend.comment.domain.Comment"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="yeobaek.backend.comment.domain.CommentLike"/>
         <Method name="&lt;init&gt;" params="yeobaek.backend.member.domain.Member,yeobaek.backend.comment.domain.Comment" returns="void"/>
         <Field name="comment" type="yeobaek.backend.comment.domain.Comment"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
