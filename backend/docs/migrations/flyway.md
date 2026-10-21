@@ -1,5 +1,7 @@
 # Flyway 도입과 기존 DB baseline
 
+기존 DB를 처음 편입하는 절차와 이후 SQL 버전 관리, 로컬·테스트 환경의 동작을 설명한다.
+
 스키마 변경은 `src/main/resources/db/migration`의 버전 SQL로 관리한다. 앱 시작 시 Flyway가
 미적용 SQL을 실행하고 Hibernate `ddl-auto=validate`가 엔티티 매핑을 검증한다.
 적용한 SQL은 수정하지 않고 다음 버전 파일을 추가한다.
@@ -14,8 +16,7 @@
   별도 DDL이 적용된 DB는 추가 컬럼을 포함한
   차이를 먼저 검토하고 임의로 baseline하지 않는다.
 
-`pre_registrations`는 관리 대상에서 제외하므로 V1에 포함하지 않는다. 기존 DB에 남아 있어도
-baseline으로 삭제되지 않는다. 스키마 비교에서는 이 테이블과 `flyway_schema_history`를 제외한다.
+스키마 비교에서는 `flyway_schema_history`를 제외한다.
 운영의 컬럼 배치는 보존하며, 환경 간 테이블 컬럼의 배치 순서만 다른 경우는 허용한다.
 복합 인덱스·제약의 구성 컬럼 순서는 일치해야 한다.
 
@@ -40,62 +41,119 @@ baseline으로 삭제되지 않는다. 스키마 비교에서는 이 테이블�
 
 ## 명시적 baseline 실행
 
-서버에 저장소가 없다면 **배포할 커밋의 공통 migration 디렉터리만** 전달한다.
-`db/local`과 테스트 SQL을 함께 복사하지 않는다. CLI 버전은 앱의 Boot BOM이 관리하는 Flyway 12.4.0에 맞춘다.
-Boot를 올릴 때 CLI 버전도 관리 의존성과 대조한다. 운영 EC2는 ARM64이며 해당 버전의 Flyway Docker
-이미지는 AMD64만 제공하므로, 공식 JRE 미포함 배포판과 ARM64를 지원하는 Temurin 21 컨테이너를 사용한다.
+아래 명령은 **구조를 확인한 기존 DB에 baseline 1만 기록**하는 EC2 Ubuntu Bash 명령이다.
+먼저 위의 V1 비교·백업 복원 검증·쓰기 중지를 완료한다. 명령은 앱을 중지하거나 시작하지 않는다.
+baseline은 실제 스키마를 검증하지 않으므로 V1 비교를 대신하지 않는다. 실행할 SQL이 없어
+서버에 저장소나 migration 파일을 복사할 필요는 없다.
 
-다음 예시는 개발 서버의 `~/yeobaek-dev`, Compose 프로젝트 `yeobaek-dev`를 사용한다.
-운영 서버는 `~/yeobaek`에서 `docker compose`를 사용한다. 앱이 실행 중일 때 접속 정보를 읽고,
-계획한 유지보수 절차로 앱과 다른 쓰기 경로를 중지한 뒤 baseline을 수행한다. 비밀번호를 출력하지 않는다.
+`dev`는 `~/yeobaek-dev`의 Compose 프로젝트 `yeobaek-dev`, `prod`는 `~/yeobaek`을 사용한다.
+실행 중인 MySQL과 기존 앱 컨테이너의 설정을 읽으므로 앱 컨테이너는 중지 상태여도 된다.
+앱의 DB 주소가 이 Compose의 MySQL을 가리키지 않거나 DB 이름이 다르면 실행을 거부한다.
+외부 DB를 사용하는 환경은 접속 대상을 별도로 확인한 절차가 필요하다.
+
+Flyway CLI는 앱의 Boot BOM과 같은 12.4.0을 사용한다. 공식 OSS JRE 미포함 배포판을
+캐시하고 ARM64를 지원하는 Temurin 21에서 실행한다.
+Boot를 올릴 때 CLI 버전도 대조한다. 서버에는 Docker Compose, `curl`, `tar`가 필요하다.
+변수는 아래 서브셸이 끝나면 사라지며 `.env`나 셸 설정 파일을 바꾸지 않는다.
 
 ```bash
-set -euo pipefail
-CLI_ROOT="$HOME/yeobaek-migrations/cli"
-mkdir -p "$CLI_ROOT"
-curl --fail --location \
-  --output "$CLI_ROOT/flyway-commandline-12.4.0.tar.gz" \
-  https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/12.4.0/flyway-commandline-12.4.0.tar.gz
-tar -xzf "$CLI_ROOT/flyway-commandline-12.4.0.tar.gz" -C "$CLI_ROOT"
-FLYWAY_HOME="$CLI_ROOT/flyway-12.4.0"
-test -f "$FLYWAY_HOME/flyway"
-docker run --rm \
-  --mount "type=bind,source=$FLYWAY_HOME,target=/flyway,readonly" \
-  eclipse-temurin:21-jdk bash /flyway/flyway -v
-cd "$HOME/yeobaek-dev"
-APP_CONTAINER=$(docker compose -p yeobaek-dev ps -q app)
-test -n "$APP_CONTAINER"
-FLYWAY_URL=$(docker exec "$APP_CONTAINER" printenv DB_URL)
-FLYWAY_USER=$(docker exec "$APP_CONTAINER" printenv DB_USERNAME)
-FLYWAY_PASSWORD=$(docker exec "$APP_CONTAINER" printenv DB_PASSWORD)
-export FLYWAY_URL FLYWAY_USER FLYWAY_PASSWORD
-test -n "$FLYWAY_URL" && test -n "$FLYWAY_USER" && test -n "$FLYWAY_PASSWORD"
-# inspect 결과에서 DB에 접근 가능한 네트워크를 확인해 선택한다.
-docker inspect --format '{{json .NetworkSettings.Networks}}' "$APP_CONTAINER"
-read -r -p 'DB 접근 네트워크: ' FLYWAY_NETWORK
-MIGRATION_DIR="$HOME/yeobaek-migrations/flyway"
-test -f "$MIGRATION_DIR/V1__init_schema.sql"
-# 위 스키마 비교·백업·쓰기 중지까지 완료한 경우에만 실행한다.
-docker run --rm --network "$FLYWAY_NETWORK" \
-  -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD \
-  --mount "type=bind,source=$FLYWAY_HOME,target=/flyway,readonly" \
-  --mount "type=bind,source=$MIGRATION_DIR,target=/migrations,readonly" \
-  eclipse-temurin:21-jdk bash /flyway/flyway \
-  -locations=filesystem:/migrations -baselineVersion=1 baseline
+(
+  set -euo pipefail
+  umask 077
 
-docker run --rm --network "$FLYWAY_NETWORK" \
-  -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD \
-  --mount "type=bind,source=$FLYWAY_HOME,target=/flyway,readonly" \
-  --mount "type=bind,source=$MIGRATION_DIR,target=/migrations,readonly" \
-  eclipse-temurin:21-jdk bash /flyway/flyway \
-  -locations=filesystem:/migrations info
-unset FLYWAY_PASSWORD FLYWAY_USER FLYWAY_URL
+  read -r -p '대상 환경(dev/prod): ' TARGET_ENV
+  case "$TARGET_ENV" in
+    dev)
+      cd "$HOME/yeobaek-dev"
+      COMPOSE=(docker compose -p yeobaek-dev -f docker-compose.yml)
+      ;;
+    prod)
+      cd "$HOME/yeobaek"
+      COMPOSE=(docker compose -f docker-compose.yml)
+      ;;
+    *) printf 'dev 또는 prod를 입력해야 합니다.\n' >&2; exit 1 ;;
+  esac
+
+  mapfile -t MYSQL_CONTAINERS < <("${COMPOSE[@]}" ps --status running -q mysql)
+  mapfile -t APP_CONTAINERS < <("${COMPOSE[@]}" ps -a -q app)
+  if (( ${#MYSQL_CONTAINERS[@]} != 1 || ${#APP_CONTAINERS[@]} != 1 )); then
+    printf '실행 중인 mysql과 기존 app 컨테이너가 각각 하나여야 합니다.\n' >&2
+    exit 1
+  fi
+  MYSQL_CONTAINER=${MYSQL_CONTAINERS[0]}
+  APP_CONTAINER=${APP_CONTAINERS[0]}
+  APP_DB_URL=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
+    "$APP_CONTAINER" | sed -n 's/^DB_URL=//p')
+  DB_NAME=$(docker exec "$MYSQL_CONTAINER" printenv MYSQL_DATABASE)
+  FLYWAY_PASSWORD=$(docker exec "$MYSQL_CONTAINER" printenv MYSQL_ROOT_PASSWORD)
+  URL_PATTERN='^jdbc:mysql://mysql:3306/([A-Za-z0-9_]+)(\?.*)?$'
+  if [[ ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ]] || [[ ! "$APP_DB_URL" =~ $URL_PATTERN ]]; then
+    printf '앱 DB_URL이 Compose 내부 mysql 주소 형식이 아니거나 DB 이름이 유효하지 않습니다.\n' >&2
+    exit 1
+  fi
+  if [[ "${BASH_REMATCH[1]}" != "$DB_NAME" || -z "$FLYWAY_PASSWORD" ]]; then
+    printf '앱과 MySQL의 DB 이름이 다르거나 root 비밀번호가 없습니다.\n' >&2
+    exit 1
+  fi
+  URL_QUERY=${BASH_REMATCH[2]}
+  if [[ -n "$URL_QUERY" ]]; then
+    URL_QUERY+='&allowPublicKeyRetrieval=true'
+  else
+    URL_QUERY='?allowPublicKeyRetrieval=true'
+  fi
+  FLYWAY_URL="jdbc:mysql://127.0.0.1:3306/$DB_NAME$URL_QUERY"
+  FLYWAY_USER=root
+  export FLYWAY_URL FLYWAY_USER FLYWAY_PASSWORD
+
+  query() {
+    docker exec "$MYSQL_CONTAINER" sh -c '
+      MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names \
+        "$MYSQL_DATABASE" -e "$1"
+    ' sh "$1"
+  }
+  TABLE_COUNT=$(query "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'")
+  HISTORY_COUNT=$(query "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'flyway_schema_history'")
+  if (( TABLE_COUNT == 0 || HISTORY_COUNT != 0 )); then
+    printf '빈 DB이거나 Flyway 이력이 이미 존재합니다. baseline을 실행하지 않습니다.\n' >&2
+    exit 1
+  fi
+  printf '대상: %s / DB: %s / MySQL: %s / 앱: %s\n' \
+    "$TARGET_ENV" "$DB_NAME" "$MYSQL_CONTAINER" "$APP_CONTAINER"
+  read -r -p 'V1 비교·백업 복원 검증·쓰기 중지 완료 시 BASELINE 1 입력: ' CONFIRM
+  [[ "$CONFIRM" == 'BASELINE 1' ]] || exit 1
+
+  CLI_ROOT="$HOME/yeobaek-migrations/cli"
+  FLYWAY_HOME="$CLI_ROOT/flyway-12.4.0"
+  mkdir -p "$CLI_ROOT"
+  if [[ ! -f "$FLYWAY_HOME/flyway" ]]; then
+    ARCHIVE=$(mktemp --tmpdir="$CLI_ROOT" --suffix=.tar.gz flyway-12.4.0.XXXXXX)
+    trap 'rm -f "$ARCHIVE"' EXIT
+    curl --fail --location --output "$ARCHIVE" \
+      https://github.com/flyway/flyway/releases/download/flyway-12.4.0/flyway-commandline-12.4.0.tar.gz
+    tar -xzf "$ARCHIVE" -C "$CLI_ROOT"
+    rm -f "$ARCHIVE"
+    trap - EXIT
+  fi
+  for ACTION in baseline info; do
+    docker run --rm --network "container:$MYSQL_CONTAINER" \
+      -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD \
+      --mount "type=bind,source=$FLYWAY_HOME,target=/flyway,readonly" \
+      eclipse-temurin:21-jdk bash /flyway/flyway -baselineVersion=1 "$ACTION"
+  done
+  BASELINE_COUNT=$(query "SELECT COUNT(*) FROM flyway_schema_history WHERE type = 'BASELINE' AND version = '1' AND success = 1")
+  [[ "$BASELINE_COUNT" == 1 ]] || { printf 'baseline 1 기록을 확인할 수 없습니다.\n' >&2; exit 1; }
+  printf 'baseline 1 기록 확인 완료\n'
+)
 ```
 
-`info`와 DB의 `flyway_schema_history`에서 버전 1의 `BASELINE` 기록을 확인하고, 전후 행 수·표본이
-유지되는지 검사한다. 이후 새 앱을 배포한다. Flyway가 후속 SQL을 실행하고 JPA 검증까지 통과하면
-헬스체크와 주요 API를 확인한 뒤 쓰기를 재개한다. 이미 이력이 존재하면 baseline을 반복하지 않는다.
-Flyway `validate`는 migration 파일과 이력의 버전·이름·체크섬을 검사하며 실제 스키마 비교 도구가 아니다.
+`baseline 1 기록 확인 완료`가 출력되면 기록 검증까지 성공한 것이다. migration 파일을 전달하지
+않으므로 `No locations configured...` 또는 `No migrations found on disk.` 안내가 나올 수 있으며,
+이는 스키마 검증 실패를 뜻하지 않는다.
+
+전후 행 수·표본 데이터가 유지되는지 검사한 뒤 새 앱을 배포한다. Flyway가 후속 SQL을 실행하고
+JPA 검증까지 통과하면 헬스체크와 주요 API를 확인한 뒤 쓰기를 재개한다. 이미 이력이 존재하면
+baseline을 반복하지 않는다. Flyway `validate`는 migration 파일과 이력의 버전·이름·체크섬을
+검사하며 실제 스키마 비교 도구가 아니다.
 
 MySQL DDL은 암묵적으로 커밋될 수 있다. 실행 실패 시 실제 적용된 구조와 이력을 먼저 조사한다.
 `clean`, 이력 삭제, 무조건적인 `repair`나 baseline 버전 변경으로 실패를 숨기지 않는다.

@@ -1,5 +1,4 @@
 -- MySQL 8.4 initial schema from the production snapshot after constraint/index name normalization.
--- Only application tables are managed here; pre_registrations is excluded.
 
 CREATE TABLE `authors` (
   `id` bigint NOT NULL AUTO_INCREMENT,
