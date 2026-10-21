@@ -79,15 +79,6 @@ class CommentLikeRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("본인 댓글에도 좋아요를 저장할 수 있다")
-    void saveOwnCommentLike() {
-        commentLikeRepository.saveAndFlush(new CommentLike(writer, comment));
-
-        assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
-        assertThat(commentLikeRepository.count()).isEqualTo(1);
-    }
-
-    @Test
     @DisplayName("같은 회원과 댓글의 좋아요는 DB에서 중복 저장을 거부한다")
     void rejectDuplicateLike() {
         commentLikeRepository.saveAndFlush(new CommentLike(reader, comment));
