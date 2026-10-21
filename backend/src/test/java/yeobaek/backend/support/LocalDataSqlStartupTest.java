@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -26,6 +27,7 @@ class LocalDataSqlStartupTest {
             .toString();
 
     @Test
+    @DisplayName("local 프로파일은 시드를 한 번만 적용하고 앱을 재기동해도 데이터를 보존한다")
     void localProfileSeedsDataOnceAndPreservesDataOnRestart() {
         try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4")) {
             mysql.start();
@@ -45,6 +47,7 @@ class LocalDataSqlStartupTest {
     }
 
     @Test
+    @DisplayName("기본·prod·prod,dev 프로파일에서는 local 시드를 적용하지 않는다")
     void otherProfilesDoNotLoadLocalSeed() {
         for (String profile : List.of(DEFAULT_PROFILE, "prod", DEV_PROFILES)) {
             try (MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.4")) {

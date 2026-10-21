@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -39,6 +40,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("빈 DB는 JPA 검증 전에 마이그레이션하고 앱을 재기동해도 데이터를 보존한다")
     void emptyDatabaseMigratesBeforeJpaValidationAndRestartPreservesData() {
         try (ConfigurableApplicationContext context = startApplication("classpath:db/migration")) {
             JdbcTemplate jdbcTemplate = context.getBean(JdbcTemplate.class);
@@ -57,6 +59,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("기존 DB를 baseline하면 데이터를 보존하고 이후 버전의 마이그레이션만 적용한다")
     void explicitBaselinePreservesExistingDataAndAppliesOnlyLaterChanges() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
@@ -84,6 +87,7 @@ class FlywayMigrationTest {
     }
 
     @Test
+    @DisplayName("이력이 없는 기존 DB는 명시적인 baseline 없이 마이그레이션할 수 없다")
     void nonemptyDatabaseWithoutHistoryRequiresExplicitBaseline() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
