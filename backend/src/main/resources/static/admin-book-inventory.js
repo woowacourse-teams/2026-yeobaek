@@ -96,14 +96,6 @@
         return '\uFEFF' + [CSV_HEADERS.join(','), ...rows].join('\r\n');
     }
 
-    function withUploadDescription(payload, reviewedDescription) {
-        if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
-            throw new Error('도서 JSON은 객체여야 합니다.');
-        }
-        const description = reviewedDescription.trim();
-        return description ? { ...payload, description } : payload;
-    }
-
     function createDescriptionEditor(document, book, onSave) {
         const editor = document.createElement('details');
         editor.className = 'description-editor';
@@ -138,5 +130,5 @@
         return editor;
     }
 
-    return { booksToCsv, createState, withUploadDescription, createDescriptionEditor };
+    return { booksToCsv, createState, createDescriptionEditor };
 }));

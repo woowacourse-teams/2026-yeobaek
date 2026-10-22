@@ -119,6 +119,17 @@ public class Book {
     }
 
     public void replaceDescription(BookDescription description) {
+        if (description == null) {
+            throw new IllegalArgumentException("교체할 책 소개는 필수입니다.");
+        }
+        updateDescription(description);
+    }
+
+    public void removeDescription() {
+        updateDescription(null);
+    }
+
+    private void updateDescription(BookDescription description) {
         ensureAvailable();
         this.description = description;
     }

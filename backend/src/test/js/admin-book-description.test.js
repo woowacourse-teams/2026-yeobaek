@@ -1,21 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { withUploadDescription, createDescriptionEditor } =
+const { createDescriptionEditor } =
     require('../../main/resources/static/admin-book-inventory.js');
-
-test('선택 입력이 비어 있으면 구형 JSON과 기존 소개를 보존한다', () => {
-    const legacy = { title: '책', chapters: [] };
-    assert.equal(withUploadDescription(legacy, ' \n'), legacy);
-    assert.equal('description' in legacy, false);
-    const existing = { ...legacy, description: '기존 소개' };
-    assert.equal(withUploadDescription(existing, ''), existing);
-    const result = withUploadDescription(existing, ' 검수한 소개\n');
-    assert.equal(result.description, '검수한 소개');
-    assert.equal(existing.description, '기존 소개');
-    for (const invalid of [null, [], '책']) {
-        assert.throws(() => withUploadDescription(invalid, '소개'), /객체/);
-    }
-});
 
 function editorHarness(book, onSave) {
     const document = {

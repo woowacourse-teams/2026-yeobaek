@@ -105,7 +105,7 @@ class AdminBookServiceTest extends IntegrationTest {
         Book book = bookRepository.save(new Book(new BookTitle("소개 도서"), null, null, 1, null,
                 new BookDescription("기존 소개"), null));
 
-        adminBookService.replaceDescription(book.getId(), null);
+        adminBookService.removeDescription(book.getId());
 
         assertThat(bookRepository.getById(book.getId()).getDescription()).isNull();
     }
@@ -113,7 +113,7 @@ class AdminBookServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않는 도서의 소개는 교체할 수 없다")
     void cannotReplaceDescriptionOfMissingBook() {
-        assertThatThrownBy(() -> adminBookService.replaceDescription(999L, null))
+        assertThatThrownBy(() -> adminBookService.replaceDescription(999L, new BookDescription("새 소개")))
                 .isInstanceOf(NotFoundException.class)
                 .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_FOUND);
     }

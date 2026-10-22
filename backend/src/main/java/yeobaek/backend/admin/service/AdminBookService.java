@@ -65,6 +65,13 @@ public class AdminBookService {
     }
 
     @Transactional
+    public void removeDescription(Long bookId) {
+        logAttempt("admin.book.removeDescription", bookId);
+        bookManagementRepository.getById(bookId).removeDescription();
+        logSuccess("admin.book.removeDescription", bookId);
+    }
+
+    @Transactional
     public void replaceCoverImage(Long bookId, String coverImageKey) {
         logAttempt("admin.book.replaceCoverImage", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);

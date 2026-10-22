@@ -420,15 +420,26 @@ class AdminBookControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"{}", "{\"description\":null}"})
-        @DisplayName("책 소개가 누락되거나 null이면 소개를 비운다")
-        void clearDescription(String body) throws Exception {
+        @DisplayName("책 소개가 누락되거나 null이면 소개 교체 요청을 거부한다")
+        void rejectMissingDescriptionOnReplacement(String body) throws Exception {
             mockMvc.perform(put("/api/admin/books/{bookId}/description", 3L)
                             .header("X-Admin-Token", "controller-test-token")
                             .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+            verifyNoInteractions(adminBookService);
+        }
+
+        @Test
+        @DisplayName("책 소개 제거 API로 소개를 비운다")
+        void removeDescription() throws Exception {
+            mockMvc.perform(delete("/api/admin/books/{bookId}/description", 3L)
+                            .header("X-Admin-Token", "controller-test-token"))
                     .andExpect(status().isNoContent())
                     .andExpect(content().string(""));
 
-            verify(adminBookService, times(1)).replaceDescription(3L, null);
+            verify(adminBookService).removeDescription(3L);
         }
 
         @Test

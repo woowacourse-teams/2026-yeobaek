@@ -881,7 +881,7 @@
 
 표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
 
-### 도서 소개 교체·비우기
+### 도서 소개 교체
 `PUT /api/admin/books/{bookId}/description`
 
 요청:
@@ -890,11 +890,18 @@
 ```
 
 - 관리자 토큰 인증을 사용하며 성공 응답은 `204 No Content`다.
-- `description`은 선택 문자열이다. `null` 또는 필드 누락(`{}`)은 소개를 비운다.
-- 빈 문자열이나 공백만 있는 값은 `400` (`INVALID_REQUEST`)으로 거부한다.
+- `description`은 필수 문자열이다. 필드 누락·`null`·빈 문자열·공백만 있는 값은 `400` (`INVALID_REQUEST`)으로 거부한다.
 - 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 - 소개만 변경하며 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다. 동일 요청은 같은 상태로 처리한다.
+
+### 도서 소개 제거
+`DELETE /api/admin/books/{bookId}/description`
+
+- 관리자 토큰 인증을 사용하며 요청 본문은 없다.
+- 소개를 `null`로 비우며 성공 응답은 `204 No Content`다. 이미 소개가 없어도 성공한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다.
 
 ### 도서 표지 교체
 `PUT /api/admin/books/{bookId}/cover`
@@ -979,7 +986,7 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 검수한 소개 선택 입력·소개 편집/비우기 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -1074,7 +1081,8 @@
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
-| PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체·비우기 |
+| PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체 |
+| DELETE | /api/admin/books/{bookId}/description | (관리자) 도서 소개 제거 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |

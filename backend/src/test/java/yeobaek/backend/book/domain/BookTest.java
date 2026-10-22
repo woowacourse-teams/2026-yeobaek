@@ -62,6 +62,29 @@ class BookTest {
     }
 
     @Test
+    @DisplayName("교체할 소개가 null이면 기존 소개를 유지하고 거부한다")
+    void rejectNullDescriptionOnReplacement() {
+        var description = new BookDescription("기존 소개");
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, description, null);
+
+        assertThatThrownBy(() -> book.replaceDescription(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(book.getDescription()).isEqualTo(description);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 소개는 제거할 수 없다")
+    void cannotRemoveDescriptionOfDeletedBook() {
+        var description = new BookDescription("기존 소개");
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, description, null);
+        book.delete();
+
+        assertThatThrownBy(book::removeDescription)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+        assertThat(book.getDescription()).isEqualTo(description);
+    }
+
+    @Test
     @DisplayName("이용할 수 없는 저장 도서는 예외 로그 컨텍스트에 도서 ID와 상태를 제공한다")
     void unavailableBookHasLogContext() {
         Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
