@@ -7,6 +7,7 @@ import com.google.firebase.messaging.RemoteMessage
 class YeobaekMessagingService : FirebaseMessagingService() {
 
     override fun onRegistered(installationId: String) {
+        (application as YeobaekApplication).appContainer.updateFirebaseInstallationId(installationId)
         if (BuildConfig.DEBUG) Log.d("FCM", "Registered installation ID: $installationId")
     }
 

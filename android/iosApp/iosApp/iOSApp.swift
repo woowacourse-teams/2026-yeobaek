@@ -2,10 +2,26 @@ import SwiftUI
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import Shared
 import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     lazy var analyticsClient = IOSPostHogAnalyticsClient()
+    lazy var appContainer = AppContainer(
+        isDebug: isDebug,
+        appVersion: Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? "",
+        analyticsClient: analyticsClient
+    )
+
+    private var isDebug: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
 
     func application(
         _ application: UIApplication,
@@ -13,6 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
+        _ = appContainer
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermissionOnce()
@@ -65,6 +82,9 @@ extension AppDelegate: MessagingDelegate {
         _ messaging: Messaging,
         didReceiveRegistration installationId: String?
     ) {
+        if let installationId {
+            appContainer.updateFirebaseInstallationId(installationId: installationId)
+        }
         #if DEBUG
         if let installationId {
             NSLog("FCM registered installation ID: %@", installationId)
@@ -94,7 +114,7 @@ struct iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(analyticsClient: appDelegate.analyticsClient)
+            ContentView(appContainer: appDelegate.appContainer)
         }
     }
 }

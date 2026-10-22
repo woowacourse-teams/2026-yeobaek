@@ -26,11 +26,6 @@ class YeobaekApplication : Application() {
             )
         }
 
-        FirebaseMessaging.getInstance().register()
-            .addOnFailureListener { error ->
-                Log.e("FCM", "Registration failed", error)
-            }
-
         val isDebug = BuildConfig.DEBUG
         appContainer = AppContainer(
             isDebug = isDebug,
@@ -39,5 +34,10 @@ class YeobaekApplication : Application() {
                 application = this,
             ),
         )
+
+        FirebaseMessaging.getInstance().register()
+            .addOnFailureListener { error ->
+                Log.e("FCM", "Registration failed", error)
+            }
     }
 }
