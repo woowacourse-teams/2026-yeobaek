@@ -1,6 +1,8 @@
 package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_like
+import android.shared.generated.resources.ic_like_click
 import android.shared.generated.resources.ic_menu
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onLongClick
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.designsystem.theme.YeobaekLike
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.CommentUiModel
 import org.jetbrains.compose.resources.painterResource
@@ -43,6 +47,7 @@ fun CommentItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onReport: () -> Unit,
+    onLike: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isMenuExpanded by remember(comment.commentId) {
@@ -82,49 +87,93 @@ fun CommentItem(
             .fillMaxWidth()
             .then(longPressModifier),
     ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
+            Column(
+                modifier = Modifier.fillMaxWidth().weight(1f),
             ) {
-                CommentAvatar(nickname = comment.nickname)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = comment.nickname,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontSize = 12.sp,
-                        ),
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = comment.displayCreatedAt,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                IconButton(
-                    onClick = { isMenuExpanded = true },
-                    modifier = Modifier.size(32.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_menu),
-                        contentDescription = menuButtonDescription,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    CommentAvatar(nickname = comment.nickname)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = comment.nickname,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = 12.sp,
+                            ),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = comment.displayCreatedAt,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.width(42.dp))
+                    Text(
+                        text = comment.content,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.width(42.dp))
-                Text(
-                    text = comment.content,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            Box(
+                modifier = Modifier,
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                Column(
+                    modifier = Modifier,
+                ) {
+                    IconButton(
+                        onClick = { isMenuExpanded = true },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_menu),
+                            contentDescription = menuButtonDescription,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.width(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        IconButton(
+                            onClick = onLike,
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    if (comment.likedByMe) Res.drawable.ic_like_click else Res.drawable.ic_like,
+                                ),
+                                contentDescription = "좋아요 버튼",
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.Unspecified,
+                            )
+                        }
+                        if (comment.likeCount > 0) {
+                            Text(
+                                text = comment.likeCount.toString(),
+                                color = if (comment.likedByMe) {
+                                    YeobaekLike
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 12.sp,
+                                    lineHeight = 18.sp,
+                                ),
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -175,10 +224,13 @@ private fun OtherCommentItemPreview() {
                 createdAt = "2026-08-05T14:30:00",
                 updatedAt = null,
                 isMine = false,
+                likeCount = 12,
+                likedByMe = true,
             ),
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onLike = {},
         )
     }
 }
@@ -196,10 +248,12 @@ private fun MyCommentItemPreview() {
                 createdAt = "2026-08-09T13:10:00",
                 updatedAt = null,
                 isMine = true,
+                likeCount = 3,
             ),
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onLike = {},
         )
     }
 }

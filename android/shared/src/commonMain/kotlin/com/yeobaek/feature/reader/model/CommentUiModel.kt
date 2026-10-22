@@ -10,6 +10,9 @@ data class CommentUiModel(
     val createdAt: String,
     val updatedAt: String?,
     val isMine: Boolean,
+    val likeCount: Long = 0,
+    val likedByMe: Boolean = false,
+    val isLikePending: Boolean = false,
 ) {
     val displayCreatedAt: String
         get() = createdAt.toDisplayDateTime()
@@ -33,4 +36,12 @@ fun CommentModel.toUiModel(): CommentUiModel =
         createdAt = createdAt,
         updatedAt = updatedAt,
         isMine = mine,
+        likeCount = likeCount,
+        likedByMe = likedByMe,
     )
+
+fun CommentUiModel.toggleLikeOptimistically(): CommentUiModel = copy(
+    likeCount = if (likedByMe) (likeCount - 1).coerceAtLeast(0) else likeCount + 1,
+    likedByMe = !likedByMe,
+    isLikePending = true,
+)

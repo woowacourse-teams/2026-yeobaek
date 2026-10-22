@@ -163,6 +163,8 @@ private fun ReaderRoute(
             onDeleteConfirm = commentSheet::confirmDelete,
             onReport = commentSheet::report,
             onReportResultConsumed = commentSheet::consumeReportResult,
+            onLike = commentSheet::toggleLike,
+            onLikeErrorConsumed = commentSheet::consumeLikeError,
         )
     }
 
