@@ -16,6 +16,7 @@ import yeobaek.backend.admin.dto.AdminBookAuthorResponse;
 import yeobaek.backend.admin.dto.AdminBookResponse;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
@@ -54,6 +55,13 @@ public class AdminBookService {
         logAttempt("admin.book.delete", bookId);
         bookManagementRepository.delete(bookId);
         logSuccess("admin.book.delete", bookId);
+    }
+
+    @Transactional
+    public void replaceDescription(Long bookId, BookDescription description) {
+        logAttempt("admin.book.replaceDescription", bookId);
+        bookManagementRepository.getById(bookId).replaceDescription(description);
+        logSuccess("admin.book.replaceDescription", bookId);
     }
 
     @Transactional

@@ -20,6 +20,8 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.BookDescription;
+import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.domain.vo.Isni;
@@ -63,6 +65,31 @@ class BookIngestServiceTest extends IntegrationTest {
     private PublicRoomRepository publicRoomRepository;
 
     @Test
+    @DisplayName("업로드한 책의 본문 글자 수를 저장한다")
+    void uploadStoresBodyCharacterCount() {
+        var request = new BookUploadRequest(new BookTitle("본문 글자 수를 계산할 책"), new Publisher("여백 출판"),
+                2026, null, authorsOfUnknown(), List.of(
+                        new ChapterUploadRequest(new ChapterTitle("첫째 장"), List.of(passage("본문", " 내용"))),
+                        new ChapterUploadRequest(new ChapterTitle("둘째 장"), List.of(passage("다음 문단")))),
+                null);
+
+        var response = bookIngestService.upload(request);
+
+        Book stored = bookRepository.getById(response.bookId());
+        assertThat(stored.getBodyCharacterCount()).isEqualTo(new BodyCharacterCount(10));
+    }
+
+    @Test
+    @DisplayName("업로드한 책의 소개를 저장한다")
+    void uploadStoresDescription() {
+        var description = new BookDescription("일상에서 발견한 작은 변화를 담은 책입니다.");
+        var response = bookIngestService.upload(new BookUploadRequest(new BookTitle("일상의 발견"), null, null, null,
+                authorsOfUnknown(), chaptersWithOnePassage(), description));
+
+        assertThat(bookRepository.getById(response.bookId()).getDescription()).isEqualTo(description);
+    }
+
+    @Test
     @DisplayName("업로드하면 본문 순서가 배열 순서대로 책 전체 기준 1..N으로 부여된다")
     void uploadAssignsDenseSequence() {
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
@@ -70,7 +97,7 @@ class BookIngestServiceTest extends IntegrationTest {
                 List.of(
                         new ChapterUploadRequest(new ChapterTitle("1장"), List.of(
                                 passage("첫 문장. ", "둘째 문장."), passage("둘째 문단"))),
-                        new ChapterUploadRequest(new ChapterTitle("2장"), List.of(passage("셋째 문단")))));
+                        new ChapterUploadRequest(new ChapterTitle("2장"), List.of(passage("셋째 문단")))), null);
 
         BookUploadResponse response = bookIngestService.upload(request);
 
@@ -92,7 +119,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void uploadCreatesPublicRoom() {
         BookUploadResponse response = bookIngestService.upload(new BookUploadRequest(
                 new BookTitle("공개방 도서"), null, null, null,
-                authorsOfUnknown(), chaptersWithOnePassage()));
+                authorsOfUnknown(), chaptersWithOnePassage(), null));
 
         assertThat(publicRoomRepository.findByBookId(response.bookId())).isPresent();
     }
@@ -101,7 +128,7 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("표지 키가 있으면 저장하고 공개 URL을 응답한다")
     void uploadWithCoverImage() {
         BookUploadRequest request = new BookUploadRequest(new BookTitle("표지 도서"), null, null, COVER_KEY,
-                authorsOfUnknown(), chaptersWithOnePassage());
+                authorsOfUnknown(), chaptersWithOnePassage(), null);
 
         BookUploadResponse response = bookIngestService.upload(request);
 
@@ -115,7 +142,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void uploadWithCoverUuid() {
         String uuid = "123e4567-e89b-12d3-a456-426614174000";
         var request = new BookUploadRequest(new BookTitle("UUID 표지 도서"), null, null, uuid,
-                authorsOfUnknown(), chaptersWithOnePassage());
+                authorsOfUnknown(), chaptersWithOnePassage(), null);
 
         var response = bookIngestService.upload(request);
 
@@ -185,12 +212,12 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도·작가 구성이 동일한 도서는 DUPLICATE_BOOK으로 거부한다")
     void rejectDuplicateBook() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))));
+                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))), null);
 
         assertThatThrownBy(() -> bookIngestService.upload(request))
                 .isInstanceOf(BadRequestException.class)
@@ -202,7 +229,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectDuplicateBookWithReorderedAuthors() {
         Author first = authorRepository.save(new Author(new AuthorName("현진건")));
         Author second = authorRepository.save(new Author(new AuthorName("이효석")));
-        Book existing = bookRepository.save(new Book(new BookTitle("공동 작품"), null, null, 1, null));
+        Book existing = bookRepository.save(new Book(new BookTitle("공동 작품"), null, null, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(first, existing));
         authorBookRepository.save(new AuthorBook(second, existing));
 
@@ -210,7 +237,7 @@ class BookIngestServiceTest extends IntegrationTest {
                 List.of(
                         new AuthorEntryRequest(second.getId(), null, null),
                         new AuthorEntryRequest(first.getId(), null, null)),
-                chaptersWithOnePassage());
+                chaptersWithOnePassage(), null);
 
         assertThatThrownBy(() -> bookIngestService.upload(request))
                 .isInstanceOf(BadRequestException.class)
@@ -222,12 +249,12 @@ class BookIngestServiceTest extends IntegrationTest {
     void allowUploadWithDifferentAuthors() {
         Author existingAuthor = authorRepository.save(new Author(new AuthorName("현진건")));
         Author otherAuthor = authorRepository.save(new Author(new AuthorName("이효석")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(existingAuthor, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
                 List.of(new AuthorEntryRequest(otherAuthor.getId(), null, null)),
-                chaptersWithOnePassage());
+                chaptersWithOnePassage(), null);
 
         assertThat(bookIngestService.upload(request).bookId()).isNotNull();
     }
@@ -236,12 +263,12 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("제목·출판사·출판연도가 같아도 새 작가가 포함되면 업로드를 허용한다")
     void allowUploadWithNewAuthor() {
         Author existingAuthor = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(existingAuthor, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
                 List.of(new AuthorEntryRequest(null, new AuthorName("새 작가"), null)),
-                chaptersWithOnePassage());
+                chaptersWithOnePassage(), null);
 
         assertThat(bookIngestService.upload(request).bookId()).isNotNull();
     }
@@ -250,12 +277,12 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("출판연도가 다르면 같은 제목·작가라도 업로드를 허용한다")
     void allowSameTitleWithDifferentYear() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book existing = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(author, existing));
 
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1936, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))));
+                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))), null);
 
         assertThat(bookIngestService.upload(request).bookId()).isNotNull();
     }
@@ -264,12 +291,12 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("삭제된 도서와 같은 서지·작가 구성의 도서는 새 ID로 다시 등록할 수 있다")
     void canRegisterBibliographicTwinOfDeletedBook() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        Book deleted = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null));
+        Book deleted = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 1, null, null, null));
         authorBookRepository.save(new AuthorBook(author, deleted));
         bookRepository.delete(deleted.getId());
         BookUploadRequest request = new BookUploadRequest(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, null,
                 List.of(new AuthorEntryRequest(author.getId(), null, null)),
-                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))));
+                List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of(passage("본문")))), null);
 
         BookUploadResponse response = bookIngestService.upload(request);
 
@@ -281,13 +308,13 @@ class BookIngestServiceTest extends IntegrationTest {
     @DisplayName("작가 0명, 목차 0개, 본문 0개인 목차는 거부한다")
     void rejectEmptyStructures() {
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                List.of(), chaptersWithOnePassage())))
+                List.of(), chaptersWithOnePassage(), null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of())))
+                authorsOfUnknown(), List.of(), null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of())))))
+                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of())), null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -296,11 +323,11 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectBlankContent() {
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(new PassageUploadRequest(List.of())))))))
+                        List.of(new PassageUploadRequest(List.of())))), null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(passage(" ")))))))
+                        List.of(passage(" ")))), null)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -309,7 +336,7 @@ class BookIngestServiceTest extends IntegrationTest {
     void rejectSentenceExceedingTextLimit() {
         BookUploadRequest request = new BookUploadRequest(new BookTitle("제목"), null, null, null,
                 authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                List.of(passage("a".repeat(65_536))))));
+                List.of(passage("a".repeat(65_536))))), null);
 
         assertThatThrownBy(() -> bookIngestService.upload(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -327,7 +354,7 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     private BookUploadRequest requestWithAuthors(AuthorEntryRequest... authors) {
-        return new BookUploadRequest(new BookTitle("새 책"), null, null, null, List.of(authors), chaptersWithOnePassage());
+        return new BookUploadRequest(new BookTitle("새 책"), null, null, null, List.of(authors), chaptersWithOnePassage(), null);
     }
 
     private List<ChapterUploadRequest> chaptersWithOnePassage() {

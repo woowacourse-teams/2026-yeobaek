@@ -65,7 +65,7 @@ class CommentLikeRepositoryTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book(new BookTitle("좋아요 테스트 도서"), null, 1924, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("좋아요 테스트 도서"), null, 1924, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("본문"))));
         writer = memberRepository.save(new Member(new Nickname("작성자")));

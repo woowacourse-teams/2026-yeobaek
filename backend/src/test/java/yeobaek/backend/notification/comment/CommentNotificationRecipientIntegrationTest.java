@@ -112,7 +112,7 @@ class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
             capturedSnapshot.set(invocation.getArgument(1));
             return null;
         }).when(handler).handle(any(), any());
-        var book = bookRepository.save(new Book(new BookTitle("알림 도서"), null, null, 2, null));
+        var book = bookRepository.save(new Book(new BookTitle("알림 도서"), null, null, 2, null, null, null));
         var chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         var passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("댓글 문장"))));
         nextPassage = passageRepository.save(new Passage(chapter, 2, List.of(new SentenceContent("다음 문장"))));

@@ -65,6 +65,8 @@ class ReadingSchemaMigrationTest {
                     addDeployedCommentCheck(connection);
                 }
                 executeScript(connection, MIGRATION);
+                executeScript(connection, Path.of("src", "main", "resources", "db", "migration",
+                        "V4__add_book_details.sql"));
                 executeVerification(connection);
                 verifyMigratedData(connection);
                 verifyConstraintsAndAutoIncrement(connection);

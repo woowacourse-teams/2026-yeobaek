@@ -44,7 +44,7 @@ class ClubsTest {
     }
 
     private Club clubWithId(Long id, String name) {
-        Book book = new Book(new BookTitle("도서"), null, null, 1, null);
+        Book book = new Book(new BookTitle("도서"), null, null, 1, null, null, null);
         Club club = new Club(new ClubName(name), book, new JoinCode("CLUB01"));
         ReflectionTestUtils.setField(club, "id", id);
         return club;

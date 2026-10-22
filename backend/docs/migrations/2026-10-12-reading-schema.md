@@ -1,9 +1,33 @@
 # 읽기 스키마 수동 전환 절차
 
+> Flyway 도입 전 전환 이력이다. 현재 V1에 반영되어 있으므로 새 DB나 V1 이후 DB에는 다시 실행하지 않는다.
+
 이 절차는 `2026-10-12-reading-schema.sql`을 운영 MySQL 8.4에 한 번 적용하는 오프라인
 전환 절차다. SQL은 현재 배포 스키마와 Hibernate 기준 스키마 양쪽을 검사하며,
 `ck_comments_single_space`가 있는 배포 스키마에서는 작성자 이관 전에 그 제약을 제거한다.
+개발·운영 EC2 Ubuntu 서버의 Bash에서 실행한다. 먼저 배포 가이드의 [서버 선택](../배포_가이드.md#서버-선택)을 따른다.
+이 전환 이후 기존 DB에 Flyway를 도입할 때는 [최초 baseline 절차](../배포_가이드.md#기존-db의-최초-baseline-및-실패-복구-도구)를 따른다.
 운영 DB 실행과 애플리케이션 배포는 이 변경의 범위에 포함되지 않는다.
+
+## 실행 대상 준비
+
+SQL 두 파일을 서버의 `$HOME/yeobaek-migrations`에 복사한다. 배포 가이드에서 대상 서버의
+`COMPOSE` 배열을 선택한 같은 Bash 셸에서 아래 명령을 실행한다.
+
+```bash
+DB_NAME=yeobaek
+MIGRATION_DIR="$HOME/yeobaek-migrations"
+MYSQL_CONTAINER=$("${COMPOSE[@]}" ps -q mysql)
+test -n "$MYSQL_CONTAINER"
+test "$(printf '%s\n' "$MYSQL_CONTAINER" | wc -l)" -eq 1
+test -f "$MIGRATION_DIR/2026-10-12-reading-schema.sql"
+test -f "$MIGRATION_DIR/2026-10-12-reading-schema-verify.sql"
+"${COMPOSE[@]}" ps mysql
+printf 'DB_NAME=%s\nMYSQL_CONTAINER=%s\n' "$DB_NAME" "$MYSQL_CONTAINER"
+```
+
+실제 대상이 맞는지 출력으로 확인한다. DB 이름은 이 전환에서 사용하는 `yeobaek`을 유지한다.
+컨테이너 이름을 하드코딩하지 않고 해당 Compose의 실행 중인 `mysql` 서비스 ID를 사용한다.
 
 ## 전환 전에
 
@@ -18,8 +42,8 @@ BACKUP_DIR="$HOME/db-backup/manual"
 BACKUP_FILE="$BACKUP_DIR/before_reading_schema_$(date +%Y%m%d_%H%M%S).sql.gz"
 mkdir -p "$BACKUP_DIR"
 
-docker exec yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --triggers yeobaek' \
+docker exec "$MYSQL_CONTAINER" sh -c \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --triggers "$1"' sh "$DB_NAME" \
   | gzip > "$BACKUP_FILE"
 printf 'BACKUP_FILE=%s\n' "$BACKUP_FILE"
 ```
@@ -40,23 +64,23 @@ test "$BACKUP_TABLE_COUNT" -gt 0
    `RESTORE_VERIFIED_BACKUP_FILE`에 보존한다.
 
 ```bash
-test "$(docker exec yeobaek-mysql sh -c \
+test "$(docker exec "$MYSQL_CONTAINER" sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -N -uroot -e \
    "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = '\''yeobaek_reading_schema_restore_verify'\''"')" -eq 0
 
-docker exec yeobaek-mysql sh -c \
+docker exec "$MYSQL_CONTAINER" sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
    "CREATE DATABASE yeobaek_reading_schema_restore_verify CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci"'
 cleanup_restore_database() {
-  docker exec yeobaek-mysql sh -c \
+  docker exec "$MYSQL_CONTAINER" sh -c \
     'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
      "DROP DATABASE IF EXISTS yeobaek_reading_schema_restore_verify"'
 }
 trap cleanup_restore_database EXIT
 
-zcat "$BACKUP_FILE" | docker exec -i yeobaek-mysql sh -c \
+zcat "$BACKUP_FILE" | docker exec -i "$MYSQL_CONTAINER" sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot yeobaek_reading_schema_restore_verify'
-RESTORED_TABLE_COUNT=$(docker exec yeobaek-mysql sh -c \
+RESTORED_TABLE_COUNT=$(docker exec "$MYSQL_CONTAINER" sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -N -uroot -e \
    "SELECT COUNT(*) FROM information_schema.tables
     WHERE table_schema = '\''yeobaek_reading_schema_restore_verify'\'' AND table_type = '\''BASE TABLE'\''"')
@@ -73,9 +97,9 @@ trap - EXIT
 
 ```bash
 set -euo pipefail
-docker exec -i yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --show-warnings -uroot yeobaek' \
-  < 2026-10-12-reading-schema.sql
+docker exec -i "$MYSQL_CONTAINER" sh -c \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --show-warnings -uroot "$1"' sh "$DB_NAME" \
+  < "$MIGRATION_DIR/2026-10-12-reading-schema.sql"
 ```
 
 `< 파일`로 입력하는 MySQL 배치 모드는 `--force`를 사용하지 않으면 SQL 오류에서 중단한다.
@@ -99,9 +123,9 @@ MySQL 8.4에서 지원하지 않는 `--abort-source-on-error`는 사용하지 �
 
 ```bash
 set -euo pipefail
-docker exec -i yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --table -uroot yeobaek' \
-  < 2026-10-12-reading-schema-verify.sql
+docker exec -i "$MYSQL_CONTAINER" sh -c \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --table -uroot "$1"' sh "$DB_NAME" \
+  < "$MIGRATION_DIR/2026-10-12-reading-schema-verify.sql"
 ```
 
 그 뒤 새 애플리케이션 이미지를 기동하고 `/health` 및 기존 댓글·진도 API를 점검한다.
@@ -132,18 +156,18 @@ gzip -t "$BACKUP_FILE_REAL"
 zcat "$BACKUP_FILE_REAL" | grep 'Dump completed' > /dev/null
 
 FAILED_DUMP_FILE="$BACKUP_DIR/failed_reading_schema_$(date +%Y%m%d_%H%M%S).sql.gz"
-docker exec yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --routines --triggers yeobaek' \
+docker exec "$MYSQL_CONTAINER" sh -c \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --routines --triggers "$1"' sh "$DB_NAME" \
   | gzip > "$FAILED_DUMP_FILE"
 test -s "$FAILED_DUMP_FILE"
 gzip -t "$FAILED_DUMP_FILE"
 
-docker exec yeobaek-mysql sh -c \
+docker exec "$MYSQL_CONTAINER" sh -c \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e \
    "DROP DATABASE yeobaek; CREATE DATABASE yeobaek CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci"'
 
-zcat "$BACKUP_FILE_REAL" | docker exec -i yeobaek-mysql sh -c \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot yeobaek'
+zcat "$BACKUP_FILE_REAL" | docker exec -i "$MYSQL_CONTAINER" sh -c \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot "$1"' sh "$DB_NAME"
 ```
 
 복원 뒤 기존 애플리케이션 버전으로 `/health`와 주요 데이터 건수를 확인한다. 운영 데이터베이스

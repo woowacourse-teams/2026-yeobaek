@@ -44,7 +44,7 @@ class PassageServiceUnitTest {
     @Test
     @DisplayName("조회된 문장이 없으면 댓글 수 집계 쿼리를 실행하지 않는다")
     void skipCommentCountQueryWhenNoSentencesAreFound() {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", 20L);
         Club club = new Club(new ClubName("모임"), book, new JoinCode("CODE01"));
         given(clubRepository.findById(10L)).willReturn(Optional.of(club));

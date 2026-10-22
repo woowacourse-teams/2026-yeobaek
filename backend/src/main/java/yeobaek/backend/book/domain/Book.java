@@ -21,6 +21,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
 import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.BookDescription;
+import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
@@ -44,12 +46,22 @@ public class Book {
     private Long id;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "title", nullable = false, length = BookTitle.MAX_LENGTH))
+    @AttributeOverride(name = "value",
+            column = @Column(name = "title", nullable = false, length = BookTitle.MAX_LENGTH))
     private BookTitle title;
 
     @Embedded
-    @AttributeOverride(name = "value", column = @Column(name = "publisher", length = Publisher.MAX_LENGTH))
+    @AttributeOverride(name = "value",
+            column = @Column(name = "publisher", length = Publisher.MAX_LENGTH))
     private Publisher publisher;
+
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "description", columnDefinition = "TEXT"))
+    private BookDescription description;
+
+    @Embedded
+    @AttributeOverride(name = "value", column = @Column(name = "body_character_count"))
+    private BodyCharacterCount bodyCharacterCount;
 
     private Integer publishedYear;
 
@@ -65,7 +77,8 @@ public class Book {
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
 
-    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey) {
+    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
+                BookDescription description, BodyCharacterCount bodyCharacterCount) {
         validateCoverImageKey(coverImageKey);
         if (title == null) {
             throw new IllegalArgumentException("도서 제목은 필수입니다.");
@@ -75,6 +88,8 @@ public class Book {
         this.publishedYear = publishedYear;
         this.passageCount = new PassageCount(passageCount);
         this.coverImageKey = coverImageKey;
+        this.description = description;
+        this.bodyCharacterCount = bodyCharacterCount;
     }
 
     public boolean isSame(Book other) {
@@ -97,6 +112,15 @@ public class Book {
                     "더 이상 이용할 수 없는 도서입니다.",
                     availabilityLogContext());
         }
+    }
+
+    public Long pageCount() {
+        return bodyCharacterCount == null ? null : bodyCharacterCount.pageCount();
+    }
+
+    public void replaceDescription(BookDescription description) {
+        ensureAvailable();
+        this.description = description;
     }
 
     public void replaceCoverImage(String coverImageKey) {

@@ -43,7 +43,7 @@ class ClubMappingTest extends IntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     private Book saveBook() {
-        return bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 10, null));
+        return bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 10, null, null, null));
     }
 
     @Test

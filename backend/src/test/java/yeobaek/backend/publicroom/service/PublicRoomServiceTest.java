@@ -201,7 +201,7 @@ class PublicRoomServiceTest extends IntegrationTest {
     }
 
     private ReadingFixture createRoom(String title, int passageCount) {
-        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null));
+        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         List<Passage> passages = java.util.stream.IntStream.rangeClosed(1, passageCount)
                 .mapToObj(sequence -> passageRepository.save(new Passage(chapter, sequence,
