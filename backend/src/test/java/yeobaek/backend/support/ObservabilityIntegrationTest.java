@@ -54,7 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
                 "management.tracing.sampling.probability=1",
                 "server.tomcat.threads.max=1", "server.tomcat.threads.min-spare=1",
                 "spring.datasource.hikari.maximum-pool-size=1", "spring.datasource.hikari.minimum-idle=0",
-                "spring.datasource.hikari.connection-timeout=1000", "management.otlp.metrics.export.step=1s",
+                "spring.datasource.hikari.connection-timeout=5000", "management.otlp.metrics.export.step=1s",
                 "management.opentelemetry.tracing.export.schedule-delay=10ms",
                 "management.opentelemetry.logging.export.schedule-delay=10ms"})
 @DirtiesContext
@@ -213,11 +213,12 @@ class ObservabilityIntegrationTest {
                     return acquired.isValid(1);
                 }
             });
-            org.awaitility.Awaitility.await().pollInterval(Duration.ofMillis(10)).atMost(Duration.ofSeconds(2))
+            // PoolStats 캐시 1초 < 관측 3초 < 연결 제한 5초 < Future 대기 7초.
+            org.awaitility.Awaitility.await().pollInterval(Duration.ofMillis(10)).atMost(Duration.ofSeconds(3))
                     .untilAsserted(() -> assertThat(meters.get("hikaricp.connections.pending").gauge().value())
                             .isEqualTo(1));
             assertThat(meters.get("hikaricp.connections.active").gauge().value()).isEqualTo(1);
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> waiting.get(3, TimeUnit.SECONDS))
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> waiting.get(7, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(java.sql.SQLTransientConnectionException.class);
         }
         assertThat(meters.get("hikaricp.connections.timeout").counter().count()).isGreaterThan(previousTimeouts);
