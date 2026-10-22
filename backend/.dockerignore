@@ -1,0 +1,6 @@
+# 인증 파일과 실제 환경 설정을 Docker 빌드 컨텍스트에 포함하지 않는다.
+**/secrets/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.local.example

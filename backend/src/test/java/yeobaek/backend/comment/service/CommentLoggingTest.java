@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
+import org.springframework.context.ApplicationEventPublisher;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.repository.PassageRepository;
@@ -47,7 +48,7 @@ class CommentLoggingTest {
         var service = new CommentService(comments, mock(CommentLikeRepository.class), mock(CommentReportRepository.class),
                 mock(CommentViewRepository.class), clubs, memberships, mock(SentenceRepository.class),
                 passages, mock(MemberRepository.class), mock(MemberBlockRepository.class),
-                mock(PublicRoomRepository.class));
+                mock(PublicRoomRepository.class), mock(ApplicationEventPublisher.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {
@@ -82,7 +83,7 @@ class CommentLoggingTest {
         var service = new CommentService(comments, mock(CommentLikeRepository.class), reports, mock(CommentViewRepository.class),
                 mock(ClubRepository.class), memberships, mock(SentenceRepository.class),
                 mock(PassageRepository.class), members, mock(MemberBlockRepository.class),
-                mock(PublicRoomRepository.class));
+                mock(PublicRoomRepository.class), mock(ApplicationEventPublisher.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {

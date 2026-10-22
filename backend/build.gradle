@@ -50,6 +50,9 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // FCM
+    implementation 'com.google.firebase:firebase-admin:9.11.0'
 }
 
 tasks.named('test') {
