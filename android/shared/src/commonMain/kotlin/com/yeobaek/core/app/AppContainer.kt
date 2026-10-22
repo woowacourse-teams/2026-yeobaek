@@ -116,6 +116,10 @@ class AppContainer(
         commentNotifications.onReceived(data)
     }
 
+    fun onNotificationOpened(data: Map<String, String>) {
+        commentNotifications.onOpened(data)
+    }
+
     fun close() {
         notificationScope.cancel()
         networkProvider.close()

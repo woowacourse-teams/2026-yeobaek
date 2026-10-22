@@ -1,12 +1,17 @@
 package com.yeobaek
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.feature.group.create.navigation.createNavGraph
 import com.yeobaek.feature.group.create.navigation.navigateToCreate
 import com.yeobaek.feature.group.detail.navigation.detailNavGraph
@@ -30,11 +35,13 @@ import com.yeobaek.feature.onboarding.create.navigation.onboardingCreateNavGraph
 import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
 import com.yeobaek.feature.onboarding.selectbook.navigation.navigateToOnboarding
 import com.yeobaek.feature.onboarding.selectbook.navigation.onboardingNavGraph
+import com.yeobaek.feature.reader.navigation.PublicRoomReader
 import com.yeobaek.feature.reader.navigation.Reader
 import com.yeobaek.feature.reader.navigation.navigateToPublicRoomReader
 import com.yeobaek.feature.reader.navigation.navigateToReader
 import com.yeobaek.feature.reader.navigation.publicRoomReaderNavGraph
 import com.yeobaek.feature.reader.navigation.readerNavGraph
+import kotlinx.coroutines.flow.combine
 
 @Composable
 fun App(
@@ -247,6 +254,37 @@ fun App(
                     )
                 },
             )
+        }
+
+        val lifecycleOwner = LocalLifecycleOwner.current
+        LaunchedEffect(appContainer, navController, lifecycleOwner) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                combine(
+                    appContainer.commentNotifications.pendingOpen,
+                    appContainer.userPreferences.userId,
+                    navController.currentBackStackEntryFlow,
+                ) { request, memberId, _ -> request.takeIf { memberId != null } }
+                    .collect { request ->
+                        if (request == null || appContainer.commentNotifications.pendingOpen.value !== request) {
+                            return@collect
+                        }
+                        val target = request.notification
+                        navController.navigate(Home) {
+                            popUpTo(navController.graph.id)
+                            launchSingleTop = true
+                        }
+                        when (val space = target.space) {
+                            is CommentSpace.Group -> navController.navigate(
+                                Reader(space.groupId, target.passageSequence, target.sentenceId),
+                            )
+
+                            is CommentSpace.PublicRoom -> navController.navigate(
+                                PublicRoomReader(space.publicRoomId, target.passageSequence, target.sentenceId),
+                            )
+                        }
+                        appContainer.commentNotifications.consumeOpen(request)
+                    }
+            }
         }
     }
 }

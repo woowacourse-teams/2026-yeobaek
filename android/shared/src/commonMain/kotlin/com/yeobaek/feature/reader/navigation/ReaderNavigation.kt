@@ -16,6 +16,7 @@ import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
+import com.yeobaek.feature.reader.ReaderCommentTarget
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderTarget
 import com.yeobaek.feature.reader.ReaderViewModel
@@ -24,11 +25,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Reader(
     val groupId: Long,
+    val passageSequence: Int? = null,
+    val sentenceId: Long? = null,
 )
 
 @Serializable
 data class PublicRoomReader(
     val publicRoomId: Long,
+    val passageSequence: Int? = null,
+    val sentenceId: Long? = null,
 )
 
 fun NavController.navigateToReader(
@@ -63,6 +68,7 @@ fun NavGraphBuilder.readerNavGraph(
         val route = backStackEntry.toRoute<Reader>()
         ReaderRoute(
             readerTarget = ReaderTarget.Group(route.groupId),
+            commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.READER,
             appContainer = appContainer,
             onBackClick = navController::popBackStack,
@@ -78,6 +84,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
         val route = backStackEntry.toRoute<PublicRoomReader>()
         ReaderRoute(
             readerTarget = ReaderTarget.PublicRoom(route.publicRoomId),
+            commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
             appContainer = appContainer,
             onBackClick = navController::popBackStack,
@@ -88,6 +95,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
 @Composable
 private fun ReaderRoute(
     readerTarget: ReaderTarget,
+    commentTarget: ReaderCommentTarget?,
     trackedScreen: TrackedScreen,
     appContainer: AppContainer,
     onBackClick: () -> Unit,
@@ -95,6 +103,7 @@ private fun ReaderRoute(
     val readerViewModel = viewModel<ReaderViewModel>(
         factory = ReaderViewModel.readerViewModelFactory(
             readerTarget = readerTarget,
+            commentTarget = commentTarget,
             bookRepository = appContainer.bookRepository,
             groupRepository = appContainer.groupRepository,
             publicRoomRepository = appContainer.publicRoomRepository,

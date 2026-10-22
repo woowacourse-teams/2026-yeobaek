@@ -96,6 +96,18 @@ extension AppDelegate: MessagingDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            let data = notificationData(response.notification)
+            appContainer.onNotificationOpened(data: data)
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler:
             @escaping (UNNotificationPresentationOptions) -> Void
@@ -103,13 +115,16 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         #if DEBUG
         NSLog("FCM notification received: %@", notification.request.identifier)
         #endif
-        let data = notification.request.content.userInfo.reduce(into: [String: String]()) { result, entry in
+        appContainer.onNotificationReceived(data: notificationData(notification))
+        completionHandler([])
+    }
+
+    private func notificationData(_ notification: UNNotification) -> [String: String] {
+        notification.request.content.userInfo.reduce(into: [String: String]()) { result, entry in
             if let key = entry.key as? String, let value = entry.value as? String {
                 result[key] = value
             }
         }
-        appContainer.onNotificationReceived(data: data)
-        completionHandler([])
     }
 }
 

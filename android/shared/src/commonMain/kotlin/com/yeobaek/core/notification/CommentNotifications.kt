@@ -3,7 +3,9 @@ package com.yeobaek.core.notification
 import com.yeobaek.data.model.CommentSpace
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class CommentNotification(
     val space: CommentSpace,
@@ -33,6 +35,8 @@ data class CommentNotification(
 }
 
 class CommentNotifications {
+    private val pending = MutableStateFlow<CommentNotificationOpenRequest?>(null)
+    val pendingOpen = pending.asStateFlow()
     private val received = MutableSharedFlow<CommentNotification>(
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -42,4 +46,16 @@ class CommentNotifications {
     fun onReceived(data: Map<String, String>) {
         CommentNotification.from(data)?.let(received::tryEmit)
     }
+
+    fun onOpened(data: Map<String, String>) {
+        val notification = CommentNotification.from(data) ?: return
+        pending.value = CommentNotificationOpenRequest(notification)
+    }
+
+    fun consumeOpen(request: CommentNotificationOpenRequest) {
+        pending.compareAndSet(request, null)
+    }
 }
+
+// 같은 문장의 알림을 다시 눌러도 새로운 이동 요청으로 구분한다.
+class CommentNotificationOpenRequest(val notification: CommentNotification)
