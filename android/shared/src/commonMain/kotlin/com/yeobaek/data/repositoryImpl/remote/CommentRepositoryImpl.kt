@@ -3,6 +3,7 @@ package com.yeobaek.data.repositoryImpl.remote
 import com.yeobaek.data.api.CommentApi
 import com.yeobaek.data.dto.CommentRequest
 import com.yeobaek.data.dto.toModel
+import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.CommentedSentencesModel
@@ -61,6 +62,17 @@ class CommentRepositoryImpl(
 
     override suspend fun deleteComment(commentId: Long) {
         commentApi.deleteComment(commentId = commentId)
+    }
+
+    override suspend fun setCommentLiked(commentId: Long, liked: Boolean): CommentLikeModel {
+        val response = if (liked) {
+            commentApi.likeComment(commentId)
+        } else {
+            commentApi.likeCancelComment(commentId)
+        }
+
+        if (!response.isSuccessful) throw IllegalArgumentException("댓글 좋아요 변경 실패 ${response.status}")
+        return response.body()?.toModel() ?: throw IllegalArgumentException("댓글 좋아요 정보가 없네요")
     }
 
     override suspend fun reportComment(commentId: Long) {
