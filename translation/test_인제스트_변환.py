@@ -1074,7 +1074,10 @@ class CreateArchiveCoverTests(unittest.TestCase):
             ingest = json.loads(ingest_path.read_text(encoding="utf-8"))
             passage = ingest["chapters"][0]["passages"][0]
             self.assertEqual(passage, {"sentences": [{"content": "첫 문단."}]})
-            self.assertNotIn("description", ingest)
+            self.assertEqual(
+                ingest["description"],
+                (book_dir / "책_소개.txt").read_text(encoding="utf-8-sig").strip(),
+            )
             self.assertIn("문장 총 1개", completed.stdout)
             self.assertIn("문장 재결합 검증 통과", completed.stdout)
             zip_path = book_dir / "표지_있는_책.zip"
@@ -1082,20 +1085,28 @@ class CreateArchiveCoverTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as archive:
                 names = set(archive.namelist())
                 archived_original = archive.read(f"원문/{original.name}")
+                self.assertEqual(json.loads(archive.read("ingest.json")), ingest)
                 self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
             self.assertEqual(archived_original, original.read_bytes())
             self.assertIn("표지/A.png", names)
             self.assertIn("책_소개.txt", names)
             self.assertIn("운영자 검수 후", completed.stdout)
-            # 명시적으로 제공한 소개만 유지하며 초안 파일로 대체하지 않는다.
+            # 소개 파일을 수정해 재생성하면 메타데이터의 이전 소개 대신 새 초안을 포함한다.
             meta["description"] = "  검수한 소개.\n내부 개행은 유지한다.  "
             meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+            (book_dir / "책_소개.txt").write_text("  수정한 소개 초안.\n내부 개행은 유지한다.  ", encoding="utf-8-sig")
             rerun = self._run_conversion(book_dir, original, translation, meta_path)
             self.assertEqual(rerun.returncode, 0, rerun.stdout + rerun.stderr)
             self.assertEqual(
                 json.loads(ingest_path.read_text(encoding="utf-8"))["description"],
-                "검수한 소개.\n내부 개행은 유지한다.",
+                "수정한 소개 초안.\n내부 개행은 유지한다.",
             )
+            with zipfile.ZipFile(zip_path) as archive:
+                self.assertEqual(
+                    json.loads(archive.read("ingest.json"))["description"],
+                    "수정한 소개 초안.\n내부 개행은 유지한다.",
+                )
+                self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
             self.assertIn("표지/프롬프트/G.txt", names)
             # 출력 JSON을 하위 폴더로 옮겨도 소개는 메타데이터 책 폴더에서 가져온다.
             nested = book_dir / "산출물"

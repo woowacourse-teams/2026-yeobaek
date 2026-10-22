@@ -1196,10 +1196,11 @@ def main():
 
     try:
         book_dir = args.meta.resolve().parent
-        validate_introduction(book_dir, output, args.meta, zip_output, args.original)
+        introduction = validate_introduction(book_dir, output, args.meta, zip_output, args.original)
+        book["description"] = introduction.read_text(encoding="utf-8-sig").strip()
         if not output.resolve().is_relative_to(book_dir):
             raise ValueError("인제스트 JSON 출력은 책 폴더 안에 있어야 합니다.")
-    except ValueError as error:
+    except (ValueError, OSError, UnicodeError) as error:
         sys.exit(f"[소개 검증 실패] {error} — ingest.json과 ZIP을 출력하지 않았습니다.")
 
     if not validate_cover_artifacts(args.meta):
@@ -1210,7 +1211,7 @@ def main():
 
     create_archive(zip_output, book_dir, output, args.meta, args.original)
     print(f"ZIP 저장 완료: {zip_output}")
-    print("소개 초안: 책_소개.txt — 운영자 검수 후 관리자 화면에서 등록하세요.")
+    print("소개 초안: 책_소개.txt와 ingest.json의 description에 포함했습니다. 운영자 검수 후 업로드하세요.")
 
 
 if __name__ == "__main__":
