@@ -3,13 +3,14 @@ package yeobaek.backend.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -88,37 +89,72 @@ class FlywayMigrationTest {
     }
 
     @Test
-    @DisplayName("V3가 생성한 알림 등록 테이블은 배포 확인 SQL의 구조 검사를 모두 통과한다")
-    void validateNotificationRegistrationSchema() throws IOException {
-        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()).load().migrate();
-        String verification = Files.readString(Path.of(
-                "docs", "migrations", "2026-10-20-notification-registrations-verify.sql"));
+    @DisplayName("같은 FID를 여러 등록 정보로 저장할 수 있다")
+    void allowDuplicateFids() {
+        JdbcTemplate jdbc = migrateWithMember();
 
-        assertThat(jdbcTemplate().queryForList(verification))
-                .extracting(row -> ((Number) row.get("failure_count")).longValue())
-                .hasSize(7).containsOnly(0L);
+        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?), (40, ?)", FID, FID);
+
+        assertThat(jdbc.queryForList("SELECT id FROM notification_registrations WHERE fid = ?", Long.class, FID))
+                .hasSize(2).doesNotHaveDuplicates();
     }
 
     @Test
-    @DisplayName("V3는 FID 중복·대소문자 구분을 유지하고 없는 회원과 null FID 등록을 거절한다")
-    void preserveRegistrationConstraints() {
-        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()).load().migrate();
-        JdbcTemplate jdbc = jdbcTemplate();
-        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, '등록 회원')");
+    @DisplayName("FID의 대소문자가 다르면 서로 다른 등록 정보로 조회한다")
+    void distinguishFidCase() {
+        JdbcTemplate jdbc = migrateWithMember();
         String uppercaseFid = "cA" + "a".repeat(20);
-        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?), (40, ?), (40, ?)",
-                FID, FID, uppercaseFid);
+        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?), (40, ?)", FID, uppercaseFid);
 
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notification_registrations WHERE fid = ?",
-                Long.class, FID)).isEqualTo(2);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notification_registrations WHERE fid = ?",
-                Long.class, uppercaseFid)).isEqualTo(1);
+        assertThat(jdbc.queryForList("SELECT fid FROM notification_registrations WHERE fid = ?", String.class, FID))
+                .containsExactly(FID);
+        assertThat(jdbc.queryForList(
+                "SELECT fid FROM notification_registrations WHERE fid = ?", String.class, uppercaseFid))
+                .containsExactly(uppercaseFid);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(longs = {99999L})
+    @DisplayName("회원이 없거나 존재하지 않는 회원이면 알림 등록을 거절한다")
+    void rejectRegistrationWithoutMember(Long memberId) {
+        JdbcTemplate jdbc = migrateWithMember();
+
         assertThatThrownBy(() -> jdbc.update(
-                "INSERT INTO notification_registrations (member_id, fid) VALUES (99999, ?)", FID))
+                "INSERT INTO notification_registrations (member_id, fid) VALUES (?, ?)", memberId, FID))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("FID가 null이면 알림 등록을 거절한다")
+    void rejectNullFid() {
+        JdbcTemplate jdbc = migrateWithMember();
+
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO notification_registrations (member_id, fid) VALUES (40, NULL)"))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("알림 등록이 남은 회원은 삭제를 거절하고 기존 등록 정보를 보존한다")
+    void preventMemberDeletionWithRegistration() {
+        JdbcTemplate jdbc = migrateWithMember();
+        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?)", FID);
+
+        assertThatThrownBy(() -> jdbc.update("DELETE FROM members WHERE id = 40"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(jdbc.queryForObject("SELECT nickname FROM members WHERE id = 40", String.class))
+                .isEqualTo("등록 회원");
+        assertThat(jdbc.queryForList(
+                "SELECT fid FROM notification_registrations WHERE member_id = 40", String.class))
+                .containsExactly(FID);
+    }
+
+    private JdbcTemplate migrateWithMember() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()).load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, '등록 회원')");
+        return jdbc;
     }
 
     private JdbcTemplate jdbcTemplate() {

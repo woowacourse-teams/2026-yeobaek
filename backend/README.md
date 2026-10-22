@@ -102,14 +102,8 @@ java gradle/WorktreeGradleLockVerification.java
 Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
 알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
-V1 초기 스키마와 V2 댓글 좋아요가 적용된 DB에서는 앱 기동 시 V3만 추가 적용하고,
-빈 DB에서는 V1 → V2 → V3 순서로 적용합니다. 기존 수동 생성 SQL을 별도로 실행하지 않습니다.
-
-배포 전 대상 DB의 `flyway_schema_history`에서 V1·V2 적용 상태를 확인합니다.
-이력이 없는 기존 DB는 자동 baseline을 허용하지 않으므로, 실제 스키마를 대조한 뒤 별도의 baseline 절차가 필요합니다.
-`notification_registrations`가 이미 수동 생성되어 있다면 V3와 중복되므로 먼저 이력 편입 방식을 정해야 합니다.
-배포 후에는 이력에 V3 성공이 기록됐는지와 `docs/migrations/2026-10-20-notification-registrations-verify.sql`의
-모든 `failure_count`가 0인지 확인합니다. 서버의 실제 적용 여부는 이 결과로 판단합니다.
+앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
+`flyway_schema_history`의 버전별 성공 이력에서 확인합니다.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.
