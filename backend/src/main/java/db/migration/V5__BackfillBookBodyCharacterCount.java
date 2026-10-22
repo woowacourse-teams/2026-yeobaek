@@ -7,6 +7,9 @@ import java.text.Normalizer;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
+/**
+ * 기존 도서도 환산 쪽수를 제공할 수 있도록 Flyway가 미집계 본문 글자 수를 한 번 보충한다.
+ */
 public class V5__BackfillBookBodyCharacterCount extends BaseJavaMigration {
 
     private static final int DEFAULT_PARAGRAPH_BUFFER_LIMIT = 1_048_576;
