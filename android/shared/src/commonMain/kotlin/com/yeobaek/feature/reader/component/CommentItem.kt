@@ -147,6 +147,7 @@ fun CommentItem(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         IconButton(
+                            modifier = Modifier.size(32.dp),
                             onClick = onLike,
                         ) {
                             Icon(
