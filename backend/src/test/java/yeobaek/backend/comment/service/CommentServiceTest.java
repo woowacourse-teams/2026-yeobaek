@@ -2,6 +2,7 @@ package yeobaek.backend.comment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -27,11 +28,14 @@ import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentLike;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.repository.CommentLikeRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
@@ -56,6 +60,9 @@ class CommentServiceTest extends IntegrationTest {
 
     @Autowired
     private CommentReportRepository commentReportRepository;
+
+    @Autowired
+    private CommentLikeRepository commentLikeRepository;
 
     @Autowired
     private CommentViewRepository commentViewRepository;
@@ -103,13 +110,198 @@ class CommentServiceTest extends IntegrationTest {
         clubMemberRepository.save(new ClubMember(other, club));
     }
 
+    @Nested
+    @DisplayName("댓글 좋아요 추가·취소")
+    class Likes {
+
+        private Comment comment;
+
+        @BeforeEach
+        void createComment() {
+            ClubMember membership = clubMemberRepository.findJoinedByMemberIdAndClubId(
+                    writer.getId(), club.getId()).orElseThrow();
+            comment = commentRepository.save(new Comment(membership, sentence, new CommentContent("좋아요 대상")));
+        }
+
+        @Test
+        @DisplayName("좋아요를 추가하면 저장하고 처리 후 개수와 내 좋아요 여부를 반환한다")
+        void addLike() {
+            CommentLikeResponse response = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("본인 댓글에도 좋아요를 추가할 수 있다")
+        void addOwnCommentLike() {
+            CommentLikeResponse response = commentService.addLike(writer.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+        }
+
+        @Test
+        @DisplayName("추가 요청을 반복해도 중복 저장하지 않고 다른 회원의 좋아요를 포함한 개수를 반환한다")
+        void addLikeRepeatedly() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+
+            CommentLikeResponse first = commentService.addLike(other.getId(), comment.getId());
+            CommentLikeResponse repeated = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(first).isEqualTo(new CommentLikeResponse(2, true));
+            assertThat(repeated).isEqualTo(first);
+            assertThat(commentLikeRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("취소하면 내 좋아요만 삭제하고 다른 회원의 좋아요는 유지한다")
+        void cancelLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            CommentLikeResponse response = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, false));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isFalse();
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("취소 요청을 반복해도 개수가 음수가 되거나 좋아요가 다시 생기지 않는다")
+        void cancelLikeRepeatedly() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            CommentLikeResponse first = commentService.cancelLike(other.getId(), comment.getId());
+            CommentLikeResponse repeated = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(first).isEqualTo(new CommentLikeResponse(0, false));
+            assertThat(repeated).isEqualTo(first);
+            assertThat(commentLikeRepository.count()).isZero();
+        }
+
+        @Test
+        @DisplayName("누른 적 없는 좋아요를 취소해도 성공하고 다른 회원의 좋아요는 유지한다")
+        void cancelLikeWithoutExistingLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+
+            CommentLikeResponse response = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, false));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("차단한 작성자의 댓글은 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForBlockedWriter() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            memberBlockRepository.save(new MemberBlock(other, writer));
+
+            assertThatThrownBy(() -> commentService.addLike(other.getId(), comment.getId()))
+                    .isInstanceOf(NotFoundException.class).extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+            assertThatThrownBy(() -> commentService.cancelLike(other.getId(), comment.getId()))
+                    .isInstanceOf(NotFoundException.class).extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("모임 탈퇴자는 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForLeftMember() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            leaveClub(other, club);
+
+            assertThatThrownBy(() -> commentService.addLike(other.getId(), comment.getId()))
+                    .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+            assertThatThrownBy(() -> commentService.cancelLike(other.getId(), comment.getId()))
+                    .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("삭제 도서의 댓글은 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForDeletedBook() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            bookRepository.delete(book.getId());
+
+            assertBookNotAvailable(() -> commentService.addLike(other.getId(), comment.getId()));
+            assertBookNotAvailable(() -> commentService.cancelLike(other.getId(), comment.getId()));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("취소한 댓글에 다시 좋아요를 추가할 수 있다")
+        void addLikeAfterCancellation() {
+            commentService.addLike(other.getId(), comment.getId());
+            commentService.cancelLike(other.getId(), comment.getId());
+
+            CommentLikeResponse response = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+        }
+
+        @Test
+        @DisplayName("댓글 목록은 댓글별 좋아요 수와 요청 회원별 좋아요 여부를 반환하고 없는 좋아요는 0과 false다")
+        void findCommentsWithLikeSummaries() {
+            var first = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("둘이 좋아요"));
+            var second = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("작성자만 좋아요"));
+            commentLikeRepository.save(new CommentLike(other, commentRepository.getReferenceById(first.commentId())));
+            commentLikeRepository.save(new CommentLike(writer, commentRepository.getReferenceById(first.commentId())));
+            commentLikeRepository.save(new CommentLike(writer, commentRepository.getReferenceById(second.commentId())));
+
+            var readerResponse = commentService.findComments(other.getId(), club.getId(), sentence.getId());
+            var writerResponse = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+
+            assertThat(readerResponse.comments())
+                    .extracting(CommentResponse::commentId, CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(tuple(comment.getId(), 0L, false), tuple(first.commentId(), 2L, true),
+                            tuple(second.commentId(), 1L, false));
+            assertThat(writerResponse.comments())
+                    .extracting(CommentResponse::commentId, CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(tuple(comment.getId(), 0L, false), tuple(first.commentId(), 2L, true),
+                            tuple(second.commentId(), 1L, true));
+        }
+
+        @Test
+        @DisplayName("수정 응답에도 기존 좋아요 수와 본인의 좋아요 여부를 유지한다")
+        void updateCommentWithOwnLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
+
+            assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(2L, true);
+            assertThat(commentLikeRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("다른 회원만 좋아요를 누른 댓글의 수정 응답은 개수와 false를 반환한다")
+        void updateCommentWithoutOwnLike() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
+
+            assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(1L, false);
+        }
+    }
+
     @Test
     @DisplayName("댓글을 작성하면 작성자 정보와 mine 플래그가 함께 응답된다")
     void createComment() {
         CommentResponse response = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("멈칫했어요."));
 
-        assertThat(response.nickname()).isEqualTo("민서");
-        assertThat(response.mine()).isTrue();
+        assertThat(response).extracting(CommentResponse::nickname, CommentResponse::mine,
+                        CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly("민서", true, 0L, false);
         assertThat(response.createdAt()).isNotNull();
         assertThat(response.updatedAt()).isNull();
         assertThat(commentRepository.count()).isEqualTo(1);
@@ -280,6 +472,8 @@ class CommentServiceTest extends IntegrationTest {
 
         assertThat(response.content()).isEqualTo("수정된 내용");
         assertThat(response.updatedAt()).isNotNull();
+        assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly(0L, false);
     }
 
     @Test

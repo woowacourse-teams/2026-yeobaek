@@ -1,5 +1,5 @@
--- 데이터를 변경하지 않는 사전 확인이다. 대상 DB와 접속 위치를 확인한 뒤 생성 SQL로 진행한다.
--- notification_registrations가 이미 있으면 생성 SQL을 실행하지 않고 검증 SQL로 구조를 대조한다.
+-- 데이터를 변경하지 않는 사전 확인이다. 실제 변경은 Flyway V3가 앱 기동 시 수행한다.
+-- notification_registrations가 이미 있으면 V3와 중복되므로 자동 진행하지 않고 적용 이력과 구조를 대조한다.
 SELECT DATABASE() AS selected_database, @@hostname AS mysql_host, VERSION() AS mysql_version;
 
 SELECT table_name, engine

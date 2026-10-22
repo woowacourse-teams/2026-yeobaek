@@ -19,10 +19,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.WebApplicationType;
-import org.springframework.context.ConfigurableApplicationContext;
-import yeobaek.backend.support.FirebaseTestConfiguration;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -38,10 +34,6 @@ class ReadingSchemaMigrationTest {
             "src", "test", "resources", "migration", "2026-10-12-reading-schema-seed.sql");
     private static final Path VERIFICATION = Path.of(
             "docs", "migrations", "2026-10-12-reading-schema-verify.sql");
-    private static final Path NOTIFICATION_MIGRATION = Path.of(
-            "docs", "migrations", "2026-10-20-notification-registrations.sql");
-    private static final Path NOTIFICATION_VERIFICATION = Path.of(
-            "docs", "migrations", "2026-10-20-notification-registrations-verify.sql");
     private static final Set<String> TARGET_TABLES = Set.of(
             "authors", "author_books", "books", "chapters", "passages", "sentences",
             "members", "member_blocks", "public_rooms", "public_room_members",
@@ -84,7 +76,6 @@ class ReadingSchemaMigrationTest {
                 assertThat(databaseFingerprint(rerunConnection)).isEqualTo(beforeRerun);
                 executeVerification(rerunConnection);
             }
-            validateJpaMappings();
         }
     }
 
@@ -252,83 +243,6 @@ class ReadingSchemaMigrationTest {
                 "public_room_member_last_reads", "club_comments", "public_room_comments",
                 "reports", "public_room_members")) {
             assertAutoIncrementAboveMaxId(connection, table);
-        }
-    }
-
-    @Test
-    void migratesNotificationSchemaAndRefusesRerunWithoutDataLoss() throws Exception {
-        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            executeScript(connection, MIGRATION);
-            executeScript(connection, NOTIFICATION_MIGRATION);
-            verifyNotificationSchema(connection);
-            String fid = "c" + "a".repeat(21);
-            statement.executeUpdate("""
-                    INSERT INTO notification_registrations (member_id, fid)
-                    VALUES (40, 'caaaaaaaaaaaaaaaaaaaaa'), (40, 'caaaaaaaaaaaaaaaaaaaaa'),
-                           (41, 'cAaaaaaaaaaaaaaaaaaaaa')
-                    """);
-
-            assertThat(queryLong(connection, "SELECT COUNT(*) FROM notification_registrations WHERE fid = ?", fid))
-                    .isEqualTo(2);
-            Map<String, Long> beforeRerun = databaseFingerprint(connection);
-
-            assertThatThrownBy(() -> executeScript(connection, NOTIFICATION_MIGRATION))
-                    .isInstanceOf(IllegalStateException.class);
-            assertThat(databaseFingerprint(connection)).isEqualTo(beforeRerun);
-            verifyNotificationSchema(connection);
-        }
-    }
-
-    @Test
-    void rejectsInvalidNotificationReferences() throws Exception {
-        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            executeScript(connection, MIGRATION);
-            executeScript(connection, NOTIFICATION_MIGRATION);
-
-            assertThatThrownBy(() -> statement.executeUpdate("""
-                    INSERT INTO notification_registrations (member_id, fid) VALUES (999999, 'caaaaaaaaaaaaaaaaaaaaa')
-                    """)).isInstanceOf(SQLException.class);
-            assertThatThrownBy(() -> statement.executeUpdate("""
-                    INSERT INTO notification_registrations (member_id, fid) VALUES (40, NULL)
-                    """)).isInstanceOf(SQLException.class);
-        }
-    }
-
-    private void validateJpaMappings() throws SQLException, IOException {
-        // 독서 스키마 전환 이후 추가된 엔티티의 테이블을 준비하고 현재 매핑 전체를 검증한다.
-        try (Connection connection = connection()) {
-            executeScript(connection, NOTIFICATION_MIGRATION);
-            verifyNotificationSchema(connection);
-        }
-        SpringApplication application = new SpringApplication(
-                yeobaek.backend.BackendApplication.class, FirebaseTestConfiguration.class);
-        application.setWebApplicationType(WebApplicationType.NONE);
-        try (ConfigurableApplicationContext context = application.run(
-                "--spring.datasource.url=" + MYSQL.getJdbcUrl(),
-                "--spring.datasource.username=" + MYSQL.getUsername(),
-                "--spring.datasource.password=" + MYSQL.getPassword(),
-                "--spring.jpa.hibernate.ddl-auto=validate",
-                "--spring.sql.init.mode=never",
-                "--storage.s3.bucket=yeobaek-migration-test",
-                "--storage.s3.region=ap-northeast-2",
-                "--storage.s3.public-base-url=https://example.com",
-                "--posthog.enabled=false",
-                "--fcm.project-id=yeobaek-test",
-                "--spring.main.banner-mode=off",
-                "--logging.level.root=ERROR")) {
-            assertThat(context.isActive()).isTrue();
-        }
-    }
-
-    private void verifyNotificationSchema(Connection connection) throws IOException, SQLException {
-        try (Statement statement = connection.createStatement();
-             ResultSet result = statement.executeQuery(readStatements(NOTIFICATION_VERIFICATION).getFirst())) {
-            int checks = 0;
-            while (result.next()) {
-                assertThat(result.getLong("failure_count")).as(result.getString("check_name")).isZero();
-                checks++;
-            }
-            assertThat(checks).isEqualTo(7);
         }
     }
 

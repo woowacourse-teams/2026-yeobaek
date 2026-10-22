@@ -243,15 +243,47 @@ class PublicRoomControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("공개방 댓글 상세 응답 계약을 검증한다")
+    void findCommentDetailsResponse() throws Exception {
+        givenValidMember(1L);
+        var comment = new CommentResponse(9L, 2L, "작성자", "댓글",
+                LocalDateTime.of(2026, 9, 30, 10, 0), null, false, 3, true);
+        given(commentService.findPublicRoomComments(1L, 2L, 8L))
+                .willReturn(new CommentsResponse(List.of(comment)));
+
+        mockMvc.perform(post("/api/public-rooms/2/sentences/8/comment-detail-views")
+                        .header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.comments").isArray())
+                .andExpect(jsonPath("$.comments.length()").value(1))
+                .andExpect(jsonPath("$.comments[0].commentId").value(9))
+                .andExpect(jsonPath("$.comments[0].memberId").value(2))
+                .andExpect(jsonPath("$.comments[0].nickname").value("작성자"))
+                .andExpect(jsonPath("$.comments[0].content").value("댓글"))
+                .andExpect(jsonPath("$.comments[0].createdAt").value("2026-09-30T10:00:00"))
+                .andExpect(jsonPath("$.comments[0].updatedAt").value((Object) null))
+                .andExpect(jsonPath("$.comments[0].mine").value(false))
+                .andExpect(jsonPath("$.comments[0].likeCount").value(3))
+                .andExpect(jsonPath("$.comments[0].likedByMe").value(true));
+
+        verify(commentService, times(1)).findPublicRoomComments(1L, 2L, 8L);
+    }
+
+    @Test
     @DisplayName("공개방 댓글 작성 요청을 서비스에 전달하고 201을 반환한다")
     void createComment() throws Exception {
         givenValidMember(1L);
-        var response = new CommentResponse(9L, 1L, "독자", "댓글", LocalDateTime.of(2026, 9, 30, 10, 0), null, true);
+        var response = new CommentResponse(9L, 1L, "독자", "댓글", LocalDateTime.of(2026, 9, 30, 10, 0), null, true, 0, false);
         given(commentService.createInPublicRoom(1L, 2L, 8L, new CommentContent("댓글"))).willReturn(response);
 
         mockMvc.perform(post("/api/public-rooms/2/sentences/8/comments").header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"댓글\"}"))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.commentId").value(9));
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentId").value(9))
+                .andExpect(jsonPath("$.likeCount").value(0))
+                .andExpect(jsonPath("$.likedByMe").value(false));
 
         verify(commentService).createInPublicRoom(1L, 2L, 8L, new CommentContent("댓글"));
     }

@@ -91,9 +91,25 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
-`local` 프로파일로 시작하면 Hibernate가 스키마를 생성한 뒤 `src/main/resources/local/data.sql`을 자동 실행합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 별도 시더 실행은 필요하지 않습니다. 기존 `ddl-auto=create` 설정에 따라 재시작할 때 DB를 재생성하고 같은 테스트 데이터를 다시 넣습니다.
+`local` 프로파일로 시작하면 Flyway가 공통 스키마와 `src/main/resources/db/local/`의 시드를 한 번 적용합니다.
+`V1.1`은 기본 독서 데이터, `V3.1`은 FCM 테스트용 회원 3·4번과 댓글을 추가합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 재시작해도 기존 데이터를 보존합니다.
 
-SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
+기본 SQL 초기화는 모든 프로파일에서 비활성화합니다. `local`만 Flyway의 `db/local` 경로를 추가하며, 기본·`prod`·`prod,dev`에서는 로컬 시드를 실행하지 않습니다.
+
+스키마 변경은 `src/main/resources/db/migration`에 다음 버전 SQL로 추가하며, 적용한 SQL은 수정하지 않습니다.
+앱은 시작 시 Flyway 마이그레이션 후 Hibernate `validate`로 엔티티 매핑을 검증합니다.
+통합 테스트도 같은 SQL로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
+Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
+
+알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
+V1 초기 스키마와 V2 댓글 좋아요가 적용된 DB에서는 앱 기동 시 V3만 추가 적용하고,
+빈 DB에서는 V1 → V2 → V3 순서로 적용합니다. 기존 수동 생성 SQL을 별도로 실행하지 않습니다.
+
+배포 전 대상 DB의 `flyway_schema_history`에서 V1·V2 적용 상태를 확인합니다.
+이력이 없는 기존 DB는 자동 baseline을 허용하지 않으므로, 실제 스키마를 대조한 뒤 별도의 baseline 절차가 필요합니다.
+`notification_registrations`가 이미 수동 생성되어 있다면 V3와 중복되므로 먼저 이력 편입 방식을 정해야 합니다.
+배포 후에는 이력에 V3 성공이 기록됐는지와 `docs/migrations/2026-10-20-notification-registrations-verify.sql`의
+모든 `failure_count`가 0인지 확인합니다. 서버의 실제 적용 여부는 이 결과로 판단합니다.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.

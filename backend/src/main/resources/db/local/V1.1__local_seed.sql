@@ -107,9 +107,7 @@ VALUES (1, 1, 1, '새침하게 흐린 품이 눈이 올 듯하더니 눈은 아�
 
 INSERT INTO members (id, nickname)
 VALUES (1, '민서'),
-       (2, '지수'),
-       (3, '회원3'),
-       (4, '회원4');
+       (2, '지수');
 
 INSERT INTO clubs (id, name, join_code)
 VALUES (1, '교환독서 1기', 'A3F9KQ');
@@ -119,24 +117,16 @@ VALUES (1, 1, 1);
 
 INSERT INTO club_members (id, member_id, club_id, status)
 VALUES (1, 1, 1, 'JOINED'),
-       (2, 2, 1, 'JOINED'),
-       (3, 3, 1, 'JOINED'),
-       (4, 4, 1, 'JOINED');
+       (2, 2, 1, 'JOINED');
 
 INSERT INTO club_member_last_reads (id, club_member_id, last_read_passage_id, last_read_at)
 VALUES (1, 1, 10, '2026-08-05 14:30:00'),
-       (2, 2, 20, '2026-08-05 15:00:00'),
-       (3, 3, 2, '2026-08-05 15:00:00'),
-       (4, 4, 2, '2026-08-05 15:00:00');
+       (2, 2, 20, '2026-08-05 15:00:00');
 
 INSERT INTO comments (id, writer_id, sentence_id, content, created_at, updated_at)
 VALUES (1, 1, 2, '이 문장에서 멈칫했어요.', CURRENT_TIMESTAMP, NULL),
-       (2, 2, 2, '저도 이 대목의 분위기가 오래 남았어요.', CURRENT_TIMESTAMP, NULL),
-       (3, 3, 2, '회원3도 같은 문장의 댓글 알림을 받을 준비가 됐어요.', CURRENT_TIMESTAMP, NULL),
-       (4, 4, 2, '회원4도 같은 문장의 댓글 알림을 받을 준비가 됐어요.', CURRENT_TIMESTAMP, NULL);
+       (2, 2, 2, '저도 이 대목의 분위기가 오래 남았어요.', CURRENT_TIMESTAMP, NULL);
 
 INSERT INTO club_comments (id, comment_id, club_id)
 VALUES (1, 1, 1),
-       (2, 2, 1),
-       (3, 3, 1),
-       (4, 4, 1);
+       (2, 2, 1);

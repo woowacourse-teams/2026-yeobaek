@@ -63,6 +63,7 @@ import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.repository.CommentLikeRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
@@ -102,6 +103,9 @@ class CommentNotificationTransactionTest {
 
     @MockitoBean
     private CommentRepository commentRepository;
+
+    @MockitoBean
+    private CommentLikeRepository commentLikeRepository;
 
     @MockitoBean
     private CommentReportRepository commentReportRepository;
