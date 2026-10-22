@@ -7,6 +7,7 @@ data class CommentSheetUiState(
     val sentenceContent: String,
     val targetPassageSequence: Int? = null,
     val comments: List<CommentUiModel> = emptyList(),
+    val submittedCommentId: Long? = null,
     val input: String = "",
     val editingCommentId: Long? = null,
     val deletingCommentId: Long? = null,

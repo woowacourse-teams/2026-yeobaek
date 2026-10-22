@@ -9,6 +9,7 @@ import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.core.notification.CommentNotifications
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
@@ -59,6 +60,7 @@ class AppContainer(
     )
 
     private val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val commentNotifications = CommentNotifications()
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
         preferences = NotificationRegistrationPreferences(settings),
@@ -108,6 +110,10 @@ class AppContainer(
 
     fun updateFirebaseInstallationId(installationId: String) {
         notificationRegistration.updateInstallationId(installationId)
+    }
+
+    fun onNotificationReceived(data: Map<String, String>) {
+        commentNotifications.onReceived(data)
     }
 
     fun close() {

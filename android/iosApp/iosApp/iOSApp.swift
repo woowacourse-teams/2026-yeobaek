@@ -103,6 +103,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         #if DEBUG
         NSLog("FCM notification received: %@", notification.request.identifier)
         #endif
+        let data = notification.request.content.userInfo.reduce(into: [String: String]()) { result, entry in
+            if let key = entry.key as? String, let value = entry.value as? String {
+                result[key] = value
+            }
+        }
+        appContainer.onNotificationReceived(data: data)
         completionHandler([])
     }
 }

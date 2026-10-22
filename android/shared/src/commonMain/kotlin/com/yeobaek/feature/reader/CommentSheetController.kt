@@ -20,6 +20,8 @@ import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class CommentSheetController(
@@ -38,6 +40,7 @@ class CommentSheetController(
 
     private var loadJob: Job? = null
     private var didSubmitInSheet = false
+    private var refreshPending = false
 
     val pendingRestoreSentenceId: Long?
         get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
@@ -93,6 +96,16 @@ class CommentSheetController(
         loadComments(sheet.sentenceId)
     }
 
+    fun refresh(sentenceId: Long) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId } ?: return
+        if (sheet.isSubmitting || sheet.isDeleting) {
+            refreshPending = true
+            return
+        }
+        cancelLoad()
+        loadComments(sentenceId, isRefresh = true)
+    }
+
     private fun open(
         sentenceId: Long,
         sentenceContent: String,
@@ -103,6 +116,7 @@ class CommentSheetController(
     ) {
         cancelLoad()
         didSubmitInSheet = false
+        refreshPending = false
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
             sentenceId = sentenceId,
@@ -137,17 +151,19 @@ class CommentSheetController(
         loadComments(sentenceId)
     }
 
-    private fun loadComments(sentenceId: Long) {
+    private fun loadComments(sentenceId: Long, isRefresh: Boolean = false) {
         loadJob = scope.launch {
             try {
                 val comments = commentRepository.getComments(
                     space = commentSpace,
                     sentenceId = sentenceId,
                 ).comments.map(CommentModel::toUiModel)
+                currentCoroutineContext().ensureActive()
+                if (uiState?.sentenceId != sentenceId) return@launch
 
                 updateSheet(
                     sentenceId = sentenceId,
-                    isWaiting = { sheet -> sheet.isLoading },
+                    isWaiting = { sheet -> isRefresh || sheet.isLoading },
                 ) { sheet ->
                     sheet.copy(
                         comments = comments,
@@ -155,6 +171,7 @@ class CommentSheetController(
                         loadErrorMessage = null,
                     )
                 }
+                if (isRefresh) onCommentCountChanged(sentenceId, comments.size)
                 onCommentsViewed(sentenceId)
                 track(
                     operation = CrashOperation.COMMENTS_LOADED,
@@ -171,7 +188,7 @@ class CommentSheetController(
                 )
                 updateSheet(
                     sentenceId = sentenceId,
-                    isWaiting = { sheet -> sheet.isLoading },
+                    isWaiting = { sheet -> sheet.isLoading || sheet.loadErrorMessage != null },
                 ) { sheet ->
                     sheet.copy(
                         isLoading = false,
@@ -184,6 +201,7 @@ class CommentSheetController(
 
     fun dismiss() {
         cancelLoad()
+        refreshPending = false
         uiState?.let { sheet ->
             analytics.sheetClosed(
                 commentCount = sheet.comments.size,
@@ -278,6 +296,8 @@ class CommentSheetController(
         if (sheet.isDeleting || sheet.isSubmitting) return
         if (sheet.findMyComment(commentId) == null) return
 
+        prepareMutation()
+
         uiState = sheet.copy(
             isDeleting = true,
             deleteErrorMessage = null,
@@ -324,6 +344,8 @@ class CommentSheetController(
                         deleteErrorMessage = "댓글을 삭제하지 못했습니다.",
                     )
                 }
+            } finally {
+                refreshAfterMutation(sheet.sentenceId)
             }
         }
     }
@@ -340,6 +362,8 @@ class CommentSheetController(
             return
         }
         val editingCommentId = sheet.editingCommentId
+
+        prepareMutation()
 
         uiState = sheet.copy(
             isSubmitting = true,
@@ -416,6 +440,8 @@ class CommentSheetController(
                         submitErrorMessage = "댓글을 저장하지 못했습니다.",
                     )
                 }
+            } finally {
+                refreshAfterMutation(sheet.sentenceId)
             }
         }
     }
@@ -491,6 +517,19 @@ class CommentSheetController(
         loadJob = null
     }
 
+    private fun prepareMutation() {
+        if (loadJob?.isActive == true) {
+            refreshPending = true
+            cancelLoad()
+        }
+    }
+
+    private fun refreshAfterMutation(sentenceId: Long) {
+        if (!refreshPending) return
+        refreshPending = false
+        refresh(sentenceId)
+    }
+
     private fun track(
         operation: CrashOperation,
         sentenceId: Long,
@@ -557,5 +596,6 @@ private fun CommentSheetUiState.withCommentSaved(
     input = "",
     editingCommentId = null,
     isSubmitting = false,
+    submittedCommentId = if (editedCommentId == null) savedComment.commentId else submittedCommentId,
     submitErrorMessage = null,
 )

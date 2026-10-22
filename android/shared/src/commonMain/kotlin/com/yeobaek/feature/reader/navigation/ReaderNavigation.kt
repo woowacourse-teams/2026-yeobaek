@@ -103,6 +103,7 @@ private fun ReaderRoute(
             commentRepository = appContainer.commentRepository,
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
+            commentNotifications = appContainer.commentNotifications,
         ),
     )
     TrackScreen(

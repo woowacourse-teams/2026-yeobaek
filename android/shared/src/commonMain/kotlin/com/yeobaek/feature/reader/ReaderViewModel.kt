@@ -28,6 +28,8 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.notification.CommentNotification
+import com.yeobaek.core.notification.CommentNotifications
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.MyProgressModel
@@ -47,6 +49,7 @@ import com.yeobaek.feature.reader.model.ReaderFontSize
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -61,6 +64,7 @@ class ReaderViewModel(
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
+    private val commentNotifications: CommentNotifications,
 ) : ViewModel() {
     var uiState by mutableStateOf(
         ReaderUiState(
@@ -150,6 +154,7 @@ class ReaderViewModel(
     private var saveReadingProgressJob: Job? = null
     private var commentCollectionsJob: Job? = null
     private var newCommentCountJob: Job? = null
+    private var commentNotificationJob: Job? = null
 
     private var currentBookId: Long? = null
     private var lastSavedPassageId: Long? = null
@@ -530,8 +535,17 @@ class ReaderViewModel(
     }
 
     fun getCommentCollections() {
+        loadCommentCollections(isRefreshing = false)
+    }
+
+    private fun loadCommentCollections(isRefreshing: Boolean) {
         commentCollectionsJob?.cancel()
-        uiState = uiState.copy(commentedSentenceMode = CommentedSentenceMode.Loading)
+        val keepContent = isRefreshing &&
+            uiState.commentedSentenceMode in
+            listOf(CommentedSentenceMode.Exists, CommentedSentenceMode.None)
+        if (!keepContent) {
+            uiState = uiState.copy(commentedSentenceMode = CommentedSentenceMode.Loading)
+        }
 
         commentCollectionsJob = viewModelScope.launch {
             try {
@@ -564,11 +578,13 @@ class ReaderViewModel(
                 throw e
             } catch (e: Exception) {
                 recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
-                uiState = uiState.copy(
-                    commentedSentenceMode = CommentedSentenceMode.Failed(
-                        message = "댓글을 불러오지 못했습니다.",
-                    ),
-                )
+                if (!keepContent) {
+                    uiState = uiState.copy(
+                        commentedSentenceMode = CommentedSentenceMode.Failed(
+                            message = "댓글을 불러오지 못했습니다.",
+                        ),
+                    )
+                }
             }
         }
     }
@@ -772,10 +788,50 @@ class ReaderViewModel(
         isScreenStarted = true
         startReadingSessionIfReady()
         commentCollectionSession.resume()
+        if (commentNotificationJob?.isActive != true) {
+            commentNotificationJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                commentNotifications.events.collect { notification ->
+                    if (notification.space == commentSpace && uiState.loadState == ReaderLoadState.Success) {
+                        refreshComments(notification)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun refreshComments(notification: CommentNotification) {
+        commentSheet.refresh(notification.sentenceId)
+        refreshNewCommentStatus()
+        if (uiState.isCommentCollectionsVisible) {
+            loadCommentCollections(isRefreshing = true)
+        }
+        if (!uiState.passages.containsSequence(notification.passageSequence)) return
+
+        try {
+            val passages = getPassages(
+                from = notification.passageSequence,
+                to = notification.passageSequence,
+            ).passages
+            var updated = uiState.passages
+            passages.flatMap { it.sentences }.forEach { sentence ->
+                updated = updated.updateCommentCount(sentence.sentenceId, sentence.commentCount)
+            }
+            uiState = uiState.copy(passages = updated)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            recordFailure(
+                exception,
+                CrashOperation.COMMENT_REFRESH_FAILED,
+                passageSequence = notification.passageSequence,
+            )
+        }
     }
 
     fun onScreenStopped() {
         isScreenStarted = false
+        commentNotificationJob?.cancel()
+        commentNotificationJob = null
         commitFontSizeChange()
         if (uiState.isTextSettingMenuExpanded) {
             fontSizeAtMenuOpen = uiState.fontSize
@@ -948,6 +1004,7 @@ class ReaderViewModel(
             commentRepository: CommentRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
+            commentNotifications: CommentNotifications,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ReaderViewModel(
@@ -961,6 +1018,7 @@ class ReaderViewModel(
                     commentRepository = commentRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
+                    commentNotifications = commentNotifications,
                 )
             }
         }

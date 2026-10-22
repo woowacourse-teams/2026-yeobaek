@@ -53,6 +53,7 @@ enum class CrashOperation(
     COMMENT_SHEET_OPENED("comment_sheet_opened"),
     COMMENTS_LOADED("comments_loaded"),
     COMMENT_SHEET_LOAD_FAILED("comment_sheet_load_failed"),
+    COMMENT_REFRESH_FAILED("comment_refresh_failed"),
     COMMENT_COLLECTION_LOAD_FAILED("comment_collection_load_failed"),
     COMMENT_EDIT_STARTED("comment_edit_started"),
     COMMENT_SAVE_STARTED("comment_save_started"),
