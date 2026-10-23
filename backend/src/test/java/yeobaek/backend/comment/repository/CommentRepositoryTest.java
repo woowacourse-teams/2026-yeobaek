@@ -73,7 +73,7 @@ class CommentRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("댓글을 저장하면 작성일이 자동으로 기록되고 수정일은 비어 있다")
     void saveSetsCreatedAt() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문"))));
         Member member = memberRepository.save(new Member(new Nickname("민서")));
@@ -91,7 +91,7 @@ class CommentRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("수정한 댓글 값 객체를 저장한 뒤 다시 조회한다")
     void reloadsUpdatedCommentContent() {
-        Book book = bookRepository.save(new Book(new BookTitle("댓글 수정 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("댓글 수정 도서"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문"))));
         Member member = memberRepository.save(new Member(new Nickname("수정자")));
@@ -111,7 +111,7 @@ class CommentRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("조회할 문장 ID에 대해 현재 모임의 댓글 수만 집계한다")
     void countsCommentsByClubAndSentenceIds() {
-        Book book = bookRepository.save(new Book(new BookTitle("댓글 집계 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("댓글 집계 도서"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, java.util.List.of(new SentenceContent("첫 문장."), new SentenceContent("둘째 문장."))));
         Member member = memberRepository.save(new Member(new Nickname("민서")));
@@ -139,7 +139,7 @@ class CommentRepositoryTest extends IntegrationTest {
     @Transactional
     @DisplayName("모임 댓글 문장 집계에 필요한 스칼라 값만 조회하고 보이지 않는 댓글은 제외한다")
     void findAllVisibleSentenceRowsByMemberIdAndClubId() {
-        Book book = bookRepository.save(new Book(new BookTitle("댓글 문장 조회 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("댓글 문장 조회 도서"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(
                 chapter, 1, Collections.singletonList(new SentenceContent("조회 문장"))));
@@ -185,13 +185,13 @@ class CommentRepositoryTest extends IntegrationTest {
     @Test
     @DisplayName("공개방 댓글과 문장 집계에 필요한 연관 정보를 함께 조회한다")
     void findAllWithSentenceByPublicRoomId() {
-        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 조회 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 조회 도서"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(
                 chapter, 1, Collections.singletonList(new SentenceContent("공개방 조회 문장"))));
         Member member = memberRepository.save(new Member(new Nickname("공개방 작성자")));
         PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 공개방 도서"), null, null, 1, null));
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 공개방 도서"), null, null, 1, null, null, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
         Passage otherPassage = passageRepository.save(new Passage(
                 otherChapter, 1, Collections.singletonList(new SentenceContent("다른 공개방 문장"))));

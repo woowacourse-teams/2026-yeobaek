@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.dto.BookCoverUpdateRequest;
+import yeobaek.backend.admin.dto.BookDescriptionUpdateRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
 import yeobaek.backend.admin.service.AdminBookService;
@@ -70,6 +71,20 @@ public class AdminBookController {
         adminBookService.delete(bookId);
         log.atInfo().addKeyValue(OPERATION, "admin.book.delete").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).log("도서 삭제 API 처리를 완료했습니다.");
+    }
+
+    @Operation(summary = "도서 소개 교체", description = "검수한 소개로 교체한다. 누락/null 및 공백 문자열은 거부한다.")
+    @PutMapping("/api/admin/books/{bookId}/description")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void replaceDescription(@PathVariable Long bookId, @Valid @RequestBody BookDescriptionUpdateRequest request) {
+        adminBookService.replaceDescription(bookId, request.description());
+    }
+
+    @Operation(summary = "도서 소개 제거", description = "도서의 소개를 제거한다.")
+    @DeleteMapping("/api/admin/books/{bookId}/description")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeDescription(@PathVariable Long bookId) {
+        adminBookService.removeDescription(bookId);
     }
 
     @Operation(summary = "도서 표지 교체", description = "기존 S3 객체는 삭제하지 않고 새 객체 키로 교체한다.")

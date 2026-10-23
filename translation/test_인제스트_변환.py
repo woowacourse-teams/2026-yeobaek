@@ -16,6 +16,8 @@ from 인제스트_변환 import (
     LegacyNormalizationError,
     MAX_SENTENCE_CONTENT_BYTES,
     create_archive,
+    normalize_description,
+    validate_introduction,
     estimate_tokens,
     parse_original,
     parse_translation,
@@ -642,6 +644,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
         )
         translation.write_text("## I. 첫째\n\n첫 문단.\n", encoding="utf-8")
         meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+        (book_dir / "책_소개.txt").write_text("인물의 선택을 따라가는 이야기다. 갈등을 통해 관계를 돌아본다.", encoding="utf-8")
         (book_dir / "장_정보.md").write_text(
             "# 장 정보\n\n"
             "원문 언어: en — 영어\n"
@@ -678,6 +681,83 @@ class CreateArchiveCoverTests(unittest.TestCase):
             check=False,
         )
 
+    def test_invalid_introduction_preserves_existing_outputs(self):
+        for content in (None, b" \r\n\t", b"\xff"):
+            with self.subTest(content=None if content is None else len(content)), tempfile.TemporaryDirectory() as tmp:
+                book_dir = Path(tmp)
+                original, translation, meta_path, _ = self._write_book_inputs(book_dir, "소개 검증")
+                introduction = book_dir / "책_소개.txt"
+                if content is None:
+                    introduction.unlink()
+                else:
+                    introduction.write_bytes(content)
+                ingest = book_dir / "ingest.json"
+                archive = book_dir / "소개_검증.zip"
+                ingest.write_bytes(b"existing ingest")
+                archive.write_bytes(b"existing zip")
+                result = self._run_conversion(book_dir, original, translation, meta_path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("소개 검증 실패", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"existing ingest")
+                self.assertEqual(archive.read_bytes(), b"existing zip")
+
+    def test_invalid_metadata_description_preserves_existing_outputs(self):
+        for value in ("", " \n\t", 1, False, [], {}):
+            with self.subTest(kind=type(value).__name__), tempfile.TemporaryDirectory() as tmp:
+                book_dir = Path(tmp)
+                original, translation, meta_path, meta = self._write_book_inputs(book_dir, "소개 타입")
+                meta["description"] = value
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+                ingest = book_dir / "ingest.json"
+                archive = book_dir / "소개_타입.zip"
+                ingest.write_bytes(b"existing ingest")
+                archive.write_bytes(b"existing zip")
+                result = self._run_conversion(book_dir, original, translation, meta_path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("description", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"existing ingest")
+                self.assertEqual(archive.read_bytes(), b"existing zip")
+
+    def test_introduction_output_collision_preserves_all_inputs(self):
+        for option in ("--output", "--zip-output", "--original", "--meta"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as tmp:
+                book_dir = Path(tmp)
+                original, translation, meta_path, meta = self._write_book_inputs(book_dir, "소개 충돌")
+                introduction = book_dir / "책_소개.txt"
+                if option == "--meta":
+                    introduction.write_bytes(meta_path.read_bytes())
+                    meta_path = introduction
+                elif option == "--original":
+                    introduction.write_bytes(original.read_bytes())
+                    original = introduction
+                before = introduction.read_bytes()
+                ingest = book_dir / "ingest.json"
+                archive = book_dir / "소개_충돌.zip"
+                ingest.write_bytes(b"old ingest")
+                archive.write_bytes(b"old zip")
+                command = [sys.executable, str(Path(__file__).with_name("인제스트_변환.py")),
+                           str(translation), "--original", str(original), "--meta", str(meta_path)]
+                if option in ("--output", "--zip-output"):
+                    command.extend([option, str(introduction)])
+                result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("책_소개.txt와", result.stdout + result.stderr)
+                self.assertEqual(introduction.read_bytes(), before)
+                self.assertEqual(ingest.read_bytes(), b"old ingest")
+                self.assertEqual(archive.read_bytes(), b"old zip")
+
+    def test_partial_does_not_require_introduction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp)
+            original, translation, meta_path, _ = self._write_book_inputs(book_dir, "부분 검증")
+            (book_dir / "책_소개.txt").unlink()
+            result = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("인제스트_변환.py")),
+                 str(translation), "--original", str(original), "--meta", str(meta_path), "--partial"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse((book_dir / "ingest.json").exists())
+
     def test_archive_includes_final_cover_artifacts_and_excludes_cover_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             book_dir = Path(tmp) / "테스트책"
@@ -693,6 +773,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
             discarded = work_dir / "A_실패.png"
             extra = cover_dir / "H.jpg"
 
+            (book_dir / "책_소개.txt").write_text("소개 초안.", encoding="utf-8")
             ingest.write_text("{}", encoding="utf-8")
             meta.write_text("{}", encoding="utf-8")
             brief.write_text("{}", encoding="utf-8")
@@ -735,6 +816,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
             ingest = book_dir / "ingest.json"
             meta = book_dir / "메타데이터.json"
             original = external_dir / "ingest.json"
+            (book_dir / "책_소개.txt").write_text("소개 초안.", encoding="utf-8")
             ingest.write_bytes(b"generated-ingest")
             meta.write_text("{}", encoding="utf-8")
             original.write_bytes(b"external-original")
@@ -992,6 +1074,10 @@ class CreateArchiveCoverTests(unittest.TestCase):
             ingest = json.loads(ingest_path.read_text(encoding="utf-8"))
             passage = ingest["chapters"][0]["passages"][0]
             self.assertEqual(passage, {"sentences": [{"content": "첫 문단."}]})
+            self.assertEqual(
+                ingest["description"],
+                (book_dir / "책_소개.txt").read_text(encoding="utf-8-sig").strip(),
+            )
             self.assertIn("문장 총 1개", completed.stdout)
             self.assertIn("문장 재결합 검증 통과", completed.stdout)
             zip_path = book_dir / "표지_있는_책.zip"
@@ -999,10 +1085,82 @@ class CreateArchiveCoverTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as archive:
                 names = set(archive.namelist())
                 archived_original = archive.read(f"원문/{original.name}")
+                self.assertEqual(json.loads(archive.read("ingest.json")), ingest)
+                self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
             self.assertEqual(archived_original, original.read_bytes())
             self.assertIn("표지/A.png", names)
+            self.assertIn("책_소개.txt", names)
+            self.assertIn("운영자 검수 후", completed.stdout)
+            # 소개 파일을 수정해 재생성하면 메타데이터의 이전 소개 대신 새 초안을 포함한다.
+            meta["description"] = "  검수한 소개.\n내부 개행은 유지한다.  "
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+            (book_dir / "책_소개.txt").write_text("  수정한 소개 초안.\n내부 개행은 유지한다.  ", encoding="utf-8-sig")
+            rerun = self._run_conversion(book_dir, original, translation, meta_path)
+            self.assertEqual(rerun.returncode, 0, rerun.stdout + rerun.stderr)
+            self.assertEqual(
+                json.loads(ingest_path.read_text(encoding="utf-8"))["description"],
+                "수정한 소개 초안.\n내부 개행은 유지한다.",
+            )
+            with zipfile.ZipFile(zip_path) as archive:
+                self.assertEqual(
+                    json.loads(archive.read("ingest.json"))["description"],
+                    "수정한 소개 초안.\n내부 개행은 유지한다.",
+                )
+                self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
             self.assertIn("표지/프롬프트/G.txt", names)
+            # 출력 JSON을 하위 폴더로 옮겨도 소개는 메타데이터 책 폴더에서 가져온다.
+            nested = book_dir / "산출물"
+            nested.mkdir()
+            nested_result = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name("인제스트_변환.py")),
+                 str(translation), "--original", str(original), "--meta", str(meta_path),
+                 "--output", str(nested / "ingest.json")],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            self.assertEqual(nested_result.returncode, 0, nested_result.stdout + nested_result.stderr)
+            with zipfile.ZipFile(nested / "표지_있는_책.zip") as archive:
+                self.assertIn("책_소개.txt", archive.namelist())
+                self.assertIn("산출물/ingest.json", archive.namelist())
             self.assertIn("표지/표지_검수.json", names)
+
+
+class BookDescriptionTests(unittest.TestCase):
+    def test_optional_description_normalizes_absence_and_keeps_internal_lines(self):
+        for book in ({}, {"description": None}):
+            normalize_description(book)
+            self.assertNotIn("description", book)
+        book = {"description": "  소개.\n다음 줄.  "}
+        normalize_description(book)
+        self.assertEqual(book["description"], "소개.\n다음 줄.")
+
+    def test_description_rejects_blank_invalid_type_or_encoding(self):
+        for value in ("", " \n\t", "\u2003", 1, False, [], {}, "\ud800"):
+            with self.subTest(value=type(value).__name__), self.assertRaises(ValueError):
+                normalize_description({"description": value})
+
+    def test_legacy_normalization_description_remains_optional(self):
+        for value in (None, "  검수한 소개.\n내부 개행.  "):
+            book = LegacyIngestNormalizationTests._legacy_book()
+            book["description"] = value
+            normalize_legacy_book(book)
+            self.assertEqual(book.get("description"), value.strip() if value is not None else None)
+        for value in ("", " \n\t", "\u2003", 1):
+            with self.subTest(value=value):
+                book = LegacyIngestNormalizationTests._legacy_book()
+                book["description"] = value
+                with self.assertRaisesRegex(LegacyNormalizationError, "description"):
+                    normalize_legacy_book(book)
+
+    def test_introduction_symlink_escape_is_rejected_before_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp).resolve()
+            actual_resolve = Path.resolve
+            def resolve(path, *args, **kwargs):
+                if path.name == "책_소개.txt":
+                    return book_dir.parent / "external-introduction.txt"
+                return actual_resolve(path, *args, **kwargs)
+            with mock.patch.object(Path, "resolve", resolve):
+                with self.assertRaisesRegex(ValueError, "책 폴더 밖"):
+                    validate_introduction(book_dir)
 
 
 if __name__ == "__main__":

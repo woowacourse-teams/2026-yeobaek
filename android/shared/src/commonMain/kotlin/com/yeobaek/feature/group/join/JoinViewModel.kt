@@ -18,7 +18,6 @@ import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.GroupRepository
-import com.yeobaek.data.repository.UserRepository
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
@@ -41,7 +40,7 @@ class JoinViewModel(
 
     fun onCodeValueChange(value: String) {
         uiState = uiState.copy(
-            codeValue = value,
+            codeValue = value.take(CODE_LENGTH),
             codeState = false,
         )
     }
@@ -90,7 +89,6 @@ class JoinViewModel(
     companion object {
         fun joinViewModelFactory(
             entryPoint: GroupJoinEntryPoint,
-            userRepository: UserRepository,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
@@ -104,6 +102,8 @@ class JoinViewModel(
                 )
             }
         }
+
+        const val CODE_LENGTH = 6
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(

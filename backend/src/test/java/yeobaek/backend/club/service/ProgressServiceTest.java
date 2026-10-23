@@ -76,7 +76,7 @@ class ProgressServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 4, null));
+        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 4, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
         second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
@@ -164,7 +164,7 @@ class ProgressServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않는 본문으로는 진도를 보고할 수 없다")
     void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null));
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null, null, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
         Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
 
@@ -181,7 +181,7 @@ class ProgressServiceTest extends IntegrationTest {
     @Test
     @DisplayName("여러 모임 중 가장 최근에 읽은 모임이 마지막 읽던 책으로 조회된다")
     void lastReadingPicksMostRecent() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 2, null));
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 2, null, null, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
         Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
         Club otherClub = clubRepository.save(new Club(new ClubName("2기"), otherBook, new JoinCode("CODE02")));

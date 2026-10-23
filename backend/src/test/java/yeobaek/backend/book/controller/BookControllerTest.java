@@ -106,7 +106,7 @@ class BookControllerTest extends ControllerTest {
                 null,
                 "https://covers.example/detail.jpg",
                 312,
-                List.of(new ChapterResponse(11L, "1장", 1, 1, 105)));
+                List.of(new ChapterResponse(11L, "1장", 1, 1, 105)), "검수한 소개", 284L);
         given(bookService.findBook(9L)).willReturn(response);
 
         mockMvc.perform(get("/api/books/{bookId}", 9L)
@@ -123,6 +123,8 @@ class BookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.publishedYear").value((Object) null))
                 .andExpect(jsonPath("$.coverImageUrl").value("https://covers.example/detail.jpg"))
                 .andExpect(jsonPath("$.passageCount").value(312))
+                .andExpect(jsonPath("$.description").value("검수한 소개"))
+                .andExpect(jsonPath("$.pageCount").value(284))
                 .andExpect(jsonPath("$.chapters").isArray())
                 .andExpect(jsonPath("$.chapters.length()").value(1))
                 .andExpect(jsonPath("$.chapters[0].chapterId").value(11))
@@ -133,6 +135,22 @@ class BookControllerTest extends ControllerTest {
 
         verify(bookService, times(1)).findBook(9L);
         verify(analyticsTracker).track(3L, AnalyticsEvent.bookView(9L, 312, 1));
+    }
+
+    @Test
+    @DisplayName("책에 소개와 쪽수 정보가 없으면 해당 속성을 null로 반환한다")
+    void findBookWithoutDescriptionAndPageCount() throws Exception {
+        givenValidMember(3L);
+        given(bookService.findBook(9L)).willReturn(new BookDetailResponse(9L, "기존 도서", List.of(),
+                null, null, null, 1, List.of(), null, null));
+
+        mockMvc.perform(get("/api/books/{bookId}", 9L).header("X-Member-Id", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value((Object) null))
+                .andExpect(jsonPath("$.pageCount").value((Object) null));
+
+        verify(bookService, times(1)).findBook(9L);
+        verify(analyticsTracker).track(3L, AnalyticsEvent.bookView(9L, 1, 0));
     }
 
     @Test

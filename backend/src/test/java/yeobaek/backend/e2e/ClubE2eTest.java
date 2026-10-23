@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import yeobaek.backend.e2e.utils.ClubE2eUtils.ClubFixture;
 import yeobaek.backend.e2e.utils.ReadingIds;
 
@@ -106,6 +108,84 @@ class ClubE2eTest extends E2eTest {
         // 선택한 책으로 새 독서 모임을 생성한다
         ValidatableResponse createdClub = memberRequest(port, memberId)
                 .body(Map.of("name", "새 독서 모임", "bookId", bookId))
+                .when()
+                .post("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(201)
+                .body("name", equalTo("새 독서 모임"))
+                .body("joinCode", notNullValue())
+                .body("book.bookId", equalTo(Math.toIntExact(bookId)));
+        long clubId = createdClub.extract().jsonPath().getLong("clubId");
+
+        // 생성한 독서 모임이 내 모임 목록에 반영됐는지 조회한다
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/clubs")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("clubs", hasSize(1))
+                .body("clubs[0].clubId", equalTo(Math.toIntExact(clubId)))
+                .body("clubs[0].memberCount", equalTo(1));
+
+        // 생성자가 새 독서 모임의 참여자로 등록됐는지 조회한다
+        memberRequest(port, memberId)
+                .when()
+                .get("/api/clubs/{clubId}", clubId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("members", hasSize(1))
+                .body("members[0].memberId", equalTo(Math.toIntExact(memberId)))
+                .body("members[0].mine", equalTo(true));
+
+        // 새 독서 모임을 통해 선택한 책의 본문을 읽는다
+        memberRequest(port, memberId)
+                .queryParam("from", 1)
+                .queryParam("to", passageContents.size())
+                .when()
+                .get("/api/clubs/{clubId}/passages", clubId)
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("passages", hasSize(passageContents.size()))
+                .body("passages[3].sequence", equalTo(4))
+                .body("passages[3].sentences[0].content", equalTo(fourthPassageContent));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"새 모임", "현진"})
+    @DisplayName("제목이나 작가 이름으로 책을 검색해 독서 모임을 만들고 책 본문을 읽는다")
+    void searchBookCreateClubAndRead(String keyword) {
+        String fourthPassageContent = "네 번째 문단입니다.";
+        List<String> passageContents = List.of(
+                "첫 번째 문단입니다.",
+                "두 번째 문단입니다.",
+                "세 번째 문단입니다.",
+                fourthPassageContent);
+        long memberId = createMember(port, "검색 모임 독자");
+        long bookId = createBook(port, "새 모임의 책", List.of("현진건", "현진영"), passageContents);
+        createBook(port, "다른 책");
+
+        // 제목 또는 작가 이름의 일부로 검색한 결과에서 책을 선택한다
+        long selectedBookId = memberRequest(port, memberId)
+                .queryParam("keyword", keyword)
+                .when()
+                .get("/api/books")
+                .then()
+                .log().ifValidationFails()
+                .statusCode(200)
+                .body("books", hasSize(1))
+                .body("books[0].bookId", equalTo(Math.toIntExact(bookId)))
+                .body("books[0].title", equalTo("새 모임의 책"))
+                .body("books[0].passageCount", equalTo(passageContents.size()))
+                .body("books[0].authors", hasSize(2))
+                .extract().jsonPath().getLong("books[0].bookId");
+
+        // 선택한 책으로 새 독서 모임을 생성한다
+        ValidatableResponse createdClub = memberRequest(port, memberId)
+                .body(Map.of("name", "새 독서 모임", "bookId", selectedBookId))
                 .when()
                 .post("/api/clubs")
                 .then()

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
+import org.springframework.context.ApplicationEventPublisher;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.repository.PassageRepository;
@@ -19,6 +20,7 @@ import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.repository.CommentLikeRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.comment.repository.CommentViewRepository;
@@ -43,10 +45,10 @@ class CommentLoggingTest {
         given(passages.findById(13L)).willReturn(Optional.of(passage));
         given(passage.getSequence()).willReturn(new ContentSequence(4));
         given(comments.countNewVisibleCommentsWithinProgress(7L, 5L, 4)).willReturn(3L);
-        var service = new CommentService(comments, mock(CommentReportRepository.class),
+        var service = new CommentService(comments, mock(CommentLikeRepository.class), mock(CommentReportRepository.class),
                 mock(CommentViewRepository.class), clubs, memberships, mock(SentenceRepository.class),
                 passages, mock(MemberRepository.class), mock(MemberBlockRepository.class),
-                mock(PublicRoomRepository.class));
+                mock(PublicRoomRepository.class), mock(ApplicationEventPublisher.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {
@@ -74,13 +76,14 @@ class CommentLoggingTest {
         var comment = mock(Comment.class);
         given(comments.findByIdForUpdate(11L)).willReturn(Optional.of(comment));
         given(comments.findVisibleWithContextById(7L, 11L)).willReturn(Optional.of(comment));
-        given(memberships.existsJoinedByMemberIdAndCommentId(7L, 11L)).willReturn(true);
+        given(comment.getClubId()).willReturn(5L);
+        given(memberships.existsJoinedByMemberIdAndClubId(7L, 5L)).willReturn(true);
         given(reports.existsByReporterIdAndCommentId(7L, 11L)).willReturn(alreadyReported);
         given(members.getReferenceById(7L)).willReturn(mock(Member.class));
-        var service = new CommentService(comments, reports, mock(CommentViewRepository.class),
+        var service = new CommentService(comments, mock(CommentLikeRepository.class), reports, mock(CommentViewRepository.class),
                 mock(ClubRepository.class), memberships, mock(SentenceRepository.class),
                 mock(PassageRepository.class), members, mock(MemberBlockRepository.class),
-                mock(PublicRoomRepository.class));
+                mock(PublicRoomRepository.class), mock(ApplicationEventPublisher.class));
 
         MDC.put("memberId", "7");
         try (var logs = new LogCapture(CommentService.class.getName())) {

@@ -53,7 +53,7 @@ class PublicRoomTest {
     }
 
     private Book book(String title) {
-        return new Book(new BookTitle(title), null, null, 1, null);
+        return new Book(new BookTitle(title), null, null, 1, null, null, null);
     }
 
     private Book bookWithId(Long id, String title) {

@@ -25,6 +25,7 @@ dependencies {
     implementation 'software.amazon.awssdk:s3'
     implementation 'com.posthog:posthog-server:2.16.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     // 관리자 페이지 (2026-08-06 M7 결정: Thymeleaf 서버 렌더링)
@@ -32,6 +33,7 @@ dependencies {
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
     // Boot 4.1.0의 OTel API 1.62.0과 일치한다.
@@ -48,6 +50,9 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // FCM
+    implementation 'com.google.firebase:firebase-admin:9.11.0'
 }
 
 tasks.named('test') {

@@ -3,8 +3,6 @@
 > 기반 문서: [`PRD.md`](PRD.md) · 상태: **구현 계약**
 > 이 문서는 백엔드 구현과 Android 연동이 따르는 API 계약의 기준이다. 런타임 OpenAPI 스펙(`/v3/api-docs`)과 Swagger UI(`/docs`)도 이 계약을 따른다.
 
-> **공개방 구현 계약:** 10절의 신규 API와 기존 API 확장을 구현했다. 운영 환경에서는 공개방 스키마 전환과 서버 배포 이후 사용할 수 있다. 기존 모임 API의 요청·응답과 구버전 지원은 유지한다.
-
 ## 0. 공통 규약
 
 - Base path: `/api` (호스트는 배포 후 공유)
@@ -36,7 +34,7 @@
 | `PASSAGE_NOT_FOUND` | 400 | 대상 본문 없음 |
 | `SENTENCE_NOT_FOUND` | 400 | 대상 문장 없음 |
 | `SENTENCE_NOT_IN_CLUB_BOOK` | 400 | 문장은 존재하지만 해당 모임 도서 소속이 아님 |
-| `COMMENT_NOT_FOUND` | 400 | 대상 댓글이 없거나 신고자에게 보이지 않음 |
+| `COMMENT_NOT_FOUND` | 400 | 대상 댓글이 없거나 신고·좋아요 요청자에게 보이지 않음 |
 | `CANNOT_REPORT_OWN_COMMENT` | 400 | 본인이 작성한 댓글 신고 시도 |
 | `CANNOT_BLOCK_SELF` | 400 | 자기 자신을 차단하려는 시도 |
 | `AUTHOR_NOT_FOUND` | 400 | (관리자) `authorId`가 가리키는 작가 없음 |
@@ -72,7 +70,7 @@
 | 내 모임·모임 상세 | `book.status=ACTIVE` | 모임을 유지하고 `book.status=DELETED` |
 | 본문·진도 | 조회·갱신 가능 | `BOOK_NOT_AVAILABLE` |
 | 마지막 읽기 | 가장 최근 기록 반환 | 같은 기록과 `book.status=DELETED` 반환 |
-| 댓글 조회·작성·수정·삭제·신고 | 가능 | 데이터를 보존하고 `BOOK_NOT_AVAILABLE` |
+| 댓글 조회·작성·수정·삭제·신고·좋아요 | 가능 | 데이터를 보존하고 `BOOK_NOT_AVAILABLE` |
 | 관리자 작가·작품 목록 | `status=ACTIVE`로 표시 | 삭제 도서도 `status=DELETED`로 표시 |
 | 동일 도서 업로드 | 활성 중복이면 차단 | 삭제된 중복만 있으면 새 ID로 허용 |
 
@@ -109,6 +107,7 @@
 - 요청 회원이 작성한 모든 댓글
 - 요청 회원의 모든 모임 참여 기록과 저장된 진도
 - 요청 회원에게 귀속된 모든 댓글 조회 상태
+- 요청 회원이 누른 좋아요와 요청 회원이 작성한 댓글에 연결된 모든 좋아요
 - 요청 회원이 차단했거나 요청 회원을 차단한 모든 차단 관계
 
 삭제된 댓글은 이후 서버 조회의 댓글 목록과 문장별 `commentCount`에서 제외된다.
@@ -192,6 +191,8 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "passageCount": 312,
+  "description": null,
+  "pageCount": 28,
   "chapters": [
     { "chapterId": 1, "title": "1장", "sequence": 1, "startPassageSequence": 1, "endPassageSequence": 105 }
   ]
@@ -200,6 +201,17 @@
 - `coverImageUrl`: 공개 표지 이미지 URL. 표지가 없는 도서는 `null`이며 클라이언트가 기본 이미지를 표시한다.
 - `startPassageSequence`/`endPassageSequence`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+
+- `description`: 책 소개. 없으면 `null`이며 클라이언트는 소개 영역을 생략한다.
+- `pageCount`: 본문을 700자당 1쪽으로 환산하여 올림한 정수. 실제 종이책 쪽수가 아니다.
+  문단의 문장을 순서대로 합친 뒤 NFC 정규화하고 Unicode 코드 포인트를 센다. 공백·문장부호는 포함하고
+  CR/LF/탭과 제목·목차·소개는 제외한다. 책 전체를 합산한 뒤 한 번만 올림한다.
+  예: 198,376자 → 284쪽. API는 표시용 10쪽 단위 반올림을 하지 않는다.
+- 기존 도서의 글자 수를 아직 보완하지 않았다면 `pageCount`는 `null`이다. 조회는 성공하며,
+  기능 준비 완료 전 활성 도서의 미집계 건수가 0인지 확인한다. 목록 응답 계약은 변경하지 않는다.
+
+
+기존 도서의 미집계 본문 글자 수는 앱 시작 시 Flyway V5 마이그레이션이 자동으로 보충한다.
 
 ## 3. 모임
 
@@ -412,7 +424,7 @@
 
 ## 5. 댓글
 
-이 절의 모임 소속·탈퇴 조건은 모임 댓글에 적용한다. 공개방 도입 후 공통 댓글 수정·삭제·신고
+이 절의 모임 소속·탈퇴 조건은 모임 댓글에 적용한다. 공개방 도입 후 공통 댓글 수정·삭제·신고·좋아요
 경로에 공개방 댓글을 전달하는 경우의 권한과 오류는 10.9절에서 정의한다.
 
 댓글 목록 조회와 작성은 문장을 대상으로 한다. 존재하지 않는 문장을 지정하면 `400`
@@ -539,7 +551,9 @@
       "content": "이 문장에서 멈칫했어요.",
       "createdAt": "2026-08-05T14:30:00",
       "updatedAt": null,
-      "mine": false
+      "mine": false,
+      "likeCount": 3,
+      "likedByMe": true
     }
   ]
 }
@@ -548,6 +562,9 @@
   전환한다. 응답 생성과 상태 전환은 서버 트랜잭션 하나로 처리한다. 서버가 트랜잭션을 완료하지
   못하면 상태를 변경하지 않지만, 커밋 후 네트워크에서 응답만 유실된 경우에는 상태 전환이 유지된다.
 - `mine`: 요청자(`X-Member-Id`) 본인 작성 여부. `updatedAt`: 수정된 적 없으면 `null`.
+- `likeCount`: 좋아요 총개수(0 이상의 정수). `likedByMe`: 요청 회원의 좋아요 여부(boolean).
+  댓글 조회(호환 API 포함)·작성·수정 응답에 두 필드를 항상 포함하며 `null`을 허용하지 않는다.
+  새 댓글은 `likeCount: 0`, `likedByMe: false`로 시작한다.
 - 요청자가 차단한 회원이 작성한 댓글은 결과에서 제외한다. 차단은 단방향이므로 차단된 회원의
   조회 결과에서는 차단자의 댓글이 계속 보인다.
 - 모임에서 탈퇴했지만 계정은 유지 중인 작성자의 댓글도 닉네임과 내용을 변경하지 않고 일반
@@ -602,6 +619,44 @@
 - 댓글이 연결된 도서가 삭제된 경우 댓글을 제거하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 - 삭제된 도서의 댓글 데이터와 모임·도서·문단·문장 연결은 보존한다. 이를 다시 보여주는 API와
   탐색 방식은 후속 기능에서 결정한다.
+
+### 댓글 좋아요
+
+모임·공개방 댓글에 공통으로 적용한다. 회원은 `X-Member-Id` 헤더로 식별하며 요청 본문은 없다.
+
+| 동작 | API | 성공 응답 |
+|---|---|---|
+| 추가 | `PUT /api/comments/{commentId}/likes` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
+| 취소 | `DELETE /api/comments/{commentId}/likes` | `200`, 처리 후 좋아요 수와 내 좋아요 여부 |
+
+응답 예시 (추가):
+```json
+{ "likeCount": 3, "likedByMe": true }
+```
+
+- 본인 댓글에도 좋아요를 누를 수 있으며 회원당 댓글 하나에 최대 1개다. 댓글 작성 시 자동으로
+  추가하지 않는다. 화면에서 다시 누르면 취소하며, API는 추가·취소를 구분한다.
+- 이미 추가된 좋아요의 추가 요청과 이미 취소된 좋아요의 취소 요청도 권한·유효성을 검사한 뒤
+  `200`과 현재 값을 반환한다 (멱등). 중복·동시 추가 요청으로 좋아요 수가 중복 증가하지 않는다.
+  추가 응답의 `likedByMe`는 `true`, 취소 응답은 `false`다.
+- 모임 댓글은 현재 참여자만 추가·취소할 수 있다. 공개방 댓글은 방문 기록 없이도 가능하다.
+- 차단은 기존 단방향 규칙을 따른다. 요청자가 차단한 작성자의 댓글에는 추가·취소할 수 없고,
+  차단 해제 후 다시 가능하다. 기존 좋아요는 유지하며 개수에도 포함한다.
+- 모임 탈퇴 시 좋아요는 유지하고 개수에도 포함하되 추가·취소는 막는다. 재가입하면 다시 변경할 수 있다.
+- 댓글 수정 시 좋아요는 유지한다. 회원 계정 삭제 시 그 회원이 누른 좋아요를 삭제하고 개수에서
+  제외하며, 댓글 삭제 시 연결된 좋아요도 모두 삭제한다. 도서 삭제 시에는 보존하되 추가·취소를 막는다.
+- 좋아요는 댓글의 읽음 상태·새 댓글 수·기존 작성일순 정렬에 영향을 주지 않는다.
+  누른 사람 목록, 좋아요 알림, 좋아요순 정렬은 제공하지 않는다.
+- 내 변경은 성공 응답으로 화면에 반영한다. 다른 사람의 변경은 댓글 재조회 시 반영하며
+  실시간 갱신은 제공하지 않는다.
+
+| 오류 조건 | 응답 |
+|---|---|
+| 없거나 요청자가 차단해서 보이지 않는 댓글 | `400 COMMENT_NOT_FOUND` |
+| 모임 미가입·탈퇴 상태 | `403 NOT_CLUB_MEMBER` |
+| 삭제된 도서의 댓글 | `400 BOOK_NOT_AVAILABLE` |
+
+회원 헤더 등 나머지 오류는 공통 규약을 따른다. 위 검사는 반복 요청에도 동일하게 적용한다.
 
 ### 댓글 신고
 `POST /api/comments/{commentId}/reports`
@@ -762,6 +817,7 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
+  "description": null,
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -783,6 +839,9 @@
 ```
 
 필드 규칙:
+- `description`: 선택 문자열. 생략·`null`은 소개 없음으로 처리한다. 빈 문자열이나 공백만 있는 값은
+  `400` (`INVALID_REQUEST`)으로 거부한다. 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+  기존 ZIP의 JSON에 소개가 없어도 등록할 수 있다.
 - `title`: 필수, 1~100자 (공백만 불가)
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
@@ -803,7 +862,8 @@
 
 서버 처리:
 - 문단 순서(`passage.sequence`)는 **배열 등장 순서**로 서버가 책 전체 기준 1..N을 부여한다. 문장 순서(`sentence.sequence`)는 각 문단의 배열 등장 순서로 1..N을 부여한다. 두 순서 모두 dense 보장은 구성상 성립한다. 목차 순서도 등장 순서로 1..M
-- `passageCount`는 서버가 자동 산출한다 (PRD 3.3)
+- `passageCount`와 본문 글자 수는 서버가 자동 산출한다. 요청에 계산값을 넣어도 이를 신뢰하지 않는다.
+  글자 수로 환산한 쪽수는 도서 상세 응답에서 제공한다.
 - 제목·출판사·출판연도·작가 구성이 모두 동일한 **활성 도서**가 있으면 `400` (`DUPLICATE_BOOK`)
 - 동일한 서지 정보의 삭제된 도서만 있으면 새 도서 ID로 업로드할 수 있다. 기존 모임·댓글은
   삭제된 이전 도서에 계속 연결된다.
@@ -820,6 +880,28 @@
 ```
 
 표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
+
+### 도서 소개 교체
+`PUT /api/admin/books/{bookId}/description`
+
+요청:
+```json
+{ "description": "책의 핵심 내용과 흥미로운 갈등을 소개하는 문장." }
+```
+
+- 관리자 토큰 인증을 사용하며 성공 응답은 `204 No Content`다.
+- `description`은 필수 문자열이다. 필드 누락·`null`·빈 문자열·공백만 있는 값은 `400` (`INVALID_REQUEST`)으로 거부한다.
+- 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 소개만 변경하며 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다. 동일 요청은 같은 상태로 처리한다.
+
+### 도서 소개 제거
+`DELETE /api/admin/books/{bookId}/description`
+
+- 관리자 토큰 인증을 사용하며 요청 본문은 없다.
+- 소개를 `null`로 비우며 성공 응답은 `204 No Content`다. 이미 소개가 없어도 성공한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다.
 
 ### 도서 표지 교체
 `PUT /api/admin/books/{bookId}/cover`
@@ -858,7 +940,8 @@
       "publishedYear": 1924,
       "passageCount": 30,
       "coverImageUrl": null,
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "description": null
     }
   ]
 }
@@ -870,6 +953,8 @@
 - 도서가 없으면 `{ "books": [] }`를 반환한다.
 - 기존 `GET /api/admin/authors` 계약은 유지한다.
 - 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
+
+- `description`은 현재 책 소개이며 없으면 `null`이다. 삭제 도서의 소개도 조회할 수 있지만 수정할 수 없다.
 
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
@@ -901,7 +986,7 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -954,7 +1039,7 @@
 
 ### 공통 API와 오류 처리
 
-- 댓글 수정·삭제·신고는 기존 `/api/comments/{commentId}` 경로를 재사용한다. 사용자 차단·차단 해제와
+- 댓글 수정·삭제·신고·좋아요는 공통 `/api/comments/{commentId}` 경로를 사용한다. 사용자 차단·차단 해제와
   계정 삭제도 기존 API를 사용하며 공개방에 적용되는 범위는 10.9절을 따른다.
 - 공개방을 찾을 수 없으면 신규 오류 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서의 읽기·변경 요청에는
   `400 BOOK_NOT_AVAILABLE`을 처리한다. 공개방에는 `NOT_CLUB_MEMBER`를 적용하지 않는다.
@@ -991,9 +1076,13 @@
 | PUT | /api/comments/{commentId} | 댓글 수정 |
 | DELETE | /api/comments/{commentId} | 댓글 삭제 |
 | POST | /api/comments/{commentId}/reports | 댓글 신고 |
+| PUT | /api/comments/{commentId}/likes | 댓글 좋아요 추가 |
+| DELETE | /api/comments/{commentId}/likes | 댓글 좋아요 취소 |
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
+| PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체 |
+| DELETE | /api/admin/books/{bookId}/description | (관리자) 도서 소개 제거 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
@@ -1052,7 +1141,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 
 | 메서드 | 경로 | 기능 |
 |---|---|---|
-| GET | `/api/public-rooms` | 전체 공개방 목록, 선택 쿼리 `sort` |
+| GET | `/api/public-rooms` | 공개방 목록 · 검색, 선택 쿼리 `sort`, `keyword` |
 | GET | `/api/members/me/public-rooms` | 최근 방문순 공개방 목록 |
 | GET | `/api/public-rooms/{publicRoomId}` | 공개방 정보·내 진도 |
 | POST | `/api/public-rooms/{publicRoomId}/visits` | 방문 기록 |
@@ -1087,12 +1176,13 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 방문만 해서는 진도를 만들지 않는다. 공개방에 진입할 때 `myProgress=null`이면 첫 문단부터
 시작하고, 값이 있으면 `lastReadPassageSequence`부터 이어 읽는다.
 
-### 10.4 전체 공개방 목록과 정렬 확장
+### 10.4 공개방 목록 · 검색과 정렬 확장
 
-`GET /api/public-rooms?sort=MOST_VISITED`
+`GET /api/public-rooms?keyword={검색어}&sort=MOST_VISITED`
 
 | 쿼리 | 필수 | 계약 |
 |---|---|---|
+| `keyword` | 아니오 | 도서 제목 **또는** 작가 이름에 부분 일치하는 공개방만 반환. 미지정·빈 문자열·공백만 있으면 전체 목록 |
 | `sort` | 아니오 | 생략하면 서비스 기본 정렬. 현재 명시적으로 지원하는 값은 `MOST_VISITED` |
 
 - 현재 기본 정렬과 `MOST_VISITED`는 **중복을 제외한 누적 방문 회원 수 내림차순**이다.
@@ -1102,7 +1192,14 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 - 향후 정렬은 별도 `sort` 값으로 추가한다. 최근 7일 독서순·댓글순의 값 이름과 집계 정책은
   아직 지원 계약에 포함하지 않는다. 정렬이 추가되어도 같은 목록 경로와 응답 구조를 사용한다.
 - 빈 문자열 또는 지원하지 않는 `sort`는 `400 INVALID_REQUEST`다. 무시하거나 기본값으로 대체하지 않는다.
-- 모든 이용 가능한 책의 공개방을 반환한다. 방문한 공개방도 포함하며, 삭제 도서의 공개방은 제외한다.
+- 도서 목록 · 검색과 동일하게 `keyword`가 제목 또는 작가 이름 중 하나에 부분 일치하면 검색 결과에 포함한다.
+  작가가 여러 명이면 한 명의 이름에만 일치해도 포함하며, 공개방 하나는 결과에 한 번만 반환한다.
+  예를 들어 `keyword=운수`는 제목이 “운수 좋은 날”인 공개방을, `keyword=현진`은 작가가
+  “현진건”인 공개방을 검색한다.
+- `keyword`가 없거나 빈 문자열·공백만 있으면 모든 이용 가능한 책의 공개방을 반환한다.
+  검색 결과에도 방문한 공개방을 포함하며, 목록·검색 모두 삭제 도서의 공개방은 제외한다.
+- 검색 결과에도 `sort`의 정렬 기준을 동일하게 적용하며, 결과는 페이지네이션 없이 전체 반환한다.
+  응답 구조는 기존 공개방 목록과 같다.
 - 같은 누적 방문 회원 수 사이의 상대 순서는 보장하지 않는다. 클라이언트는 자체 재정렬하지 않고
   서버가 반환한 배열 순서를 표시한다.
 
@@ -1270,7 +1367,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 본문 없음 | `200 {"comments": [...]}`. 작성일 오름차순의 댓글 객체와 직접 확인 처리 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | `{"content": "이 문장에서 멈칫했어요."}`. `content` 1~1000자 | `201`, 생성한 댓글 객체 하나. 작성자에게 즉시 `VIEWED` |
 
-댓글 객체는 아래와 같다. `updatedAt`만 `null`을 허용한다.
+댓글 객체는 아래와 같다. `updatedAt`만 `null`을 허용한다. 조회·작성·수정 응답의
+`likeCount`·`likedByMe`와 좋아요 정책은 5절을 따른다.
 
 ```json
 {
@@ -1280,7 +1378,9 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
   "content": "이 문장에서 멈칫했어요.",
   "createdAt": "2026-09-23T14:30:00",
   "updatedAt": null,
-  "mine": false
+  "mine": false,
+  "likeCount": 3,
+  "likedByMe": true
 }
 ```
 
@@ -1312,13 +1412,15 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | `PUT /api/comments/{commentId}` | 요청 `{"content": "수정된 내용"}`, 1~1000자. 본인 댓글만 수정, `200` 댓글 객체 |
 | `DELETE /api/comments/{commentId}` | 본인 댓글만 삭제, `204 No Content` |
 | `POST /api/comments/{commentId}/reports` | 본문 없음. 보이는 타인 댓글 신고, 반복 신고도 `204 No Content` |
+| `PUT /api/comments/{commentId}/likes` | 좋아요 추가. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
+| `DELETE /api/comments/{commentId}/likes` | 좋아요 취소. 요청·응답·정책은 5절과 동일, 모임 소속·방문 기록 불필요 |
 | `GET /api/members/me/blocks` | 기존 차단 목록 계약 그대로 사용 |
 | `PUT /api/members/me/blocks/{memberId}` | 기존 서비스 전체 단방향 차단을 공개방 댓글에도 적용 |
 | `DELETE /api/members/me/blocks/{memberId}` | 기존 차단 해제 계약 그대로 사용 |
-| `DELETE /api/members/me` | 공개방 방문·진도·작성 댓글·확인 상태도 기존 계정 삭제 완료 시점에 함께 제거 |
+| `DELETE /api/members/me` | 공개방 방문·진도·작성 댓글·확인 상태·좋아요도 기존 계정 삭제 완료 시점에 함께 제거 |
 
 - `commentId`는 모임·공개방 전체에서 댓글 하나를 유일하게 식별한다. 이는 단일 테이블이나
-  공통 내부 모델을 요구하지 않는다. 수정·삭제·신고에 공간 종류나 ID를 추가로 보내지 않는다.
+  공통 내부 모델을 요구하지 않는다. 수정·삭제·신고·좋아요에 공간 종류나 ID를 추가로 보내지 않는다.
 - 공개방 댓글에는 모임 소속 조건을 적용하지 않는다. 본인 댓글의 수정·삭제는 회원과 도서가
   유효하면 가능하다. 모임 댓글에는 기존 모임 소속 조건을 계속 적용한다.
 - 없는 댓글의 수정·삭제·신고는 `400 COMMENT_NOT_FOUND`, 남의 댓글 수정·삭제는
@@ -1382,9 +1484,9 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 이미 아는 ID로 공개방 정보 조회 | 식별 정보·저장 진도와 `book.status=DELETED` 반환 |
 | 통합 최근 읽기 | 가장 최근이면 기록과 `DELETED` 유지, 다른 책으로 대체하지 않음 |
 | 방문 기록 | `400 BOOK_NOT_AVAILABLE`, 방문 시각 갱신 없음 |
-| 목차·본문·진도·댓글 조회/작성/수정/삭제/신고 | `400 BOOK_NOT_AVAILABLE` |
+| 목차·본문·진도·댓글 조회/작성/수정/삭제/신고·좋아요 | `400 BOOK_NOT_AVAILABLE` |
 
-도서 삭제만으로 기존 댓글·진도·방문 기록을 지우지는 않는다. 삭제 도서에서 읽기·댓글 기능을
+도서 삭제만으로 기존 댓글·진도·방문 기록·좋아요를 지우지는 않는다. 삭제 도서에서 읽기·댓글 기능을
 다시 제공하는 계약은 이번 범위에 포함하지 않는다.
 
 | 조건 | HTTP | `code` |
@@ -1396,7 +1498,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 진도 요청의 문단이 없거나 다른 책 소속 | 400 | `PASSAGE_NOT_FOUND` |
 | 댓글 발견 요청의 현재 문단이 없거나 다른 책 소속 | 400 | `INVALID_REQUEST` |
 | 댓글 상세·작성 요청의 문장이 없거나 다른 책 소속 | 400 | `SENTENCE_NOT_FOUND` |
-| 없는 댓글 또는 신고자에게 보이지 않는 댓글 | 400 | `COMMENT_NOT_FOUND` |
+| 없는 댓글 또는 신고·좋아요 요청자에게 보이지 않는 댓글 | 400 | `COMMENT_NOT_FOUND` |
 | 본인 댓글 신고 | 400 | `CANNOT_REPORT_OWN_COMMENT` |
 | 타인 댓글 수정·삭제 | 403 | `NOT_COMMENT_OWNER` |
 
