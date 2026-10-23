@@ -22,7 +22,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekLike
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun IconContent(
+fun IconActions(
     likedByMe: Boolean,
     likeCount: Long,
     onMenuClick: () -> Unit,
