@@ -19,12 +19,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekLike
-import com.yeobaek.feature.reader.model.CommentUiModel
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun IconContent(
-    comment: CommentUiModel,
+    likedByMe: Boolean,
+    likeCount: Long,
     onMenuClick: () -> Unit,
     onLike: () -> Unit,
     menuButtonDescription: String,
@@ -42,7 +42,8 @@ fun IconContent(
                 menuButtonDescription = menuButtonDescription,
             )
             LikeButtonContent(
-                comment = comment,
+                likedByMe = likedByMe,
+                likeCount = likeCount,
                 onLike = onLike,
             )
         }
@@ -70,7 +71,8 @@ private fun MenuIconButton(
 
 @Composable
 private fun LikeButtonContent(
-    comment: CommentUiModel,
+    likedByMe: Boolean,
+    likeCount: Long,
     onLike: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -84,17 +86,17 @@ private fun LikeButtonContent(
         ) {
             Icon(
                 painter = painterResource(
-                    if (comment.likedByMe) Res.drawable.ic_like_click else Res.drawable.ic_like,
+                    if (likedByMe) Res.drawable.ic_like_click else Res.drawable.ic_like,
                 ),
                 contentDescription = "좋아요 버튼",
                 modifier = Modifier.size(16.dp),
                 tint = Color.Unspecified,
             )
         }
-        if (comment.likeCount > 0) {
+        if (likeCount > 0) {
             Text(
-                text = comment.likeCount.toString(),
-                color = if (comment.likedByMe) {
+                text = likeCount.toString(),
+                color = if (likedByMe) {
                     YeobaekLike
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
