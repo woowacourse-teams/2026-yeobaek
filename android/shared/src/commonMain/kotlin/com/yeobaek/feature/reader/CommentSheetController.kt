@@ -39,6 +39,7 @@ class CommentSheetController(
 
     private var loadJob: Job? = null
     private var didSubmitInSheet = false
+    private var sheetVersion = 0L
 
     val pendingRestoreSentenceId: Long?
         get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
@@ -122,6 +123,7 @@ class CommentSheetController(
             targetPassageSequence = targetPassageSequence,
             isLoading = true,
         )
+        sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
@@ -466,6 +468,7 @@ class CommentSheetController(
     }
 
     fun toggleLike(commentId: Long) {
+        val curSheetVersion = sheetVersion
         val sheet = uiState ?: return
         val comment = sheet.comments.firstOrNull { it.commentId == commentId } ?: return
         if (comment.isLikePending) return
@@ -485,6 +488,9 @@ class CommentSheetController(
         scope.launch {
             try {
                 val result = commentRepository.setCommentLiked(commentId, liked)
+
+                if (curSheetVersion != sheetVersion) return@launch
+
                 updateSheet(
                     sentenceId = sheet.sentenceId,
                     isWaiting = { currentSheet ->
@@ -515,6 +521,9 @@ class CommentSheetController(
                     operation = CrashOperation.COMMENT_LIKE_FAILED,
                     sentenceId = sheet.sentenceId,
                 )
+
+                if (curSheetVersion != sheetVersion) return@launch
+
                 updateSheet(
                     sentenceId = sheet.sentenceId,
                     isWaiting = { currentSheet ->
