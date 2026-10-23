@@ -48,7 +48,7 @@ class CommentSheetController(
     val pendingRestorePassageSequence: Int?
         get() = savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY]
 
-    fun open(sentence: SentenceUiModel, passageSequence: Int?) {
+    fun open(sentence: SentenceUiModel, passageSequence: Int?, scrollToLatest: Boolean = false) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
@@ -56,6 +56,7 @@ class CommentSheetController(
             passageSequence = passageSequence,
             targetPassageSequence = null,
             hasNewComments = null,
+            scrollToLatest = scrollToLatest,
         )
     }
 
@@ -79,6 +80,7 @@ class CommentSheetController(
             targetPassageSequence = savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY],
             input = savedStateHandle.get<String>(SHEET_INPUT_KEY).orEmpty(),
             editingCommentId = savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY],
+            scrollToLatestPending = savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] ?: false,
             isLoading = true,
         )
         persistDraft()
@@ -106,6 +108,12 @@ class CommentSheetController(
         loadComments(sentenceId, isRefresh = true)
     }
 
+    fun consumeScrollToLatest(sentenceId: Long) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId } ?: return
+        uiState = sheet.copy(scrollToLatestPending = false)
+        savedStateHandle.remove<Boolean>(SHEET_SCROLL_TO_LATEST_KEY)
+    }
+
     private fun open(
         sentenceId: Long,
         sentenceContent: String,
@@ -113,6 +121,7 @@ class CommentSheetController(
         passageSequence: Int?,
         targetPassageSequence: Int?,
         hasNewComments: Boolean?,
+        scrollToLatest: Boolean = false,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -133,9 +142,11 @@ class CommentSheetController(
             sentenceId = sentenceId,
             sentenceContent = sentenceContent,
             targetPassageSequence = targetPassageSequence,
+            scrollToLatestPending = scrollToLatest,
             isLoading = true,
         )
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
+        savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] = scrollToLatest
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
         } else {
@@ -218,6 +229,7 @@ class CommentSheetController(
         savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<String>(SHEET_INPUT_KEY)
         savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)
+        savedStateHandle.remove<Boolean>(SHEET_SCROLL_TO_LATEST_KEY)
     }
 
     fun updateInput(input: String) {
@@ -558,6 +570,7 @@ class CommentSheetController(
         const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
         const val SHEET_INPUT_KEY = "commentSheetInput"
         const val SHEET_EDITING_COMMENT_ID_KEY = "commentSheetEditingCommentId"
+        const val SHEET_SCROLL_TO_LATEST_KEY = "commentSheetScrollToLatest"
     }
 }
 

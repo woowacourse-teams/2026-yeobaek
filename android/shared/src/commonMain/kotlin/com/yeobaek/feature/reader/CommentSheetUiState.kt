@@ -8,6 +8,7 @@ data class CommentSheetUiState(
     val targetPassageSequence: Int? = null,
     val comments: List<CommentUiModel> = emptyList(),
     val submittedCommentId: Long? = null,
+    val scrollToLatestPending: Boolean = false,
     val input: String = "",
     val editingCommentId: Long? = null,
     val deletingCommentId: Long? = null,
@@ -39,4 +40,5 @@ class CommentSheetActions(
     val onDeleteConfirm: () -> Unit,
     val onReport: (commentId: Long) -> Unit,
     val onReportResultConsumed: () -> Unit,
+    val onScrollToLatestConsumed: (Long) -> Unit,
 )

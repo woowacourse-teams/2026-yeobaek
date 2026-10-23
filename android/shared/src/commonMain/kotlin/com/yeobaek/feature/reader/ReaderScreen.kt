@@ -164,6 +164,7 @@ fun ReaderScreen(
             onDelete = commentSheetActions.onDelete,
             onDeleteCancel = commentSheetActions.onDeleteCancel,
             onDeleteConfirm = commentSheetActions.onDeleteConfirm,
+            onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
         )
     }
 }
@@ -386,6 +387,7 @@ private fun ReaderScreenPreview() {
                 onDeleteConfirm = {},
                 onReport = {},
                 onReportResultConsumed = {},
+                onScrollToLatestConsumed = {},
             ),
         )
     }

@@ -52,6 +52,7 @@ fun CommentBottomSheet(
     onReportResultConsumed: () -> Unit,
     onDeleteCancel: () -> Unit,
     onDeleteConfirm: () -> Unit,
+    onScrollToLatestConsumed: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -74,6 +75,21 @@ fun CommentBottomSheet(
             )
         }
         onReportResultConsumed()
+    }
+
+    LaunchedEffect(
+        uiState.sentenceId,
+        uiState.scrollToLatestPending,
+        uiState.isLoading,
+        uiState.loadErrorMessage,
+    ) {
+        if (!uiState.scrollToLatestPending || uiState.isLoading || uiState.loadErrorMessage != null) {
+            return@LaunchedEffect
+        }
+        if (uiState.comments.isNotEmpty()) {
+            commentListState.scrollToItem(uiState.comments.lastIndex)
+        }
+        onScrollToLatestConsumed(uiState.sentenceId)
     }
 
     LaunchedEffect(uiState.sentenceId, uiState.submittedCommentId) {

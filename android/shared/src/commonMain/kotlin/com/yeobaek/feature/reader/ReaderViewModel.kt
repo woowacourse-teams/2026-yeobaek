@@ -237,7 +237,11 @@ class ReaderViewModel(
                 )
                 if (initialCommentTarget != null && notificationSentence != null) {
                     savedStateHandle[NOTIFICATION_OPENED_KEY] = true
-                    commentSheet.open(notificationSentence, initialCommentTarget.passageSequence)
+                    commentSheet.open(
+                        sentence = notificationSentence,
+                        passageSequence = initialCommentTarget.passageSequence,
+                        scrollToLatest = true,
+                    )
                 } else {
                     restoreCommentSheetIfNeeded()
                 }

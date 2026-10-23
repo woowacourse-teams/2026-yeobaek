@@ -173,6 +173,7 @@ private fun ReaderRoute(
             onDeleteConfirm = commentSheet::confirmDelete,
             onReport = commentSheet::report,
             onReportResultConsumed = commentSheet::consumeReportResult,
+            onScrollToLatestConsumed = commentSheet::consumeScrollToLatest,
         )
     }
 
