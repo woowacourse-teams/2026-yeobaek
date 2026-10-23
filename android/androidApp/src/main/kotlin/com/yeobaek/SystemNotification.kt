@@ -23,20 +23,7 @@ internal fun Context.showSystemNotification(message: RemoteMessage) {
     if (!manager.areNotificationsEnabled()) return
     val body = message.notification?.body ?: message.data["body"] ?: return
     val notificationId = message.messageId ?: UUID.randomUUID().toString()
-    val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return
-    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-    intent.data = Uri.Builder()
-        .scheme(packageName)
-        .authority("notification")
-        .appendPath(notificationId)
-        .build()
-    message.data.forEach { (key, value) -> intent.putExtra(key, value) }
-    val contentIntent = PendingIntent.getActivity(
-        this,
-        0,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
+    val contentIntent = createNotificationContentIntent(message, notificationId) ?: return
     val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         Notification.Builder(this, getString(R.string.notification_channel_id))
     } else {
@@ -53,4 +40,24 @@ internal fun Context.showSystemNotification(message: RemoteMessage) {
         .setAutoCancel(true)
         .build()
     manager.notify(notificationId, 0, notification)
+}
+
+private fun Context.createNotificationContentIntent(
+    message: RemoteMessage,
+    notificationId: String,
+): PendingIntent? {
+    val intent = packageManager.getLaunchIntentForPackage(packageName) ?: return null
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    intent.data = Uri.Builder()
+        .scheme(packageName)
+        .authority("notification")
+        .appendPath(notificationId)
+        .build()
+    message.data.forEach { (key, value) -> intent.putExtra(key, value) }
+    return PendingIntent.getActivity(
+        this,
+        0,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 }

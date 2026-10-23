@@ -48,11 +48,15 @@ class CommentNotifications {
         activeSpace.value = space
     }
 
-    fun onReceived(data: Map<String, String>): Boolean {
-        val notification = CommentNotification.from(data) ?: return true
-        val shouldShowSystemNotification = notification.space != activeSpace.value
+    fun handleReceived(data: Map<String, String>): NotificationPresentation {
+        val notification = CommentNotification.from(data) ?: return NotificationPresentation.SHOW
+        val presentation = if (notification.space == activeSpace.value) {
+            NotificationPresentation.SUPPRESS
+        } else {
+            NotificationPresentation.SHOW
+        }
         received.tryEmit(notification)
-        return shouldShowSystemNotification
+        return presentation
     }
 
     fun onOpened(data: Map<String, String>) {

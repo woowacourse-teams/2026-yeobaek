@@ -834,12 +834,16 @@ class ReaderViewModel(
         if (uiState.isCommentCollectionsVisible) {
             loadCommentCollections(isRefreshing = true)
         }
-        if (!uiState.passages.containsSequence(notification.passageSequence)) return
+        refreshLoadedPassageCommentCounts(notification.passageSequence)
+    }
+
+    private suspend fun refreshLoadedPassageCommentCounts(passageSequence: Int) {
+        if (!uiState.passages.containsSequence(passageSequence)) return
 
         try {
             val passages = getPassages(
-                from = notification.passageSequence,
-                to = notification.passageSequence,
+                from = passageSequence,
+                to = passageSequence,
             ).passages
             var updated = uiState.passages
             passages.flatMap { it.sentences }.forEach { sentence ->
@@ -852,7 +856,7 @@ class ReaderViewModel(
             recordFailure(
                 exception,
                 CrashOperation.COMMENT_REFRESH_FAILED,
-                passageSequence = notification.passageSequence,
+                passageSequence = passageSequence,
             )
         }
     }

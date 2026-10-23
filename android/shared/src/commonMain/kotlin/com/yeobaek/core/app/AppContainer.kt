@@ -10,6 +10,7 @@ import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.CommentNotifications
+import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
@@ -112,7 +113,8 @@ class AppContainer(
         notificationRegistration.updateInstallationId(installationId)
     }
 
-    fun onNotificationReceived(data: Map<String, String>): Boolean = commentNotifications.onReceived(data)
+    fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
+        commentNotifications.handleReceived(data)
 
     fun onNotificationOpened(data: Map<String, String>) {
         commentNotifications.onOpened(data)

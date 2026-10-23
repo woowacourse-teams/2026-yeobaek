@@ -3,6 +3,7 @@ package com.yeobaek
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.yeobaek.core.notification.NotificationPresentation
 
 class YeobaekMessagingService : FirebaseMessagingService() {
 
@@ -13,10 +14,10 @@ class YeobaekMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         if (BuildConfig.DEBUG) Log.d("FCM", "Message received: ${message.messageId}")
-        val shouldShowSystemNotification =
-            (application as YeobaekApplication).appContainer.onNotificationReceived(message.data)
-        if (shouldShowSystemNotification) {
-            showSystemNotification(message)
+        val presentation = (application as YeobaekApplication).appContainer.handleReceivedNotification(message.data)
+        when (presentation) {
+            NotificationPresentation.SHOW -> showSystemNotification(message)
+            NotificationPresentation.SUPPRESS -> Unit
         }
     }
 }

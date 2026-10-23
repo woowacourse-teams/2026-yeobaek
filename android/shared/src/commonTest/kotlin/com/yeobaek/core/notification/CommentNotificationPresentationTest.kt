@@ -2,8 +2,13 @@ package com.yeobaek.core.notification
 
 import com.yeobaek.data.model.CommentSpace
 import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 
 class CommentNotificationPresentationTest {
     private val groupData = mapOf(
@@ -23,35 +28,55 @@ class CommentNotificationPresentationTest {
     fun suppressesOnlyNotificationsFromTheVisibleGroup() {
         val notifications = CommentNotifications()
         notifications.updateActiveSpace(CommentSpace.Group(2))
-        assertFalse(notifications.onReceived(groupData))
-        assertTrue(notifications.onReceived(groupData + ("clubId" to "3")))
-        assertTrue(notifications.onReceived(publicRoomData))
+        assertEquals(NotificationPresentation.SUPPRESS, notifications.handleReceived(groupData))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(groupData + ("clubId" to "3")))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(publicRoomData))
     }
 
     @Test
     fun suppressesOnlyNotificationsFromTheVisiblePublicRoom() {
         val notifications = CommentNotifications()
         notifications.updateActiveSpace(CommentSpace.PublicRoom(2))
-        assertFalse(notifications.onReceived(publicRoomData))
-        assertTrue(notifications.onReceived(publicRoomData + ("publicRoomId" to "3")))
-        assertTrue(notifications.onReceived(groupData))
+        assertEquals(NotificationPresentation.SUPPRESS, notifications.handleReceived(publicRoomData))
+        assertEquals(
+            NotificationPresentation.SHOW,
+            notifications.handleReceived(publicRoomData + ("publicRoomId" to "3")),
+        )
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(groupData))
     }
 
     @Test
     fun showsNotificationsAfterLeavingTheSpaceOrBackgrounding() {
         val notifications = CommentNotifications()
         notifications.updateActiveSpace(CommentSpace.Group(2))
-        assertFalse(notifications.onReceived(groupData))
+        assertEquals(NotificationPresentation.SUPPRESS, notifications.handleReceived(groupData))
         notifications.updateActiveSpace(null)
-        assertTrue(notifications.onReceived(groupData))
-        assertTrue(notifications.onReceived(publicRoomData))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(groupData))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(publicRoomData))
     }
 
     @Test
     fun doesNotSuppressAnUnknownOrIncompleteNotification() {
         val notifications = CommentNotifications()
         notifications.updateActiveSpace(CommentSpace.Group(2))
-        assertTrue(notifications.onReceived(groupData - "sentenceId"))
-        assertTrue(notifications.onReceived(mapOf("type" to "OTHER")))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(groupData - "sentenceId"))
+        assertEquals(NotificationPresentation.SHOW, notifications.handleReceived(mapOf("type" to "OTHER")))
+    }
+
+    @Test
+    fun stillDispatchesRefreshEventWhenSystemNotificationIsSuppressed() {
+        val notifications = CommentNotifications()
+        notifications.updateActiveSpace(CommentSpace.Group(2))
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        var received: CommentNotification? = null
+        try {
+            scope.launch {
+                notifications.events.take(1).collect { received = it }
+            }
+            assertEquals(NotificationPresentation.SUPPRESS, notifications.handleReceived(groupData))
+            assertEquals(CommentNotification.from(groupData), received)
+        } finally {
+            scope.cancel()
+        }
     }
 }
