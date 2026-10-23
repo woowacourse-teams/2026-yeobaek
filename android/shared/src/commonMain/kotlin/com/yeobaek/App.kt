@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.notification.TrackNotificationSpace
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.feature.group.create.navigation.createNavGraph
 import com.yeobaek.feature.group.create.navigation.navigateToCreate
@@ -255,6 +256,8 @@ fun App(
                 },
             )
         }
+
+        TrackNotificationSpace(navController, appContainer.commentNotifications)
 
         val lifecycleOwner = LocalLifecycleOwner.current
         LaunchedEffect(appContainer, navController, lifecycleOwner) {

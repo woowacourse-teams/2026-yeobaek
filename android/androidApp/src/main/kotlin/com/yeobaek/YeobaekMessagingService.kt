@@ -13,6 +13,10 @@ class YeobaekMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         if (BuildConfig.DEBUG) Log.d("FCM", "Message received: ${message.messageId}")
-        (application as YeobaekApplication).appContainer.onNotificationReceived(message.data)
+        val shouldShowSystemNotification =
+            (application as YeobaekApplication).appContainer.onNotificationReceived(message.data)
+        if (shouldShowSystemNotification) {
+            showSystemNotification(message)
+        }
     }
 }

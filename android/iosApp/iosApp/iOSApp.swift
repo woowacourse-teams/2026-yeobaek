@@ -115,8 +115,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         #if DEBUG
         NSLog("FCM notification received: %@", notification.request.identifier)
         #endif
-        appContainer.onNotificationReceived(data: notificationData(notification))
-        completionHandler([])
+        let shouldShowSystemNotification = appContainer.onNotificationReceived(
+            data: notificationData(notification)
+        )
+        completionHandler(shouldShowSystemNotification ? [.banner, .list, .sound] : [])
     }
 
     private func notificationData(_ notification: UNNotification) -> [String: String] {

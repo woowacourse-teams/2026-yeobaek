@@ -112,9 +112,7 @@ class AppContainer(
         notificationRegistration.updateInstallationId(installationId)
     }
 
-    fun onNotificationReceived(data: Map<String, String>) {
-        commentNotifications.onReceived(data)
-    }
+    fun onNotificationReceived(data: Map<String, String>): Boolean = commentNotifications.onReceived(data)
 
     fun onNotificationOpened(data: Map<String, String>) {
         commentNotifications.onOpened(data)

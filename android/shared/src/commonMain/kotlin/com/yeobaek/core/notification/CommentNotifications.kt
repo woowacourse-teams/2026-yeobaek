@@ -35,6 +35,7 @@ data class CommentNotification(
 }
 
 class CommentNotifications {
+    private val activeSpace = MutableStateFlow<CommentSpace?>(null)
     private val pending = MutableStateFlow<CommentNotificationOpenRequest?>(null)
     val pendingOpen = pending.asStateFlow()
     private val received = MutableSharedFlow<CommentNotification>(
@@ -43,8 +44,15 @@ class CommentNotifications {
     )
     val events = received.asSharedFlow()
 
-    fun onReceived(data: Map<String, String>) {
-        CommentNotification.from(data)?.let(received::tryEmit)
+    fun updateActiveSpace(space: CommentSpace?) {
+        activeSpace.value = space
+    }
+
+    fun onReceived(data: Map<String, String>): Boolean {
+        val notification = CommentNotification.from(data) ?: return true
+        val shouldShowSystemNotification = notification.space != activeSpace.value
+        received.tryEmit(notification)
+        return shouldShowSystemNotification
     }
 
     fun onOpened(data: Map<String, String>) {
