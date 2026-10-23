@@ -88,7 +88,7 @@ private fun LikeButtonContent(
                 painter = painterResource(
                     if (likedByMe) Res.drawable.ic_like_click else Res.drawable.ic_like,
                 ),
-                contentDescription = "좋아요 버튼",
+                contentDescription = if (likedByMe) "댓글 좋아요" else "댓글 좋아요 취소",
                 modifier = Modifier.size(16.dp),
                 tint = Color.Unspecified,
             )
