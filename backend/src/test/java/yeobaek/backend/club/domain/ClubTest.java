@@ -26,7 +26,7 @@ class ClubTest {
     @Test
     @DisplayName("1~20자 이름으로 모임을 생성할 수 있다")
     void createWithValidName() {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
 
         assertThatCode(() -> new Club(new ClubName("모"), book, new JoinCode("CODE01")))
                 .doesNotThrowAnyException();
@@ -38,7 +38,7 @@ class ClubTest {
     @ValueSource(strings = {"", " ", "   "})
     @DisplayName("이름이 없거나 공백뿐이면 모임 생성에 실패한다")
     void rejectBlankName(String name) {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
 
         assertThatThrownBy(() -> new Club(new ClubName(name), book, new JoinCode("CODE01")))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -47,7 +47,7 @@ class ClubTest {
     @Test
     @DisplayName("이름이 20자를 넘으면 모임 생성에 실패한다")
     void rejectTooLongName() {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
 
         assertThatThrownBy(() -> new Club(new ClubName("가".repeat(21)), book, new JoinCode("CODE01")))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -56,7 +56,7 @@ class ClubTest {
     @Test
     @DisplayName("모임의 도서에 속한 본문이면 읽는 중이라고 판단한다")
     void isReadingOwnBookPassage() {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", 1L);
         Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
         Passage passage = new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문")));
@@ -68,9 +68,9 @@ class ClubTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않은 본문이면 읽는 중이 아니라고 판단한다")
     void isNotReadingOtherBookPassage() {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", 1L);
-        Book otherBook = new Book(new BookTitle("다른 제목"), null, null, 1, null);
+        Book otherBook = new Book(new BookTitle("다른 제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(otherBook, "id", 2L);
         Chapter otherChapter = new Chapter(otherBook, new ChapterTitle("1장"), 1);
         Passage otherPassage = new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문")));
@@ -82,7 +82,7 @@ class ClubTest {
     @Test
     @DisplayName("모임의 총 본문 개수는 도서의 본문 개수와 같다")
     void totalPassageCountDelegatesToBook() {
-        Book book = new Book(new BookTitle("제목"), null, null, 7, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 7, null, null, null);
         Club club = new Club(new ClubName("1기"), book, new JoinCode("CODE01"));
 
         assertThat(club.totalPassageCount()).isEqualTo(new PassageCount(7));

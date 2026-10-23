@@ -191,6 +191,8 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "passageCount": 312,
+  "description": null,
+  "pageCount": 28,
   "chapters": [
     { "chapterId": 1, "title": "1장", "sequence": 1, "startPassageSequence": 1, "endPassageSequence": 105 }
   ]
@@ -199,6 +201,17 @@
 - `coverImageUrl`: 공개 표지 이미지 URL. 표지가 없는 도서는 `null`이며 클라이언트가 기본 이미지를 표시한다.
 - `startPassageSequence`/`endPassageSequence`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+
+- `description`: 책 소개. 없으면 `null`이며 클라이언트는 소개 영역을 생략한다.
+- `pageCount`: 본문을 700자당 1쪽으로 환산하여 올림한 정수. 실제 종이책 쪽수가 아니다.
+  문단의 문장을 순서대로 합친 뒤 NFC 정규화하고 Unicode 코드 포인트를 센다. 공백·문장부호는 포함하고
+  CR/LF/탭과 제목·목차·소개는 제외한다. 책 전체를 합산한 뒤 한 번만 올림한다.
+  예: 198,376자 → 284쪽. API는 표시용 10쪽 단위 반올림을 하지 않는다.
+- 기존 도서의 글자 수를 아직 보완하지 않았다면 `pageCount`는 `null`이다. 조회는 성공하며,
+  기능 준비 완료 전 활성 도서의 미집계 건수가 0인지 확인한다. 목록 응답 계약은 변경하지 않는다.
+
+
+기존 도서의 미집계 본문 글자 수는 앱 시작 시 Flyway V5 마이그레이션이 자동으로 보충한다.
 
 ## 3. 모임
 
@@ -804,6 +817,7 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
+  "description": null,
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -825,6 +839,9 @@
 ```
 
 필드 규칙:
+- `description`: 선택 문자열. 생략·`null`은 소개 없음으로 처리한다. 빈 문자열이나 공백만 있는 값은
+  `400` (`INVALID_REQUEST`)으로 거부한다. 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+  기존 ZIP의 JSON에 소개가 없어도 등록할 수 있다.
 - `title`: 필수, 1~100자 (공백만 불가)
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
@@ -845,7 +862,8 @@
 
 서버 처리:
 - 문단 순서(`passage.sequence`)는 **배열 등장 순서**로 서버가 책 전체 기준 1..N을 부여한다. 문장 순서(`sentence.sequence`)는 각 문단의 배열 등장 순서로 1..N을 부여한다. 두 순서 모두 dense 보장은 구성상 성립한다. 목차 순서도 등장 순서로 1..M
-- `passageCount`는 서버가 자동 산출한다 (PRD 3.3)
+- `passageCount`와 본문 글자 수는 서버가 자동 산출한다. 요청에 계산값을 넣어도 이를 신뢰하지 않는다.
+  글자 수로 환산한 쪽수는 도서 상세 응답에서 제공한다.
 - 제목·출판사·출판연도·작가 구성이 모두 동일한 **활성 도서**가 있으면 `400` (`DUPLICATE_BOOK`)
 - 동일한 서지 정보의 삭제된 도서만 있으면 새 도서 ID로 업로드할 수 있다. 기존 모임·댓글은
   삭제된 이전 도서에 계속 연결된다.
@@ -862,6 +880,28 @@
 ```
 
 표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
+
+### 도서 소개 교체
+`PUT /api/admin/books/{bookId}/description`
+
+요청:
+```json
+{ "description": "책의 핵심 내용과 흥미로운 갈등을 소개하는 문장." }
+```
+
+- 관리자 토큰 인증을 사용하며 성공 응답은 `204 No Content`다.
+- `description`은 필수 문자열이다. 필드 누락·`null`·빈 문자열·공백만 있는 값은 `400` (`INVALID_REQUEST`)으로 거부한다.
+- 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 소개만 변경하며 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다. 동일 요청은 같은 상태로 처리한다.
+
+### 도서 소개 제거
+`DELETE /api/admin/books/{bookId}/description`
+
+- 관리자 토큰 인증을 사용하며 요청 본문은 없다.
+- 소개를 `null`로 비우며 성공 응답은 `204 No Content`다. 이미 소개가 없어도 성공한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다.
 
 ### 도서 표지 교체
 `PUT /api/admin/books/{bookId}/cover`
@@ -900,7 +940,8 @@
       "publishedYear": 1924,
       "passageCount": 30,
       "coverImageUrl": null,
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "description": null
     }
   ]
 }
@@ -912,6 +953,8 @@
 - 도서가 없으면 `{ "books": [] }`를 반환한다.
 - 기존 `GET /api/admin/authors` 계약은 유지한다.
 - 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
+
+- `description`은 현재 책 소개이며 없으면 `null`이다. 삭제 도서의 소개도 조회할 수 있지만 수정할 수 없다.
 
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
@@ -943,7 +986,7 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -1038,6 +1081,8 @@
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
+| PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체 |
+| DELETE | /api/admin/books/{bookId}/description | (관리자) 도서 소개 제거 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |

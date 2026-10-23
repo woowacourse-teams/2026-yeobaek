@@ -107,7 +107,7 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("공개방의 같은 댓글 상태 그룹은 최신 댓글 시각보다 책의 문단·문장 순서로 정렬한다")
     void commentedSentencesUseBookOrderWithinGroup() {
-        Book book = bookRepository.save(new Book(new BookTitle("댓글 정렬 책"), null, null, 2, null));
+        Book book = bookRepository.save(new Book(new BookTitle("댓글 정렬 책"), null, null, 2, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage firstPassage = passageRepository.save(new Passage(chapter, 1,
                 List.of(new SentenceContent("앞 문단 첫 문장"), new SentenceContent("앞 문단 둘째 문장"))));
@@ -134,7 +134,7 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("공개방 댓글 문장 조회는 차단 댓글을 제외하고 확인 여부와 최신 시각을 도메인에서 집계한다")
     void commentedSentencesExcludeBlockedWritersAndAggregateVisibleComments() {
-        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 집계 책"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 집계 책"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1,
                 List.of(new SentenceContent("혼합 댓글 문장"), new SentenceContent("차단 댓글만 있는 문장"))));
@@ -209,7 +209,7 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     }
 
     private ReadingFixture createRoom(String title, int passageCount) {
-        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null));
+        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         List<Passage> passages = java.util.stream.IntStream.rangeClosed(1, passageCount)
                 .mapToObj(sequence -> passageRepository.save(new Passage(chapter, sequence,

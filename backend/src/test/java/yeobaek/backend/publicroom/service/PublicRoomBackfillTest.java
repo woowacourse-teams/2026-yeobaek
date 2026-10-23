@@ -26,8 +26,8 @@ class PublicRoomBackfillTest extends IntegrationTest {
     @Test
     @DisplayName("기존 도서 backfill은 재실행해도 도서마다 공개방 하나를 유지한다")
     void backfillExistingBooks() {
-        Book first = bookRepository.save(new Book(new BookTitle("기존 책 1"), null, null, 1, null));
-        Book second = bookRepository.save(new Book(new BookTitle("기존 책 2"), null, null, 1, null));
+        Book first = bookRepository.save(new Book(new BookTitle("기존 책 1"), null, null, 1, null, null, null));
+        Book second = bookRepository.save(new Book(new BookTitle("기존 책 2"), null, null, 1, null, null, null));
 
         publicRoomBackfill.run(new DefaultApplicationArguments());
         publicRoomBackfill.run(new DefaultApplicationArguments());

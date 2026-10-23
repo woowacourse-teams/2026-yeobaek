@@ -78,7 +78,7 @@ class MemberDeletionApiTest extends IntegrationTest {
     @Test
     @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
-        Book book = bookRepository.save(new Book(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage passage = passageRepository.save(new Passage(chapter, 1, List.of(new SentenceContent("첫 문장."))));
         Member targetMember = memberRepository.save(new Member(new Nickname("탈퇴 회원")));

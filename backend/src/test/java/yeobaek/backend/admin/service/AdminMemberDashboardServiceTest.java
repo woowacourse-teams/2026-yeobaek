@@ -44,7 +44,7 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
     @Test
     @DisplayName("현재 회원의 JOINED 모임만 집계해 평균과 오름차순 분포를 계산한다")
     void findMemberClubParticipationStatistics() {
-        Book book = bookRepository.save(new Book(new BookTitle("회원 통계 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("회원 통계 도서"), null, null, 1, null, null, null));
         Club first = saveClub("첫 모임", book, "MEM001");
         Club second = saveClub("둘째 모임", book, "MEM002");
         Club third = saveClub("셋째 모임", book, "MEM003");
@@ -86,7 +86,7 @@ class AdminMemberDashboardServiceTest extends IntegrationTest {
     @Test
     @DisplayName("평균 참여 모임 수를 소수 둘째 자리에서 HALF_UP으로 반올림한다")
     void roundAverageHalfUp() {
-        Book book = bookRepository.save(new Book(new BookTitle("반올림 도서"), null, null, 1, null));
+        Book book = bookRepository.save(new Book(new BookTitle("반올림 도서"), null, null, 1, null, null, null));
         Club club = saveClub("반올림 모임", book, "ROUND1");
         join(saveMember("첫 회원"), club);
         saveMember("둘째 회원");

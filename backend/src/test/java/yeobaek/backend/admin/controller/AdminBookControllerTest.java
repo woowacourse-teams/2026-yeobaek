@@ -3,6 +3,7 @@ package yeobaek.backend.admin.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
@@ -19,11 +20,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -43,6 +46,7 @@ import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.vo.AuthorName;
+import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.Isni;
@@ -77,7 +81,8 @@ class AdminBookControllerTest extends ControllerTest {
                         2026,
                         42,
                         "https://covers.example/books/3.jpg",
-                        BookStatus.ACTIVE),
+                        BookStatus.ACTIVE,
+                        "두 작가의 시선으로 일상의 작은 변화를 담은 책입니다."),
                 new AdminBookResponse(
                         4L,
                         "삭제된 책",
@@ -86,7 +91,8 @@ class AdminBookControllerTest extends ControllerTest {
                         null,
                         0,
                         null,
-                        BookStatus.DELETED)));
+                        BookStatus.DELETED,
+                        null)));
         given(adminBookService.findBooks()).willReturn(response);
 
         mockMvc.perform(get("/api/admin/books")
@@ -110,6 +116,7 @@ class AdminBookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[0].passageCount").value(42))
                 .andExpect(jsonPath("$.books[0].coverImageUrl").value("https://covers.example/books/3.jpg"))
                 .andExpect(jsonPath("$.books[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.books[0].description").value("두 작가의 시선으로 일상의 작은 변화를 담은 책입니다."))
                 .andExpect(jsonPath("$.books[1].bookId").value(4))
                 .andExpect(jsonPath("$.books[1].title").value("삭제된 책"))
                 .andExpect(jsonPath("$.books[1].authors").isEmpty())
@@ -117,7 +124,8 @@ class AdminBookControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.books[1].publishedYear").value((Object) null))
                 .andExpect(jsonPath("$.books[1].passageCount").value(0))
                 .andExpect(jsonPath("$.books[1].coverImageUrl").value((Object) null))
-                .andExpect(jsonPath("$.books[1].status").value("DELETED"));
+                .andExpect(jsonPath("$.books[1].status").value("DELETED"))
+                .andExpect(jsonPath("$.books[1].description").value((Object) null));
 
         verify(adminBookService, times(1)).findBooks();
     }
@@ -208,7 +216,7 @@ class AdminBookControllerTest extends ControllerTest {
                                 passage("첫 본문"),
                                 passage("둘째 본문"))),
                         new ChapterUploadRequest(new ChapterTitle("2장"), List.of(
-                                passage("셋째 본문")))));
+                                passage("셋째 본문")))), null);
         var response = new BookUploadResponse(3L, "운수 좋은 날",
                 "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
         given(bookIngestService.upload(request)).willReturn(response);
@@ -254,7 +262,7 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("표지가 없는 도서 업로드 응답은 coverImageUrl을 null로 포함한다")
     void uploadBookWithoutCover() throws Exception {
-        var request = new BookUploadRequest(new BookTitle("표지 없는 책"), null, null, null, List.of(), List.of());
+        var request = new BookUploadRequest(new BookTitle("표지 없는 책"), null, null, null, List.of(), List.of(), null);
         given(bookIngestService.upload(request))
                 .willReturn(new BookUploadResponse(4L, "표지 없는 책", null, 0));
 
@@ -306,7 +314,7 @@ class AdminBookControllerTest extends ControllerTest {
                 null,
                 List.of(new AuthorEntryRequest(999L, null, null)),
                 List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(passage("본문")))));
+                        List.of(passage("본문")))), null);
         var serviceException = new NotFoundException(
                 ErrorCode.AUTHOR_NOT_FOUND,
                 "authorId가 가리키는 작가가 존재하지 않습니다: authorId=99");
@@ -391,5 +399,110 @@ class AdminBookControllerTest extends ControllerTest {
 
     private static String validUploadWithPassage(String passageFields) {
         return validUploadWithChapter("\"title\":\"1장\",\"passages\":[{" + passageFields + "}]");
+    }
+
+    @Nested
+    @DisplayName("책 소개")
+    class Description {
+
+        @Test
+        @DisplayName("책 소개의 앞뒤 공백을 제거해 서비스에 전달한다")
+        void replaceDescription() throws Exception {
+            mockMvc.perform(put("/api/admin/books/{bookId}/description", 3L)
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"description\":\"  첫 줄\\n둘째 줄.  \"}"))
+                    .andExpect(status().isNoContent())
+                    .andExpect(content().string(""));
+
+            verify(adminBookService, times(1)).replaceDescription(3L, new BookDescription("첫 줄\n둘째 줄."));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"{}", "{\"description\":null}"})
+        @DisplayName("책 소개가 누락되거나 null이면 소개 교체 요청을 거부한다")
+        void rejectMissingDescriptionOnReplacement(String body) throws Exception {
+            mockMvc.perform(put("/api/admin/books/{bookId}/description", 3L)
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+            verifyNoInteractions(adminBookService);
+        }
+
+        @Test
+        @DisplayName("책 소개 제거 API로 소개를 비운다")
+        void removeDescription() throws Exception {
+            mockMvc.perform(delete("/api/admin/books/{bookId}/description", 3L)
+                            .header("X-Admin-Token", "controller-test-token"))
+                    .andExpect(status().isNoContent())
+                    .andExpect(content().string(""));
+
+            verify(adminBookService).removeDescription(3L);
+        }
+
+        @Test
+        @DisplayName("책 소개가 null인 책도 업로드할 수 있다")
+        void uploadWithoutDescription() throws Exception {
+            given(bookIngestService.upload(any())).willReturn(new BookUploadResponse(3L, "책", null, 1));
+
+            mockMvc.perform(post("/api/admin/books")
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(uploadBody("null")))
+                    .andExpect(status().isCreated());
+
+            ArgumentCaptor<BookUploadRequest> request = ArgumentCaptor.forClass(BookUploadRequest.class);
+            verify(bookIngestService, times(1)).upload(request.capture());
+            assertThat(request.getValue().description()).isNull();
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"\"\"", "\" \"", "\"\\t\"", "\"\\n\"", "\"\u2003\""})
+        @DisplayName("책 소개가 공백 문자열이면 소개 교체 요청을 거부한다")
+        void rejectBlankDescriptionOnReplacement(String description) throws Exception {
+            mockMvc.perform(put("/api/admin/books/{bookId}/description", 3L)
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"description\":" + description + "}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+            verifyNoInteractions(adminBookService);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"\"\"", "\" \"", "\"\\t\"", "\"\\n\"", "\"\u2003\""})
+        @DisplayName("책 소개가 공백 문자열이면 업로드 요청을 거부한다")
+        void rejectBlankDescriptionOnUpload(String description) throws Exception {
+            mockMvc.perform(post("/api/admin/books")
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(uploadBody(description)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+            verifyNoInteractions(bookIngestService);
+        }
+
+        @Test
+        @DisplayName("업로드 요청의 책 소개를 앞뒤 공백 없이 서비스에 전달한다")
+        void uploadDescription() throws Exception {
+            given(bookIngestService.upload(any())).willReturn(new BookUploadResponse(3L, "책", null, 1));
+
+            mockMvc.perform(post("/api/admin/books")
+                            .header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(uploadBody("\" 검수한 소개 \"")))
+                    .andExpect(status().isCreated());
+
+            ArgumentCaptor<BookUploadRequest> request = ArgumentCaptor.forClass(BookUploadRequest.class);
+            verify(bookIngestService, times(1)).upload(request.capture());
+            assertThat(request.getValue().description()).isEqualTo(new BookDescription("검수한 소개"));
+        }
+
+        private String uploadBody(String description) {
+            return """
+                    {"title":"책","description":DESCRIPTION,"authors":[{"name":"작가"}],
+                     "chapters":[{"title":"장","passages":[{"sentences":[{"content":"본문"}]}]}]}
+                    """.replace("DESCRIPTION", description);
+        }
     }
 }

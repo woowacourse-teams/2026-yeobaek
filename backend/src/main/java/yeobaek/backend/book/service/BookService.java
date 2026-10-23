@@ -65,10 +65,8 @@ public class BookService {
                 .addKeyValue(BOOK_ID, bookId).log("도서 상세를 조회합니다.");
         Book book = bookRepository.getById(bookId);
         List<String> authors = authorNamesByBookId(List.of(bookId)).getOrDefault(bookId, List.of());
-        var response = new BookDetailResponse(book.getId(), book.getTitle().value(), authors,
-                book.getPublisher() == null ? null : book.getPublisher().value(), book.getPublishedYear(),
-                bookCoverUrlResolver.resolve(book.getCoverImageKey()),
-                book.getPassageCount().value(), chapters(bookId));
+        var response = BookDetailResponse.of(book, authors,
+                bookCoverUrlResolver.resolve(book.getCoverImageKey()), chapters(bookId));
         log.atInfo().addKeyValue(OPERATION, "book.findBook").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(BOOK_ID, bookId).addKeyValue("chapterCount", response.chapters().size())
                 .log("도서 상세를 조회했습니다.");

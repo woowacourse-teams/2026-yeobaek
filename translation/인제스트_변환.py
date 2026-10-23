@@ -355,6 +355,8 @@ def apply_legacy_metadata(book, metadata):
     required_fields = ("title", "publisher", "publishedYear", "authors")
     for field in required_fields:
         book[field] = copy.deepcopy(metadata[field])
+    if "description" in metadata:
+        book["description"] = copy.deepcopy(metadata["description"])
 
 
 def _validate_legacy_metadata(book, label):
@@ -666,10 +668,50 @@ def validate_chapters(chapters):
     return errors
 
 
+def normalize_description(book):
+    """선택 소개의 외부 공백과 부재를 정리한다."""
+    description = book.get("description")
+    if description is None:
+        book.pop("description", None)
+        return
+    if not isinstance(description, str):
+        raise ValueError("description은 문자열 또는 null이어야 합니다.")
+    description = description.strip()
+    if not description:
+        raise ValueError("description은 공백일 수 없습니다.")
+    try:
+        description.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise ValueError("description은 유효한 UTF-8 문자열이어야 합니다.") from error
+    book["description"] = description
+
+
+def validate_introduction(book_dir, *protected_paths):
+    """소개를 출력과 분리하고 책 폴더 안의 UTF-8 초안인지 출력 전에 확인한다."""
+    book_dir = book_dir.resolve()
+    path = book_dir / "책_소개.txt"
+    resolved = path.resolve()
+    if not resolved.is_relative_to(book_dir):
+        raise ValueError("책_소개.txt는 책 폴더 밖을 가리킬 수 없습니다.")
+    if resolved in {p.resolve() for p in protected_paths}:
+        raise ValueError("책_소개.txt와 원문·메타데이터·출력 경로는 달라야 합니다.")
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError) as error:
+        raise ValueError(f"책_소개.txt UTF-8 파일을 읽을 수 없습니다: {error}") from error
+    if not text.strip():
+        raise ValueError("책_소개.txt가 비어 있습니다.")
+    return path
+
+
 def validate(book):
     """인제스트 규격(docs/인제스트_가이드.md) 검증. → 오류 메시지 목록"""
     errors = []
 
+    try:
+        normalize_description(book)
+    except ValueError as error:
+        errors.append(str(error))
     _check_len(errors, "도서 제목", book.get("title", ""))
     _check_len(errors, "출판사", book.get("publisher", ""))
     if not book.get("authors"):
@@ -865,6 +907,9 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
         raise ValueError(
             f"원문 파일과 {conflicting_outputs[original_path]} 경로는 달라야 합니다."
         )
+    introduction_path = validate_introduction(
+        book_dir, zip_output, ingest_path, meta_path, original_path
+    )
     cover_dir = book_dir / "표지"
     required_cover_files = [
         book_dir / "표지_브리프.json",
@@ -883,6 +928,7 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
         meta_path,
         book_dir / "장_정보.md",
         book_dir / "번역_공통_가이드.md",
+        introduction_path,
         *required_cover_files,
     ]
     output_dirs = [
@@ -897,7 +943,8 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
         if not path or not path.exists() or not path.is_file():
             continue
         resolved = path.resolve()
-        arcname = resolved.relative_to(book_dir).as_posix()
+        arcname = ("책_소개.txt" if path == introduction_path
+                   else resolved.relative_to(book_dir).as_posix())
         if arcname in seen_arcnames:
             raise ValueError(f"ZIP 내부 경로가 충돌합니다: {arcname}")
         archive_entries.append((resolved, arcname))
@@ -1078,6 +1125,10 @@ def main():
 
     chapters = parse_translation(args.translations)
     book = {**meta, "chapters": chapters}
+    try:
+        normalize_description(book)
+    except ValueError as error:
+        sys.exit(f"[규격 검증 실패] {error}")
 
     if args.partial and not args.meta:
         # 메타데이터 없이 진행 중 검증: 메타데이터만 생략하고 본문 구조는 모두 검사한다.
@@ -1143,14 +1194,24 @@ def main():
             "달라야 합니다."
         )
 
+    try:
+        book_dir = args.meta.resolve().parent
+        introduction = validate_introduction(book_dir, output, args.meta, zip_output, args.original)
+        book["description"] = introduction.read_text(encoding="utf-8-sig").strip()
+        if not output.resolve().is_relative_to(book_dir):
+            raise ValueError("인제스트 JSON 출력은 책 폴더 안에 있어야 합니다.")
+    except (ValueError, OSError, UnicodeError) as error:
+        sys.exit(f"[소개 검증 실패] {error} — ingest.json과 ZIP을 출력하지 않았습니다.")
+
     if not validate_cover_artifacts(args.meta):
         sys.exit("\n표지 검증 실패 — ingest.json과 ZIP을 출력하지 않았습니다.")
 
     output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"저장 완료: {output}")
 
-    create_archive(zip_output, output.parent, output, args.meta, args.original)
+    create_archive(zip_output, book_dir, output, args.meta, args.original)
     print(f"ZIP 저장 완료: {zip_output}")
+    print("소개 초안: 책_소개.txt와 ingest.json의 description에 포함했습니다. 운영자 검수 후 업로드하세요.")
 
 
 if __name__ == "__main__":

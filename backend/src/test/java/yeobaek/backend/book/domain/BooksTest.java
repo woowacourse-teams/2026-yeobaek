@@ -71,7 +71,7 @@ class BooksTest {
     }
 
     private Book bookWithId(Long id, String title) {
-        Book book = new Book(new BookTitle(title), new Publisher("출판사"), 2026, 1, null);
+        Book book = new Book(new BookTitle(title), new Publisher("출판사"), 2026, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", id);
         return book;
     }
