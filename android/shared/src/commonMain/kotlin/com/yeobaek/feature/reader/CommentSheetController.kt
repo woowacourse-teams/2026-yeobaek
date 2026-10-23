@@ -17,6 +17,7 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
+import com.yeobaek.feature.reader.model.toggleLikeOptimistically
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -38,6 +39,7 @@ class CommentSheetController(
 
     private var loadJob: Job? = null
     private var didSubmitInSheet = false
+    private var sheetVersion = 0L
 
     val pendingRestoreSentenceId: Long?
         get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
@@ -121,6 +123,7 @@ class CommentSheetController(
             targetPassageSequence = targetPassageSequence,
             isLoading = true,
         )
+        sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
@@ -464,6 +467,95 @@ class CommentSheetController(
         uiState = sheet.copy(reportState = ReportState.Idle)
     }
 
+    fun toggleLike(commentId: Long) {
+        val curSheetVersion = sheetVersion
+        val sheet = uiState ?: return
+        val comment = sheet.comments.firstOrNull { it.commentId == commentId } ?: return
+        if (comment.isLikePending) return
+
+        val liked = !comment.likedByMe
+        uiState = sheet.copy(
+            comments = sheet.comments.map { current ->
+                if (current.commentId == commentId) {
+                    current.toggleLikeOptimistically()
+                } else {
+                    current
+                }
+            },
+            likeErrorMessage = null,
+        )
+
+        scope.launch {
+            try {
+                val result = commentRepository.setCommentLiked(commentId, liked)
+
+                if (curSheetVersion != sheetVersion) return@launch
+
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet ->
+                        currentSheet.comments.any { current ->
+                            current.commentId == commentId && current.isLikePending
+                        }
+                    },
+                ) { currentSheet ->
+                    currentSheet.copy(
+                        comments = currentSheet.comments.map { current ->
+                            if (current.commentId == commentId) {
+                                current.copy(
+                                    likeCount = result.likeCount,
+                                    likedByMe = result.likedByMe,
+                                    isLikePending = false,
+                                )
+                            } else {
+                                current
+                            }
+                        },
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                recordFailure(
+                    exception = exception,
+                    operation = CrashOperation.COMMENT_LIKE_FAILED,
+                    sentenceId = sheet.sentenceId,
+                )
+
+                if (curSheetVersion != sheetVersion) return@launch
+
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet ->
+                        currentSheet.comments.any { current ->
+                            current.commentId == commentId && current.isLikePending
+                        }
+                    },
+                ) { currentSheet ->
+                    currentSheet.copy(
+                        comments = currentSheet.comments.map { current ->
+                            if (current.commentId == commentId) {
+                                current.copy(
+                                    likeCount = comment.likeCount,
+                                    likedByMe = comment.likedByMe,
+                                    isLikePending = false,
+                                )
+                            } else {
+                                current
+                            }
+                        },
+                        likeErrorMessage = "좋아요를 변경하지 못했습니다.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeLikeError() {
+        val sheet = uiState ?: return
+        uiState = sheet.copy(likeErrorMessage = null)
+    }
+
     private fun updateSheet(
         sentenceId: Long,
         isWaiting: (CommentSheetUiState) -> Boolean,
@@ -543,7 +635,7 @@ private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentShee
     )
 }
 
-private fun CommentSheetUiState.withCommentSaved(
+internal fun CommentSheetUiState.withCommentSaved(
     savedComment: CommentUiModel,
     editedCommentId: Long?,
 ): CommentSheetUiState = copy(
@@ -551,7 +643,15 @@ private fun CommentSheetUiState.withCommentSaved(
         comments + savedComment
     } else {
         comments.map { comment ->
-            if (comment.commentId == editedCommentId) savedComment else comment
+            if (comment.commentId == editedCommentId) {
+                savedComment.copy(
+                    likeCount = comment.likeCount,
+                    likedByMe = comment.likedByMe,
+                    isLikePending = comment.isLikePending,
+                )
+            } else {
+                comment
+            }
         }
     },
     input = "",

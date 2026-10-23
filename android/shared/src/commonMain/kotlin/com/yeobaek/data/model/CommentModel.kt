@@ -8,4 +8,6 @@ data class CommentModel(
     val createdAt: String,
     val updatedAt: String?,
     val mine: Boolean,
+    val likeCount: Long = 0,
+    val likedByMe: Boolean = false,
 )
