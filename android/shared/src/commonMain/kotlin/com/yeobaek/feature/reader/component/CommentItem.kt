@@ -85,7 +85,7 @@ fun CommentItem(
                 comment = comment,
                 modifier = Modifier.weight(1f),
             )
-            IconActions(
+            CommentActions(
                 likedByMe = comment.likedByMe,
                 likeCount = comment.likeCount,
                 onMenuClick = { isMenuExpanded = true },
