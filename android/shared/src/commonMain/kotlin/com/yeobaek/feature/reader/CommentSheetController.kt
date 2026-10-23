@@ -635,7 +635,7 @@ private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentShee
     )
 }
 
-private fun CommentSheetUiState.withCommentSaved(
+internal fun CommentSheetUiState.withCommentSaved(
     savedComment: CommentUiModel,
     editedCommentId: Long?,
 ): CommentSheetUiState = copy(
@@ -643,7 +643,15 @@ private fun CommentSheetUiState.withCommentSaved(
         comments + savedComment
     } else {
         comments.map { comment ->
-            if (comment.commentId == editedCommentId) savedComment else comment
+            if (comment.commentId == editedCommentId) {
+                savedComment.copy(
+                    likeCount = comment.likeCount,
+                    likedByMe = comment.likedByMe,
+                    isLikePending = comment.isLikePending,
+                )
+            } else {
+                comment
+            }
         }
     },
     input = "",
