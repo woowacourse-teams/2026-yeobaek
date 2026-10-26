@@ -83,9 +83,17 @@ private fun HandleNotificationOpen(
                         return@collect
                     }
                     val target = request.notification
-                    navController.navigate(Home) {
-                        popUpTo(navController.graph.id)
-                        launchSingleTop = true
+                    val hasHome = try {
+                        navController.getBackStackEntry<Home>()
+                        true
+                    } catch (_: IllegalArgumentException) {
+                        false
+                    }
+                    if (!hasHome) {
+                        navController.navigate(Home) {
+                            popUpTo(navController.graph.id)
+                            launchSingleTop = true
+                        }
                     }
                     when (val space = target.space) {
                         is CommentSpace.Group -> navController.navigate(
