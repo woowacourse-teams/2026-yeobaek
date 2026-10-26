@@ -148,7 +148,7 @@ class SourceIndexTests(unittest.TestCase):
         cover = self.root / "표지"
         (cover / "프롬프트").mkdir(parents=True)
         for name in ("시안_목록.json", "표지_검수.json"):
-            (cover / name).write_text("{}")
+            (cover / name).write_text('{"schemaVersion": 1}' if name == "시안_목록.json" else "{}")
         for letter in "ABCDEFG":
             (cover / f"{letter}.png").write_bytes(b"fixture")
             (cover / "프롬프트" / f"{letter}.txt").write_text("fixture")

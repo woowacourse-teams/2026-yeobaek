@@ -777,7 +777,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
             ingest.write_text("{}", encoding="utf-8")
             meta.write_text("{}", encoding="utf-8")
             brief.write_text("{}", encoding="utf-8")
-            (cover_dir / "시안_목록.json").write_text("{}", encoding="utf-8")
+            (cover_dir / "시안_목록.json").write_text('{"schemaVersion":1}', encoding="utf-8")
             (cover_dir / "표지_검수.json").write_text("{}", encoding="utf-8")
             for variant_id in "ABCDEFG":
                 (cover_dir / f"{variant_id}.png").write_bytes(
@@ -821,7 +821,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
             meta.write_text("{}", encoding="utf-8")
             original.write_bytes(b"external-original")
             (book_dir / "표지_브리프.json").write_text("{}", encoding="utf-8")
-            (book_dir / "표지" / "시안_목록.json").write_text("{}", encoding="utf-8")
+            (book_dir / "표지" / "시안_목록.json").write_text('{"schemaVersion":1}', encoding="utf-8")
             (book_dir / "표지" / "표지_검수.json").write_text("{}", encoding="utf-8")
             for variant_id in "ABCDEFG":
                 (book_dir / "표지" / f"{variant_id}.png").write_bytes(b"png")
@@ -1015,6 +1015,43 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 )
 
                 self.assertEqual(validate_translation_contract(book_dir), [])
+
+    def test_final_conversion_archives_selected_single_cover_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            book_dir = Path(tmp)
+            original, translation, meta_path, meta = self._write_book_inputs(book_dir, "선정 표지 책")
+            brief = {"genre": "고전 문학", "coreSummary": ["기억의 이야기.", "선택의 이야기."],
+                     "keywords": ["기억", "선택", "시간"], "visualMotifs": ["시계"],
+                     "targetAudience": "성인 독자", "avoid": []}
+            (book_dir / "표지_브리프.json").write_text(json.dumps(brief), encoding="utf-8")
+            cover_dir = book_dir / "표지"
+            cover.prepare(meta, brief, cover_dir, "F")
+            image = cover_dir / "F.png"
+            prompt = cover_dir / "프롬프트" / "F.txt"
+            self._write_png(image, 1)
+            review = {"schemaVersion": 2, "variants": {"F": {
+                "textExact": True, "frontCoverOnly": True, "styleMatch": True,
+                "legible": True, "publicationReady": True,
+                "imageSha256": cover._sha256_file(image), "promptSha256": cover._sha256_file(prompt)
+            }}, "setChecks": {"noExtraTextAcrossSet": True}}
+            (cover_dir / "표지_검수.json").write_text(json.dumps(review), encoding="utf-8")
+            result = self._run_conversion(book_dir, original, translation, meta_path)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            with zipfile.ZipFile(book_dir / "선정_표지_책.zip") as archive:
+                names = archive.namelist()
+                self.assertEqual([name for name in names if name.endswith(".png")], ["표지/F.png"])
+                self.assertEqual([name for name in names if name.startswith("표지/프롬프트/")],
+                                 ["표지/프롬프트/F.txt"])
+                self.assertEqual(archive.read(f"원문/{original.name}"), original.read_bytes())
+                self.assertEqual(archive.read("표지/F.png"), image.read_bytes())
+            # 선택하지 않은 이미지가 있으면 새 JSON/ZIP 생성을 막는다.
+            (book_dir / "ingest.json").unlink()
+            (book_dir / "선정_표지_책.zip").unlink()
+            self._write_png(cover_dir / "G.png", 2)
+            rejected = self._run_conversion(book_dir, original, translation, meta_path)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertFalse((book_dir / "ingest.json").exists())
+            self.assertFalse((book_dir / "선정_표지_책.zip").exists())
 
     def test_final_conversion_validates_covers_and_archives_only_canonical_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
