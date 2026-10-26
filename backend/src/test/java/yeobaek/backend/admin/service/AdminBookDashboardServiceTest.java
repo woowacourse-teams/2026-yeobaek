@@ -61,6 +61,6 @@ class AdminBookDashboardServiceTest extends IntegrationTest {
     }
 
     private Book saveBook(String title) {
-        return bookRepository.save(new Book(new BookTitle(title), null, null, 1, null));
+        return bookRepository.save(new Book(new BookTitle(title), null, null, 1, null, null, null));
     }
 }

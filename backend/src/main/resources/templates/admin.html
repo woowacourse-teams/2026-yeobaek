@@ -57,6 +57,9 @@
             border: 0;
         }
         .cover-file-name, .json-file-name { color: #555; font-size: .85rem; }
+        .description-editor { min-width: 200px; }
+        .description-editor textarea { min-height: 6rem; font-family: inherit; }
+        .description-editor button { margin: .3rem .3rem 0 0; }
     </style>
 </head>
 <body>
@@ -79,7 +82,7 @@
     <table id="books-table" hidden>
         <thead>
         <tr>
-            <th>bookId</th><th>표지</th><th>제목</th><th>작가 (authorId / ISNI)</th>
+            <th>bookId</th><th>표지</th><th>제목</th><th>책 소개</th><th>작가 (authorId / ISNI)</th>
             <th>출판사</th><th>출판 연도</th><th>본문 수</th><th>상태</th><th>관리</th>
         </tr>
         </thead>
@@ -245,6 +248,7 @@
                 + '<td>' + (book.coverImageUrl ? '<img class="cover-preview" src="'
                     + escapeHtml(book.coverImageUrl) + '" alt="">' : '-') + '</td>'
                 + '<td>' + escapeHtml(book.title) + '</td>'
+                + '<td class="description-cell" data-book-id="' + book.bookId + '"></td>'
                 + '<td>' + book.authors.map(author => '<div class="book-author">'
                     + escapeHtml(author.name) + ' (#' + author.authorId + ')'
                     + (author.isni ? '<span class="author-isni">ISNI ' + escapeHtml(author.isni) + '</span>' : '')
@@ -268,6 +272,11 @@
                 + '</tr>').join('');
             booksTable.querySelector('tbody').innerHTML = rows;
             const booksById = new Map(body.books.map(book => [String(book.bookId), book]));
+            booksTable.querySelectorAll('.description-cell').forEach(cell => {
+                const book = booksById.get(cell.dataset.bookId);
+                cell.append(AdminBookInventory.createDescriptionEditor(document, book,
+                    description => saveBookDescription(book, description)));
+            });
             booksTable.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => deleteBook(booksById.get(button.dataset.bookId)));
             });
@@ -379,6 +388,9 @@
         let payload;
         try {
             payload = JSON.parse(document.getElementById('upload-json').value);
+            if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+                throw new Error('도서 JSON은 객체여야 합니다.');
+            }
         } catch (error) {
             show(result, 'JSON 파싱 실패: ' + error.message, true);
             return;
@@ -532,6 +544,31 @@
             }
         } catch (error) {
             show(result, '표지 제거 실패: ' + error, true);
+        }
+    }
+
+    async function saveBookDescription(book, description) {
+        const result = document.getElementById('books-result');
+        inventoryState.invalidate();
+        downloadBooksCsvButton.disabled = true;
+        try {
+            const response = await fetch('/api/admin/books/' + book.bookId + '/description', {
+                method: description === null ? 'DELETE' : 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
+                body: description === null ? undefined : JSON.stringify({ description })
+            });
+            if (!response.ok) {
+                const body = await response.json();
+                show(result, body.code + ': ' + body.message, true);
+                return false;
+            }
+            if (await loadBooks()) {
+                show(result, '소개 저장 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            }
+            return true;
+        } catch (error) {
+            show(result, '소개 저장 실패: ' + error, true);
+            return false;
         }
     }
 

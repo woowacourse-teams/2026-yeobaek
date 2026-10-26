@@ -18,6 +18,7 @@ data class CommentSheetUiState(
     val loadErrorMessage: String? = null,
     val submitErrorMessage: String? = null,
     val deleteErrorMessage: String? = null,
+    val likeErrorMessage: String? = null,
     val reportState: ReportState = ReportState.Idle,
 )
 
@@ -41,4 +42,6 @@ class CommentSheetActions(
     val onReport: (commentId: Long) -> Unit,
     val onReportResultConsumed: () -> Unit,
     val onScrollToLatestConsumed: (Long) -> Unit,
+    val onLike: (commentId: Long) -> Unit,
+    val onLikeErrorConsumed: () -> Unit,
 )

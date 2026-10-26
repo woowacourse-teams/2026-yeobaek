@@ -75,7 +75,10 @@ public class DatabaseCleaner {
 
         try (ResultSet tables = metadata.getTables(connection.getCatalog(), null, "%", new String[]{TABLE_TYPE})) {
             while (tables.next()) {
-                tableNames.add(tables.getString("TABLE_NAME"));
+                String tableName = tables.getString("TABLE_NAME");
+                if (!"flyway_schema_history".equalsIgnoreCase(tableName)) {
+                    tableNames.add(tableName);
+                }
             }
         }
 

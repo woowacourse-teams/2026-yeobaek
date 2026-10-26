@@ -29,7 +29,7 @@ class ClubMemberTest {
     @DisplayName("모임 참여 정보는 참여 중 상태로 생성된다")
     void statusStartsJoined() {
         ClubMember clubMember = new ClubMember(
-                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
+                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null, null, null), new JoinCode("CODE01")));
 
         assertThat(clubMember.getStatus()).isEqualTo(ClubMemberStatus.JOINED);
         assertThat(clubMember.isJoined()).isTrue();
@@ -39,7 +39,7 @@ class ClubMemberTest {
     @DisplayName("모임을 탈퇴한 후 재가입할 수 있다")
     void leaveAndRejoin() {
         ClubMember clubMember = new ClubMember(
-                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
+                new Member(new Nickname("민서")), new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null, null, null), new JoinCode("CODE01")));
 
         clubMember.leave();
 
@@ -57,7 +57,7 @@ class ClubMemberTest {
     void isOwnedByWhenIdMatches() {
         Member member = new Member(new Nickname("민서"));
         ReflectionTestUtils.setField(member, "id", 1L);
-        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
+        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null, null, null), new JoinCode("CODE01")));
 
         assertThat(clubMember.isOwnedBy(1L)).isTrue();
     }
@@ -67,7 +67,7 @@ class ClubMemberTest {
     void isNotOwnedByWhenIdDiffers() {
         Member member = new Member(new Nickname("민서"));
         ReflectionTestUtils.setField(member, "id", 1L);
-        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null), new JoinCode("CODE01")));
+        ClubMember clubMember = new ClubMember(member, new Club(new ClubName("1기"), new Book(new BookTitle("제목"), null, null, 1, null, null, null), new JoinCode("CODE01")));
 
         assertThat(clubMember.isOwnedBy(2L)).isFalse();
     }
@@ -75,7 +75,7 @@ class ClubMemberTest {
     @Test
     @DisplayName("진도율은 최근 열람 본문 순서를 도서의 본문 개수로 나눈 값을 반올림한다")
     void progressRateDelegatesTotalPassageCountToClub() {
-        Book book = new Book(new BookTitle("제목"), null, null, 4, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 4, null, null, null);
         Chapter chapter = new Chapter(book, new ChapterTitle("1장"), 1);
         Passage passage = new Passage(chapter, 3, Collections.singletonList(new SentenceContent("본문")));
         Club club = new Club(new ClubName("1기"), book, new JoinCode("CODE01"));
@@ -168,7 +168,7 @@ class ClubMemberTest {
     }
 
     private Book book(Long id) {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", id);
         return book;
     }

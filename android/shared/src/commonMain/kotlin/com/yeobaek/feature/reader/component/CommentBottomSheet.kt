@@ -50,6 +50,8 @@ fun CommentBottomSheet(
     onDelete: (Long) -> Unit,
     onReport: (Long) -> Unit,
     onReportResultConsumed: () -> Unit,
+    onLike: (Long) -> Unit,
+    onLikeErrorConsumed: () -> Unit,
     onDeleteCancel: () -> Unit,
     onDeleteConfirm: () -> Unit,
     onScrollToLatestConsumed: (Long) -> Unit,
@@ -75,6 +77,13 @@ fun CommentBottomSheet(
             )
         }
         onReportResultConsumed()
+    }
+
+    LaunchedEffect(uiState.likeErrorMessage) {
+        val message = uiState.likeErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.currentSnackbarData?.dismiss()
+        snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        onLikeErrorConsumed()
     }
 
     LaunchedEffect(
@@ -157,6 +166,7 @@ fun CommentBottomSheet(
                     onEdit = onEdit,
                     onDelete = onDelete,
                     onReport = onReport,
+                    onLike = onLike,
                     onRetry = onRetry,
                     modifier = Modifier
                         .fillMaxWidth()

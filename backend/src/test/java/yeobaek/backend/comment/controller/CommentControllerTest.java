@@ -28,6 +28,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
+import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentedSentenceResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
@@ -55,8 +56,8 @@ class CommentControllerTest extends ControllerTest {
         var createdAt = LocalDateTime.of(2026, 8, 5, 14, 30);
         var updatedAt = LocalDateTime.of(2026, 8, 5, 15, 0);
         var response = new CommentsResponse(List.of(
-                new CommentResponse(7L, 2L, "지수", "첫 댓글", createdAt, null, false),
-                new CommentResponse(8L, 1L, "민서", "수정된 댓글", createdAt, updatedAt, true)));
+                new CommentResponse(7L, 2L, "지수", "첫 댓글", createdAt, null, false, 3, true),
+                new CommentResponse(8L, 1L, "민서", "수정된 댓글", createdAt, updatedAt, true, 0, false)));
         given(commentService.findComments(1L, 10L, 1042L)).willReturn(response);
 
         mockMvc.perform(get("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
@@ -72,13 +73,17 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.comments[0].createdAt").value("2026-08-05T14:30:00"))
                 .andExpect(jsonPath("$.comments[0].updatedAt").value((Object) null))
                 .andExpect(jsonPath("$.comments[0].mine").value(false))
+                .andExpect(jsonPath("$.comments[0].likeCount").value(3))
+                .andExpect(jsonPath("$.comments[0].likedByMe").value(true))
                 .andExpect(jsonPath("$.comments[1].commentId").value(8))
                 .andExpect(jsonPath("$.comments[1].memberId").value(1))
                 .andExpect(jsonPath("$.comments[1].nickname").value("민서"))
                 .andExpect(jsonPath("$.comments[1].content").value("수정된 댓글"))
                 .andExpect(jsonPath("$.comments[1].createdAt").value("2026-08-05T14:30:00"))
                 .andExpect(jsonPath("$.comments[1].updatedAt").value("2026-08-05T15:00:00"))
-                .andExpect(jsonPath("$.comments[1].mine").value(true));
+                .andExpect(jsonPath("$.comments[1].mine").value(true))
+                .andExpect(jsonPath("$.comments[1].likeCount").value(0))
+                .andExpect(jsonPath("$.comments[1].likedByMe").value(false));
 
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker, times(1))
@@ -91,7 +96,7 @@ class CommentControllerTest extends ControllerTest {
         givenValidMember(1L);
         var createdAt = LocalDateTime.of(2026, 8, 5, 14, 30);
         var response = new CommentsResponse(List.of(
-                new CommentResponse(7L, 2L, "지수", "첫 댓글", createdAt, null, false)));
+                new CommentResponse(7L, 2L, "지수", "첫 댓글", createdAt, null, false, 2, false)));
         given(commentService.findComments(1L, 10L, 1042L)).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views", 10L, 1042L)
@@ -105,7 +110,9 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.comments[0].content").value("첫 댓글"))
                 .andExpect(jsonPath("$.comments[0].createdAt").value("2026-08-05T14:30:00"))
                 .andExpect(jsonPath("$.comments[0].updatedAt").value((Object) null))
-                .andExpect(jsonPath("$.comments[0].mine").value(false));
+                .andExpect(jsonPath("$.comments[0].mine").value(false))
+                .andExpect(jsonPath("$.comments[0].likeCount").value(2))
+                .andExpect(jsonPath("$.comments[0].likedByMe").value(false));
 
         verify(commentService, times(1)).findComments(1L, 10L, 1042L);
         verify(analyticsTracker, times(1))
@@ -203,7 +210,7 @@ class CommentControllerTest extends ControllerTest {
     void createComment() throws Exception {
         givenValidMember(2L);
         var createdAt = LocalDateTime.of(2026, 8, 6, 9, 15);
-        var response = new CommentResponse(9L, 2L, "민서", "새 댓글", createdAt, null, true);
+        var response = new CommentResponse(9L, 2L, "민서", "새 댓글", createdAt, null, true, 0, false);
         given(commentService.create(2L, 10L, 1042L, new CommentContent("새 댓글"))).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/{clubId}/sentences/{sentenceId}/comments", 10L, 1042L)
@@ -220,7 +227,9 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.content").value("새 댓글"))
                 .andExpect(jsonPath("$.createdAt").value("2026-08-06T09:15:00"))
                 .andExpect(jsonPath("$.updatedAt").value((Object) null))
-                .andExpect(jsonPath("$.mine").value(true));
+                .andExpect(jsonPath("$.mine").value(true))
+                .andExpect(jsonPath("$.likeCount").value(0))
+                .andExpect(jsonPath("$.likedByMe").value(false));
 
         verify(commentService, times(1)).create(2L, 10L, 1042L, new CommentContent("새 댓글"));
         verify(analyticsTracker, times(1))
@@ -252,7 +261,7 @@ class CommentControllerTest extends ControllerTest {
         givenValidMember(3L);
         var createdAt = LocalDateTime.of(2026, 8, 6, 9, 15);
         var updatedAt = LocalDateTime.of(2026, 8, 6, 10, 30);
-        var response = new CommentResponse(9L, 3L, "민서", "수정된 내용", createdAt, updatedAt, true);
+        var response = new CommentResponse(9L, 3L, "민서", "수정된 내용", createdAt, updatedAt, true, 4, true);
         given(commentService.update(3L, 9L, new CommentContent("수정된 내용"))).willReturn(response);
 
         mockMvc.perform(put("/api/comments/{commentId}", 9L)
@@ -269,7 +278,9 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.content").value("수정된 내용"))
                 .andExpect(jsonPath("$.createdAt").value("2026-08-06T09:15:00"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-08-06T10:30:00"))
-                .andExpect(jsonPath("$.mine").value(true));
+                .andExpect(jsonPath("$.mine").value(true))
+                .andExpect(jsonPath("$.likeCount").value(4))
+                .andExpect(jsonPath("$.likedByMe").value(true));
 
         verify(commentService, times(1)).update(3L, 9L, new CommentContent("수정된 내용"));
         verify(analyticsTracker).track(3L, AnalyticsEvent.commentUpdate(9L));
@@ -287,6 +298,38 @@ class CommentControllerTest extends ControllerTest {
 
         verify(commentService, times(1)).delete(4L, 9L);
         verify(analyticsTracker).track(4L, AnalyticsEvent.commentDelete(9L));
+    }
+
+    @Test
+    @DisplayName("좋아요 추가 요청을 서비스에 전달하고 처리 결과를 반환한다")
+    void addLike() throws Exception {
+        givenValidMember(4L);
+        given(commentService.addLike(4L, 9L)).willReturn(new CommentLikeResponse(3, true));
+
+        mockMvc.perform(put("/api/comments/{commentId}/likes", 9L)
+                        .header("X-Member-Id", "4"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.likeCount").value(3))
+                .andExpect(jsonPath("$.likedByMe").value(true));
+
+        verify(commentService, times(1)).addLike(4L, 9L);
+    }
+
+    @Test
+    @DisplayName("좋아요 취소 요청을 서비스에 전달하고 처리 결과를 반환한다")
+    void cancelLike() throws Exception {
+        givenValidMember(5L);
+        given(commentService.cancelLike(5L, 12L)).willReturn(new CommentLikeResponse(0, false));
+
+        mockMvc.perform(delete("/api/comments/{commentId}/likes", 12L)
+                        .header("X-Member-Id", "5"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.likeCount").value(0))
+                .andExpect(jsonPath("$.likedByMe").value(false));
+
+        verify(commentService, times(1)).cancelLike(5L, 12L);
     }
 
     @Test

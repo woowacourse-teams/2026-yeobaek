@@ -1,8 +1,11 @@
 package com.yeobaek.feature.home.component
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_search
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,41 +34,60 @@ import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.component.BookItem
+import com.yeobaek.core.designsystem.component.YeobaekTextField
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.PublicRoomTabUiState
 import com.yeobaek.feature.home.model.PublicRoomBookUiModel
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items as rowItems
 
 @Composable
 fun PublicGroupSection(
     uiState: PublicRoomTabUiState,
+    updateSearchTextValue: (String) -> Unit,
     onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
     onListObserved: (Int, Int?) -> Unit,
     onListUserScrolled: () -> Unit,
     observationEpoch: Int,
     modifier: Modifier = Modifier,
 ) {
-    when (uiState.screenState) {
-        is ScreenState.Loading -> PublicRoomStatusMessage(
-            message = uiState.screenState.message,
-            modifier = modifier.fillMaxSize(),
+    Column(modifier = modifier.fillMaxSize()) {
+        YeobaekTextField(
+            value = uiState.searchTextValue,
+            onValueChange = updateSearchTextValue,
+            placeholder = "책 제목을 검색해 주세요",
+            enabled = uiState.screenState is ScreenState.Success,
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_search),
+                    contentDescription = "검색 아이콘",
+                )
+            },
+            modifier = Modifier.padding(bottom = 16.dp),
         )
+        when (uiState.screenState) {
+            is ScreenState.Loading -> PublicRoomStatusMessage(
+                message = uiState.screenState.message,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
 
-        is ScreenState.Error -> PublicRoomStatusMessage(
-            message = uiState.screenState.message,
-            modifier = modifier.fillMaxSize(),
-        )
+            is ScreenState.Error -> PublicRoomStatusMessage(
+                message = uiState.screenState.message,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
 
-        ScreenState.Success -> PublicRoomGrid(
-            visitedPublicRooms = uiState.visitedPublicRooms,
-            publicRooms = uiState.publicRooms,
-            onPublicRoomClick = onPublicRoomClick,
-            onListObserved = onListObserved,
-            onListUserScrolled = onListUserScrolled,
-            observationEpoch = observationEpoch,
-            modifier = modifier,
-        )
+            ScreenState.Success -> PublicRoomGrid(
+                visitedPublicRooms = uiState.visibleVisitedPublicRooms,
+                publicRooms = uiState.visiblePublicRooms,
+                searchTextValue = uiState.searchTextValue,
+                onPublicRoomClick = onPublicRoomClick,
+                onListObserved = onListObserved,
+                onListUserScrolled = onListUserScrolled,
+                observationEpoch = observationEpoch,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -72,6 +95,7 @@ fun PublicGroupSection(
 private fun PublicRoomGrid(
     visitedPublicRooms: List<PublicRoomBookUiModel>,
     publicRooms: List<PublicRoomBookUiModel>,
+    searchTextValue: String,
     onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
     onListObserved: (Int, Int?) -> Unit,
     onListUserScrolled: () -> Unit,
@@ -79,6 +103,9 @@ private fun PublicRoomGrid(
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
+    LaunchedEffect(searchTextValue) {
+        gridState.requestScrollToItem(0)
+    }
     val roomPositions = publicRooms.mapIndexed { index, room -> room.publicRoomId to index + 1 }.toMap()
     LaunchedEffect(gridState, roomPositions, observationEpoch) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.map { it.key } }.collect { visibleKeys ->
@@ -107,7 +134,7 @@ private fun PublicRoomGrid(
         item(span = { GridItemSpan(maxLineSpan) }) {
             if (visitedPublicRooms.isEmpty()) {
                 PublicRoomStatusMessage(
-                    message = "아직 방문한 공개방이 없어요.",
+                    message = if (searchTextValue.isBlank()) "아직 방문한 공개방이 없어요." else "검색 결과가 없어요.",
                     modifier = Modifier.fillMaxWidth().height(96.dp),
                 )
             } else {
@@ -126,7 +153,7 @@ private fun PublicRoomGrid(
         if (publicRooms.isEmpty()) {
             item(key = "public_room_empty", span = { GridItemSpan(maxLineSpan) }) {
                 PublicRoomStatusMessage(
-                    message = "현재 방문할 수 있는 공개방이 없어요.",
+                    message = if (searchTextValue.isBlank()) "현재 방문할 수 있는 공개방이 없어요." else "검색 결과가 없어요.",
                     modifier = Modifier.fillMaxWidth().height(96.dp),
                 )
             }
@@ -227,6 +254,7 @@ private fun PublicGroupSectionPreview() {
                 publicRooms = previewPublicRooms,
                 screenState = ScreenState.Success,
             ),
+            updateSearchTextValue = {},
             onPublicRoomClick = { _, _ -> },
             onListObserved = { _, _ -> },
             onListUserScrolled = {},

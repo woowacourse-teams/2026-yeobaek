@@ -54,7 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
                 "management.tracing.sampling.probability=1",
                 "server.tomcat.threads.max=1", "server.tomcat.threads.min-spare=1",
                 "spring.datasource.hikari.maximum-pool-size=1", "spring.datasource.hikari.minimum-idle=0",
-                "spring.datasource.hikari.connection-timeout=1000", "management.otlp.metrics.export.step=1s",
+                "spring.datasource.hikari.connection-timeout=5000", "management.otlp.metrics.export.step=1s",
                 "management.opentelemetry.tracing.export.schedule-delay=10ms",
                 "management.opentelemetry.logging.export.schedule-delay=10ms"})
 @DirtiesContext
@@ -102,20 +102,24 @@ class ObservabilityIntegrationTest {
         assertThat(client.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
         flush();
 
-        var http = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
-                && span.getKind() == io.opentelemetry.api.trace.SpanKind.SERVER).toList();
-        var sql = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
-                && span.getName().contains("query")).toList();
-        assertThat(http).hasSize(1);
-        assertThat(sql).hasSize(1).allSatisfy(span -> assertThat(span.getParentSpanId()).isEqualTo(http.getFirst().getSpanId()));
-        assertThat(signals.logs.stream().filter(log -> log.getSpanContext().getTraceId().equals(traceId)))
-                .hasSize(4).anySatisfy(log -> {
-                    assertThat(log.getSpanContext().getSpanId()).isEqualTo(sql.getFirst().getSpanId());
-                    assertThat(log.getBodyValue().asString()).isEqualTo("SQL probe");
-                }).anySatisfy(log -> {
-                    assertThat(log.getBodyValue().asString()).isEqualTo("HTTP 요청 처리를 완료했습니다.");
-                    assertThat(log.getSpanContext().getSpanId()).isEqualTo(http.getFirst().getSpanId());
-                });
+        // 응답 수신 시점에는 서버 span이 아직 종료·수집되지 않았을 수 있다.
+        org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var http = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
+                    && span.getKind() == io.opentelemetry.api.trace.SpanKind.SERVER).toList();
+            var sql = signals.spans.stream().filter(span -> span.getTraceId().equals(traceId)
+                    && span.getName().contains("query")).toList();
+            assertThat(http).hasSize(1);
+            assertThat(sql).hasSize(1)
+                    .allSatisfy(span -> assertThat(span.getParentSpanId()).isEqualTo(http.getFirst().getSpanId()));
+            assertThat(signals.logs.stream().filter(log -> log.getSpanContext().getTraceId().equals(traceId)))
+                    .hasSize(4).anySatisfy(log -> {
+                        assertThat(log.getSpanContext().getSpanId()).isEqualTo(sql.getFirst().getSpanId());
+                        assertThat(log.getBodyValue().asString()).isEqualTo("SQL probe");
+                    }).anySatisfy(log -> {
+                        assertThat(log.getBodyValue().asString()).isEqualTo("HTTP 요청 처리를 완료했습니다.");
+                        assertThat(log.getSpanContext().getSpanId()).isEqualTo(http.getFirst().getSpanId());
+                    });
+        });
     }
 
     @Test
@@ -209,11 +213,12 @@ class ObservabilityIntegrationTest {
                     return acquired.isValid(1);
                 }
             });
-            org.awaitility.Awaitility.await().pollInterval(Duration.ofMillis(10)).atMost(Duration.ofSeconds(2))
+            // PoolStats 캐시 1초 < 관측 3초 < 연결 제한 5초 < Future 대기 7초.
+            org.awaitility.Awaitility.await().pollInterval(Duration.ofMillis(10)).atMost(Duration.ofSeconds(3))
                     .untilAsserted(() -> assertThat(meters.get("hikaricp.connections.pending").gauge().value())
                             .isEqualTo(1));
             assertThat(meters.get("hikaricp.connections.active").gauge().value()).isEqualTo(1);
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> waiting.get(3, TimeUnit.SECONDS))
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> waiting.get(7, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(java.sql.SQLTransientConnectionException.class);
         }
         assertThat(meters.get("hikaricp.connections.timeout").counter().count()).isGreaterThan(previousTimeouts);

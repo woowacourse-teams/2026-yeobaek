@@ -23,17 +23,6 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
         return existsByMemberIdAndClubIdAndStatus(memberId, clubId, ClubMemberStatus.JOINED);
     }
 
-    @Query("""
-            select count(cm) > 0 from ClubMember cm
-            where cm.member.id = :memberId
-              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
-              and cm.club.id = (
-                  select comment.clubComment.club.id from Comment comment where comment.id = :commentId
-              )
-            """)
-    boolean existsJoinedByMemberIdAndCommentId(@Param(MEMBER_ID) Long memberId,
-                                               @Param("commentId") Long commentId);
-
     Optional<ClubMember> findByMemberIdAndClubId(Long memberId, Long clubId);
 
     Optional<ClubMember> findByMemberIdAndClubIdAndStatus(Long memberId, Long clubId, ClubMemberStatus status);
@@ -96,4 +85,21 @@ public interface ClubMemberRepository extends JpaRepository<ClubMember, Long> {
             order by cm.id asc
             """)
     List<ClubMember> findAllJoinedWithMemberByClubId(@Param("clubId") Long clubId);
+
+    @Query("""
+            select cm from ClubMember cm
+            join fetch cm.member
+            left join fetch cm.lastRead lr
+            left join fetch lr.lastReadPassage
+            where cm.club.id = :clubId
+              and cm.status = yeobaek.backend.club.domain.ClubMemberStatus.JOINED
+              and not exists (
+                  select memberBlock.id from MemberBlock memberBlock
+                  where memberBlock.blocker.id = cm.member.id
+                    and memberBlock.blocked.id = :writerId
+              )
+            order by cm.id asc
+            """)
+    List<ClubMember> findNotificationCandidatesWithReadingProgress(
+            @Param("clubId") Long clubId, @Param("writerId") Long writerId);
 }

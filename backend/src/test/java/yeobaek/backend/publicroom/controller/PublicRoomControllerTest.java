@@ -1,7 +1,10 @@
 package yeobaek.backend.publicroom.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -13,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -33,6 +38,8 @@ import yeobaek.backend.publicroom.dto.PublicRoomsResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomsResponse;
 import yeobaek.backend.publicroom.service.PublicRoomService;
 import yeobaek.backend.support.ControllerTest;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.NotFoundException;
 
 @WebMvcTest(PublicRoomController.class)
 class PublicRoomControllerTest extends ControllerTest {
@@ -48,13 +55,87 @@ class PublicRoomControllerTest extends ControllerTest {
     void findAll() throws Exception {
         givenValidMember(1L);
         var response = new PublicRoomsResponse(List.of(new PublicRoomResponse(2L, book(), null)));
-        given(publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED)).willReturn(response);
+        given(publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED, null)).willReturn(response);
 
         mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.publicRooms[0].publicRoomId").value(2));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.publicRooms.length()").value(1))
+                .andExpect(jsonPath("$.publicRooms[0].publicRoomId").value(2))
+                .andExpect(jsonPath("$.publicRooms[0].book.bookId").value(5))
+                .andExpect(jsonPath("$.publicRooms[0].book.title").value("책"))
+                .andExpect(jsonPath("$.publicRooms[0].book.authors.length()").value(1))
+                .andExpect(jsonPath("$.publicRooms[0].book.authors[0]").value("작가"))
+                .andExpect(jsonPath("$.publicRooms[0].book.coverImageUrl").value((Object) null))
+                .andExpect(jsonPath("$.publicRooms[0].book.passageCount").value(10))
+                .andExpect(jsonPath("$.publicRooms[0].book.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.publicRooms[0].myProgress").value((Object) null));
 
-        verify(publicRoomService).findAll(1L, PublicRoomSort.MOST_VISITED);
+        verify(publicRoomService, times(1)).findAll(1L, PublicRoomSort.MOST_VISITED, null);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"운수", "", "   "})
+    @DisplayName("검색어와 명시한 정렬을 서비스에 전달한다")
+    void findAllWithKeyword(String keyword) throws Exception {
+        givenValidMember(1L);
+        given(publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED, keyword))
+                .willReturn(new PublicRoomsResponse(List.of()));
+
+        mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", "1")
+                        .queryParam("keyword", keyword).queryParam("sort", "MOST_VISITED"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.publicRooms").isArray())
+                .andExpect(jsonPath("$.publicRooms").isEmpty());
+
+        verify(publicRoomService, times(1)).findAll(1L, PublicRoomSort.MOST_VISITED, keyword);
+    }
+
+    @Test
+    @DisplayName("검색어만 전달하면 기본 정렬로 검색한다")
+    void searchWithDefaultSort() throws Exception {
+        givenValidMember(1L);
+        given(publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED, "현진"))
+                .willReturn(new PublicRoomsResponse(List.of()));
+
+        mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", "1")
+                        .queryParam("keyword", "현진"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.publicRooms").isArray())
+                .andExpect(jsonPath("$.publicRooms").isEmpty());
+
+        verify(publicRoomService, times(1)).findAll(1L, PublicRoomSort.MOST_VISITED, "현진");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "RECENT"})
+    @DisplayName("검색 시 잘못된 정렬은 서비스 호출 전에 거부한다")
+    void rejectInvalidSearchSort(String sort) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", "1")
+                        .queryParam("keyword", "운수").queryParam("sort", sort))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(publicRoomService);
+    }
+
+    @Test
+    @DisplayName("공개방 검색 중 서비스 예외를 그대로 전파한다")
+    void propagateServiceException() throws Exception {
+        givenValidMember(1L);
+        var exception = new NotFoundException(ErrorCode.MEMBER_NOT_FOUND, "회원이 없습니다.");
+        given(publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED, "운수"))
+                .willThrow(exception);
+
+        mockMvc.perform(get("/api/public-rooms").header("X-Member-Id", "1")
+                        .queryParam("keyword", "운수"))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertThat(result.getResolvedException()).isSameAs(exception));
+
+        verify(publicRoomService, times(1)).findAll(1L, PublicRoomSort.MOST_VISITED, "운수");
     }
 
     @Test
@@ -162,15 +243,47 @@ class PublicRoomControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("공개방 댓글 상세 응답 계약을 검증한다")
+    void findCommentDetailsResponse() throws Exception {
+        givenValidMember(1L);
+        var comment = new CommentResponse(9L, 2L, "작성자", "댓글",
+                LocalDateTime.of(2026, 9, 30, 10, 0), null, false, 3, true);
+        given(commentService.findPublicRoomComments(1L, 2L, 8L))
+                .willReturn(new CommentsResponse(List.of(comment)));
+
+        mockMvc.perform(post("/api/public-rooms/2/sentences/8/comment-detail-views")
+                        .header("X-Member-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.comments").isArray())
+                .andExpect(jsonPath("$.comments.length()").value(1))
+                .andExpect(jsonPath("$.comments[0].commentId").value(9))
+                .andExpect(jsonPath("$.comments[0].memberId").value(2))
+                .andExpect(jsonPath("$.comments[0].nickname").value("작성자"))
+                .andExpect(jsonPath("$.comments[0].content").value("댓글"))
+                .andExpect(jsonPath("$.comments[0].createdAt").value("2026-09-30T10:00:00"))
+                .andExpect(jsonPath("$.comments[0].updatedAt").value((Object) null))
+                .andExpect(jsonPath("$.comments[0].mine").value(false))
+                .andExpect(jsonPath("$.comments[0].likeCount").value(3))
+                .andExpect(jsonPath("$.comments[0].likedByMe").value(true));
+
+        verify(commentService, times(1)).findPublicRoomComments(1L, 2L, 8L);
+    }
+
+    @Test
     @DisplayName("공개방 댓글 작성 요청을 서비스에 전달하고 201을 반환한다")
     void createComment() throws Exception {
         givenValidMember(1L);
-        var response = new CommentResponse(9L, 1L, "독자", "댓글", LocalDateTime.of(2026, 9, 30, 10, 0), null, true);
+        var response = new CommentResponse(9L, 1L, "독자", "댓글", LocalDateTime.of(2026, 9, 30, 10, 0), null, true, 0, false);
         given(commentService.createInPublicRoom(1L, 2L, 8L, new CommentContent("댓글"))).willReturn(response);
 
         mockMvc.perform(post("/api/public-rooms/2/sentences/8/comments").header("X-Member-Id", "1")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"content\":\"댓글\"}"))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.commentId").value(9));
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentId").value(9))
+                .andExpect(jsonPath("$.likeCount").value(0))
+                .andExpect(jsonPath("$.likedByMe").value(false));
 
         verify(commentService).createInPublicRoom(1L, 2L, 8L, new CommentContent("댓글"));
     }

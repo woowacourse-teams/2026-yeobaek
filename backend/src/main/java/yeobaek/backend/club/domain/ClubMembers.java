@@ -2,6 +2,9 @@ package yeobaek.backend.club.domain;
 
 import java.util.List;
 import java.util.Optional;
+import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.member.domain.Member;
 
 public final class ClubMembers {
 
@@ -33,6 +36,16 @@ public final class ClubMembers {
         return values.stream()
                 .map(clubMember -> clubMember.getClub().getBook().getId())
                 .distinct()
+                .toList();
+    }
+
+    public List<Member> otherMembersAheadInReadingProgress(Sentence currentSentence, Member writer) {
+        ContentSequence currentSequence = currentSentence.getPassage().getSequence();
+        return values.stream()
+                .filter(member -> member.getLastReadPassage() != null)
+                .filter(member -> member.getLastReadPassage().getSequence().isAfter(currentSequence))
+                .filter(member -> !member.isOwnedBy(writer.getId()))
+                .map(ClubMember::getMember)
                 .toList();
     }
 

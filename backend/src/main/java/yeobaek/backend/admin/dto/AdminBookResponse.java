@@ -13,7 +13,8 @@ public record AdminBookResponse(
         @Schema(description = "출판 연도", nullable = true) Integer publishedYear,
         @Schema(description = "본문 수") int passageCount,
         @Schema(description = "표지 이미지 공개 URL", nullable = true) String coverImageUrl,
-        @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) BookStatus status
+        @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) BookStatus status,
+        @Schema(description = "책 소개", nullable = true) String description
 ) {
 
     public AdminBookResponse {
@@ -33,6 +34,7 @@ public record AdminBookResponse(
                 book.getPublishedYear(),
                 book.getPassageCount().value(),
                 coverImageUrl,
-                book.getStatus());
+                book.getStatus(),
+                book.getDescription() == null ? null : book.getDescription().value());
     }
 }

@@ -82,7 +82,7 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## CI 이미지 흐름
 
-- `develop` push: 서버 코드·빌드·정적 분석 설정 변경 시 `backend-dev`가 테스트와 정적 분석 후 `linux/amd64`, `linux/arm64` 이미지를 Docker Hub의 `:develop`, `:<commit-sha>` 태그로 push하고, `ec2-dev` 러너에서 해당 커밋 이미지를 개발 서버에 배포합니다. 서버에 개발 전용 `~/yeobaek-dev/docker-compose.yml`과 `.env`를 먼저 준비해야 합니다.
+- `develop` push: 서버 코드·빌드·정적 분석 설정 변경 시 `backend-dev`가 테스트와 정적 분석 후 `linux/amd64`, `linux/arm64` 이미지를 Docker Hub의 `:develop`, `:<commit-sha>` 태그로 push하고, `ec2-dev` 러너에서 해당 커밋 이미지를 `prod,dev` 프로파일로 개발 서버에 배포합니다. 서버에 개발 전용 `~/yeobaek-dev/docker-compose.yml`과 `.env`를 먼저 준비해야 합니다.
 - `main` push: `backend-prod`가 운영 서버 배포를 담당합니다.
 - 테스트만 변경한 PR은 `backend-pr-ci`에서 검증하며 개발·운영 자동 배포를 실행하지 않습니다. 수동 배포는 각각 `develop`, `main` 브랜치에서만 실행합니다.
 - Android/API 개발자는 `:develop` 이미지를 로컬 Compose에서 사용합니다.
@@ -91,14 +91,101 @@ java gradle/WorktreeGradleLockVerification.java
 
 ## 로컬 설정
 
-`local` 프로파일로 시작하면 Hibernate가 스키마를 생성한 뒤 `src/main/resources/local/data.sql`을 자동 실행합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 별도 시더 실행은 필요하지 않습니다. 기존 `ddl-auto=create` 설정에 따라 재시작할 때 DB를 재생성하고 같은 테스트 데이터를 다시 넣습니다.
+`local` 프로파일로 시작하면 Flyway가 공통 스키마와 `src/main/resources/db/local/`의 시드를 한 번 적용합니다.
+`V1.1`은 기본 독서 데이터, `V3.1`은 FCM 테스트용 회원 3·4번과 댓글을 추가합니다. 도서·본문, 회원, 모임, 진도와 댓글이 준비되며 재시작해도 기존 데이터를 보존합니다.
 
-SQL 초기화는 공통 설정에서 비활성화하고 `application-local.properties`에서만 활성화합니다. 시드용 Java 컴포넌트는 없으며, 기본·`prod` 프로파일에서는 로컬 SQL을 실행하지 않습니다.
+기본 SQL 초기화는 모든 프로파일에서 비활성화합니다. `local`만 Flyway의 `db/local` 경로를 추가하며, 기본·`prod`·`prod,dev`에서는 로컬 시드를 실행하지 않습니다.
+
+스키마 변경은 `src/main/resources/db/migration`의 버전 SQL로, SQL로 표현하기 어려운 데이터 보충은 `src/main/java/db/migration`의 Java 마이그레이션으로 추가합니다. 적용한 마이그레이션은 수정하지 않습니다. 서버 실행과 기존 DB의 baseline·복구는 [배포 가이드의 스키마 변경 절](docs/배포_가이드.md#4-스키마-변경)를 따릅니다.
+앱은 시작 시 Flyway 마이그레이션 후 Hibernate `validate`로 엔티티 매핑을 검증합니다.
+통합 테스트도 같은 Flyway 마이그레이션으로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
+Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
+
+알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
+앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
+`flyway_schema_history`의 버전별 성공 이력에서 확인합니다.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.
 필요한 이미지 변경은 `BACKEND_IMAGE` 환경변수로 지정합니다. 운영 비밀번호·외부 API 키는
 프로퍼티 파일에 커밋하지 않고 환경변수로 주입합니다.
+
+### 실제 서버로 FCM 웹 푸시 확인
+
+FCM 서버 설정은 `application.properties`의 `fcm.project-id=${FIREBASE_PROJECT_ID}`와
+`FcmConfiguration`을 그대로 사용합니다. JDK 21, Python 3, Docker와 Firebase 서비스 계정 JSON을 준비합니다.
+JSON은 저장소 밖에 보관하고 경로만 환경변수에 지정합니다.
+
+| 환경변수 | 용도·입력할 값 |
+|---|---|
+| `FIREBASE_PROJECT_ID` | 서버와 웹이 함께 사용할 Firebase 프로젝트 ID |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 서버 인증용 서비스 계정 JSON의 절대 경로 |
+| `FIREBASE_WEB_API_KEY` | 같은 프로젝트의 웹 앱 `apiKey` |
+| `FIREBASE_WEB_APP_ID` | 웹 앱 `appId` |
+| `FIREBASE_MESSAGING_SENDER_ID` | 웹 앱 `messagingSenderId` |
+| `FIREBASE_WEB_VAPID_KEY` | Cloud Messaging의 Web Push 인증서 공개 키 |
+
+앞의 두 값은 실제 서버에 필요하고, 나머지 네 값은 정적 테스트 웹에 필요합니다.
+Firebase Console에서 Cloud Messaging API가 활성화되어 있어야 합니다.
+현재 댓글·등록 테스트에는 S3·PostHog·관측 로그 내보내기용 환경변수가 필요하지 않습니다.
+DB 접속은 기존 `application-local.properties`와 Compose 기본값을 사용합니다.
+
+처음 한 번 아래 템플릿을 복사하고 빈 값을 직접 채웁니다. 실제 값 파일은 기존 `.gitignore`로 제외됩니다.
+
+```bash
+cp -n infra/local/.env.local.example infra/local/.env.local
+# infra/local/.env.local을 열어 값을 입력
+```
+
+이후 아래 명령을 **같은 터미널에서** 실행합니다. 이미 여섯 값을 export했다면
+`set -a`부터 `set +a`까지는 생략합니다. 다른 터미널에서 export한 값은 자동으로 공유되지 않습니다.
+
+```bash
+set -a
+source infra/local/.env.local
+set +a
+
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml stop app
+docker compose --project-name yeobaek-local -f infra/local/docker-compose.local.yml up -d --wait mysql
+python3 src/main/resources/static/fcm-test/configure.py
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+정적 테스트 웹은 이 작업 환경의 `src/main/resources/static/fcm-test/`에 있으며 Git에서 제외됩니다.
+`configure.py`는 export된 공개 웹 설정만 `firebase-config.js`로 생성합니다.
+서비스 계정 JSON과 서버 인증 환경변수는 웹 파일에 넣지 않습니다.
+웹 설정을 바꾸면 생성 명령을 다시 실행하고 서버를 재시작합니다.
+이 웹 파일은 Git에 포함되지 않으므로 다른 clone에는 제공되지 않습니다.
+
+서버 기동 후 [FCM 테스트 웹](http://localhost:8080/fcm-test/index.html)을 엽니다.
+댓글 조회·작성과 FID 등록은 실제 서버의 `/api/...` Controller를 호출하며, 발송도 실제 FCM 설정을 사용합니다.
+웹 등록은 Firebase의 [FID 등록 방식](https://firebase.google.com/docs/cloud-messaging/web/get-started)에 따라
+`register()`와 `onRegistered()`를 사용해 얻은 FID를 실제 등록 API에 전달합니다.
+터미널에서 서버 로그를 보고, 종료하려면 `Ctrl+C`를 누릅니다.
+
+`local/data.sql`에 회원 1~4와 같은 클럽(1)·문장(2)의 댓글이 준비됩니다.
+서로 다른 Chrome 일반 프로필에서 회원 2·3·4를 각각 선택해 알림을 허용하고 등록한 뒤,
+회원 1로 문장 2에 댓글을 작성해 세 수신 브라우저를 확인합니다.
+회원 1도 별도 프로필에서 등록하면 작성자 본인에게 알림이 오지 않는지 함께 확인할 수 있습니다.
+같은 브라우저 프로필의 탭들은 FID를 공유하므로 여러 수신자 검증에는 별도 프로필을 사용합니다.
+현재 등록 API는 기존 등록을 삭제하거나 다른 회원으로 이전하지 않으므로 프로필별 수신 회원을 고정합니다.
+`local` 서버를 재시작하면 DB와 등록 내역도 재생성되므로 각 프로필에서 다시 등록합니다.
+
+### 댓글 푸시의 화면 이동 데이터
+
+댓글 푸시는 제목·본문의 `notification`과 함께 아래 `data`를 전달합니다. 모든 값은 문자열입니다.
+
+| 필드 | 모임 댓글 | 공개방 댓글 |
+|---|---|---|
+| `type` | `CLUB_COMMENT` | `PUBLIC_ROOM_COMMENT` |
+| 공간 ID | `clubId` | `publicRoomId` |
+| `passageSequence` | 댓글 문장이 속한 문단의 순서 | 동일 |
+| `sentenceId` | 댓글이 달린 문장 ID | 동일 |
+
+`passageSequence`는 문단 ID나 문장 순서가 아닙니다. 댓글 저장 트랜잭션에서 읽은 값을
+`comment.event`의 `ClubSentenceCommentCreatedEvent` 또는 `PublicRoomSentenceCommentCreatedEvent`에 복사합니다.
+워커가 이 값으로 메시지를 만들며, 부분 실패와 호출 전체 실패로 생성된 재시도 작업도 같은 데이터를 보관합니다.
+앱에서는 `type`과 해당 공간 ID로 화면을 고른 뒤 문단 순서·문장 ID로 댓글 위치를 연결합니다.
 
 ### PostHog 로컬 확인
 

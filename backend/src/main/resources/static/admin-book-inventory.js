@@ -96,5 +96,39 @@
         return '\uFEFF' + [CSV_HEADERS.join(','), ...rows].join('\r\n');
     }
 
-    return { booksToCsv, createState };
+    function createDescriptionEditor(document, book, onSave) {
+        const editor = document.createElement('details');
+        editor.className = 'description-editor';
+        const summary = document.createElement('summary');
+        summary.textContent = book.description ? '소개 보기·수정' : '소개 추가';
+        const textarea = document.createElement('textarea');
+        textarea.value = book.description ?? '';
+        textarea.setAttribute('aria-label', book.title + ' 책 소개');
+        textarea.disabled = book.status === 'DELETED';
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.textContent = '소개 저장';
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.textContent = '소개 비우기';
+        save.disabled = clear.disabled = textarea.disabled;
+        let pending = false;
+        async function submit(description) {
+            if (pending || book.status === 'DELETED') return;
+            pending = true;
+            save.disabled = clear.disabled = textarea.disabled = true;
+            try {
+                await onSave(description);
+            } finally {
+                pending = false;
+                save.disabled = clear.disabled = textarea.disabled = false;
+            }
+        }
+        save.addEventListener('click', () => submit(textarea.value));
+        clear.addEventListener('click', () => submit(null));
+        editor.append(summary, textarea, save, clear);
+        return editor;
+    }
+
+    return { booksToCsv, createState, createDescriptionEditor };
 }));

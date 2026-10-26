@@ -65,7 +65,7 @@ class ClubMembersTest {
     }
 
     private ClubMember membership(Long memberId, Long clubId, Long bookId, String clubName) {
-        Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+        Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
         ReflectionTestUtils.setField(book, "id", bookId);
         Club club = new Club(new ClubName(clubName), book, new JoinCode("CODE0" + clubId / 10));
         ReflectionTestUtils.setField(club, "id", clubId);

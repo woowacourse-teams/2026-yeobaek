@@ -1,5 +1,7 @@
 package com.yeobaek.feature.group.create
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_search
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,15 +33,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.component.BookItem
+import com.yeobaek.core.designsystem.component.YeobaekTextField
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CreateBookSelectionContent(
     books: List<SelectBookUiModel>,
+    searchTextValue: String,
+    updateSearchTextValue: (String) -> Unit,
     bookState: BookState,
+    searchState: SearchState,
     selectedBookId: Long?,
     gridState: LazyGridState,
     onClickBook: (SelectBookUiModel) -> Unit,
@@ -63,9 +71,17 @@ fun CreateBookSelectionContent(
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        CreateBookSelectionContent(
+        CreateBookSearchTextField(
+            searchTextValue = searchTextValue,
+            updateSearchTextValue = updateSearchTextValue,
+            enabled = bookState is BookState.Success,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        BookSelectionContent(
             books = books,
             bookState = bookState,
+            searchState = searchState,
             selectedBookId = selectedBookId,
             gridState = gridState,
             onClickBook = onClickBook,
@@ -88,6 +104,71 @@ private fun CreateBookSelectionHeader(
         Text(
             text = "함께 읽을 책을 선택해주세요.",
             style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun CreateBookSearchTextField(
+    searchTextValue: String,
+    updateSearchTextValue: (String) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    YeobaekTextField(
+        value = searchTextValue,
+        onValueChange = { value ->
+            updateSearchTextValue(value)
+        },
+        placeholder = "책 제목을 검색해 주세요",
+        modifier = modifier,
+        enabled = enabled,
+        leadingIcon = {
+            Icon(
+                painter = painterResource(Res.drawable.ic_search),
+                contentDescription = "검색 아이콘",
+            )
+        },
+    )
+}
+
+@Composable
+private fun BookSelectionContent(
+    books: List<SelectBookUiModel>,
+    bookState: BookState,
+    searchState: SearchState,
+    selectedBookId: Long?,
+    gridState: LazyGridState,
+    onClickBook: (SelectBookUiModel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (searchState) {
+        is SearchState.Idle, SearchState.Success -> {
+            if (books.isEmpty()) {
+                BookSelectionStatus(
+                    message = "검색 결과가 없습니다.",
+                    modifier = modifier,
+                )
+            } else {
+                CreateBookSelectionContent(
+                    books = books,
+                    bookState = bookState,
+                    selectedBookId = selectedBookId,
+                    gridState = gridState,
+                    onClickBook = onClickBook,
+                )
+            }
+        }
+
+        is SearchState.Failure -> BookSelectionStatus(
+            message = searchState.message,
+            modifier = modifier,
+            isError = true,
+        )
+
+        is SearchState.Loading -> BookSelectionStatus(
+            message = "책 검색중...",
+            modifier = modifier,
         )
     }
 }
@@ -218,7 +299,10 @@ private fun SuccessCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = previewBooks,
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Success,
+            searchState = SearchState.Idle,
             selectedBookId = 1L,
             gridState = rememberLazyGridState(),
             onClickBook = {},
@@ -233,7 +317,10 @@ private fun LoadingCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = emptyList(),
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Loading,
+            searchState = SearchState.Idle,
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},
@@ -248,7 +335,10 @@ private fun FailureCreateBookSelectionScreenPreview() {
     YeobaekTheme {
         CreateBookSelectionContent(
             books = emptyList(),
+            searchTextValue = "",
+            updateSearchTextValue = {},
             bookState = BookState.Failure("책 목록을 가져오는데 실패했습니다."),
+            searchState = SearchState.Idle,
             selectedBookId = null,
             gridState = rememberLazyGridState(),
             onClickBook = {},

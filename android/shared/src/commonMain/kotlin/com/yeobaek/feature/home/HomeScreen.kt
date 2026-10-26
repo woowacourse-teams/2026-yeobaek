@@ -59,8 +59,9 @@ fun HomeScreen(
     navigateToReader: (ReaderTarget) -> Unit,
     onPublicRoomClick: (Long, PublicRoomEntryPoint, String?) -> Unit,
     navigateToMyPage: () -> Unit,
-    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
+    updatePublicRoomSearchTextValue: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
 ) {
     var selectedGroupTab by rememberSaveable(
         stateSaver = Saver(
@@ -163,9 +164,10 @@ fun HomeScreen(
 
                 GroupTab.PublicRooms -> PublicGroupSection(
                     uiState = uiState.publicRoomTab,
+                    updateSearchTextValue = updatePublicRoomSearchTextValue,
                     onPublicRoomClick = { publicRoomId, entryPoint ->
                         val listVisitId = if (entryPoint == PublicRoomEntryPoint.ROOM_LIST) {
-                            val rooms = uiState.publicRoomTab.publicRooms
+                            val rooms = uiState.publicRoomTab.visiblePublicRooms
                             val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoomId } + 1
                             listVisitTracker.observe(rooms.size, selectedPosition.takeIf { it > 0 })
                             listVisitTracker.selectRoom()
@@ -252,6 +254,7 @@ private fun HomeScreenPreview() {
             navigateToReader = {},
             onPublicRoomClick = { _, _, _ -> },
             navigateToMyPage = {},
+            updatePublicRoomSearchTextValue = {},
         )
     }
 }

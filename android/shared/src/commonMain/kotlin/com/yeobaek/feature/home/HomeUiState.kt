@@ -25,5 +25,22 @@ sealed class CurrentlyBookState {
 data class PublicRoomTabUiState(
     val visitedPublicRooms: List<PublicRoomBookUiModel> = emptyList(),
     val publicRooms: List<PublicRoomBookUiModel> = emptyList(),
+    val searchTextValue: String = "",
     val screenState: ScreenState = ScreenState.Loading("공개방 정보를 불러오는 중입니다."),
-)
+) {
+    val visibleVisitedPublicRooms: List<PublicRoomBookUiModel>
+        get() = visitedPublicRooms.matching(searchTextValue)
+
+    val visiblePublicRooms: List<PublicRoomBookUiModel>
+        get() = publicRooms.matching(searchTextValue)
+}
+
+private fun List<PublicRoomBookUiModel>.matching(searchText: String): List<PublicRoomBookUiModel> {
+    val keyword = searchText.trim()
+    if (keyword.isEmpty()) return this
+
+    return filter { room ->
+        room.title.contains(keyword, ignoreCase = true) ||
+            room.authors.contains(keyword, ignoreCase = true)
+    }
+}

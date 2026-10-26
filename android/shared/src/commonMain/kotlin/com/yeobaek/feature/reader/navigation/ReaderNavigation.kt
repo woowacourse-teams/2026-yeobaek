@@ -174,6 +174,8 @@ private fun ReaderRoute(
             onReport = commentSheet::report,
             onReportResultConsumed = commentSheet::consumeReportResult,
             onScrollToLatestConsumed = commentSheet::consumeScrollToLatest,
+            onLike = commentSheet::toggleLike,
+            onLikeErrorConsumed = commentSheet::consumeLikeError,
         )
     }
 

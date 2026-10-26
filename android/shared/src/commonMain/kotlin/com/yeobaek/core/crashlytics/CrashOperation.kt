@@ -63,4 +63,5 @@ enum class CrashOperation(
     COMMENT_DELETE_SUCCEEDED("comment_delete_succeeded"),
     COMMENT_DELETE_FAILED("comment_delete_failed"),
     COMMENT_REPORT_FAILED("comment_report_failed"),
+    COMMENT_LIKE_FAILED("comment_like_failed"),
 }
