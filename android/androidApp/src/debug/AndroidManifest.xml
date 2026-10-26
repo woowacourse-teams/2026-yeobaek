@@ -17,6 +17,7 @@
 
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name=".DebugMainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

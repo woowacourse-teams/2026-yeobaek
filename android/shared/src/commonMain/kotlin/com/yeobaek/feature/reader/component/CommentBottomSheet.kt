@@ -25,11 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -57,13 +54,13 @@ fun CommentBottomSheet(
     onLikeErrorConsumed: () -> Unit,
     onDeleteCancel: () -> Unit,
     onDeleteConfirm: () -> Unit,
+    onScrollToLatestConsumed: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val commentListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var previousCommentCount by remember(uiState.sentenceId) { mutableIntStateOf(-1) }
 
     LaunchedEffect(uiState.reportState) {
         val message = when (val reportState = uiState.reportState) {
@@ -89,14 +86,25 @@ fun CommentBottomSheet(
         onLikeErrorConsumed()
     }
 
-    LaunchedEffect(uiState.sentenceId, uiState.isLoading, uiState.comments.size) {
-        if (uiState.isLoading) return@LaunchedEffect
-
-        val commentCount = uiState.comments.size
-        if (previousCommentCount in 0..<commentCount) {
-            commentListState.animateScrollToItem(commentCount - 1)
+    LaunchedEffect(
+        uiState.sentenceId,
+        uiState.scrollToLatestPending,
+        uiState.isLoading,
+        uiState.loadErrorMessage,
+    ) {
+        if (!uiState.scrollToLatestPending || uiState.isLoading || uiState.loadErrorMessage != null) {
+            return@LaunchedEffect
         }
-        previousCommentCount = commentCount
+        if (uiState.comments.isNotEmpty()) {
+            commentListState.scrollToItem(uiState.comments.lastIndex)
+        }
+        onScrollToLatestConsumed(uiState.sentenceId)
+    }
+
+    LaunchedEffect(uiState.sentenceId, uiState.submittedCommentId) {
+        val commentId = uiState.submittedCommentId ?: return@LaunchedEffect
+        val index = uiState.comments.indexOfFirst { it.commentId == commentId }
+        if (index >= 0) commentListState.animateScrollToItem(index)
     }
 
     ModalBottomSheet(

@@ -3,12 +3,14 @@ package com.yeobaek.core.network
 import com.yeobaek.data.api.BookApi
 import com.yeobaek.data.api.ClubApi
 import com.yeobaek.data.api.CommentApi
+import com.yeobaek.data.api.NotificationApi
 import com.yeobaek.data.api.PublicRoomApi
 import com.yeobaek.data.api.ReaderApi
 import com.yeobaek.data.api.UserApi
 import com.yeobaek.data.api.createBookApi
 import com.yeobaek.data.api.createClubApi
 import com.yeobaek.data.api.createCommentApi
+import com.yeobaek.data.api.createNotificationApi
 import com.yeobaek.data.api.createPublicRoomApi
 import com.yeobaek.data.api.createReaderApi
 import com.yeobaek.data.api.createUserApi
@@ -18,6 +20,7 @@ class ApiProvider(
     ktorfit: Ktorfit,
 ) {
     val userApi: UserApi = ktorfit.createUserApi()
+    val notificationApi: NotificationApi = ktorfit.createNotificationApi()
     val bookApi: BookApi = ktorfit.createBookApi()
     val clubApi: ClubApi = ktorfit.createClubApi()
     val commentApi: CommentApi = ktorfit.createCommentApi()

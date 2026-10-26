@@ -4,8 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-    
-    <key>FirebaseAppDelegateProxyEnabled</key>
-    <false/>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>FirebaseMessagingInstallationIdEnabled</key>
+	<true/>
 </dict>
 </plist>

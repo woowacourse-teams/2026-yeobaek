@@ -7,8 +7,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import com.yeobaek.feature.reader.model.LoadedPassages
@@ -49,7 +50,15 @@ fun rememberReaderListState(
     actions: ReaderActions,
 ): ReaderListState {
     val listState = rememberLazyListState()
-    val readerListState = remember { ReaderListState(listState) }
+    val readerListState = rememberSaveable(
+        listState,
+        saver = Saver<ReaderListState, Boolean>(
+            save = { it.hasPositionedInitialPassage },
+            restore = { positioned ->
+                ReaderListState(listState).apply { hasPositionedInitialPassage = positioned }
+            },
+        ),
+    ) { ReaderListState(listState) }
 
     ScrollToInitialPassageEffect(
         state = readerListState,
