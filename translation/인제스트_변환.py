@@ -43,6 +43,7 @@ import tempfile
 import subprocess
 import sys
 import zipfile
+from 표지_시안_준비 import manifest_variant_ids
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -1076,12 +1077,17 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path,
         book_dir, zip_output, ingest_path, meta_path, original_path
     )
     cover_dir = book_dir / "표지"
+    try:
+        manifest = json.loads((cover_dir / "시안_목록.json").read_text(encoding="utf-8-sig"))
+        cover_ids = manifest_variant_ids(manifest)
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"ZIP에 포함할 표지 시안 목록을 확인할 수 없습니다: {exc}") from exc
     required_cover_files = [
         book_dir / "표지_브리프.json",
         cover_dir / "시안_목록.json",
         cover_dir / "표지_검수.json",
-        *(cover_dir / f"{variant_id}.png" for variant_id in "ABCDEFG"),
-        *(cover_dir / "프롬프트" / f"{variant_id}.txt" for variant_id in "ABCDEFG"),
+        *(cover_dir / f"{variant_id}.png" for variant_id in cover_ids),
+        *(cover_dir / "프롬프트" / f"{variant_id}.txt" for variant_id in cover_ids),
     ]
     missing_cover_files = [path for path in required_cover_files if not path.is_file()]
     if missing_cover_files:
@@ -1154,7 +1160,7 @@ def default_archive_name(title, fallback):
 
 
 def validate_cover_artifacts(meta_path):
-    """현재 메타데이터에 대응하는 표지 A~G와 시각 검수 기록을 검증한다."""
+    """현재 메타데이터에 대응하는 선정 표지 또는 기존 A~G와 시각 검수를 검증한다."""
     validator = Path(__file__).resolve().with_name("표지_시안_준비.py")
     book_dir = meta_path.resolve().parent
     if not validator.is_file():

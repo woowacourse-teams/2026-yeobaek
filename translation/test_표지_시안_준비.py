@@ -93,7 +93,7 @@ class CoverPreparationTests(unittest.TestCase):
         for seed, variant_id in enumerate(cover.EXPECTED_IDS, 1):
             self._write_png(self.output_dir / f"{variant_id}.png", seed=seed)
 
-    def _write_passing_review(self) -> None:
+    def _write_passing_review(self, variant_ids=cover.EXPECTED_IDS) -> None:
         checks = {
             "textExact": True,
             "frontCoverOnly": True,
@@ -102,7 +102,7 @@ class CoverPreparationTests(unittest.TestCase):
             "publicationReady": True,
         }
         variants = {}
-        for variant_id in cover.EXPECTED_IDS:
+        for variant_id in variant_ids:
             variants[variant_id] = {
                 **checks,
                 "imageSha256": cover._sha256_file(self.output_dir / f"{variant_id}.png"),
@@ -112,9 +112,10 @@ class CoverPreparationTests(unittest.TestCase):
                 "notes": "",
             }
         review = {
-            "schemaVersion": 1,
+            "schemaVersion": 2 if len(variant_ids) == 1 else 1,
             "variants": variants,
-            "setChecks": {"visuallyDistinct": True, "noExtraTextAcrossSet": True},
+            "setChecks": ({"noExtraTextAcrossSet": True} if len(variant_ids) == 1
+                          else {"visuallyDistinct": True, "noExtraTextAcrossSet": True}),
         }
         self._write_json(self.output_dir / "표지_검수.json", review)
 
@@ -162,6 +163,48 @@ class CoverPreparationTests(unittest.TestCase):
         code, output = self._validate(structural_only=True)
         self.assertEqual(code, 1)
         self.assertIn("허용되지 않은 프롬프트", output)
+
+    def test_selected_single_cover_requires_current_review_and_rejects_extra_files(self) -> None:
+        code, output = self._run("prepare", "--meta", str(self.meta_path),
+                                 "--brief", str(self.brief_path), "--output-dir", str(self.output_dir),
+                                 "--style", "G")
+        self.assertEqual(code, 0, output)
+        manifest = json.loads((self.output_dir / "시안_목록.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["selectedStyle"], "G")
+        self.assertEqual(manifest["requirements"]["exactCount"], 1)
+        self.assertEqual(list((self.output_dir / "프롬프트").glob("*.txt")),
+                         [self.output_dir / "프롬프트" / "G.txt"])
+        self._write_png(self.output_dir / "G.png")
+        self.assertEqual(self._validate(structural_only=True)[0], 0)
+        self.assertEqual(self._validate()[0], 1)  # 이미지 존재만으로 승인하지 않는다.
+        self._write_passing_review(("G",))
+        self.assertEqual(self._validate()[0], 0)
+        review_path = self.output_dir / "표지_검수.json"
+        review = json.loads(review_path.read_text(encoding="utf-8"))
+        review["variants"]["G"]["styleMatch"] = False
+        self._write_json(review_path, review)
+        self.assertIn("styleMatch가 true가 아닙니다", self._validate()[1])
+        self._write_passing_review(("G",))
+        self._write_png(self.output_dir / "A.png", seed=2)
+        self.assertIn("허용되지 않은 표지 출력", self._validate()[1])
+        (self.output_dir / "A.png").unlink()
+        self._write_png(self.output_dir / "G.png", seed=3)
+        self.assertIn("현재 파일 SHA-256", self._validate()[1])
+
+    def test_single_manifest_cannot_omit_selection_or_add_another_variant(self) -> None:
+        cover.prepare(self.meta, self.brief, self.output_dir, "F")
+        manifest_path = self.output_dir / "시안_목록.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        del manifest["selectedStyle"]
+        self._write_json(manifest_path, manifest)
+        self.assertIn("selectedStyle", self._validate()[1])
+        manifest["selectedStyle"] = "H"
+        self._write_json(manifest_path, manifest)
+        self.assertEqual(self._validate()[0], 1)
+        manifest["selectedStyle"] = "F"
+        manifest["variants"].append({"id": "G"})
+        self._write_json(manifest_path, manifest)
+        self.assertIn("기대값과 일치하지", self._validate()[1])
 
     def test_all_prompts_include_language_independent_conditional_no_text_safety(self) -> None:
         for motifs in (
