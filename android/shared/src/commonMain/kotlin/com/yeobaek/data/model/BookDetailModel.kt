@@ -5,8 +5,10 @@ data class BookDetailModel(
     val bookId: Long,
     val chapters: List<ChapterModel>,
     val passageCount: Int,
-    val publishedYear: Int,
-    val publisher: String,
+    val publishedYear: Int?,
+    val publisher: String?,
     val title: String,
     val coverImageUrl: String?,
+    val description: String?,
+    val pageCount: Long?,
 )

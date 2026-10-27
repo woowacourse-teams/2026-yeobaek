@@ -9,10 +9,12 @@ data class BookDetailResponse(
     val bookId: Long,
     val chapters: List<Chapter>,
     val passageCount: Int,
-    val publishedYear: Int,
-    val publisher: String,
+    val publishedYear: Int? = null,
+    val publisher: String? = null,
     val title: String,
     val coverImageUrl: String?,
+    val description: String? = null,
+    val pageCount: Long? = null,
 )
 
 fun BookDetailResponse.toModel(): BookDetailModel =
@@ -25,4 +27,6 @@ fun BookDetailResponse.toModel(): BookDetailModel =
         publisher = publisher,
         title = title,
         coverImageUrl = coverImageUrl,
+        description = description,
+        pageCount = pageCount,
     )
