@@ -1,7 +1,11 @@
 package yeobaek.backend.notification;
 
+import yeobaek.backend.notification.domain.NotificationType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -39,12 +43,6 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import org.springframework.transaction.PlatformTransactionManager;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.book.domain.vo.ContentSequence;
-import yeobaek.backend.book.repository.SentenceRepository;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.comment.CommentNotificationRecipientQueryRepository;
 import yeobaek.backend.notification.comment.CommentNotificationService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
@@ -213,7 +211,7 @@ class FcmRetryServiceTest {
         completeNext();
 
         verify(sender, times(2)).send(List.of(FID), TITLE, BODY, DATA);
-        verify(handler, times(2)).handleCallFailure(11L, exception);
+        verify(handler, times(2)).handleCallFailure(NotificationType.CLUB_COMMENT, 11L, exception);
         assertThat(timers).isEmpty();
     }
 
@@ -405,7 +403,7 @@ class FcmRetryServiceTest {
 
         completeNext();
 
-        verify(handler).handleInvalidRequest(11L);
+        verify(handler).handleInvalidRequest(NotificationType.CLUB_COMMENT, 11L);
         assertThat(timers).isEmpty();
     }
 
@@ -474,28 +472,36 @@ class FcmRetryServiceTest {
         assertThat(timers).isEmpty();
     }
 
+    @Test
+    @DisplayName("모임 입장 재시도도 공통 워커로 발송하고 모임 ID로 기록해요")
+    void retryClubJoinWithCorrectSource() throws FirebaseMessagingException {
+        Map<String, String> data = Map.of("type", "CLUB_JOIN", "clubId", "5", "memberId", "7");
+        var task = new FcmRetryTask(NotificationType.CLUB_JOIN, 5L, List.of(1L, 2L), TITLE, BODY, data,
+                internal(null), CREATED_AT, CREATED_AT, 0, false);
+
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task);
+            completeNext();
+
+            verify(sender).send(List.of(FID), TITLE, BODY, data);
+            assertThat(logs.field(logs.event("notification.retry.send", "success"), "clubId")).isEqualTo(5L);
+            assertThat(logs.structuredText()).doesNotContain("commentId");
+        }
+        assertThat(timers).isEmpty();
+    }
+
     private CommentNotificationService initialNotificationService(boolean club, NotificationRegistrations snapshot) {
         var query = mock(CommentNotificationRecipientQueryRepository.class);
-        var clubMembers = mock(ClubMemberRepository.class);
-        var sentences = mock(SentenceRepository.class);
-        var members = mock(MemberRepository.class);
         if (club) {
-            var sentence = mock(Sentence.class);
-            var passage = mock(Passage.class);
-            given(passage.getSequence()).willReturn(new ContentSequence(1));
-            given(sentence.getPassage()).willReturn(passage);
-            given(sentences.getReferenceById(13L)).willReturn(sentence);
-            given(members.getReferenceById(7L)).willReturn(mock(Member.class));
-            given(clubMembers.findNotificationCandidatesWithReadingProgress(5L, 7L)).willReturn(List.of());
-            given(registrations.findByMembers(any())).willReturn(snapshot);
+            given(query.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L))).willReturn(List.of());
+            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
         } else {
-            List<NotificationRegistration> selected = snapshot.firebaseInstallationIds().stream()
-                    .flatMap(fid -> snapshot.idsFor(new FirebaseInstallationId(fid)).stream()
-                            .map(id -> registration(id, fid))).toList();
-            given(query.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(selected);
+            given(query.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L)).willReturn(List.of());
+            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
         }
-        return new CommentNotificationService(sender, handler, retryService, registrations, query,
-                clubMembers, sentences, members, mock(PlatformTransactionManager.class));
+        return new CommentNotificationService(
+                new FcmNotificationService(sender, handler, retryService, mock(PlatformTransactionManager.class)),
+                registrations, query);
     }
 
     private NotificationRegistration registration(Long id, String fid) {
@@ -528,7 +534,7 @@ class FcmRetryServiceTest {
     }
 
     private FcmRetryTask task(FcmSendFailure failure, int retriesPerformed, boolean uncertainRetryUsed) {
-        return new FcmRetryTask(11L, List.of(1L, 2L), TITLE, BODY, DATA, failure,
+        return new FcmRetryTask(NotificationType.CLUB_COMMENT, 11L, List.of(1L, 2L), TITLE, BODY, DATA, failure,
                 CREATED_AT, now.get(), retriesPerformed, uncertainRetryUsed);
     }
 

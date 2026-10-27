@@ -1,5 +1,7 @@
 package yeobaek.backend.notification;
 
+import yeobaek.backend.notification.domain.NotificationType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -57,7 +59,7 @@ class FcmRetryContextTest {
         });
         var retryService = new FcmRetryService(scheduler, executor, clock, sender, registrations, handler, new Semaphore(1));
         Instant now = clock.instant();
-        var task = new FcmRetryTask(11L, List.of(1L), "제목", "내용", Map.of(),
+        var task = new FcmRetryTask(NotificationType.CLUB_COMMENT, 11L, List.of(1L), "제목", "내용", Map.of(),
                 new FcmSendFailure(fid, "INTERNAL", "INTERNAL", 500, null),
                 now.minusSeconds(300), now.minusSeconds(120), 0, false);
         scheduler.initialize();
