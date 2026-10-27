@@ -19,6 +19,7 @@ import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
+import com.yeobaek.feature.book.detail.BookDetailContent
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 
 @Composable
@@ -29,6 +30,7 @@ fun CreateScreen(
     selectBook: (SelectBookUiModel) -> Unit,
     onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     onNextStep: () -> Unit,
+    onRetryBookDetail: () -> Unit,
     onSelectOtherBook: () -> Unit,
     onBackClick: () -> Unit,
     onCreateGroup: () -> Unit,
@@ -57,6 +59,17 @@ fun CreateScreen(
         bookGridState.scrollToItem(0)
     }
 
+    if (uiState.step == CreateStep.BookDetail) {
+        BookDetailContent(
+            state = uiState.bookDetailState,
+            onBackClick = onBackClick,
+            onReadClick = onNextStep,
+            onRetry = onRetryBookDetail,
+            modifier = modifier,
+        )
+        return
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -66,27 +79,15 @@ fun CreateScreen(
             )
         },
         bottomBar = {
-            YeobaekButton(
-                text = when (uiState.step) {
-                    CreateStep.BookSelection -> "다음"
-                    CreateStep.GroupName -> "모임 만들기"
-                },
-                onClick = when (uiState.step) {
-                    CreateStep.BookSelection -> onNextStep
-                    CreateStep.GroupName -> onCreateGroup
-                },
-                enabled = when (uiState.step) {
-                    CreateStep.BookSelection ->
-                        uiState.bookState is BookState.Success &&
-                            uiState.selectedBook != null &&
-                            (uiState.searchState is SearchState.Success || uiState.searchState is SearchState.Idle)
-
-                    CreateStep.GroupName ->
-                        uiState.createState !is CreateState.Loading &&
-                            uiState.createState !is CreateState.Success
-                },
-                modifier = Modifier.navigationBarsPadding().padding(16.dp),
-            )
+            if (uiState.step == CreateStep.GroupName) {
+                YeobaekButton(
+                    text = "모임 만들기",
+                    onClick = onCreateGroup,
+                    enabled = uiState.createState !is CreateState.Loading &&
+                        uiState.createState !is CreateState.Success,
+                    modifier = Modifier.navigationBarsPadding().padding(16.dp),
+                )
+            }
         },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
@@ -115,6 +116,8 @@ fun CreateScreen(
                     selectOtherBook = onSelectOtherBook,
                     onValueChangeGroupName = updateGroupNameValue,
                 )
+
+                CreateStep.BookDetail -> Unit
             }
         }
     }
@@ -140,6 +143,7 @@ private fun CreateScreenPreview() {
             selectBook = {},
             onLastVisibleBookChanged = {},
             onNextStep = {},
+            onRetryBookDetail = {},
             onSelectOtherBook = {},
             onBackClick = {},
             onCreateGroup = {},

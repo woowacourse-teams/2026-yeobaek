@@ -36,6 +36,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
+import com.yeobaek.feature.book.detail.BookDetailContent
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBottomSheetContent
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingJoinCard
@@ -50,6 +53,9 @@ fun OnboardingScreen(
     onClickSkip: () -> Unit,
     navigateToJoin: () -> Unit,
     onSelectBook: (Long) -> Unit,
+    onReadBook: () -> Unit,
+    onBackBookDetail: () -> Unit,
+    onRetryBookDetail: () -> Unit,
     onDismissBottomSheet: () -> Unit,
     onClickPublicRoom: (Long) -> Unit,
     onClickCreateRoom: (Long) -> Unit,
@@ -61,6 +67,11 @@ fun OnboardingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState()
     val bookGridState = rememberLazyGridState()
+
+    PlatformBackHandler(
+        enabled = uiState.bookDetailState !is BookDetailState.Idle && !uiState.selectedBookUiState.isSelected,
+        onBack = onBackBookDetail,
+    )
 
     LaunchedEffect(uiState.searchTextValue) {
         bookGridState.scrollToItem(0)
@@ -112,22 +123,24 @@ fun OnboardingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {},
-                actions = {
-                    TextButton(
-                        onClick = {
-                            onClickSkip()
-                            navigateToHome()
-                        },
-                    ) {
-                        Text("건너뛰기")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors().copy(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
+            if (uiState.bookDetailState is BookDetailState.Idle) {
+                TopAppBar(
+                    title = {},
+                    actions = {
+                        TextButton(
+                            onClick = {
+                                onClickSkip()
+                                navigateToHome()
+                            },
+                        ) {
+                            Text("건너뛰기")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors().copy(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
+            }
         },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
@@ -135,66 +148,75 @@ fun OnboardingScreen(
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxSize(),
     ) { innerPadding ->
-        Column(
-            modifier = modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Text("어떤 책을 읽어볼까요?", style = MaterialTheme.typography.headlineLarge)
-            Text("책을 고르면 함께 읽는 방식을 선택할 수 있어요.", style = MaterialTheme.typography.bodyMedium)
-            OnboardingJoinCard(
-                navigateToJoin = navigateToJoin,
+        if (uiState.bookDetailState !is BookDetailState.Idle) {
+            BookDetailContent(
+                state = uiState.bookDetailState,
+                onBackClick = onBackBookDetail,
+                onReadClick = onReadBook,
+                onRetry = onRetryBookDetail,
             )
-            OnboardingSearchTextField(
-                searchTextValue = uiState.searchTextValue,
-                updateSearchTextValue = updateSearchTextValue,
-                enabled = uiState.initBookState is InitBookState.Success,
-            )
-            Text("책 목록", style = MaterialTheme.typography.headlineMedium)
-            val initialFailure = uiState.initBookState as? InitBookState.Failure
-            val searchFailure = uiState.searchState as? SearchState.Failure
-            when {
-                initialFailure != null -> BookListStatus(
-                    message = initialFailure.message,
-                    modifier = Modifier.weight(1f),
-                    isError = true,
+        } else {
+            Column(
+                modifier = modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Text("어떤 책을 읽어볼까요?", style = MaterialTheme.typography.headlineLarge)
+                Text("책을 고르면 함께 읽는 방식을 선택할 수 있어요.", style = MaterialTheme.typography.bodyMedium)
+                OnboardingJoinCard(
+                    navigateToJoin = navigateToJoin,
                 )
-
-                uiState.initBookState !is InitBookState.Success -> BookListStatus(
-                    message = "책 로딩중...",
-                    modifier = Modifier.weight(1f),
+                OnboardingSearchTextField(
+                    searchTextValue = uiState.searchTextValue,
+                    updateSearchTextValue = updateSearchTextValue,
+                    enabled = uiState.initBookState is InitBookState.Success,
                 )
+                Text("책 목록", style = MaterialTheme.typography.headlineMedium)
+                val initialFailure = uiState.initBookState as? InitBookState.Failure
+                val searchFailure = uiState.searchState as? SearchState.Failure
+                when {
+                    initialFailure != null -> BookListStatus(
+                        message = initialFailure.message,
+                        modifier = Modifier.weight(1f),
+                        isError = true,
+                    )
 
-                searchFailure != null -> BookListStatus(
-                    message = searchFailure.message,
-                    modifier = Modifier.weight(1f),
-                    isError = true,
-                )
+                    uiState.initBookState !is InitBookState.Success -> BookListStatus(
+                        message = "책 로딩중...",
+                        modifier = Modifier.weight(1f),
+                    )
 
-                uiState.searchState is SearchState.Loading -> BookListStatus(
-                    message = "책 검색중...",
-                    modifier = Modifier.weight(1f),
-                )
+                    searchFailure != null -> BookListStatus(
+                        message = searchFailure.message,
+                        modifier = Modifier.weight(1f),
+                        isError = true,
+                    )
 
-                uiState.bookUiModelList.isEmpty() -> BookListStatus(
-                    message = if (uiState.searchTextValue.isBlank()) "선택할 수 있는 책이 없어요." else "검색 결과가 없어요.",
-                    modifier = Modifier.weight(1f),
-                )
+                    uiState.searchState is SearchState.Loading -> BookListStatus(
+                        message = "책 검색중...",
+                        modifier = Modifier.weight(1f),
+                    )
 
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(getGridCount()),
-                    state = bookGridState,
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    items(uiState.bookUiModelList, key = { it.id }) { bookUiModel ->
-                        OnboardingBookCard(
-                            title = bookUiModel.title,
-                            authors = bookUiModel.authors,
-                            coverUrl = bookUiModel.coverUrl,
-                            onClick = { onSelectBook(bookUiModel.id) },
-                        )
+                    uiState.bookUiModelList.isEmpty() -> BookListStatus(
+                        message = if (uiState.searchTextValue.isBlank()) "선택할 수 있는 책이 없어요." else "검색 결과가 없어요.",
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    else -> LazyVerticalGrid(
+                        columns = GridCells.Fixed(getGridCount()),
+                        state = bookGridState,
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        items(uiState.bookUiModelList, key = { it.id }) { bookUiModel ->
+                            OnboardingBookCard(
+                                title = bookUiModel.title,
+                                authors = bookUiModel.authors,
+                                coverUrl = bookUiModel.coverUrl,
+                                onClick = { onSelectBook(bookUiModel.id) },
+                            )
+                        }
                     }
                 }
             }
@@ -291,6 +313,9 @@ private fun OnboardingScreenPreview() {
             onClickSkip = {},
             navigateToJoin = {},
             onSelectBook = {},
+            onReadBook = {},
+            onBackBookDetail = {},
+            onRetryBookDetail = {},
             onDismissBottomSheet = {},
             onClickPublicRoom = {},
             onClickCreateRoom = {},
