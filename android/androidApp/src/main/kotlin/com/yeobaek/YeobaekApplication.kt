@@ -8,6 +8,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yeobaek.analytics.AndroidPostHogAnalyticsClient
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.update.FirebaseUpdatePolicySource
 
 class YeobaekApplication : Application() {
     lateinit var appContainer: AppContainer
@@ -30,6 +31,7 @@ class YeobaekApplication : Application() {
         appContainer = AppContainer(
             isDebug = isDebug,
             appVersion = BuildConfig.VERSION_NAME,
+            updatePolicySource = FirebaseUpdatePolicySource(isDebug = isDebug),
             analyticsClient = AndroidPostHogAnalyticsClient(
                 application = this,
             ),

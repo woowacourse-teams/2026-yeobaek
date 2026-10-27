@@ -12,9 +12,13 @@ import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.CommentNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.update.UpdatePolicyPlatform
+import com.yeobaek.core.update.UpdatePolicyRepository
+import com.yeobaek.core.update.UpdatePolicySource
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.local.UpdatePolicyPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
@@ -33,11 +37,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class AppContainer(
     private val isDebug: Boolean,
     val appVersion: String,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
+    updatePolicySource: UpdatePolicySource? = null,
+    updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
 ) {
     private val settings = Settings()
 
@@ -60,14 +67,21 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    private val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val updatePolicyRepository = UpdatePolicyRepository(
+        preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),
+        source = updatePolicySource,
+        onFailure = { exception ->
+            FirebaseCrashSink.log("Update policy refresh failed: ${exception::class.simpleName}")
+        },
+    )
     val commentNotifications = CommentNotifications()
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
         preferences = NotificationRegistrationPreferences(settings),
         repository = NotificationRepositoryImpl(apiProvider.notificationApi),
         server = networkProvider.baseUrl,
-        scope = notificationScope,
+        scope = applicationScope,
         onFailure = { exception ->
             FirebaseCrashSink.log("Notification registration failed: ${exception::class.simpleName}")
         },
@@ -113,6 +127,12 @@ class AppContainer(
         notificationRegistration.updateInstallationId(installationId)
     }
 
+    fun refreshUpdatePolicy() {
+        applicationScope.launch {
+            updatePolicyRepository.refresh()
+        }
+    }
+
     fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
         commentNotifications.handleReceived(data)
 
@@ -121,7 +141,7 @@ class AppContainer(
     }
 
     fun close() {
-        notificationScope.cancel()
+        applicationScope.cancel()
         networkProvider.close()
     }
 

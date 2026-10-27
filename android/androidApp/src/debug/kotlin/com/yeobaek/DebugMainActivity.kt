@@ -52,6 +52,11 @@ class DebugMainActivity : ComponentActivity() {
         notificationPermissionRequester.requestOnce()
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as YeobaekApplication).appContainer.refreshUpdatePolicy()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

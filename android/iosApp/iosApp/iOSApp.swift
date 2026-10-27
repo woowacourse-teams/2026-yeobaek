@@ -12,7 +12,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         appVersion: Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "",
-        analyticsClient: analyticsClient
+        analyticsClient: analyticsClient,
+        updatePolicySource: IOSFirebaseUpdatePolicySource(isDebug: isDebug),
+        updatePolicyPlatform: .ios
     )
 
     private var isDebug: Bool {
@@ -132,12 +134,18 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
 @main
 struct iOSApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(AppDelegate.self)
     private var appDelegate
 
     var body: some Scene {
         WindowGroup {
             ContentView(appContainer: appDelegate.appContainer)
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    if phase == .active {
+                        appDelegate.appContainer.refreshUpdatePolicy()
+                    }
+                }
         }
     }
 }

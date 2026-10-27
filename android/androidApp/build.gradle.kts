@@ -20,6 +20,7 @@ dependencies {
     // firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.config)
 
     // compose & android
     implementation(libs.androidx.activity.compose)
@@ -48,6 +49,7 @@ dependencies {
 
     // coroutines (android dispatcher)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // analytics
     implementation(libs.posthog.android)
