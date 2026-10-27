@@ -88,7 +88,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() throws FirebaseMessagingException {
-        Book book = books.save(new Book(new BookTitle("입장 알림 도서"), null, null, 1, null));
+        Book book = books.save(new Book(new BookTitle("입장 알림 도서"), null, null, 1, null, null, null));
         club = clubs.save(new Club(new ClubName("입장 알림 모임"), book, JOIN_CODE));
         recipient = members.save(new Member(new Nickname("기존 구성원")));
         memberships.save(new ClubMember(recipient, club));

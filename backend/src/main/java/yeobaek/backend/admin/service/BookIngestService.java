@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
+import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.Isni;
 import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.ActiveBookRepository;
@@ -74,7 +76,7 @@ public class BookIngestService {
                 .addKeyValue("chapterCount", chapterCount).log("도서 업로드를 시작합니다.");
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
-                request.coverImageKey());
+                request.coverImageKey(), request.description(), BodyCharacterCount.fromParagraphs(bodyParagraphs(request)));
         Authors authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
@@ -129,6 +131,13 @@ public class BookIngestService {
             throw new InvalidRequestException("문장 하나는 " + MAX_CONTENT_BYTES + "바이트를 넘을 수 없습니다.",
                     Map.of(REASON, "sentence_too_large", "maxBytes", Integer.toString(MAX_CONTENT_BYTES)));
         }
+    }
+
+    private Stream<String> bodyParagraphs(BookUploadRequest request) {
+        return request.chapters().stream()
+                .flatMap(chapter -> chapter.passages().stream())
+                .map(passage -> passage.sentences().stream()
+                        .map(sentence -> sentence.content().value()).collect(Collectors.joining()));
     }
 
     private int countPassages(BookUploadRequest request) {

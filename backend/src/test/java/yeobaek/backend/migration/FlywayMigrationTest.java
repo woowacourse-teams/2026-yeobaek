@@ -51,7 +51,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4");
+                    .containsExactly("1", "2", "3", "4", "5", "6");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -75,15 +75,16 @@ class FlywayMigrationTest {
         jdbc.update("INSERT INTO members (nickname) VALUES (?)", "기존 회원");
 
         Flyway flyway = Flyway.configure()
-                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()).load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("3").load();
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
 
         try (ConfigurableApplicationContext context = startApplicationUsingMainConfiguration()) {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4");
+                    .containsExactly("1", "2", "3", "4", "5", "6");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
@@ -177,7 +178,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(result.migrationsExecuted).isEqualTo(3);
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
                 .containsExactly(1L, 3L);
         assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))

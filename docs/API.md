@@ -193,6 +193,8 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "passageCount": 312,
+  "description": null,
+  "pageCount": 28,
   "chapters": [
     { "chapterId": 1, "title": "1장", "sequence": 1, "startPassageSequence": 1, "endPassageSequence": 105 }
   ]
@@ -201,6 +203,17 @@
 - `coverImageUrl`: 공개 표지 이미지 URL. 표지가 없는 도서는 `null`이며 클라이언트가 기본 이미지를 표시한다.
 - `startPassageSequence`/`endPassageSequence`: 해당 챕터에 속한 본문의 전체 순서 범위. 리더의 챕터 이동·범위 조회에 사용.
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+
+- `description`: 책 소개. 없으면 `null`이며 클라이언트는 소개 영역을 생략한다.
+- `pageCount`: 본문을 700자당 1쪽으로 환산하여 올림한 정수. 실제 종이책 쪽수가 아니다.
+  문단의 문장을 순서대로 합친 뒤 NFC 정규화하고 Unicode 코드 포인트를 센다. 공백·문장부호는 포함하고
+  CR/LF/탭과 제목·목차·소개는 제외한다. 책 전체를 합산한 뒤 한 번만 올림한다.
+  예: 198,376자 → 284쪽. API는 표시용 10쪽 단위 반올림을 하지 않는다.
+- 기존 도서의 글자 수를 아직 보완하지 않았다면 `pageCount`는 `null`이다. 조회는 성공하며,
+  기능 준비 완료 전 활성 도서의 미집계 건수가 0인지 확인한다. 목록 응답 계약은 변경하지 않는다.
+
+
+기존 도서의 미집계 본문 글자 수는 앱 시작 시 Flyway V5 마이그레이션이 자동으로 보충한다.
 
 ## 3. 모임
 
@@ -271,6 +284,8 @@
       "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "DELETED" },
       "myProgress": {
         "lastReadPassageSequence": 42,
+        "lastReadSentenceId": 5012,
+        "lastReadCharacterOffset": 7,
         "progressRate": 13,
         "lastReadAt": "2026-08-05T14:30:00"
       }
@@ -298,6 +313,8 @@
   "book": { "bookId": 1, "title": "운수 좋은 날", "authors": ["현진건"], "coverImageUrl": null, "passageCount": 312, "status": "DELETED" },
   "myProgress": {
     "lastReadPassageSequence": 42,
+    "lastReadSentenceId": 5012,
+    "lastReadCharacterOffset": 7,
     "progressRate": 13,
     "lastReadAt": "2026-08-05T14:30:00"
   },
@@ -320,6 +337,51 @@
 모임에서의 읽기는 해당 모임 맥락에서 이루어진다 (진도·댓글이 모임 단위이므로).
 
 이 절은 기존 모임 읽기 계약이다. 공개방의 독립 진도와 통합 최근 읽기는 10절에서 정의한다.
+
+### 정밀 이어 읽기 위치 (구현 예정)
+
+모임과 공개방에 같은 위치 규칙을 적용한다. 저장 위치는 **일반 뷰어의 화면 상단 읽기 영역에
+처음 보이는 본문 줄의 시작 위치**다. 문장이 화면 위로 일부 가려져 있으면 해당 문장 안에서
+처음 보이는 줄의 시작 글자를 사용한다. 문단 사이 여백이면 다음으로 보이는 본문 줄을 기준으로 한다.
+
+| v2 요청 필드 | 필수 | 의미 |
+|---|---|---|
+| `passageId` | 예 | 시작 위치가 속한 문단 ID |
+| `sentenceId` | 예 | 시작 위치가 속한 문장 ID. `passageId`의 문단에 속해야 한다 |
+| `characterOffset` | 예 | 문장 `content` 안의 0부터 시작하는 UTF-16 코드 단위 위치. 첫 글자는 `0` |
+
+- offset은 서버가 반환한 문장 원문 기준이다. 공백·개행도 포함하고, 화면 표시를 위해 추가한
+  문자·구분자나 텍스트 가공 결과를 기준으로 계산하지 않는다. 픽셀·줄 번호는 저장하지 않는다.
+- 최신 클라이언트는 진도 저장 v2를 사용한다. v2는 `passageId`·`sentenceId`·`characterOffset`이
+  모두 필수이며, 하나라도 누락되거나 `null`이면 서버가 `400 INVALID_REQUEST`로 거절한다.
+  v2에는 첫 문장·offset `0`으로 보정하는 호환 로직을 적용하지 않는다.
+  정밀 위치가 전송되면 문장 ID는 양의 정수, offset은 `0 <= characterOffset < content.length`인 정수다.
+  `content.length`는 UTF-16 코드 단위 개수이며, 서로게이트 쌍이나 하나의 표시 문자
+  (결합 문자·이모지 조합 등) 중간을 가리키는 위치는 허용하지 않는다.
+- 존재하지 않는 문장은 `400 SENTENCE_NOT_FOUND`, 존재하지만 요청 문단에 속하지 않는 문장,
+  필드 조합·타입·범위·문자 경계 오류는 `400 INVALID_REQUEST`다. 오류 시 저장 위치와 시각을 변경하지 않는다.
+  문단과 책의 소속 검증 및 권한 검증은 각 API의 기존 규칙을 따른다.
+- 기존 진도 저장 v1은 구버전의 `{ "passageId": 1042 }` 요청 계약을 유지한다.
+  서버가 요청 문단의 첫 문장 ID와 offset `0`을 채워 저장한다. 첫 문장은 문단 내 `sequence`가
+  가장 작은 문장이다. v1의 `passageId`도 필수이며 누락·`null`이면 `400 INVALID_REQUEST`다.
+- v1과 v2는 같은 공간의 같은 진도 기록을 갱신한다. 어느 버전이든 문단·문장·offset·`lastReadAt`을
+  한 번에 갱신한다. v1 요청은 기존 정밀 위치가 있어도 요청 문단의 첫 문장·offset `0`으로 덮어쓴다.
+- 기존 저장 기록의 문장·offset도 저장 문단의 첫 문장 ID와 `0`으로 채운다. 기존 정밀 위치가
+  있는 기록은 유지하며, 이 데이터 보완으로 `lastReadAt`·진도율·최근 읽기 순서는 변경하지 않는다.
+  저장 기록이 없는 회원에게 새 진도를 만들지는 않는다. 새 응답 계약 적용 전에 데이터 보완을 완료한다.
+- 진도 응답의 `lastReadSentenceId`와 `lastReadCharacterOffset`은 필수이며 `null`을 허용하지 않는다.
+  모임 목록·상세 및 공개방 목록·방문 목록·상세의 `myProgress`, 본문 응답의 `resumePosition`,
+  통합 최근 읽기, 모임·공개방의 진도 저장 v2 성공 응답에 동일하게 적용한다.
+  진도 저장 v1은 정밀 위치 필드를 추가하지 않고 기존 응답 구조를 유지한다.
+  구버전 전용 `GET /api/members/me/last-reading`은 기존 응답을 유지한다.
+- 저장 기록이 없으면 `myProgress`·`resumePosition` 객체 자체가 `null`이다. 객체가 있으면 문장·offset은
+  항상 값이 있으며, 해당 문장·글자가 있는 줄부터 복원한다.
+  글꼴·화면 너비가 달라져도 같은 본문 위치를 기준으로 다시 배치한다.
+- 진도율은 기존 문단 기준 계산을 유지한다. 같은 문단 안에서 문장·offset만 바뀌어도 새 위치와
+  `lastReadAt`을 저장하며, 클라이언트는 문단 ID만 같다는 이유로 저장을 생략하지 않는다.
+- 이어 읽기 시 상세 조회의 `myProgress.lastReadPassageSequence`로 본문 범위를 정하고,
+  본문과 텍스트 레이아웃을 준비한 뒤 정밀 위치로 한 번 이동한다. 복원 완료 전 임시 화면 위치를
+  저장하지 않는다. 저장 문장을 찾지 못하거나 offset으로 복원할 수 없으면 저장 문단의 처음으로 이동한다.
 
 ### 본문 범위 조회
 `GET /api/clubs/{clubId}/passages?from={sequence}&to={sequence}`
@@ -344,9 +406,20 @@
         }
       ]
     }
-  ]
+  ],
+  "resumePosition": {
+    "lastReadPassageSequence": 42,
+    "lastReadSentenceId": 5012,
+    "lastReadCharacterOffset": 7
+  }
 }
 ```
+- `resumePosition`: 요청 회원의 해당 모임 마지막 저장 위치. 기록이 없으면 `null`이다.
+  객체가 있으면 위 세 필드는 모두 필수이며 `null`을 허용하지 않는다.
+  조회 범위 밖의 저장 위치도 그대로 반환한다. `passages: []`여도 저장 기록이 있으면 객체를 반환한다.
+- `resumePosition`은 반환된 본문의 시작 위치가 아니라 저장된 재개 위치다. 추가 본문 로딩·목차 이동·
+  댓글 문장 이동 때는 자동 복원하지 않으며, 최초 이어 읽기에서만 사용한다. 현재 요청 범위 밖이면
+  해당 문단이 포함된 범위를 먼저 불러온다. 본문 조회 자체는 저장 위치·`lastReadAt`을 변경하지 않는다.
 - `Passage`는 문단을 나타내는 컨테이너이며 문단 원문이나 문단 전체 댓글 수를 별도 필드로 제공하지 않는다.
 - `sentences`는 문단에 속한 문장을 `sequence` 오름차순으로 반환한다.
 - 문장의 `sequence`는 해당 문단 안에서 1부터 시작하는 순서다. `commentCount`는 이 모임에서 해당
@@ -355,15 +428,42 @@
   한 문단의 문장 `content`를 `sequence` 순서로 연결하면 원래 문단 원문이 복원된다.
 - 모임 도서가 삭제된 경우 본문을 반환하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
-### 진도 갱신 (최근 열람 보고)
+### 진도 갱신 v2 (최근 열람 보고 · 구현 예정)
+`PUT /api/v2/clubs/{clubId}/progress`
+
+요청:
+```json
+{ "passageId": 1042, "sentenceId": 5012, "characterOffset": 7 }
+```
+
+응답 `200`:
+```json
+{
+  "lastReadPassageSequence": 42,
+  "lastReadSentenceId": 5012,
+  "lastReadCharacterOffset": 7,
+  "progressRate": 13,
+  "lastReadAt": "2026-08-05T14:30:00"
+}
+```
+- 항상 마지막 열람 본문으로 덮어쓴다 (앞부분 재열람 시 진도율 후퇴 — PRD 3.4 트레이드오프).
+- 클라이언트는 일반 뷰어를 종료할 때 화면 상단 읽기 위치의 문단 ID·문장 ID·offset으로 호출한다.
+  v2의 필수 필드 검증·복원은 4번 「읽기 · 진도」의 ‘정밀 이어 읽기 위치’ 항목을 따른다. 본문을 읽는 동안에는 진도 갱신
+  호출을 늘리지 않고, 댓글 발견 API에 현재 문단 ID를 조회 경계로 전달한다.
+- 모임 도서가 삭제된 경우 저장된 진도를 변경하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 진도 갱신 v1 (구버전 호환)
+
 `PUT /api/clubs/{clubId}/progress`
 
 요청:
+
 ```json
 { "passageId": 1042 }
 ```
 
-응답 `200`:
+응답 `200` (기존 구조 유지):
+
 ```json
 {
   "lastReadPassageSequence": 42,
@@ -371,10 +471,11 @@
   "lastReadAt": "2026-08-05T14:30:00"
 }
 ```
-- 항상 마지막 열람 본문으로 덮어쓴다 (앞부분 재열람 시 진도율 후퇴 — PRD 3.4 트레이드오프).
-- 클라이언트는 일반 뷰어를 종료할 때 마지막으로 화면에 표시한 문단 ID로 호출한다. 본문을 읽는
-  동안에는 진도 갱신 호출을 늘리지 않고, 댓글 발견 API에 현재 문단 ID를 조회 경계로 전달한다.
-- 모임 도서가 삭제된 경우 저장된 진도를 변경하지 않고 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+- 서버가 요청 문단의 첫 문장 ID와 offset `0`으로 보정해 저장한다. v1 응답에는 정밀 위치를
+  추가하지 않지만, 조회 API에서는 보정된 위치를 반환한다.
+- 권한·도서 이용 가능 여부·문단 소속 검증 및 최근 열람 덮어쓰기 정책은 v2와 동일하다.
+  최신 클라이언트는 v2를 사용한다.
 
 ### 홈 — 마지막으로 읽던 책
 `GET /api/members/me/last-reading`
@@ -806,6 +907,7 @@
   "publisher": "자체 제작",
   "publishedYear": 1924,
   "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
+  "description": null,
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -827,6 +929,9 @@
 ```
 
 필드 규칙:
+- `description`: 선택 문자열. 생략·`null`은 소개 없음으로 처리한다. 빈 문자열이나 공백만 있는 값은
+  `400` (`INVALID_REQUEST`)으로 거부한다. 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+  기존 ZIP의 JSON에 소개가 없어도 등록할 수 있다.
 - `title`: 필수, 1~100자 (공백만 불가)
 - `publisher`: 선택(null 허용), 최대 100자
 - `publishedYear`: 선택(null 허용), 정수 (범위 제한 없음)
@@ -847,7 +952,8 @@
 
 서버 처리:
 - 문단 순서(`passage.sequence`)는 **배열 등장 순서**로 서버가 책 전체 기준 1..N을 부여한다. 문장 순서(`sentence.sequence`)는 각 문단의 배열 등장 순서로 1..N을 부여한다. 두 순서 모두 dense 보장은 구성상 성립한다. 목차 순서도 등장 순서로 1..M
-- `passageCount`는 서버가 자동 산출한다 (PRD 3.3)
+- `passageCount`와 본문 글자 수는 서버가 자동 산출한다. 요청에 계산값을 넣어도 이를 신뢰하지 않는다.
+  글자 수로 환산한 쪽수는 도서 상세 응답에서 제공한다.
 - 제목·출판사·출판연도·작가 구성이 모두 동일한 **활성 도서**가 있으면 `400` (`DUPLICATE_BOOK`)
 - 동일한 서지 정보의 삭제된 도서만 있으면 새 도서 ID로 업로드할 수 있다. 기존 모임·댓글은
   삭제된 이전 도서에 계속 연결된다.
@@ -864,6 +970,28 @@
 ```
 
 표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
+
+### 도서 소개 교체
+`PUT /api/admin/books/{bookId}/description`
+
+요청:
+```json
+{ "description": "책의 핵심 내용과 흥미로운 갈등을 소개하는 문장." }
+```
+
+- 관리자 토큰 인증을 사용하며 성공 응답은 `204 No Content`다.
+- `description`은 필수 문자열이다. 필드 누락·`null`·빈 문자열·공백만 있는 값은 `400` (`INVALID_REQUEST`)으로 거부한다.
+- 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 소개만 변경하며 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다. 동일 요청은 같은 상태로 처리한다.
+
+### 도서 소개 제거
+`DELETE /api/admin/books/{bookId}/description`
+
+- 관리자 토큰 인증을 사용하며 요청 본문은 없다.
+- 소개를 `null`로 비우며 성공 응답은 `204 No Content`다. 이미 소개가 없어도 성공한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
+- 본문·환산 쪽수·독서 진도·모임·댓글은 유지한다.
 
 ### 도서 표지 교체
 `PUT /api/admin/books/{bookId}/cover`
@@ -902,7 +1030,8 @@
       "publishedYear": 1924,
       "passageCount": 30,
       "coverImageUrl": null,
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "description": null
     }
   ]
 }
@@ -914,6 +1043,8 @@
 - 도서가 없으면 `{ "books": [] }`를 반환한다.
 - 기존 `GET /api/admin/authors` 계약은 유지한다.
 - 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
+
+- `description`은 현재 책 소개이며 없으면 `null`이다. 삭제 도서의 소개도 조회할 수 있지만 수정할 수 없다.
 
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
@@ -945,7 +1076,7 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -978,11 +1109,13 @@
 
 ### 공개방 독서와 방문·진도
 
-- 공개방의 본문·진도·댓글 발견·확인·작성은 `/api/public-rooms/{publicRoomId}` 아래 API를 사용한다.
+- 공개방의 본문·댓글 발견·확인·작성과 구버전 진도 저장은 `/api/public-rooms/{publicRoomId}` 아래
+  API를 사용한다. 최신 클라이언트의 정밀 진도 저장은 `/api/v2/public-rooms/{publicRoomId}/progress`를 사용한다.
   같은 책이어도 공개방과 각 모임의 진도·댓글·확인 상태는 독립적이다.
 - 독서 화면 진입 즉시 `POST /api/public-rooms/{publicRoomId}/visits`를 호출한다. 카드나 진입 확인창만
   보는 단계에서는 호출하지 않는다. 방문 기록은 진도나 최근 읽기를 갱신하지 않는다.
-- 일반 뷰어 종료 시 `PUT /api/public-rooms/{publicRoomId}/progress`로 마지막 열람 문단을 저장한다.
+- 일반 뷰어 종료 시 `PUT /api/v2/public-rooms/{publicRoomId}/progress`로 화면 상단 읽기 위치의
+  문단·문장·offset을 저장한다.
   이때 통합 최근 읽기가 갱신된다. `myProgress=null`이면 첫 문단부터 시작한다.
 - 목차는 `book.bookId`로 기존 `GET /api/books/{bookId}`를 조회한다. 본문·댓글의 응답 구조와
   새 댓글·가림·직접 확인 규칙은 기존 계약을 공개방 범위에 적용한다 (10.7~10.8절).
@@ -1025,7 +1158,8 @@
 | GET | /api/clubs | 내 모임 목록 |
 | GET | /api/clubs/{clubId} | 모임 상세 (초대 코드 · 참여자 목록) |
 | GET | /api/clubs/{clubId}/passages | 본문 범위 조회 |
-| PUT | /api/clubs/{clubId}/progress | 진도 갱신 |
+| PUT | /api/clubs/{clubId}/progress | 진도 갱신 v1 (구버전 호환·첫 문장 보정) |
+| PUT | /api/v2/clubs/{clubId}/progress | 정밀 진도 갱신 v2 (구현 예정) |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
 | GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
 | GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 |
@@ -1040,6 +1174,8 @@
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
+| PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체 |
+| DELETE | /api/admin/books/{bookId}/description | (관리자) 도서 소개 제거 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |
 | DELETE | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 제거 |
 | DELETE | /api/admin/books/{bookId} | (관리자) 도서 소프트 삭제 |
@@ -1103,7 +1239,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | GET | `/api/public-rooms/{publicRoomId}` | 공개방 정보·내 진도 |
 | POST | `/api/public-rooms/{publicRoomId}/visits` | 방문 기록 |
 | GET | `/api/public-rooms/{publicRoomId}/passages` | 본문 범위, 필수 쿼리 `from`, `to` |
-| PUT | `/api/public-rooms/{publicRoomId}/progress` | 진도 저장 |
+| PUT | `/api/public-rooms/{publicRoomId}/progress` | 진도 저장 v1 (구버전 호환·첫 문장 보정) |
+| PUT | `/api/v2/public-rooms/{publicRoomId}/progress` | 정밀 진도 저장 v2 (구현 예정) |
 | GET | `/api/public-rooms/{publicRoomId}/comments/new-count` | 새 댓글 수, 필수 쿼리 `currentPassageId` |
 | GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록, 필수 쿼리 `currentPassageId` |
 | POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 댓글 상세·직접 확인 |
@@ -1124,6 +1261,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 도서 요약 | `passageCount` | 정수, 전체 문단 수 |
 | 도서 요약 | `status` | `ACTIVE`일 때만 읽기 허용 |
 | 진도 | `lastReadPassageSequence` | 정수, 최근 열람 문단의 도서 전체 순서 |
+| 진도 | `lastReadSentenceId` | 문장 ID. 기존 기록·v1 저장 요청은 저장 문단의 첫 문장 ID로 보완 |
+| 진도 | `lastReadCharacterOffset` | 0부터 시작하는 UTF-16 코드 단위 offset. 기존 기록·v1 저장 요청은 `0`으로 보완 |
 | 진도 | `progressRate` | 0~100 정수. `lastReadPassageSequence / passageCount * 100` 반올림 |
 | 진도 | `lastReadAt` | 마지막 진도 저장 시각 |
 | 공개방 요약 | `publicRoomId` | 공개방 ID |
@@ -1131,7 +1270,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 공개방 요약 | `myProgress` | 진도. 저장한 적이 없으면 `null` |
 
 방문만 해서는 진도를 만들지 않는다. 공개방에 진입할 때 `myProgress=null`이면 첫 문단부터
-시작하고, 값이 있으면 `lastReadPassageSequence`부터 이어 읽는다.
+시작하고, 값이 있으면 `lastReadPassageSequence`를 포함한 본문을 조회한 뒤 저장된 문장·글자가
+있는 줄부터 이어 읽는다. 위치 규칙은 4번 「읽기 · 진도」의 ‘정밀 이어 읽기 위치’ 항목을 따른다.
 
 ### 10.4 공개방 목록 · 검색과 정렬 확장
 
@@ -1279,16 +1419,18 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 `commentCount`를 포함한다. 문자열의 공백·개행은 보존한다. `commentCount`는 **이 공개방에서
 요청 회원에게 보이는 댓글 수**이며 모임 댓글이나 차단한 작성자의 댓글을 섞지 않는다.
 
+`resumePosition`은 요청 회원의 **이 공개방** 마지막 저장 위치이며, 다른 모임의 위치를 섞지 않는다.
+저장 기록이 없으면 `null`이다. 범위 밖 위치 반환과 최초 복원 규칙은 4번 「읽기 · 진도」의 ‘본문 범위 조회’ 항목을 따른다.
 본문 조회는 방문·진도·댓글 확인 상태를 변경하지 않는다.
 
-#### 진도 갱신
+#### 진도 갱신 v2 (구현 예정)
 
-`PUT /api/public-rooms/{publicRoomId}/progress`
+`PUT /api/v2/public-rooms/{publicRoomId}/progress`
 
 요청:
 
 ```json
-{ "passageId": 1042 }
+{ "passageId": 1042, "sentenceId": 5012, "characterOffset": 7 }
 ```
 
 응답 `200`:
@@ -1296,19 +1438,31 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 ```json
 {
   "lastReadPassageSequence": 42,
+  "lastReadSentenceId": 5012,
+  "lastReadCharacterOffset": 7,
   "progressRate": 13,
   "lastReadAt": "2026-09-23T14:35:00"
 }
 ```
 
-- 기존 모임처럼 일반 뷰어 종료 시 마지막으로 화면에 표시한 문단으로 호출한다. 최근 열람 위치로
-  덮어쓰며 앞부분 재열람을 저장하면 진도율이 후퇴할 수 있다.
+- 기존 모임처럼 일반 뷰어 종료 시 화면 상단 읽기 위치의 문단 ID·문장 ID·offset으로 호출한다.
+  v2의 필수 필드 검증·복원은 4번 「읽기 · 진도」의 ‘정밀 이어 읽기 위치’ 항목을 따른다. 최근 열람 위치로 덮어쓰며
+  앞부분 재열람을 저장하면 진도율이 후퇴할 수 있다.
 - 성공하면 이 공개방의 내 진도와 `lastReadAt`만 갱신하고 통합 최근 읽기 선정에 반영한다.
   모임 진도·방문 시각·댓글 확인 상태는 변경하지 않는다.
 - 본문 이동·목차 이동·댓글 문장의 “보러 가기”와 원래 위치로 돌아가기도 4절의 일반 뷰어 규칙을
   따른다. 서버에 이전 진도를 보관·복원하는 별도 API를 추가하지 않는다.
 - `passageId` 누락·형식 오류는 `400 INVALID_REQUEST`, 없거나 이 책에 속하지 않는 문단은
   `400 PASSAGE_NOT_FOUND`다.
+
+#### 진도 갱신 v1 (구버전 호환)
+
+`PUT /api/public-rooms/{publicRoomId}/progress`
+
+요청은 `{ "passageId": 1042 }`이며, 응답은 기존의 `lastReadPassageSequence`, `progressRate`,
+`lastReadAt`만 포함한다. 서버가 요청 문단의 첫 문장 ID와 offset `0`으로 보정해 저장한다.
+v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 갱신 v1 (구버전 호환)’ 항목과 같고, 권한·문단 소속·도서 이용 가능 여부와
+갱신 대상은 이 공개방의 규칙을 따른다. 최신 클라이언트는 v2를 사용한다.
 
 ### 10.8 댓글 발견·확인·작성
 
@@ -1410,6 +1564,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
     "status": "ACTIVE"
   },
   "lastReadPassageSequence": 42,
+  "lastReadSentenceId": 5012,
+  "lastReadCharacterOffset": 7,
   "progressRate": 13,
   "lastReadAt": "2026-09-23T14:35:00"
 }
@@ -1427,6 +1583,7 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | `CLUB` | `clubId`, `clubName` | `publicRoomId` |
 
 - `space`, `book`, 진도 필드는 모두 필수이며 `null`이 아니다. `book.coverImageUrl`만 `null`일 수 있다.
+  정밀 위치와 기존 데이터 보완 규칙은 4번 「읽기 · 진도」의 ‘정밀 이어 읽기 위치’ 항목을 따른다.
   Android는 `space.type`을 먼저 판별하여 해당 공간의 API·화면으로 이동한다.
 - 탈퇴한 모임의 기록은 제외한다. 가장 최근 기록의 도서가 삭제됐더라도 건너뛰지 않고
   `book.status=DELETED`와 저장된 진도를 반환한다. Android는 이어 읽기를 막는다.
@@ -1453,6 +1610,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | 존재하지 않는 공개방 | 400 | `PUBLIC_ROOM_NOT_FOUND` |
 | 삭제 도서에서 위 표의 읽기·변경 동작 시도 | 400 | `BOOK_NOT_AVAILABLE` |
 | 진도 요청의 문단이 없거나 다른 책 소속 | 400 | `PASSAGE_NOT_FOUND` |
+| 진도 요청에 값이 있는 문장 ID가 존재하지 않음 | 400 | `SENTENCE_NOT_FOUND` |
+| 진도 v2 필드 누락·`null`, 문장이 요청 문단 소속이 아님, 필드 타입·범위·문자 경계 오류 | 400 | `INVALID_REQUEST` |
 | 댓글 발견 요청의 현재 문단이 없거나 다른 책 소속 | 400 | `INVALID_REQUEST` |
 | 댓글 상세·작성 요청의 문장이 없거나 다른 책 소속 | 400 | `SENTENCE_NOT_FOUND` |
 | 없는 댓글 또는 신고·좋아요 요청자에게 보이지 않는 댓글 | 400 | `COMMENT_NOT_FOUND` |
@@ -1470,8 +1629,9 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 2. 목록에서 선택한 항목의 `publicRoomId`로 공개방에 진입한다.
 3. 공개방 독서 화면에 진입하면 방문을 기록한다. 공개방 정보의 내 진도와 도서 상세의 목차,
    필요한 범위의 본문을 조회한다. 방문 기록은 읽기 권한이나 진도 저장을 대신하지 않는다.
-4. 독서 중 현재 문단을 댓글 발견 API에 전달한다. 댓글 문장을 선택하면 상세 확인 API를 호출한다.
-5. 일반 뷰어 종료 시 마지막으로 표시한 문단으로 공개방 진도를 저장한다. 이후 통합 최근 읽기에 반영된다.
+4. 본문과 레이아웃 준비 후 저장된 문장·offset으로 한 번 복원한다.
+5. 독서 중 현재 문단을 댓글 발견 API에 전달한다. 댓글 문장을 선택하면 상세 확인 API를 호출한다.
+6. 일반 뷰어 종료 시 v2 API에 화면 상단의 문단·문장·offset으로 공개방 진도를 저장한다. 이후 통합 최근 읽기에 반영된다.
 
 모든 신규 `GET`은 방문·진도·댓글 확인 상태를 변경하지 않는다. 방문 직후 본문 조회가 실패해도
 이미 성공한 방문 기록은 유지된다. 방문 요청의 응답을 받지 못하면 기록 반영 여부가 불확실할 수

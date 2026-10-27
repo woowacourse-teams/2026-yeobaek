@@ -78,7 +78,7 @@ class PassageServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 5, null));
+        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 5, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         for (int sequence = 1; sequence <= 5; sequence++) {
             passageRepository.save(new Passage(chapter, sequence, Collections.singletonList(new SentenceContent("본문 " + sequence))));

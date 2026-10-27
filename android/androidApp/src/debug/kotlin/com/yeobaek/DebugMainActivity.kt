@@ -1,5 +1,6 @@
 package com.yeobaek
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,11 +12,14 @@ import kotlinx.serialization.Serializable
 
 class DebugMainActivity : ComponentActivity() {
 
+    private val notificationPermissionRequester = NotificationPermissionRequester(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         val appContainer = (application as YeobaekApplication).appContainer
+        intent.deliverNotificationOpen(appContainer)
 
         setContent {
             val navController = rememberNavController()
@@ -44,6 +48,14 @@ class DebugMainActivity : ComponentActivity() {
                 }
             }
         }
+
+        notificationPermissionRequester.requestOnce()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.deliverNotificationOpen((application as YeobaekApplication).appContainer)
     }
 }
 

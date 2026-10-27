@@ -5,10 +5,15 @@ import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
+import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.core.notification.CommentNotifications
+import com.yeobaek.core.notification.NotificationPresentation
+import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.data.local.GuideOnboardingPreferences
+import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.BookRepository
@@ -20,9 +25,14 @@ import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.NotificationRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.PublicRoomRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 class AppContainer(
     private val isDebug: Boolean,
@@ -48,6 +58,19 @@ class AppContainer(
 
     private val apiProvider = ApiProvider(
         ktorfit = networkProvider.ktorfit,
+    )
+
+    private val notificationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val commentNotifications = CommentNotifications()
+    private val notificationRegistration = NotificationRegistrationCoordinator(
+        memberId = userPreferences.userId,
+        preferences = NotificationRegistrationPreferences(settings),
+        repository = NotificationRepositoryImpl(apiProvider.notificationApi),
+        server = networkProvider.baseUrl,
+        scope = notificationScope,
+        onFailure = { exception ->
+            FirebaseCrashSink.log("Notification registration failed: ${exception::class.simpleName}")
+        },
     )
 
     val userRepository: UserRepository = UserRepositoryImpl(
@@ -86,7 +109,19 @@ class AppContainer(
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 
+    fun updateFirebaseInstallationId(installationId: String) {
+        notificationRegistration.updateInstallationId(installationId)
+    }
+
+    fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
+        commentNotifications.handleReceived(data)
+
+    fun onNotificationOpened(data: Map<String, String>) {
+        commentNotifications.onOpened(data)
+    }
+
     fun close() {
+        notificationScope.cancel()
         networkProvider.close()
     }
 

@@ -96,16 +96,16 @@ java gradle/WorktreeGradleLockVerification.java
 
 기본 SQL 초기화는 모든 프로파일에서 비활성화합니다. `local`만 Flyway의 `db/local` 경로를 추가하며, 기본·`prod`·`prod,dev`에서는 로컬 시드를 실행하지 않습니다.
 
-스키마 변경은 `src/main/resources/db/migration`에 다음 버전 SQL로 추가하며, 적용한 SQL은 수정하지 않습니다.
+스키마 변경은 `src/main/resources/db/migration`의 버전 SQL로, SQL로 표현하기 어려운 데이터 보충은 `src/main/java/db/migration`의 Java 마이그레이션으로 추가합니다. 적용한 마이그레이션은 수정하지 않습니다. 서버 실행과 기존 DB의 baseline·복구는 [배포 가이드의 스키마 변경 절](docs/배포_가이드.md#4-스키마-변경)를 따릅니다.
 앱은 시작 시 Flyway 마이그레이션 후 Hibernate `validate`로 엔티티 매핑을 검증합니다.
-통합 테스트도 같은 SQL로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
+통합 테스트도 같은 Flyway 마이그레이션으로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
 Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
 알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
 앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
 `flyway_schema_history`의 버전별 성공 이력에서 확인합니다.
 
-설치별 알림 ON/OFF는 V4로 추가해요. 저장·조회 구조와 API, 신규 유형 추가 절차는
+설치별 알림 ON/OFF는 V6로 추가해요. 저장·조회 구조와 API, 신규 유형 추가 절차는
 [알림 설정 설명](docs/알림_설정.md)을 참고해요.
 
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.

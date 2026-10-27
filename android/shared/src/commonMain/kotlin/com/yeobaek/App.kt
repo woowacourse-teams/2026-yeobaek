@@ -248,5 +248,11 @@ fun App(
                 },
             )
         }
+
+        NotificationEffects(
+            navController = navController,
+            notifications = appContainer.commentNotifications,
+            userId = appContainer.userPreferences.userId,
+        )
     }
 }

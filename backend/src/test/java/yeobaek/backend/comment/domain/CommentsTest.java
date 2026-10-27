@@ -150,7 +150,7 @@ class CommentsTest {
     }
 
     private Passage passageWithTwoSentences() {
-        Book book = new Book(new BookTitle("도서"), null, null, 1, null);
+        Book book = new Book(new BookTitle("도서"), null, null, 1, null, null, null);
         Chapter chapter = new Chapter(book, new ChapterTitle("장"), 1);
         Passage passage = new Passage(chapter, 1, List.of(
                 new SentenceContent("첫 문장"),

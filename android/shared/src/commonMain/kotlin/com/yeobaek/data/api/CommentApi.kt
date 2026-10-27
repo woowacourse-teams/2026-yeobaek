@@ -1,5 +1,6 @@
 package com.yeobaek.data.api
 
+import com.yeobaek.data.dto.CommentLikeResponse
 import com.yeobaek.data.dto.CommentRequest
 import com.yeobaek.data.dto.CommentResponse
 import com.yeobaek.data.dto.CommentedSentencesResponse
@@ -41,6 +42,16 @@ interface CommentApi {
     suspend fun deleteComment(
         @Path("commentId") commentId: Long,
     )
+
+    @PUT("api/comments/{commentId}/likes")
+    suspend fun likeComment(
+        @Path("commentId") commentId: Long,
+    ): Response<CommentLikeResponse>
+
+    @DELETE("api/comments/{commentId}/likes")
+    suspend fun likeCancelComment(
+        @Path("commentId") commentId: Long,
+    ): Response<CommentLikeResponse>
 
     @POST("api/comments/{commentId}/reports")
     suspend fun reportComment(

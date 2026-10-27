@@ -17,8 +17,18 @@ dependencies {
     // shared module
     implementation(project(":shared"))
 
+    // firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+
     // compose & android
     implementation(libs.androidx.activity.compose)
+
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Activity Result APIs require Fragment 1.3.0 or newer.")
+        }
+    }
 
     // material3
     debugImplementation(libs.compose.material3)

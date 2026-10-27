@@ -17,9 +17,12 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
+import com.yeobaek.feature.reader.model.toggleLikeOptimistically
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class CommentSheetController(
@@ -38,6 +41,8 @@ class CommentSheetController(
 
     private var loadJob: Job? = null
     private var didSubmitInSheet = false
+    private var refreshPending = false
+    private var sheetVersion = 0L
 
     val pendingRestoreSentenceId: Long?
         get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
@@ -45,7 +50,7 @@ class CommentSheetController(
     val pendingRestorePassageSequence: Int?
         get() = savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY]
 
-    fun open(sentence: SentenceUiModel, passageSequence: Int?) {
+    fun open(sentence: SentenceUiModel, passageSequence: Int?, scrollToLatest: Boolean = false) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
@@ -53,6 +58,7 @@ class CommentSheetController(
             passageSequence = passageSequence,
             targetPassageSequence = null,
             hasNewComments = null,
+            scrollToLatest = scrollToLatest,
         )
     }
 
@@ -76,6 +82,7 @@ class CommentSheetController(
             targetPassageSequence = savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY],
             input = savedStateHandle.get<String>(SHEET_INPUT_KEY).orEmpty(),
             editingCommentId = savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY],
+            scrollToLatestPending = savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] ?: false,
             isLoading = true,
         )
         persistDraft()
@@ -93,6 +100,22 @@ class CommentSheetController(
         loadComments(sheet.sentenceId)
     }
 
+    fun refresh(sentenceId: Long) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId } ?: return
+        if (sheet.isSubmitting || sheet.isDeleting) {
+            refreshPending = true
+            return
+        }
+        cancelLoad()
+        loadComments(sentenceId, isRefresh = true)
+    }
+
+    fun consumeScrollToLatest(sentenceId: Long) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId } ?: return
+        uiState = sheet.copy(scrollToLatestPending = false)
+        savedStateHandle.remove<Boolean>(SHEET_SCROLL_TO_LATEST_KEY)
+    }
+
     private fun open(
         sentenceId: Long,
         sentenceContent: String,
@@ -100,9 +123,11 @@ class CommentSheetController(
         passageSequence: Int?,
         targetPassageSequence: Int?,
         hasNewComments: Boolean?,
+        scrollToLatest: Boolean = false,
     ) {
         cancelLoad()
         didSubmitInSheet = false
+        refreshPending = false
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
             sentenceId = sentenceId,
@@ -119,9 +144,12 @@ class CommentSheetController(
             sentenceId = sentenceId,
             sentenceContent = sentenceContent,
             targetPassageSequence = targetPassageSequence,
+            scrollToLatestPending = scrollToLatest,
             isLoading = true,
         )
+        sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
+        savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] = scrollToLatest
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
         } else {
@@ -137,17 +165,19 @@ class CommentSheetController(
         loadComments(sentenceId)
     }
 
-    private fun loadComments(sentenceId: Long) {
+    private fun loadComments(sentenceId: Long, isRefresh: Boolean = false) {
         loadJob = scope.launch {
             try {
                 val comments = commentRepository.getComments(
                     space = commentSpace,
                     sentenceId = sentenceId,
                 ).comments.map(CommentModel::toUiModel)
+                currentCoroutineContext().ensureActive()
+                if (uiState?.sentenceId != sentenceId) return@launch
 
                 updateSheet(
                     sentenceId = sentenceId,
-                    isWaiting = { sheet -> sheet.isLoading },
+                    isWaiting = { sheet -> isRefresh || sheet.isLoading },
                 ) { sheet ->
                     sheet.copy(
                         comments = comments,
@@ -155,6 +185,7 @@ class CommentSheetController(
                         loadErrorMessage = null,
                     )
                 }
+                if (isRefresh) onCommentCountChanged(sentenceId, comments.size)
                 onCommentsViewed(sentenceId)
                 track(
                     operation = CrashOperation.COMMENTS_LOADED,
@@ -171,7 +202,7 @@ class CommentSheetController(
                 )
                 updateSheet(
                     sentenceId = sentenceId,
-                    isWaiting = { sheet -> sheet.isLoading },
+                    isWaiting = { sheet -> sheet.isLoading || sheet.loadErrorMessage != null },
                 ) { sheet ->
                     sheet.copy(
                         isLoading = false,
@@ -184,6 +215,7 @@ class CommentSheetController(
 
     fun dismiss() {
         cancelLoad()
+        refreshPending = false
         uiState?.let { sheet ->
             analytics.sheetClosed(
                 commentCount = sheet.comments.size,
@@ -200,6 +232,7 @@ class CommentSheetController(
         savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<String>(SHEET_INPUT_KEY)
         savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)
+        savedStateHandle.remove<Boolean>(SHEET_SCROLL_TO_LATEST_KEY)
     }
 
     fun updateInput(input: String) {
@@ -278,6 +311,8 @@ class CommentSheetController(
         if (sheet.isDeleting || sheet.isSubmitting) return
         if (sheet.findMyComment(commentId) == null) return
 
+        prepareMutation()
+
         uiState = sheet.copy(
             isDeleting = true,
             deleteErrorMessage = null,
@@ -324,6 +359,8 @@ class CommentSheetController(
                         deleteErrorMessage = "댓글을 삭제하지 못했습니다.",
                     )
                 }
+            } finally {
+                refreshAfterMutation(sheet.sentenceId)
             }
         }
     }
@@ -340,6 +377,8 @@ class CommentSheetController(
             return
         }
         val editingCommentId = sheet.editingCommentId
+
+        prepareMutation()
 
         uiState = sheet.copy(
             isSubmitting = true,
@@ -416,6 +455,8 @@ class CommentSheetController(
                         submitErrorMessage = "댓글을 저장하지 못했습니다.",
                     )
                 }
+            } finally {
+                refreshAfterMutation(sheet.sentenceId)
             }
         }
     }
@@ -464,6 +505,95 @@ class CommentSheetController(
         uiState = sheet.copy(reportState = ReportState.Idle)
     }
 
+    fun toggleLike(commentId: Long) {
+        val curSheetVersion = sheetVersion
+        val sheet = uiState ?: return
+        val comment = sheet.comments.firstOrNull { it.commentId == commentId } ?: return
+        if (comment.isLikePending) return
+
+        val liked = !comment.likedByMe
+        uiState = sheet.copy(
+            comments = sheet.comments.map { current ->
+                if (current.commentId == commentId) {
+                    current.toggleLikeOptimistically()
+                } else {
+                    current
+                }
+            },
+            likeErrorMessage = null,
+        )
+
+        scope.launch {
+            try {
+                val result = commentRepository.setCommentLiked(commentId, liked)
+
+                if (curSheetVersion != sheetVersion) return@launch
+
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet ->
+                        currentSheet.comments.any { current ->
+                            current.commentId == commentId && current.isLikePending
+                        }
+                    },
+                ) { currentSheet ->
+                    currentSheet.copy(
+                        comments = currentSheet.comments.map { current ->
+                            if (current.commentId == commentId) {
+                                current.copy(
+                                    likeCount = result.likeCount,
+                                    likedByMe = result.likedByMe,
+                                    isLikePending = false,
+                                )
+                            } else {
+                                current
+                            }
+                        },
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                recordFailure(
+                    exception = exception,
+                    operation = CrashOperation.COMMENT_LIKE_FAILED,
+                    sentenceId = sheet.sentenceId,
+                )
+
+                if (curSheetVersion != sheetVersion) return@launch
+
+                updateSheet(
+                    sentenceId = sheet.sentenceId,
+                    isWaiting = { currentSheet ->
+                        currentSheet.comments.any { current ->
+                            current.commentId == commentId && current.isLikePending
+                        }
+                    },
+                ) { currentSheet ->
+                    currentSheet.copy(
+                        comments = currentSheet.comments.map { current ->
+                            if (current.commentId == commentId) {
+                                current.copy(
+                                    likeCount = comment.likeCount,
+                                    likedByMe = comment.likedByMe,
+                                    isLikePending = false,
+                                )
+                            } else {
+                                current
+                            }
+                        },
+                        likeErrorMessage = "좋아요를 변경하지 못했습니다.",
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeLikeError() {
+        val sheet = uiState ?: return
+        uiState = sheet.copy(likeErrorMessage = null)
+    }
+
     private fun updateSheet(
         sentenceId: Long,
         isWaiting: (CommentSheetUiState) -> Boolean,
@@ -489,6 +619,19 @@ class CommentSheetController(
     private fun cancelLoad() {
         loadJob?.cancel()
         loadJob = null
+    }
+
+    private fun prepareMutation() {
+        if (loadJob?.isActive == true) {
+            refreshPending = true
+            cancelLoad()
+        }
+    }
+
+    private fun refreshAfterMutation(sentenceId: Long) {
+        if (!refreshPending) return
+        refreshPending = false
+        refresh(sentenceId)
     }
 
     private fun track(
@@ -519,6 +662,7 @@ class CommentSheetController(
         const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
         const val SHEET_INPUT_KEY = "commentSheetInput"
         const val SHEET_EDITING_COMMENT_ID_KEY = "commentSheetEditingCommentId"
+        const val SHEET_SCROLL_TO_LATEST_KEY = "commentSheetScrollToLatest"
     }
 }
 
@@ -543,7 +687,7 @@ private fun CommentSheetUiState.withCommentDeleted(commentId: Long): CommentShee
     )
 }
 
-private fun CommentSheetUiState.withCommentSaved(
+internal fun CommentSheetUiState.withCommentSaved(
     savedComment: CommentUiModel,
     editedCommentId: Long?,
 ): CommentSheetUiState = copy(
@@ -551,11 +695,20 @@ private fun CommentSheetUiState.withCommentSaved(
         comments + savedComment
     } else {
         comments.map { comment ->
-            if (comment.commentId == editedCommentId) savedComment else comment
+            if (comment.commentId == editedCommentId) {
+                savedComment.copy(
+                    likeCount = comment.likeCount,
+                    likedByMe = comment.likedByMe,
+                    isLikePending = comment.isLikePending,
+                )
+            } else {
+                comment
+            }
         }
     },
     input = "",
     editingCommentId = null,
     isSubmitting = false,
+    submittedCommentId = if (editedCommentId == null) savedComment.commentId else submittedCommentId,
     submitErrorMessage = null,
 )

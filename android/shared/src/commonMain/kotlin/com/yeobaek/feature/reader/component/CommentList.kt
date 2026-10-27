@@ -27,6 +27,7 @@ fun CommentList(
     onEdit: (Long) -> Unit,
     onDelete: (Long) -> Unit,
     onReport: (Long) -> Unit,
+    onLike: (Long) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
@@ -68,6 +69,7 @@ fun CommentList(
                         onEdit = { onEdit(comment.commentId) },
                         onDelete = { onDelete(comment.commentId) },
                         onReport = { onReport(comment.commentId) },
+                        onLike = { onLike(comment.commentId) },
                     )
                 }
             }
@@ -156,6 +158,7 @@ private fun CommentListPreview() {
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onLike = {},
             onRetry = {},
         )
     }

@@ -89,7 +89,7 @@ class ClubServiceTest extends IntegrationTest {
     @BeforeEach
     void setUp() {
         creator = memberRepository.save(new Member(new Nickname("민서")));
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 312, null));
+        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 312, null, null, null));
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
         authorBookRepository.save(new AuthorBook(author, book));
     }
@@ -253,7 +253,7 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("내 모임 목록에 회원 수와 진도가 함께 조회된다")
     void findMyClubsWithProgress() {
-        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
         Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
         ClubCreateResponse first = clubService.create(creator.getId(), new ClubName("1기"), book.getId());
@@ -298,7 +298,7 @@ class ClubServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임 상세에 참여 코드·참여 순서의 회원 목록·내 진도가 함께 조회된다")
     void findDetailWithMembersAndProgress() {
-        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null));
+        Book smallBook = bookRepository.save(new Book(new BookTitle("작은 책"), null, null, 3, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(smallBook, new ChapterTitle("1장"), 1));
         Passage second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
         ClubCreateResponse created = clubService.create(creator.getId(), new ClubName("1기"), smallBook.getId());

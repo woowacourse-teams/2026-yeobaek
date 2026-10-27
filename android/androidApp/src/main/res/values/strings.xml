@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">여백</string>
+    <string name="notification_channel_id" translatable="false">yeobaek_activity</string>
+    <string name="notification_channel_name">모임 및 댓글 알림</string>
 </resources>

@@ -42,7 +42,7 @@ class ClubJoinNotificationRecipientQueryTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        Book book = books.save(new Book(new BookTitle("모임 알림 도서"), null, null, 1, null));
+        Book book = books.save(new Book(new BookTitle("모임 알림 도서"), null, null, 1, null, null, null));
         club = clubs.save(new Club(new ClubName("모임 알림"), book, new JoinCode("JOIN01")));
         joiningMember = addMember("입장자");
     }

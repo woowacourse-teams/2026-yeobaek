@@ -23,7 +23,7 @@ import yeobaek.backend.publicroom.domain.PublicRoom;
 class CommentTest {
 
     private final Member writer = new Member(new Nickname("민서"));
-    private final Book book = new Book(new BookTitle("제목"), null, null, 1, null);
+    private final Book book = new Book(new BookTitle("제목"), null, null, 1, null, null, null);
     private final ClubMember clubMember = new ClubMember(writer,
             new Club(new ClubName("모임"), book, new JoinCode("CODE01")));
     private final PublicRoom publicRoom = new PublicRoom(book);

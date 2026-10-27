@@ -98,7 +98,7 @@ class CommentServiceTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 2, null));
+        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 2, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
         sentence = passage.getSentences().getFirst();
@@ -613,7 +613,7 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("모임의 도서에 속하지 않는 문장은 SENTENCE_NOT_IN_CLUB_BOOK으로 구분한다")
     void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null));
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null, null, null));
         Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
         Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
 
@@ -840,7 +840,7 @@ class CommentServiceTest extends IntegrationTest {
     @Test
     @DisplayName("존재하지 않거나 다른 책의 현재 문단은 INVALID_REQUEST다")
     void rejectInvalidDiscoveryPassage() {
-        Book anotherBook = bookRepository.save(new Book(new BookTitle("새 책"), null, null, 1, null));
+        Book anotherBook = bookRepository.save(new Book(new BookTitle("새 책"), null, null, 1, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(anotherBook, new ChapterTitle("새 장"), 1));
         Passage foreign = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("다른 책 본문"))));
         for (Long passageId : java.util.List.of(Long.MAX_VALUE, foreign.getId())) {

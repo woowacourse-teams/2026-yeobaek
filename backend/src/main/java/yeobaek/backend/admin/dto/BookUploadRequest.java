@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.Publisher;
 
 /**
@@ -23,7 +24,8 @@ public record BookUploadRequest(
         @Schema(description = "출판연도 (선택, 정수)", nullable = true) Integer publishedYear,
         @Schema(description = "표지 UUID (선택, 기존 전체 객체 키도 허용)", nullable = true) String coverImageKey,
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
-        @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters
+        @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters,
+        @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description
 ) {
 
     public BookUploadRequest {
