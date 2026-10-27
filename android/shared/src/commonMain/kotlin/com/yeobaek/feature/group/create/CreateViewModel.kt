@@ -29,6 +29,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.yeobaek.feature.book.detail.model.toUiModel as toBookDetailUiModel
 
 class CreateViewModel(
     private val savedStateHandle: SavedStateHandle,
@@ -44,6 +45,7 @@ class CreateViewModel(
 
     private var initJob: Job? = null
     private var searchJob: Job? = null
+    private var bookDetailJob: Job? = null
 
     init {
         initBookList()
@@ -61,19 +63,21 @@ class CreateViewModel(
                 val selectedBook = books.firstOrNull { book ->
                     book.id == savedStateHandle.get<Long>(SELECTED_BOOK_ID_KEY)
                 }
+                val savedStep = savedStateHandle.get<String>(CREATE_STEP_KEY)
                 uiState = uiState.copy(
                     bookList = books,
                     selectedBook = selectedBook,
-                    step = if (
-                        selectedBook != null &&
-                        savedStateHandle.get<String>(CREATE_STEP_KEY) == CreateStep.GroupName.name
-                    ) {
-                        CreateStep.GroupName
-                    } else {
-                        CreateStep.BookSelection
+                    step = when {
+                        selectedBook == null -> CreateStep.BookSelection
+                        savedStep == CreateStep.GroupName.name -> CreateStep.GroupName
+                        savedStep == CreateStep.BookDetail.name -> CreateStep.BookDetail
+                        else -> CreateStep.BookSelection
                     },
                     bookState = BookState.Success,
                 )
+                if (uiState.step == CreateStep.BookDetail) {
+                    selectedBook?.let { loadBookDetail(it.id) }
+                }
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = CrashContext(
@@ -154,35 +158,68 @@ class CreateViewModel(
 
     fun selectBook(book: SelectBookUiModel) {
         val targetBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
-        val isAlreadySelected = targetBook.id == uiState.selectedBook?.id
-
         uiState = uiState.copy(
-            selectedBook = targetBook.takeUnless { isAlreadySelected },
+            selectedBook = targetBook,
+            step = CreateStep.BookDetail,
         )
-        if (isAlreadySelected) {
-            savedStateHandle.remove<Long>(SELECTED_BOOK_ID_KEY)
-        } else {
-            savedStateHandle[SELECTED_BOOK_ID_KEY] = targetBook.id
-        }
+        savedStateHandle[SELECTED_BOOK_ID_KEY] = targetBook.id
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookDetail.name
+        analyticsTracker.track(
+            GroupCreateBookSelected(
+                bookId = targetBook.id,
+                bookTitle = targetBook.title,
+            ),
+        )
+        loadBookDetail(targetBook.id)
+    }
 
-        if (!isAlreadySelected) {
-            analyticsTracker.track(
-                GroupCreateBookSelected(
-                    bookId = targetBook.id,
-                    bookTitle = targetBook.title,
-                ),
-            )
+    fun retryBookDetail() {
+        val bookId = uiState.selectedBook?.id ?: return
+        loadBookDetail(bookId)
+    }
+
+    private fun loadBookDetail(bookId: Long) {
+        bookDetailJob?.cancel()
+        uiState = uiState.copy(bookDetailState = BookDetailState.Loading)
+        bookDetailJob = viewModelScope.launch {
+            try {
+                val book = bookRepository.getBookDetail(bookId).toBookDetailUiModel()
+                if (uiState.selectedBook?.id == bookId && uiState.step == CreateStep.BookDetail) {
+                    uiState = uiState.copy(bookDetailState = BookDetailState.Success(book))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (uiState.selectedBook?.id == bookId && uiState.step == CreateStep.BookDetail) {
+                    uiState = uiState.copy(
+                        bookDetailState = BookDetailState.Failure(e.message ?: "책 정보를 불러오지 못했습니다."),
+                    )
+                }
+            }
         }
     }
 
     fun moveToGroupName() {
-        if (uiState.bookState !is BookState.Success || uiState.selectedBook == null) return
+        if (uiState.step != CreateStep.BookDetail || uiState.bookDetailState !is BookDetailState.Success) return
         uiState = uiState.copy(step = CreateStep.GroupName)
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.GroupName.name
     }
 
+    fun moveToBookDetail() {
+        val selectedBook = uiState.selectedBook ?: return
+        uiState = uiState.copy(step = CreateStep.BookDetail)
+        savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookDetail.name
+        if (uiState.bookDetailState !is BookDetailState.Success) {
+            loadBookDetail(selectedBook.id)
+        }
+    }
+
     fun moveToBookSelection() {
-        uiState = uiState.copy(step = CreateStep.BookSelection)
+        bookDetailJob?.cancel()
+        uiState = uiState.copy(
+            step = CreateStep.BookSelection,
+            bookDetailState = BookDetailState.Idle,
+        )
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookSelection.name
     }
 

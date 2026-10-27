@@ -1,9 +1,6 @@
 package com.yeobaek.feature.book.detail
 
-import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.component.YeobaekButton
+import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
 import com.yeobaek.core.designsystem.theme.YeobaekTextMuted
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
@@ -38,7 +35,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.book.detail.model.BookDetailChapterUiModel
 import com.yeobaek.feature.book.detail.model.BookDetailUiModel
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun BookDetailScreen(
@@ -51,22 +47,10 @@ fun BookDetailScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 8.dp, end = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_back_arrow),
-                    contentDescription = "뒤로가기",
-                    modifier = Modifier.size(24.dp).clickable(onClick = onBackClick),
-                )
-                Text(
-                    text = "책 상세",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = YeobaekTextStrong,
-                )
-            }
+            YeobaekTopAppBar(
+                title = "책 상세",
+                onBackClick = onBackClick,
+            )
         },
         bottomBar = {
             YeobaekButton(
@@ -136,13 +120,6 @@ private fun BookSummary(book: BookDetailUiModel) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (book.publication != null) {
-                Text(
-                    text = book.publication,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = YeobaekTextMuted,
-                )
-            }
         }
     }
 }
@@ -259,7 +236,6 @@ private fun BookDetailScreenPreview() {
                     BookDetailChapterUiModel("04", "베아트리체", "문단 157–218"),
                 ),
                 passageCount = "512문단",
-                publication = "민음사 · 2009년 출간",
                 title = "데미안",
                 coverImageUrl = null,
                 description = "자신만의 세계를 찾아가는 소년 싱클레어의 성장 이야기. 데미안과의 만남을 통해 " +

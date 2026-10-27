@@ -7,7 +7,6 @@ data class BookDetailUiModel(
     val title: String,
     val authors: String,
     val coverImageUrl: String?,
-    val publication: String?,
     val description: String?,
     val pageCount: String,
     val passageCount: String,
@@ -25,10 +24,6 @@ fun BookDetailModel.toUiModel(): BookDetailUiModel = BookDetailUiModel(
     title = title,
     authors = authors.joinToString(", "),
     coverImageUrl = coverImageUrl,
-    publication = listOfNotNull(
-        publisher?.takeIf(String::isNotBlank),
-        publishedYear?.let { "${it}년 출간" },
-    ).joinToString(" · ").ifEmpty { null },
     description = description,
     pageCount = pageCount?.let { "${it}쪽" } ?: "정보 없음",
     passageCount = "${passageCount}문단",
