@@ -65,6 +65,9 @@ fun NavGraphBuilder.onboardingNavGraph(
                 navigateToJoin(true)
             },
             onSelectBook = onBoardingViewModel::onSelectBook,
+            onReadBook = onBoardingViewModel::showReadingOptions,
+            onBackBookDetail = onBoardingViewModel::closeBookDetail,
+            onRetryBookDetail = onBoardingViewModel::retryBookDetail,
             onDismissBottomSheet = onBoardingViewModel::dismissDialog,
             onClickPublicRoom = { bookId ->
                 onBoardingViewModel.onClickJoinPublicRoom(bookId = bookId)

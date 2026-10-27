@@ -22,6 +22,7 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException

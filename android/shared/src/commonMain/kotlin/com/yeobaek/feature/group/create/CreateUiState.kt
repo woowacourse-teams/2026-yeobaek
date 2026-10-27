@@ -1,6 +1,6 @@
 package com.yeobaek.feature.group.create
 
-import com.yeobaek.feature.book.detail.model.BookDetailUiModel
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 
 data class CreateUiState(
@@ -20,11 +20,4 @@ enum class CreateStep {
     BookSelection,
     BookDetail,
     GroupName,
-}
-
-sealed interface BookDetailState {
-    data object Idle : BookDetailState
-    data object Loading : BookDetailState
-    data class Success(val book: BookDetailUiModel) : BookDetailState
-    data class Failure(val message: String) : BookDetailState
 }

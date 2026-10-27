@@ -1,5 +1,6 @@
 package com.yeobaek.feature.onboarding.selectbook
 
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 
 data class OnboardingUiState(
@@ -9,4 +10,5 @@ data class OnboardingUiState(
     val initBookState: InitBookState = InitBookState.Idle,
     val searchState: SearchState = SearchState.Idle,
     val publicRoomState: PublicRoomState = PublicRoomState.Idle,
+    val bookDetailState: BookDetailState = BookDetailState.Idle,
 )
