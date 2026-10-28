@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         appVersion: Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "",
+        appVersionCode: Int32(
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        ) ?? 0,
         analyticsClient: analyticsClient,
         updatePolicySource: IOSFirebaseUpdatePolicySource(isDebug: isDebug),
         updatePolicyPlatform: .ios

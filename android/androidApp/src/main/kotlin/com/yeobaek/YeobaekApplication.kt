@@ -31,6 +31,7 @@ class YeobaekApplication : Application() {
         appContainer = AppContainer(
             isDebug = isDebug,
             appVersion = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE,
             updatePolicySource = FirebaseUpdatePolicySource(isDebug = isDebug),
             analyticsClient = AndroidPostHogAnalyticsClient(
                 application = this,

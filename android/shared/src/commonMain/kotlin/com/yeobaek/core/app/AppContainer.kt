@@ -15,6 +15,7 @@ import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.core.update.UpdatePolicyPlatform
 import com.yeobaek.core.update.UpdatePolicyRepository
 import com.yeobaek.core.update.UpdatePolicySource
+import com.yeobaek.core.update.requiredUpdateState
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
@@ -42,6 +43,7 @@ import kotlinx.coroutines.launch
 class AppContainer(
     private val isDebug: Boolean,
     val appVersion: String,
+    val appVersionCode: Int,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
@@ -74,6 +76,10 @@ class AppContainer(
         onFailure = { exception ->
             FirebaseCrashSink.log("Update policy refresh failed: ${exception::class.simpleName}")
         },
+    )
+    val isUpdateRequired = updatePolicyRepository.policy.requiredUpdateState(
+        currentVersionCode = appVersionCode,
+        scope = applicationScope,
     )
     val commentNotifications = CommentNotifications()
     private val notificationRegistration = NotificationRegistrationCoordinator(

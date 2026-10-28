@@ -50,7 +50,8 @@ fun AppAndroidPreview() {
     App(
         appContainer = AppContainer(
             isDebug = false,
-            appVersion = "1.0.0",
+            appVersion = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE,
         ),
     )
 }
