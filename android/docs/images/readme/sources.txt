@@ -1,0 +1,14 @@
+android.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/android/android-original.svg
+apple.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/apple/apple-original.svg
+nginx.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/nginx/nginx-original.svg
+spring.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/spring/spring-original.svg
+mysql.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/mysql/mysql-original.svg
+docker.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg
+github.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/github/github-original.svg
+github-actions.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/githubactions/githubactions-original.svg
+firebase.svg https://raw.githubusercontent.com/devicons/devicon/master/icons/firebase/firebase-original.svg
+posthog.svg https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/posthog.svg
+otel.svg https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/opentelemetry.svg
+better-stack.svg https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/betterstack.svg
+ec2.png https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/Compute/EC2.png
+s3.png https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/Storage/SimpleStorageService.png
