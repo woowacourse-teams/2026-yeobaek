@@ -39,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AppContainer(
@@ -48,7 +47,7 @@ class AppContainer(
     val appVersionCode: Int,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
-    private val updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
+    updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
 ) {
     private val settings = Settings()
 
@@ -80,12 +79,7 @@ class AppContainer(
         userPreferences = userPreferences,
         isDebug = isDebug,
         awaitRequestPermission = {
-            if (updatePolicyPlatform == UpdatePolicyPlatform.ANDROID) {
-                updatePolicyRepository.awaitFirstRefresh()
-                updatePolicyRepository.policy.first { policy ->
-                    !policy.isUpdateRequired(appVersionCode)
-                }
-            }
+            updatePolicyRepository.awaitSupportedVersion(appVersionCode)
         },
     )
 

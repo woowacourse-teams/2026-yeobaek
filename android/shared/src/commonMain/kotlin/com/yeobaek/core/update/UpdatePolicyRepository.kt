@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -26,6 +27,11 @@ class UpdatePolicyRepository(
 
     suspend fun awaitFirstRefresh() {
         firstRefresh.await()
+    }
+
+    suspend fun awaitSupportedVersion(currentVersionCode: Int) {
+        awaitFirstRefresh()
+        policy.first { !it.isUpdateRequired(currentVersionCode) }
     }
 
     suspend fun refresh() {

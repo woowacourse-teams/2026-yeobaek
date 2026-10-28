@@ -23,14 +23,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.tooling.preview.Preview
@@ -119,8 +123,14 @@ fun RequiredUpdateScreen(
                             color = YeobaekTextStrong,
                         )
                         Text(
-                            text = message,
-                            modifier = Modifier.heightIn(min = 48.dp),
+                            text = remember(message) {
+                                message.replace(Regex("[가-힣]+")) { word ->
+                                    word.value.toList().joinToString("\u2060")
+                                }
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp).clearAndSetSemantics {
+                                text = AnnotatedString(message)
+                            },
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 lineBreak = LineBreak.Heading,
                                 localeList = LocaleList("ko-KR"),
@@ -131,7 +141,7 @@ fun RequiredUpdateScreen(
                             Button(
                                 onClick = onUpdate,
                                 enabled = !isUpdating,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                             ) {

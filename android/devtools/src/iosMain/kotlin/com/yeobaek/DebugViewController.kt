@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.update.IOSRequiredUpdateGate
 import com.yeobaek.devtools.DevApp
 import com.yeobaek.devtools.DevToolsScreen
 import kotlinx.serialization.Serializable
@@ -15,23 +16,25 @@ import kotlinx.serialization.Serializable
 fun DebugViewController(
     appContainer: AppContainer,
 ) = ComposeUIViewController {
-    val navController = rememberNavController()
-    YeobaekTheme {
-        NavHost(navController = navController, startDestination = DebugAppRoute) {
-            composable<DebugAppRoute> {
-                DevApp(
-                    appContainer = appContainer,
-                    navigateToDevTools = { navController.navigate(DevToolsRoute) },
-                )
-            }
-            composable<DevToolsRoute> {
-                Surface {
-                    DevToolsScreen(
-                        appVersion = appContainer.appVersion,
-                        buildType = "debug",
-                        serverEnv = appContainer.apiBaseUrl,
-                        navigateBack = { navController.popBackStack() },
+    IOSRequiredUpdateGate(appContainer) {
+        val navController = rememberNavController()
+        YeobaekTheme {
+            NavHost(navController = navController, startDestination = DebugAppRoute) {
+                composable<DebugAppRoute> {
+                    DevApp(
+                        appContainer = appContainer,
+                        navigateToDevTools = { navController.navigate(DevToolsRoute) },
                     )
+                }
+                composable<DevToolsRoute> {
+                    Surface {
+                        DevToolsScreen(
+                            appVersion = appContainer.appVersion,
+                            buildType = "debug",
+                            serverEnv = appContainer.apiBaseUrl,
+                            navigateBack = { navController.popBackStack() },
+                        )
+                    }
                 }
             }
         }
