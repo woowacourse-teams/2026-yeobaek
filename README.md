@@ -1,12 +1,12 @@
-![여백 — 문장에 생각을 남기고 나누는 교환독서](android/docs/images/readme/hero-banner-clean.png)
+![여백 — 문장에 생각을 남기고 나누는 교환독서](https://github.com/user-attachments/assets/48eb2fb4-2ed9-45b4-88e5-5ff54be65425)
 
 # 여백
 
 같은 책을 읽는 사람들과 문장에 생각을 남기고 나누는 온라인 교환독서 서비스
 
 <p align="left">
-  <a href="https://play.google.com/store/apps/details?id=com.yeobaek"><img src="android/docs/images/readme/download-google-play.png" width="200" alt="Google Play에서 여백 다운로드" /></a>
-  <a href="https://apps.apple.com/kr/app/id6807303389"><img src="android/docs/images/readme/download-app-store.png" width="200" alt="App Store에서 여백 다운로드" /></a>
+  <a href="https://play.google.com/store/apps/details?id=com.yeobaek"><img src="https://github.com/user-attachments/assets/cdd4b416-0461-4bf9-915f-cec8eed0e1e4" width="200" alt="Google Play에서 여백 다운로드" /></a>
+  <a href="https://apps.apple.com/kr/app/id6807303389"><img src="https://github.com/user-attachments/assets/b7ad1fa7-2ea9-406e-b871-2ce1eae788ad" width="200" alt="App Store에서 여백 다운로드" /></a>
 </p>
 
 ## 서비스 소개
@@ -70,11 +70,11 @@
 
 ## 프로젝트 아키텍처
 
-![여백 프로젝트 아키텍처](android/docs/images/readme/project-architecture.png)
+![여백 프로젝트 아키텍처](https://github.com/user-attachments/assets/ba9a185e-b563-4c97-885c-38f0706f45a8)
 
 ### CI/CD
 
-![여백 백엔드 CI/CD](android/docs/images/readme/cicd-architecture.png)
+![여백 백엔드 CI/CD](https://github.com/user-attachments/assets/dce969b0-f900-45fd-b916-7d077ba49cce)
 
 ## 팀원
 
@@ -82,8 +82,8 @@
 
 <table>
   <tr>
-    <td align="left"><img src="android/docs/images/readme/team-noeyhoj.png" width="160" alt="하로 GitHub 프로필" /></td>
-    <td align="left"><img src="android/docs/images/readme/team-eungyeong12.png" width="160" alt="엘리 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/4022d80f-59e9-4031-b21f-3ee6f8596aec" width="160" alt="하로 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/142b7298-7a2f-4b3b-bdb3-15c521c7a04c" width="160" alt="엘리 GitHub 프로필" /></td>
   </tr>
   <tr>
     <td align="left"><a href="https://github.com/noeyhoj">하로</a></td>
@@ -95,9 +95,9 @@
 
 <table>
   <tr>
-    <td align="left"><img src="android/docs/images/readme/team-kjoon418.png" width="160" alt="왓슨 GitHub 프로필" /></td>
-    <td align="left"><img src="android/docs/images/readme/team-alstj2384.png" width="160" alt="제제 GitHub 프로필" /></td>
-    <td align="left"><img src="android/docs/images/readme/team-Yeji-Kim-Erica.png" width="160" alt="테리 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/3867323f-7da2-459c-8f71-5c7ba32cbf5e" width="160" alt="왓슨 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/273fa367-a35a-425e-9ed5-785e3b0a84fa" width="160" alt="제제 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/7607f5ba-6c8b-4e82-a45d-17347983cf7e" width="160" alt="테리 GitHub 프로필" /></td>
   </tr>
   <tr>
     <td align="left"><a href="https://github.com/kjoon418">왓슨</a></td>
