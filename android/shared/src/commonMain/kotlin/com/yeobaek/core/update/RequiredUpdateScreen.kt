@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -35,6 +36,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.tooling.preview.Preview
@@ -122,20 +124,9 @@ fun RequiredUpdateScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = YeobaekTextStrong,
                         )
-                        Text(
-                            text = remember(message) {
-                                message.replace(Regex("[가-힣]+")) { word ->
-                                    word.value.toList().joinToString("\u2060")
-                                }
-                            },
-                            modifier = Modifier.heightIn(min = 48.dp).clearAndSetSemantics {
-                                text = AnnotatedString(message)
-                            },
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                lineBreak = LineBreak.Heading,
-                                localeList = LocaleList("ko-KR"),
-                            ),
-                            color = YeobaekTextSecondary,
+                        UpdateMessageText(
+                            message = message,
+                            modifier = Modifier.heightIn(min = 48.dp),
                         )
                         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                             Button(
@@ -152,11 +143,10 @@ fun RequiredUpdateScreen(
                             }
                         }
                         if (errorMessage != null) {
-                            Text(
-                                text = errorMessage,
-                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                                style = MaterialTheme.typography.bodyMedium,
+                            UpdateMessageText(
+                                message = errorMessage,
                                 color = MaterialTheme.colorScheme.error,
+                                liveRegionMode = LiveRegionMode.Polite,
                             )
                         }
                     }
@@ -164,6 +154,31 @@ fun RequiredUpdateScreen(
             }
         }
     }
+}
+
+@Composable
+internal fun UpdateMessageText(
+    message: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = YeobaekTextSecondary,
+    liveRegionMode: LiveRegionMode? = null,
+) {
+    // iOS Skia에서도 한글 단어가 중간에서 갈라지지 않게 하고, 접근성에는 원문을 제공한다.
+    val displayMessage = remember(message) {
+        message.replace("해 주세요", "해\u00A0주세요").replace(Regex("[가-힣]+")) { word ->
+            word.value.toList().joinToString("\u2060")
+        }
+    }
+    Text(
+        text = displayMessage,
+        modifier = modifier.clearAndSetSemantics {
+            text = AnnotatedString(message)
+            if (liveRegionMode != null) liveRegion = liveRegionMode
+        },
+        style = style.copy(lineBreak = LineBreak.Heading, localeList = LocaleList("ko-KR")),
+        color = color,
+    )
 }
 
 @Preview(name = "기본", group = "필수 업데이트", widthDp = 390, heightDp = 844, showBackground = true)

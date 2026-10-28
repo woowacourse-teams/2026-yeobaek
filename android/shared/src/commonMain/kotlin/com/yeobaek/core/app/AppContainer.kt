@@ -12,6 +12,7 @@ import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.CommentNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
 import com.yeobaek.core.update.UpdatePolicyRepository
 import com.yeobaek.core.update.UpdatePolicySource
@@ -54,6 +55,14 @@ class AppContainer(
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
     val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
+
+    val appStoreUpdateSession = if (updatePolicyPlatform ==
+        UpdatePolicyPlatform.IOS
+    ) {
+        AppStoreUpdateSession(settings)
+    } else {
+        null
+    }
 
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 

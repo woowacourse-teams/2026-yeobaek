@@ -40,6 +40,7 @@ fun IOSRequiredUpdateGate(
         },
         isUpdating = isOpeningStore,
         errorMessage = errorMessage,
-        content = content,
-    )
+    ) {
+        IOSRecommendedUpdate(appContainer, content)
+    }
 }
