@@ -125,7 +125,8 @@ kotlin {
             // multiplatform settings
             implementation(libs.multiplatform.settings)
 
-            //
+            // firebase
+            implementation(libs.firebase.config)
             implementation(libs.firebase.crashlytics)
         }
 
