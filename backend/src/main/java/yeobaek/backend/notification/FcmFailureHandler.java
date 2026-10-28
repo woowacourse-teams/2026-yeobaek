@@ -1,6 +1,7 @@
 package yeobaek.backend.notification;
 
 import static yeobaek.backend.support.LogField.COMMENT_ID;
+import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 
@@ -11,6 +12,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
+import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
@@ -27,20 +29,21 @@ public class FcmFailureHandler {
             if (failure.isUnregistered()) {
                 deleteRegistration(failure, sentRegistrations);
             } else {
-                logFailure(failure, null, "target");
+                logFailure(failure, null, null, "target");
             }
         }
     }
 
-    public void handleCallFailure(Long commentId, FirebaseMessagingException exception) {
+    public void handleCallFailure(NotificationType type, Long sourceId, FirebaseMessagingException exception) {
         // BatchResponse가 없으므로 개별 FID의 확정 실패 결과를 만들지 않는다.
         FcmSendFailure failure = FcmSendFailure.from(null, exception);
-        logFailure(failure, commentId, "call");
+        logFailure(failure, type, sourceId, "call");
     }
 
-    public void handleInvalidRequest(Long commentId) {
+    public void handleInvalidRequest(NotificationType type, Long sourceId) {
         log.atError().addKeyValue(OPERATION, "notification.fcm.handleInvalidRequest")
-                .addKeyValue(RESULT, "failure").addKeyValue(COMMENT_ID, commentId)
+                .addKeyValue(RESULT, "failure").addKeyValue(type == NotificationType.CLUB_JOIN ? CLUB_ID : COMMENT_ID, sourceId)
+                .addKeyValue("notificationType", type == null ? null : type.name())
                 .addKeyValue("handlingCode", "INVALID_ARGUMENT")
                 .addKeyValue("retryDecision", "none")
                 .log("FCM 요청을 생성할 수 없습니다. 대상과 메시지 필수값을 확인하세요.");
@@ -63,10 +66,11 @@ public class FcmFailureHandler {
         }
     }
 
-    private void logFailure(FcmSendFailure failure, Long commentId, String scope) {
+    private void logFailure(FcmSendFailure failure, NotificationType type, Long sourceId, String scope) {
         var event = failure.isRetryable() ? log.atWarn() : log.atError();
         event.addKeyValue(OPERATION, "notification.fcm.logFailure").addKeyValue(RESULT, "failure")
-                .addKeyValue(COMMENT_ID, commentId).addKeyValue("scope", scope)
+                .addKeyValue(type == NotificationType.CLUB_JOIN ? CLUB_ID : COMMENT_ID, sourceId)
+                .addKeyValue("notificationType", type == null ? null : type.name()).addKeyValue("scope", scope)
                 .addKeyValue("errorCode", failure.errorCode()).addKeyValue("sdkErrorCode", failure.sdkErrorCode())
                 .addKeyValue("httpStatus", failure.httpStatus()).addKeyValue("handlingCode", failure.handlingCode())
                 .addKeyValue("retryDecision", failure.isRetryable() ? "candidate" : "none")
