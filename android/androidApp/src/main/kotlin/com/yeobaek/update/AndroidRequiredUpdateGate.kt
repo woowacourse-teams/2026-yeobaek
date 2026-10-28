@@ -28,13 +28,18 @@ fun AndroidRequiredUpdateGate(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val manager = remember(context) { AppUpdateManagerFactory.create(context) }
     val repository = appContainer.updatePolicyRepository
     var policy by remember(appContainer) {
-        mutableStateOf<UpdatePolicy?>(repository.policy.value.takeIf { it.isUpdateRequired(appContainer.appVersionCode) })
+        mutableStateOf<UpdatePolicy?>(
+            repository.policy.value.takeIf {
+                it.isUpdateRequired(appContainer.appVersionCode)
+            },
+        )
     }
-    val controller = remember(appContainer, context) {
+    val controller = remember(appContainer, context, manager) {
         ImmediateUpdateController(
-            manager = AppUpdateManagerFactory.create(context),
+            manager = manager,
             currentVersionCode = appContainer.appVersionCode,
             minimumVersionCode = { repository.policy.value.minSupportedVersionCode },
             openStore = { openPlayStore(context) },
@@ -61,7 +66,9 @@ fun AndroidRequiredUpdateGate(
         onUpdate = { controller.start(launcher) },
         isUpdating = actionState.isBusy,
         errorMessage = actionState.errorMessage,
-        content = content,
+        content = {
+            AndroidRecommendedUpdate(manager, appContainer.appVersionCode, content)
+        },
     )
 }
 
