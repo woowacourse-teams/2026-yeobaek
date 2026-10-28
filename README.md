@@ -21,42 +21,30 @@
 
 ### 모바일
 
-<p align="left">
-  <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&amp;logo=kotlin&amp;logoColor=white" height="28" alt="Kotlin" />
-  <img src="https://img.shields.io/badge/Compose_Multiplatform-4285F4?style=for-the-badge&amp;logo=jetpackcompose&amp;logoColor=white" height="28" alt="Compose Multiplatform" />
-  <img src="https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&amp;logo=gradle&amp;logoColor=white" height="28" alt="Gradle" />
-  <img src="https://img.shields.io/badge/Firebase_Crashlytics-DD2C00?style=for-the-badge&amp;logo=firebase&amp;logoColor=white" height="28" alt="Firebase Crashlytics" />
-  <img src="https://img.shields.io/badge/PostHog-000000?style=for-the-badge&amp;logo=posthog&amp;logoColor=white" height="28" alt="PostHog" />
-</p>
+| Role | 기술 |
+| :--- | :--- |
+| Language & Framework | <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&amp;logo=kotlin&amp;logoColor=white" height="28" alt="Kotlin" /> <img src="https://img.shields.io/badge/Compose_Multiplatform-4285F4?style=for-the-badge&amp;logo=jetpackcompose&amp;logoColor=white" height="28" alt="Compose Multiplatform" /> |
+| Build | <img src="https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&amp;logo=gradle&amp;logoColor=white" height="28" alt="Gradle" /> |
+| Crash Reporting & Analytics | <img src="https://img.shields.io/badge/Firebase_Crashlytics-DD2C00?style=for-the-badge&amp;logo=firebase&amp;logoColor=white" height="28" alt="Firebase Crashlytics" /> <img src="https://img.shields.io/badge/PostHog-000000?style=for-the-badge&amp;logo=posthog&amp;logoColor=white" height="28" alt="PostHog" /> |
 
 ### 백엔드
 
-<p align="left">
-  <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&amp;logo=openjdk&amp;logoColor=white" height="28" alt="Java" />
-  <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&amp;logo=springboot&amp;logoColor=white" height="28" alt="Spring Boot" />
-  <img src="https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&amp;logo=gradle&amp;logoColor=white" height="28" alt="Gradle" />
-  <img src="https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=for-the-badge&amp;logo=spring&amp;logoColor=white" height="28" alt="Spring Data JPA" />
-  <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&amp;logo=mysql&amp;logoColor=white" height="28" alt="MySQL" />
-  <img src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&amp;logo=flyway&amp;logoColor=white" height="28" alt="Flyway" />
-  <img src="https://img.shields.io/badge/JUnit-25A162?style=for-the-badge" height="28" alt="JUnit" />
-  <img src="https://img.shields.io/badge/REST_Assured-4B7D34?style=for-the-badge" height="28" alt="REST Assured" />
-  <img src="https://img.shields.io/badge/Testcontainers-2496ED?style=for-the-badge" height="28" alt="Testcontainers" />
-  <img src="https://img.shields.io/badge/Spring_Boot_Actuator-6DB33F?style=for-the-badge&amp;logo=springboot&amp;logoColor=white" height="28" alt="Spring Boot Actuator" />
-  <img src="https://img.shields.io/badge/Micrometer-117864?style=for-the-badge" height="28" alt="Micrometer" />
-  <img src="https://img.shields.io/badge/OpenTelemetry-000000?style=for-the-badge&amp;logo=opentelemetry&amp;logoColor=white" height="28" alt="OpenTelemetry" />
-</p>
+| Role | 기술 |
+| :--- | :--- |
+| Language & Framework | <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&amp;logo=openjdk&amp;logoColor=white" height="28" alt="Java" /> <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&amp;logo=springboot&amp;logoColor=white" height="28" alt="Spring Boot" /> |
+| Build | <img src="https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&amp;logo=gradle&amp;logoColor=white" height="28" alt="Gradle" /> |
+| Data Management | <img src="https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=for-the-badge&amp;logo=spring&amp;logoColor=white" height="28" alt="Spring Data JPA" /> <img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&amp;logo=mysql&amp;logoColor=white" height="28" alt="MySQL" /> <img src="https://img.shields.io/badge/Flyway-CC0200?style=for-the-badge&amp;logo=flyway&amp;logoColor=white" height="28" alt="Flyway" /> |
+| Testing | <img src="https://img.shields.io/badge/JUnit-25A162?style=for-the-badge" height="28" alt="JUnit" /> <img src="https://img.shields.io/badge/REST_Assured-4B7D34?style=for-the-badge" height="28" alt="REST Assured" /> <img src="https://img.shields.io/badge/Testcontainers-2496ED?style=for-the-badge" height="28" alt="Testcontainers" /> |
+| Monitoring & Tracing | <img src="https://img.shields.io/badge/Spring_Boot_Actuator-6DB33F?style=for-the-badge&amp;logo=springboot&amp;logoColor=white" height="28" alt="Spring Boot Actuator" /> <img src="https://img.shields.io/badge/Micrometer-117864?style=for-the-badge" height="28" alt="Micrometer" /> <img src="https://img.shields.io/badge/OpenTelemetry-000000?style=for-the-badge&amp;logo=opentelemetry&amp;logoColor=white" height="28" alt="OpenTelemetry" /> |
 
 ### 인프라
 
-<p align="left">
-  <img src="https://img.shields.io/badge/AWS-232F3E?style=for-the-badge" height="28" alt="AWS" />
-  <img src="https://img.shields.io/badge/Firebase-DD2C00?style=for-the-badge&amp;logo=firebase&amp;logoColor=white" height="28" alt="Firebase" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&amp;logo=docker&amp;logoColor=white" height="28" alt="Docker" />
-  <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&amp;logo=nginx&amp;logoColor=white" height="28" alt="Nginx" />
-  <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&amp;logo=githubactions&amp;logoColor=white" height="28" alt="GitHub Actions" />
-  <img src="https://img.shields.io/badge/Docker_Hub-2496ED?style=for-the-badge&amp;logo=docker&amp;logoColor=white" height="28" alt="Docker Hub" />
-  <img src="https://img.shields.io/badge/Better_Stack-000000?style=for-the-badge&amp;logo=betterstack&amp;logoColor=white" height="28" alt="Better Stack" />
-</p>
+| Role | 기술 |
+| :--- | :--- |
+| Cloud | <img src="https://img.shields.io/badge/AWS-232F3E?style=for-the-badge" height="28" alt="AWS" /> <img src="https://img.shields.io/badge/Firebase-DD2C00?style=for-the-badge&amp;logo=firebase&amp;logoColor=white" height="28" alt="Firebase" /> |
+| Containers & Web Server | <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&amp;logo=docker&amp;logoColor=white" height="28" alt="Docker" /> <img src="https://img.shields.io/badge/Nginx-009639?style=for-the-badge&amp;logo=nginx&amp;logoColor=white" height="28" alt="Nginx" /> |
+| CI/CD | <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&amp;logo=githubactions&amp;logoColor=white" height="28" alt="GitHub Actions" /> <img src="https://img.shields.io/badge/Docker_Hub-2496ED?style=for-the-badge&amp;logo=docker&amp;logoColor=white" height="28" alt="Docker Hub" /> |
+| Logging | <img src="https://img.shields.io/badge/Better_Stack-000000?style=for-the-badge&amp;logo=betterstack&amp;logoColor=white" height="28" alt="Better Stack" /> |
 
 ## 프로젝트 구조
 
