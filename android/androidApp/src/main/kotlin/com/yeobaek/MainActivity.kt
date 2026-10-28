@@ -18,14 +18,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        val appContainer = (application as YeobaekApplication).appContainer
+        val app = application as YeobaekApplication
+        val appContainer = app.appContainer
         intent.deliverNotificationOpen(appContainer)
 
         setContent {
             DoubleBackToExit(this) {
                 finish()
             }
-            AndroidRequiredUpdateGate(appContainer) {
+            AndroidRequiredUpdateGate(appContainer, app.recommendedUpdateSession) {
                 App(appContainer = appContainer)
             }
         }

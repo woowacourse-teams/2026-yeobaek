@@ -25,6 +25,7 @@ import com.yeobaek.core.update.UpdatePolicy
 @Composable
 fun AndroidRequiredUpdateGate(
     appContainer: AppContainer,
+    recommendedUpdateSession: RecommendedUpdateSession,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -67,7 +68,7 @@ fun AndroidRequiredUpdateGate(
         isUpdating = actionState.isBusy,
         errorMessage = actionState.errorMessage,
         content = {
-            AndroidRecommendedUpdate(manager, appContainer.appVersionCode, content)
+            AndroidRecommendedUpdate(manager, appContainer.appVersionCode, recommendedUpdateSession, content)
         },
     )
 }

@@ -29,7 +29,7 @@ data class RecommendedUpdateState(
 class RecommendedUpdateController(
     private val manager: AppUpdateManager,
     private val currentVersionCode: Int,
-    private val preferences: RecommendedUpdatePreferences,
+    private val session: RecommendedUpdateSession,
 ) {
     private val mutableState = MutableStateFlow(RecommendedUpdateState())
     val state = mutableState.asStateFlow()
@@ -114,10 +114,10 @@ class RecommendedUpdateController(
             val versionCode = info.availableVersionCode()
             if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
                 versionCode > currentVersionCode &&
-                info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) &&
-                !preferences.wasPrompted(versionCode)
+                info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
             ) {
-                startUpdate(info, launcher)
+                session.recordAvailableVersion(versionCode)
+                if (session.canPrompt(versionCode)) startUpdate(info, launcher)
             }
         }
     }
@@ -134,7 +134,7 @@ class RecommendedUpdateController(
             false
         }
         if (started) {
-            preferences.markPrompted(info.availableVersionCode())
+            session.markPrompted(info.availableVersionCode())
             if (state.value.stage == RecommendedUpdateStage.FAILED) mutableState.value = RecommendedUpdateState()
         } else {
             flowInFlight = false

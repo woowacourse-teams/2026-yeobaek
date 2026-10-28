@@ -15,7 +15,8 @@ class UpdatePolicyRepository(
     private val source: UpdatePolicySource?,
     private val onFailure: (Exception) -> Unit,
 ) {
-    private val mutablePolicy = MutableStateFlow(preferences.read() ?: UpdatePolicy())
+    private val launchPolicy = preferences.read() ?: UpdatePolicy()
+    private val mutablePolicy = MutableStateFlow(launchPolicy)
     val policy: StateFlow<UpdatePolicy> = mutablePolicy.asStateFlow()
     private val refreshMutex = Mutex()
     private val firstRefresh = CompletableDeferred<Unit>().apply {
@@ -33,7 +34,7 @@ class UpdatePolicyRepository(
             val updated = policySource.fetch()
             currentCoroutineContext().ensureActive()
             preferences.save(updated)
-            mutablePolicy.value = updated
+            mutablePolicy.value = updated.copy(forceUpdateMessage = launchPolicy.forceUpdateMessage)
         } catch (exception: CancellationException) {
             throw exception
         } catch (exception: Exception) {
