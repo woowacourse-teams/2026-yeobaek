@@ -70,8 +70,8 @@
 
 <table>
   <tr>
-    <td align="left"><img src="https://github.com/user-attachments/assets/4022d80f-59e9-4031-b21f-3ee6f8596aec" width="160" alt="하로 GitHub 프로필" /></td>
-    <td align="left"><img src="https://github.com/user-attachments/assets/142b7298-7a2f-4b3b-bdb3-15c521c7a04c" width="160" alt="엘리 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/4022d80f-59e9-4031-b21f-3ee6f8596aec" width="120" alt="하로 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/142b7298-7a2f-4b3b-bdb3-15c521c7a04c" width="120" alt="엘리 GitHub 프로필" /></td>
   </tr>
   <tr>
     <td align="left"><a href="https://github.com/noeyhoj">하로</a></td>
@@ -83,9 +83,9 @@
 
 <table>
   <tr>
-    <td align="left"><img src="https://github.com/user-attachments/assets/3867323f-7da2-459c-8f71-5c7ba32cbf5e" width="160" alt="왓슨 GitHub 프로필" /></td>
-    <td align="left"><img src="https://github.com/user-attachments/assets/273fa367-a35a-425e-9ed5-785e3b0a84fa" width="160" alt="제제 GitHub 프로필" /></td>
-    <td align="left"><img src="https://github.com/user-attachments/assets/7607f5ba-6c8b-4e82-a45d-17347983cf7e" width="160" alt="테리 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/3867323f-7da2-459c-8f71-5c7ba32cbf5e" width="120" alt="왓슨 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/273fa367-a35a-425e-9ed5-785e3b0a84fa" width="120" alt="제제 GitHub 프로필" /></td>
+    <td align="left"><img src="https://github.com/user-attachments/assets/7607f5ba-6c8b-4e82-a45d-17347983cf7e" width="120" alt="테리 GitHub 프로필" /></td>
   </tr>
   <tr>
     <td align="left"><a href="https://github.com/kjoon418">왓슨</a></td>
