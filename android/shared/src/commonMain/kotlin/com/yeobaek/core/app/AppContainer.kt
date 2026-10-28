@@ -36,6 +36,7 @@ import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
@@ -62,6 +63,7 @@ class AppContainer(
     val appName = if (isDebug) "조밀" else "여백"
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var updatePolicyUpdatesJob: Job? = null
     val updatePolicyRepository = UpdatePolicyRepository(
         preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),
         source = updatePolicySource,
@@ -146,6 +148,15 @@ class AppContainer(
     fun refreshUpdatePolicy() {
         applicationScope.launch {
             updatePolicyRepository.refresh()
+        }
+    }
+
+    fun startUpdatePolicyUpdates() {
+        if (updatePolicyUpdatesJob?.isActive == true) return
+        updatePolicyUpdatesJob = applicationScope.launch {
+            updatePolicyRepository.refresh()
+            updatePolicyRepository.awaitFirstRefresh()
+            updatePolicyRepository.observeUpdates()
         }
     }
 

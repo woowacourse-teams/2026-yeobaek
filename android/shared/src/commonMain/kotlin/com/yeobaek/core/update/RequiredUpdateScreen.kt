@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,37 +47,22 @@ import com.yeobaek.core.platform.PlatformBackHandler
 
 @Composable
 fun RequiredUpdateGate(
-    policy: UpdatePolicy?,
+    policy: UpdatePolicy,
     currentVersionCode: Int,
     onUpdate: () -> Unit,
     isUpdating: Boolean = false,
     errorMessage: String? = null,
     content: @Composable () -> Unit,
 ) {
-    when {
-        policy == null -> YeobaekTheme {
-            Box(
-                modifier = Modifier.fillMaxSize().background(YeobaekPaper),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    CircularProgressIndicator()
-                    Text("업데이트 정보를 확인하고 있어요", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-
-        policy.isUpdateRequired(currentVersionCode) -> RequiredUpdateScreen(
+    if (policy.isUpdateRequired(currentVersionCode)) {
+        RequiredUpdateScreen(
             message = policy.forceUpdateMessage,
             onUpdate = onUpdate,
             isUpdating = isUpdating,
             errorMessage = errorMessage,
         )
-
-        else -> content()
+    } else {
+        content()
     }
 }
 

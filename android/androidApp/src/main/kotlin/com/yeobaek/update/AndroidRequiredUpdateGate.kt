@@ -8,19 +8,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.update.RequiredUpdateGate
-import com.yeobaek.core.update.UpdatePolicy
 
 @Composable
 fun AndroidRequiredUpdateGate(
@@ -31,13 +27,7 @@ fun AndroidRequiredUpdateGate(
     val context = LocalContext.current
     val manager = remember(context) { AppUpdateManagerFactory.create(context) }
     val repository = appContainer.updatePolicyRepository
-    var policy by remember(appContainer) {
-        mutableStateOf<UpdatePolicy?>(
-            repository.policy.value.takeIf {
-                it.isUpdateRequired(appContainer.appVersionCode)
-            },
-        )
-    }
+    val policy by repository.policy.collectAsState()
     val controller = remember(appContainer, context, manager) {
         ImmediateUpdateController(
             manager = manager,
@@ -51,10 +41,6 @@ fun AndroidRequiredUpdateGate(
         controller.onResult(result.resultCode)
     }
     val actionState by controller.state.collectAsState()
-    LaunchedEffect(repository) {
-        repository.awaitFirstRefresh()
-        repository.policy.collect { policy = it }
-    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         controller.resume(launcher)
     }
@@ -68,7 +54,13 @@ fun AndroidRequiredUpdateGate(
         isUpdating = actionState.isBusy,
         errorMessage = actionState.errorMessage,
         content = {
-            AndroidRecommendedUpdate(manager, appContainer.appVersionCode, recommendedUpdateSession, content)
+            AndroidRecommendedUpdate(
+                manager,
+                appContainer.appVersionCode,
+                recommendedUpdateSession,
+                repository,
+                content,
+            )
         },
     )
 }

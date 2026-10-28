@@ -44,6 +44,7 @@ class YeobaekApplication : Application() {
                 application = this,
             ),
         )
+        appContainer.startUpdatePolicyUpdates()
 
         FirebaseMessaging.getInstance().register()
             .addOnFailureListener { error ->

@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.update.UpdatePolicyRepository
 
 private object RecommendedUpdateBannerTokens {
     val HorizontalInset = 16.dp
@@ -63,6 +64,7 @@ internal fun AndroidRecommendedUpdate(
     manager: AppUpdateManager,
     currentVersionCode: Int,
     session: RecommendedUpdateSession,
+    policyRepository: UpdatePolicyRepository,
     content: @Composable () -> Unit,
 ) {
     val controller = remember(manager, currentVersionCode, session) {
@@ -78,10 +80,13 @@ internal fun AndroidRecommendedUpdate(
     val state by controller.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { controller.resume(launcher) }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { controller.pause() }
-    LaunchedEffect(controller, lifecycleOwner) {
+    LaunchedEffect(controller, lifecycleOwner, policyRepository) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            policyRepository.awaitFirstRefresh()
+            if (!policyRepository.policy.value.isUpdateRequired(currentVersionCode)) {
+                controller.resume(launcher)
+            }
             controller.state.collect { update ->
                 val message = update.errorMessage ?: return@collect
                 controller.consumeError()
