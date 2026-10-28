@@ -16,6 +16,8 @@ import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -215,16 +217,55 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         }
     }
 
-    @Test
-    @DisplayName("전체·유형별 OFF로 변경해도 기존 재시도는 원래 등록 ID와 FID로 조회한다")
-    void preserveAlreadySelectedRetry() {
+    @ParameterizedTest
+    @CsvSource({
+            "CLUB_JOIN,false,true,true,true",
+            "CLUB_JOIN,true,false,true,true",
+            "CLUB_COMMENT,true,true,false,true",
+            "PUBLIC_ROOM_COMMENT,true,true,true,false"
+    })
+    @DisplayName("최초 선정 후 전체 또는 해당 유형을 OFF로 바꾸면 재시도 대상에서 제외해요")
+    void excludeDisabledRetryTarget(NotificationType type, boolean enabled, boolean clubJoin,
+                                    boolean clubComment, boolean publicRoomComment) {
         Member member = member();
         NotificationRegistration original = register(member, PHONE);
-        preferences.update(member.getId(), PHONE, new NotificationPreferencesUpdateRequest(false, null, false, null));
+        var selected = registrations.findByMemberIds(List.of(member.getId()), type);
+        assertThat(selected.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
+        preferences.update(member.getId(), PHONE,
+                new NotificationPreferencesUpdateRequest(enabled, clubJoin, clubComment, publicRoomComment));
 
-        var snapshot = registrations.snapshotForRetry(List.of(original.getId()), PHONE);
+        var snapshot = registrations.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE, type);
 
-        assertThat(snapshot.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
+        assertThat(snapshot.firebaseInstallationIds()).isEmpty();
+        assertThat(registrationRepository.findById(original.getId())).isPresent();
+    }
+
+    @ParameterizedTest
+    @EnumSource(NotificationType.class)
+    @DisplayName("재시도는 원래 등록과 해당 유형 설정만 한 SQL로 확인해요")
+    void retryOnlyOriginalRegistrationAndTypeInOneQuery(NotificationType type) {
+        Member member = member();
+        NotificationRegistration original = register(member, PHONE);
+        NotificationRegistration tablet = register(member, TABLET);
+        Member other = members.save(new Member(new Nickname("다른회원")));
+        register(other, PHONE);
+        var settings = preferenceRepository.findAllByRegistration_Id(original.getId());
+        settings.stream().filter(setting -> !setting.hasNotificationType(type))
+                .forEach(setting -> setting.changeEnabled(false));
+        preferenceRepository.saveAll(settings);
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        boolean previous = statistics.isStatisticsEnabled();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+        try {
+            var snapshot = registrations.snapshotForRetry(List.of(original.getId(), tablet.getId()), PHONE, type);
+
+            assertThat(snapshot.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
+            assertThat(snapshot.firebaseInstallationIds()).containsExactly(PHONE.value());
+            assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+        } finally {
+            statistics.setStatisticsEnabled(previous);
+        }
     }
 
     @Test

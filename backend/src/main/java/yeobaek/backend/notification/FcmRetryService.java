@@ -94,10 +94,11 @@ public class FcmRetryService {
                 return;
             }
             var fid = new FirebaseInstallationId(task.fid());
-            NotificationRegistrations snapshot = registrationService.snapshotForRetry(task.registrationIds(), fid);
+            NotificationRegistrations snapshot = registrationService.snapshotForRetry(
+                    task.registrationIds(), fid, task.notificationType());
             List<Long> remainingIds = snapshot.findRegistrationIdsByFid(fid);
             if (remainingIds.isEmpty()) {
-                logStopped(task, "REGISTRATION_REMOVED_OR_CHANGED");
+                logStopped(task, "NO_ELIGIBLE_REGISTRATION");
                 return;
             }
             if (task.isExpired(clock.instant())) {

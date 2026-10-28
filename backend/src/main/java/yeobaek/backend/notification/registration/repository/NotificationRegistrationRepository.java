@@ -27,9 +27,6 @@ public interface NotificationRegistrationRepository extends JpaRepository<Notifi
             """, nativeQuery = true)
     int insertIfAbsent(@Param("memberId") Long memberId, @Param("fid") String fid);
 
-    List<NotificationRegistration> findAllByIdInAndFirebaseInstallationId(
-            List<Long> ids, FirebaseInstallationId fid);
-
     @Modifying
     @Query("""
             delete from NotificationRegistration registration

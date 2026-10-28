@@ -50,7 +50,7 @@ class FcmRetryContextTest {
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
         String fid = "c" + "a".repeat(21);
-        given(registrations.snapshotForRetry(anyList(), any())).willReturn(new NotificationRegistrations(List.of(
+        given(registrations.snapshotForRetry(anyList(), any(), any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
         given(sender.send(anyList(), anyString(), anyString(), any())).willAnswer(invocation -> {
             observed.set(List.of(MDC.get("traceId"), Context.current().get(REQUEST), Thread.currentThread().getName()));

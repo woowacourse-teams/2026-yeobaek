@@ -34,6 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
@@ -77,7 +78,7 @@ class FcmRetryServiceTest {
     void setUp() throws FirebaseMessagingException {
         given(clock.instant()).willAnswer(invocation -> now.get());
         captureSchedules();
-        given(registrations.snapshotForRetry(anyList(), any(FirebaseInstallationId.class)))
+        given(registrations.snapshotForRetry(anyList(), any(FirebaseInstallationId.class), any(NotificationType.class)))
                 .willAnswer(invocation -> snapshot(invocation.getArgument(0), invocation.getArgument(1)));
         given(sender.send(anyList(), anyString(), anyString(), any())).willReturn(new FcmSendResult(1, List.of()));
         retryService = newRetryService(workers::addLast, handler, 10);
@@ -127,7 +128,8 @@ class FcmRetryServiceTest {
     @DisplayName("중복 등록 중 남은 원래 등록 ID만 후속 작업에 이어서 확인한다")
     void shrinkRegistrationSnapshotForNextAttempt() throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
-        given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(snapshot(List.of(2L), fid));
+        given(registrations.snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT))
+                .willReturn(snapshot(List.of(2L), fid));
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(internal(null))), new FcmSendResult(1, List.of()));
         retryService.schedule(task(internal(null), 0, false));
@@ -135,8 +137,8 @@ class FcmRetryServiceTest {
         completeNext();
         completeNext();
 
-        verify(registrations).snapshotForRetry(List.of(1L, 2L), fid);
-        verify(registrations).snapshotForRetry(List.of(2L), fid);
+        verify(registrations).snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT);
+        verify(registrations).snapshotForRetry(List.of(2L), fid, NotificationType.CLUB_COMMENT);
         assertThat(timers).isEmpty();
     }
 
@@ -244,7 +246,7 @@ class FcmRetryServiceTest {
     void removeUnregisteredWithoutSchedulingAgain() throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
         var remaining = snapshot(List.of(1L), fid);
-        given(registrations.snapshotForRetry(List.of(1L, 2L), fid)).willReturn(remaining);
+        given(registrations.snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT)).willReturn(remaining);
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0,
                 List.of(new FcmSendFailure(FID, "UNREGISTERED", "NOT_FOUND", 404, null))));
         retryService = newRetryService(workers::addLast, new FcmFailureHandler(registrations), 10);
@@ -260,14 +262,44 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("원래 등록이 삭제되거나 FID가 바뀌었다면 새 등록으로 대체하지 않고 종료한다")
     void stopWhenOriginalRegistrationDisappears() {
-        given(registrations.snapshotForRetry(anyList(), any())).willReturn(new NotificationRegistrations(List.of()));
+        given(registrations.snapshotForRetry(anyList(), any(), any())).willReturn(new NotificationRegistrations(List.of()));
         retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
-        verify(registrations).snapshotForRetry(List.of(1L, 2L), new FirebaseInstallationId(FID));
+        verify(registrations).snapshotForRetry(
+                List.of(1L, 2L), new FirebaseInstallationId(FID), NotificationType.CLUB_COMMENT);
         verifyNoInteractions(sender);
         assertThat(timers).isEmpty();
+    }
+
+    @ParameterizedTest
+    @EnumSource(NotificationType.class)
+    @DisplayName("재시도 실패 후 설정이 OFF로 확인되면 다음 발송과 재예약을 중단해요")
+    void stopRetryWhenSettingsDisableTarget(NotificationType type) throws FirebaseMessagingException {
+        var fid = new FirebaseInstallationId(FID);
+        var ids = List.of(1L, 2L);
+        var data = Map.of("type", type.name());
+        given(registrations.snapshotForRetry(ids, fid, type))
+                .willReturn(snapshot(ids, fid), new NotificationRegistrations(List.of()));
+        given(sender.send(List.of(FID), TITLE, BODY, data))
+                .willReturn(new FcmSendResult(0, List.of(internal(null))));
+        var task = new FcmRetryTask(type, 11L, ids, TITLE, BODY, data,
+                internal(null), CREATED_AT, CREATED_AT, 0, false);
+
+        try (var logs = new LogCapture(FcmRetryService.class.getName())) {
+            retryService.schedule(task);
+            completeNext();
+            assertThat(timers).hasSize(1);
+
+            completeNext();
+
+            verify(sender, times(1)).send(List.of(FID), TITLE, BODY, data);
+            verify(registrations, times(2)).snapshotForRetry(ids, fid, type);
+            assertThat(timers).isEmpty();
+            assertThat(logs.field(logs.event("notification.retry.logStopped", "rejected"), "stopReason"))
+                    .isEqualTo("NO_ELIGIBLE_REGISTRATION");
+        }
     }
 
     @Test
@@ -286,7 +318,7 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("등록 조회가 지연돼 30분이 지났다면 FCM을 호출하기 전에 다시 만료를 확인한다")
     void recheckExpiryAfterDatabaseQuery() {
-        given(registrations.snapshotForRetry(anyList(), any())).willAnswer(invocation -> {
+        given(registrations.snapshotForRetry(anyList(), any(), any())).willAnswer(invocation -> {
             now.set(CREATED_AT.plusSeconds(1800));
             return snapshot(List.of(1L), new FirebaseInstallationId(FID));
         });
@@ -362,7 +394,7 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("등록 조회 실패는 민감 정보를 기록하지 않고 종료한다")
     void stopOnDatabaseFailure() {
-        given(registrations.snapshotForRetry(anyList(), any()))
+        given(registrations.snapshotForRetry(anyList(), any(), any()))
                 .willThrow(new DataAccessResourceFailureException("민감한 SQL " + FID));
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task(internal(null), 0, false));
@@ -379,7 +411,7 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("예상하지 못한 오류를 관찰하고 후속 작업을 계속 처리한다")
     void observeUnexpectedFailureAndContinue() throws FirebaseMessagingException {
-        given(registrations.snapshotForRetry(anyList(), any())).willThrow(new IllegalStateException(FID));
+        given(registrations.snapshotForRetry(anyList(), any(), any())).willThrow(new IllegalStateException(FID));
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task(internal(null), 0, false));
             completeNext();
@@ -389,7 +421,7 @@ class FcmRetryServiceTest {
             assertThat(logs.structuredText()).doesNotContain(FID);
         }
         doReturn(snapshot(List.of(1L), new FirebaseInstallationId(FID)))
-                .when(registrations).snapshotForRetry(anyList(), any());
+                .when(registrations).snapshotForRetry(anyList(), any(), any());
         retryService.schedule(task(internal(null), 0, false));
         completeNext();
         verify(sender).send(List.of(FID), TITLE, BODY, DATA);

@@ -49,8 +49,9 @@ public class NotificationRegistrationService {
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid) {
-        return new NotificationRegistrations(registrationRepository.findAllByIdInAndFirebaseInstallationId(ids, fid));
+    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid, NotificationType type) {
+        return NotificationRegistrations.fromEnabledPreferences(
+                preferenceRepository.findEnabledWithRegistrationsByRegistrationIdsAndFid(ids, fid), type);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
