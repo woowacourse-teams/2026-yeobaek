@@ -16,7 +16,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         ) ?? 0,
         analyticsClient: analyticsClient,
-        updatePolicySource: IOSFirebaseUpdatePolicySource(isDebug: isDebug),
+        updatePolicySource: IOSRealtimeUpdatePolicySource(
+            source: IOSFirebaseUpdatePolicySource(isDebug: isDebug)
+        ),
         updatePolicyPlatform: .ios
     )
 
@@ -34,7 +36,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
-        _ = appContainer
+        appContainer.startUpdatePolicyUpdates()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermissionOnce()
@@ -137,18 +139,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
 @main
 struct iOSApp: App {
-    @Environment(\.scenePhase) private var scenePhase
     @UIApplicationDelegateAdaptor(AppDelegate.self)
     private var appDelegate
 
     var body: some Scene {
         WindowGroup {
             ContentView(appContainer: appDelegate.appContainer)
-                .onChange(of: scenePhase, initial: true) { _, phase in
-                    if phase == .active {
-                        appDelegate.appContainer.refreshUpdatePolicy()
-                    }
-                }
         }
     }
 }
