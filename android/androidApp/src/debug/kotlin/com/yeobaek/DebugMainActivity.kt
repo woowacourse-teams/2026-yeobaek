@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.yeobaek.update.AndroidRequiredUpdateGate
 import kotlinx.serialization.Serializable
 
 class DebugMainActivity : ComponentActivity() {
@@ -22,29 +23,30 @@ class DebugMainActivity : ComponentActivity() {
         intent.deliverNotificationOpen(appContainer)
 
         setContent {
-            val navController = rememberNavController()
-
             DoubleBackToExit(this) {
                 finish()
             }
-            NavHost(
-                navController = navController,
-                startDestination = App,
-            ) {
-                composable<App> {
-                    DevApp(
-                        appContainer = appContainer,
-                        navigateToDevTools = {
-                            navController.navigate(DevTools)
-                        }
-                    )
-                }
-                composable<DevTools> {
-                    DevToolsScreen(
-                        appVersion = appContainer.appVersion,
-                        buildType = BuildConfig.BUILD_TYPE,
-                        serverEnv = appContainer.apiBaseUrl,
-                    )
+            AndroidRequiredUpdateGate(appContainer) {
+                val navController = rememberNavController()
+                NavHost(
+                    navController = navController,
+                    startDestination = App,
+                ) {
+                    composable<App> {
+                        DevApp(
+                            appContainer = appContainer,
+                            navigateToDevTools = {
+                                navController.navigate(DevTools)
+                            },
+                        )
+                    }
+                    composable<DevTools> {
+                        DevToolsScreen(
+                            appVersion = appContainer.appVersion,
+                            buildType = BuildConfig.BUILD_TYPE,
+                            serverEnv = appContainer.apiBaseUrl,
+                        )
+                    }
                 }
             }
         }

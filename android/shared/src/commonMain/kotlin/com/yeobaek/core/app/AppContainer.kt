@@ -38,6 +38,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AppContainer(
@@ -46,7 +47,7 @@ class AppContainer(
     val appVersionCode: Int,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
-    updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
+    private val updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
 ) {
     private val settings = Settings()
 
@@ -60,15 +61,6 @@ class AppContainer(
 
     val appName = if (isDebug) "조밀" else "여백"
 
-    private val networkProvider = NetworkProvider(
-        userPreferences = userPreferences,
-        isDebug = isDebug,
-    )
-
-    private val apiProvider = ApiProvider(
-        ktorfit = networkProvider.ktorfit,
-    )
-
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val updatePolicyRepository = UpdatePolicyRepository(
         preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),
@@ -81,6 +73,24 @@ class AppContainer(
         currentVersionCode = appVersionCode,
         scope = applicationScope,
     )
+
+    private val networkProvider = NetworkProvider(
+        userPreferences = userPreferences,
+        isDebug = isDebug,
+        awaitRequestPermission = {
+            if (updatePolicyPlatform == UpdatePolicyPlatform.ANDROID) {
+                updatePolicyRepository.awaitFirstRefresh()
+                updatePolicyRepository.policy.first { policy ->
+                    !policy.isUpdateRequired(appVersionCode)
+                }
+            }
+        },
+    )
+
+    private val apiProvider = ApiProvider(
+        ktorfit = networkProvider.ktorfit,
+    )
+
     val commentNotifications = CommentNotifications()
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,

@@ -33,6 +33,7 @@ navigationCompose = "2.9.2"
 
 # coroutines
 kotlinx-coroutines = "1.11.0"
+play-app-update = "2.1.0"
 
 # network (ktor & ktorfit)
 ktor = "3.5.2"
@@ -122,6 +123,7 @@ firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.re
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-config = { module = "com.google.firebase:firebase-config" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "play-app-update" }
 
 # PostHog
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthogAndroid" }

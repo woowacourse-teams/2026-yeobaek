@@ -21,9 +21,11 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.config)
+    implementation(libs.play.app.update)
 
     // compose & android
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
 
     constraints {
         implementation(libs.androidx.fragment) {

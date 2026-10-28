@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.update.AndroidRequiredUpdateGate
 
 class MainActivity : ComponentActivity() {
 
@@ -24,9 +25,9 @@ class MainActivity : ComponentActivity() {
             DoubleBackToExit(this) {
                 finish()
             }
-            App(
-                appContainer = appContainer,
-            )
+            AndroidRequiredUpdateGate(appContainer) {
+                App(appContainer = appContainer)
+            }
         }
 
         notificationPermissionRequester.requestOnce()
