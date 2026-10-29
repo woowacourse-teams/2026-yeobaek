@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -39,7 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.yeobaek.core.designsystem.theme.SettingsTokens
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -55,8 +54,11 @@ fun NotificationSettingsScreen(
     onToggle: (NotificationSetting, Boolean) -> Unit,
     onSaveErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
+    systemNotificationsEnabled: Boolean? = true,
+    onOpenSystemSettings: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
+    val canEdit = systemNotificationsEnabled == true && !uiState.isSaving
     LaunchedEffect(uiState.saveError) {
         uiState.saveError?.let {
             snackbar.showSnackbar(it)
@@ -71,7 +73,7 @@ fun NotificationSettingsScreen(
                 title = {
                     Text("알림 설정", style = MaterialTheme.typography.headlineMedium, color = YeobaekTextStrong)
                 },
-                expandedHeight = 56.dp,
+                expandedHeight = SettingsTokens.ToolbarHeight,
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(painterResource(Res.drawable.ic_back_arrow), contentDescription = "뒤로가기")
@@ -92,7 +94,7 @@ fun NotificationSettingsScreen(
             }
 
             preferences == null -> Column(
-                Modifier.padding(contentPadding).fillMaxSize().padding(20.dp),
+                Modifier.padding(contentPadding).fillMaxSize().padding(SettingsTokens.ContentPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -102,21 +104,21 @@ fun NotificationSettingsScreen(
 
             else -> Column(
                 modifier = Modifier.padding(contentPadding).fillMaxSize()
-                    .verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+                    .verticalScroll(rememberScrollState()).padding(SettingsTokens.ContentPadding),
+                verticalArrangement = Arrangement.spacedBy(SettingsTokens.SectionSpacing),
             ) {
                 SettingsCard {
                     NotificationSettingRow(
                         label = "전체 알림",
                         checked = preferences.enabled,
-                        enabled = !uiState.isSaving,
+                        enabled = canEdit,
                         onCheckedChange = { onToggle(NotificationSetting.ALL, it) },
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(SettingsTokens.CardPadding),
                         isGlobal = true,
                     )
                 }
                 SettingsCard {
-                    Column(Modifier.padding(horizontal = 16.dp)) {
+                    Column(Modifier.padding(horizontal = SettingsTokens.CardPadding)) {
                         val items = listOf(
                             NotificationSetting.CLUB_JOIN to "모임 참여 알림",
                             NotificationSetting.CLUB_COMMENT to "모임 댓글 알림",
@@ -127,9 +129,24 @@ fun NotificationSettingsScreen(
                             NotificationSettingRow(
                                 label = label,
                                 checked = preferences.isEnabled(setting),
-                                enabled = preferences.enabled && !uiState.isSaving,
+                                enabled = canEdit && preferences.enabled,
                                 onCheckedChange = { onToggle(setting, it) },
                             )
+                        }
+                    }
+                }
+                if (systemNotificationsEnabled == false) {
+                    SettingsCard {
+                        Column(
+                            Modifier.padding(SettingsTokens.CardPadding),
+                            verticalArrangement = Arrangement.spacedBy(SettingsTokens.InfoSpacing),
+                        ) {
+                            Text("기기에서 알림이 꺼져 있어요", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "알림을 받으려면 시스템 설정에서 허용해 주세요. 이 기기의 앱 알림 설정은 유지돼요.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            TextButton(onClick = onOpenSystemSettings) { Text("시스템 설정 열기") }
                         }
                     }
                 }
@@ -142,11 +159,11 @@ fun NotificationSettingsScreen(
 private fun SettingsCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = SettingsTokens.CardShape,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(SettingsTokens.BorderWidth, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Box(Modifier.padding(vertical = 1.dp)) { content() }
+        Box(Modifier.padding(vertical = SettingsTokens.BorderWidth)) { content() }
     }
 }
 
@@ -160,10 +177,12 @@ private fun NotificationSettingRow(
     isGlobal: Boolean = false,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().heightIn(min = if (isGlobal) 48.dp else 64.dp)
+        modifier = modifier.fillMaxWidth().heightIn(
+            min = if (isGlobal) SettingsTokens.GlobalRowHeight else SettingsTokens.ItemRowHeight,
+        )
             .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(SettingsTokens.CardPadding),
     ) {
         Text(
             text = label,
@@ -176,14 +195,16 @@ private fun NotificationSettingRow(
             checked = checked,
             onCheckedChange = null,
             enabled = enabled,
-            modifier = Modifier.size(width = 52.dp, height = 48.dp),
+            modifier = Modifier.size(width = SettingsTokens.SwitchWidth, height = SettingsTokens.GlobalRowHeight),
             colors = SwitchDefaults.colors(
                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
                 uncheckedThumbColor = MaterialTheme.colorScheme.tertiary,
                 uncheckedBorderColor = MaterialTheme.colorScheme.tertiary,
-                disabledCheckedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                disabledCheckedTrackColor = MaterialTheme.colorScheme.primary.copy(
+                    alpha = SettingsTokens.DISABLED_TRACK_ALPHA,
+                ),
                 disabledCheckedThumbColor = MaterialTheme.colorScheme.onPrimary,
             ),
         )

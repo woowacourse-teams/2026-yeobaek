@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.yeobaek.core.designsystem.theme.SettingsTokens
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -33,9 +33,9 @@ fun MyPageFeatureCard(
 ) {
     Row(
         modifier = modifier
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = SettingsTokens.ContentPadding)
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
+            .heightIn(min = SettingsTokens.MenuRowHeight)
             .clickable {
                 onClick()
             },
@@ -44,10 +44,10 @@ fun MyPageFeatureCard(
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.size(SettingsTokens.MenuIconSize),
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(SettingsTokens.MenuIconSpacing))
         Text(text, color = contentColor)
     }
 }

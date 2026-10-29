@@ -11,6 +11,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.notification.rememberSystemNotificationSettings
 import com.yeobaek.feature.notifications.NotificationSettingsScreen
 import com.yeobaek.feature.notifications.NotificationSettingsViewModel
 import kotlinx.serialization.Serializable
@@ -36,6 +37,7 @@ fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, nav
             },
         )
         val state by viewModel.uiState.collectAsStateWithLifecycle()
+        val systemSettings = rememberSystemNotificationSettings()
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
         NotificationSettingsScreen(
             uiState = state,
@@ -43,6 +45,8 @@ fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, nav
             onRetry = viewModel::refresh,
             onToggle = viewModel::update,
             onSaveErrorShown = viewModel::dismissSaveError,
+            systemNotificationsEnabled = systemSettings.enabled,
+            onOpenSystemSettings = systemSettings.openSettings,
         )
     }
 }

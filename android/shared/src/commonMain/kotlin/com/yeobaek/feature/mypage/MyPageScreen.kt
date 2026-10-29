@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,7 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.yeobaek.core.designsystem.theme.SettingsTokens
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
@@ -83,9 +82,14 @@ fun MyPageScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("마이페이지", style = MaterialTheme.typography.titleLarge, color = YeobaekTextStrong)
+                    Text(
+                        "마이페이지",
+                        modifier = Modifier.padding(start = SettingsTokens.ToolbarTitleInset),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = YeobaekTextStrong,
+                    )
                 },
-                expandedHeight = 56.dp,
+                expandedHeight = SettingsTokens.ToolbarHeight,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -101,23 +105,31 @@ fun MyPageScreen(
             modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()),
         ) {
             Card(
-                modifier = Modifier.padding(horizontal = 20.dp).padding(top = 24.dp, bottom = 24.dp),
+                modifier = Modifier.padding(
+                    horizontal = SettingsTokens.ContentPadding,
+                ).padding(top = SettingsTokens.SectionSpacing, bottom = SettingsTokens.SectionSpacing),
                 colors = CardDefaults.cardColors(MaterialTheme.colorScheme.onPrimary),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = SettingsTokens.CardShape,
+                border = BorderStroke(SettingsTokens.BorderWidth, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(82.dp).padding(horizontal = 12.dp),
+                    modifier = Modifier.fillMaxWidth().height(
+                        SettingsTokens.ProfileHeight,
+                    ).padding(horizontal = SettingsTokens.ProfilePadding),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier.clip(shape = CircleShape).size(50.dp)
-                            .border(width = 1.dp, color = MaterialTheme.colorScheme.onSurface, shape = CircleShape),
+                        modifier = Modifier.clip(shape = CircleShape).size(SettingsTokens.AvatarSize)
+                            .border(
+                                width = SettingsTokens.BorderWidth,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                shape = CircleShape,
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(uiState.name.take(1), style = MaterialTheme.typography.titleMedium)
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(SettingsTokens.CardPadding))
                     Text(uiState.name, style = MaterialTheme.typography.titleMedium)
                 }
             }
@@ -126,7 +138,7 @@ fun MyPageScreen(
                 icon = Res.drawable.ic_notification,
                 onClick = navigateToNotificationSettings,
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(SettingsTokens.SectionSpacing))
             MyPageFeatureCard(
                 text = "가이드",
                 icon = Res.drawable.ic_guide,
@@ -134,7 +146,7 @@ fun MyPageScreen(
                     navigateToGuide()
                 },
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(SettingsTokens.CardPadding))
             MyPageFeatureCard(
                 text = "회원 탈퇴",
                 contentColor = MaterialTheme.colorScheme.error,
@@ -144,10 +156,10 @@ fun MyPageScreen(
                     showDeleteDialog = true
                 },
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(SettingsTokens.SectionSpacing))
             Text(
                 "v$appVersion",
-                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = SettingsTokens.ContentPadding).fillMaxWidth(),
                 textAlign = TextAlign.End,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
