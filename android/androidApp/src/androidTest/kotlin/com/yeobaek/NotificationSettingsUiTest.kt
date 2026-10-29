@@ -97,6 +97,30 @@ class NotificationSettingsUiTest {
     }
 
     @Test
+    fun savingOneSettingKeepsOtherSwitchesEnabled() {
+        val repository = TestNotificationRepository()
+        val vm = showSettings(repository)
+        waitForLoad(vm)
+        val gate = CompletableDeferred<Unit>()
+        repository.beforeUpdate = { gate.await() }
+        rule.onNodeWithText("모임 참여 알림").performClick()
+        rule.onNodeWithText("모임 참여 알림").assertIsOff().assertIsNotEnabled()
+        rule.onNodeWithText("전체 알림").assertIsOn().assertIsEnabled()
+        rule.onNodeWithText("모임 댓글 알림").assertIsOn().assertIsEnabled()
+        rule.onNodeWithText("공개방 댓글 알림").assertIsOn().assertIsEnabled()
+        capture("18-saving-one-setting")
+        rule.onNodeWithText("공개방 댓글 알림").performClick()
+        rule.onNodeWithText("전체 알림").assertIsOn().assertIsEnabled()
+        rule.onNodeWithText("모임 댓글 알림").assertIsOn().assertIsEnabled()
+        rule.onNodeWithText("공개방 댓글 알림").assertIsOff().assertIsNotEnabled()
+        capture("19-saving-two-settings")
+        gate.complete(Unit)
+        waitForSave(vm)
+        rule.onNodeWithText("모임 참여 알림").assertIsOff().assertIsEnabled()
+        rule.onNodeWithText("공개방 댓글 알림").assertIsOff().assertIsEnabled()
+    }
+
+    @Test
     fun preservesSelectionsAcrossMixedAndGlobalOffStates() {
         val repository = TestNotificationRepository()
         val vm = showSettings(repository)
@@ -387,6 +411,7 @@ class NotificationSettingsUiTest {
         var failLoad = false
         var failUpdate = false
         var beforeLoad: suspend () -> Unit = {}
+        var beforeUpdate: suspend () -> Unit = {}
         override suspend fun register(memberId: Int, fid: String) = Unit
         override suspend fun getPreferences(memberId: Int, fid: String): NotificationPreferences {
             beforeLoad()
@@ -399,6 +424,7 @@ class NotificationSettingsUiTest {
             setting: NotificationSetting,
             enabled: Boolean,
         ) {
+            beforeUpdate()
             check(!failUpdate) { "Test save failure" }
             preferences = preferences.updated(setting, enabled)
         }

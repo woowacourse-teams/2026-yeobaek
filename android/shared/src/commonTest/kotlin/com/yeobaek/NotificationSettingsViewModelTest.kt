@@ -159,13 +159,13 @@ class NotificationSettingsViewModelTest {
     }
 
     @Test
-    fun preventsOverlappingSavesAndRefreshWhileSaving() = runTest {
+    fun preventsDuplicateSavesForSameSettingAndRefreshWhileSaving() = runTest {
         withViewModel { vm, repo, _, _ ->
             runCurrent()
             val gate = CompletableDeferred<Unit>()
             repo.beforeUpdate = { gate.await() }
             vm.update(NotificationSetting.CLUB_JOIN, false)
-            vm.update(NotificationSetting.PUBLIC_ROOM_COMMENT, false)
+            vm.update(NotificationSetting.CLUB_JOIN, false)
             vm.refresh()
             runCurrent()
             assertEquals(1, repo.updateCount)
@@ -175,6 +175,60 @@ class NotificationSettingsViewModelTest {
             runCurrent()
             assertFalse(vm.uiState.value.isSaving)
             assertTrue(requireNotNull(vm.uiState.value.preferences).publicRoomComment)
+        }
+    }
+
+    @Test
+    fun differentSettingsSaveIndependentlyAndOnlyFailedFieldRollsBack() = runTest {
+        withViewModel { vm, repo, _, _ ->
+            runCurrent()
+            val joinGate = CompletableDeferred<Unit>()
+            val publicGate = CompletableDeferred<Unit>()
+            repo.beforeUpdate = { setting ->
+                if (setting == NotificationSetting.CLUB_JOIN) {
+                    joinGate.await()
+                    throw IllegalStateException("join setting failed")
+                }
+                publicGate.await()
+            }
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            vm.update(NotificationSetting.PUBLIC_ROOM_COMMENT, false)
+            runCurrent()
+            assertEquals(2, repo.updateCount)
+            assertEquals(
+                setOf(NotificationSetting.CLUB_JOIN, NotificationSetting.PUBLIC_ROOM_COMMENT),
+                vm.uiState.value.savingSettings,
+            )
+            publicGate.complete(Unit)
+            runCurrent()
+            assertEquals(setOf(NotificationSetting.CLUB_JOIN), vm.uiState.value.savingSettings)
+            assertFalse(requireNotNull(vm.uiState.value.preferences).publicRoomComment)
+            joinGate.complete(Unit)
+            runCurrent()
+            val preferences = requireNotNull(vm.uiState.value.preferences)
+            assertTrue(preferences.clubJoin)
+            assertFalse(preferences.publicRoomComment)
+            assertFalse(vm.uiState.value.isSaving)
+            assertNotNull(vm.uiState.value.saveError)
+        }
+    }
+
+    @Test
+    fun changingIdentityCancelsAllPendingSettings() = runTest {
+        withViewModel { vm, repo, member, _ ->
+            runCurrent()
+            val gate = CompletableDeferred<Unit>()
+            repo.beforeUpdate = { gate.await() }
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            vm.update(NotificationSetting.PUBLIC_ROOM_COMMENT, false)
+            runCurrent()
+            member.value = 20
+            runCurrent()
+            assertTrue(vm.uiState.value.savingSettings.isEmpty())
+            assertEquals(repo.preferences, vm.uiState.value.preferences)
+            gate.complete(Unit)
+            runCurrent()
+            assertEquals(repo.preferences, vm.uiState.value.preferences)
         }
     }
 
@@ -241,7 +295,7 @@ class NotificationSettingsViewModelTest {
         var updateCount = 0
         var getFailure: Exception? = null
         var updateFailure: Exception? = null
-        var beforeUpdate: suspend () -> Unit = {}
+        var beforeUpdate: suspend (NotificationSetting) -> Unit = {}
         var beforeGet: suspend () -> Unit = {}
 
         override suspend fun register(memberId: Int, fid: String) = Unit
@@ -261,7 +315,7 @@ class NotificationSettingsViewModelTest {
             enabled: Boolean,
         ) {
             updateCount++
-            beforeUpdate()
+            beforeUpdate(setting)
             updateFailure?.let { throw it }
             preferences = preferences.updated(setting, enabled)
         }

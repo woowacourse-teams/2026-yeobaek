@@ -59,7 +59,7 @@ fun NotificationSettingsScreen(
     onOpenSystemSettings: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
-    val canEdit = systemNotificationsEnabled == true && !uiState.isSaving
+    val canEdit = systemNotificationsEnabled == true
     LaunchedEffect(uiState.saveError) {
         uiState.saveError?.let {
             snackbar.showSnackbar(it)
@@ -115,7 +115,7 @@ fun NotificationSettingsScreen(
                     NotificationSettingRow(
                         label = "전체 알림",
                         checked = preferences.enabled,
-                        enabled = canEdit,
+                        enabled = canEdit && NotificationSetting.ALL !in uiState.savingSettings,
                         onCheckedChange = { onToggle(NotificationSetting.ALL, it) },
                         modifier = Modifier.padding(SettingsTokens.CardPadding),
                         isGlobal = true,
@@ -133,7 +133,7 @@ fun NotificationSettingsScreen(
                             NotificationSettingRow(
                                 label = label,
                                 checked = preferences.isEnabled(setting),
-                                enabled = canEdit && preferences.enabled,
+                                enabled = canEdit && preferences.enabled && setting !in uiState.savingSettings,
                                 onCheckedChange = { onToggle(setting, it) },
                             )
                         }

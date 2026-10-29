@@ -20,10 +20,12 @@ import kotlinx.coroutines.launch
 data class NotificationSettingsUiState(
     val preferences: NotificationPreferences? = null,
     val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
+    val savingSettings: Set<NotificationSetting> = emptySet(),
     val loadError: String? = null,
     val saveError: String? = null,
-)
+) {
+    val isSaving: Boolean get() = savingSettings.isNotEmpty()
+}
 
 class NotificationSettingsViewModel(
     private val repository: NotificationRepository,
@@ -34,7 +36,7 @@ class NotificationSettingsViewModel(
     val uiState = state.asStateFlow()
     private val refreshVersion = MutableStateFlow(0)
     private var loadedIdentity: Pair<Int, String>? = null
-    private var saveJob: Job? = null
+    private val saveJobs = mutableMapOf<NotificationSetting, Job>()
     private var hasResumed = false
     private var mutationVersion = 0L
 
@@ -42,7 +44,8 @@ class NotificationSettingsViewModel(
         viewModelScope.launch {
             combine(memberId, installationId, refreshVersion) { member, fid, _ -> member to fid }
                 .collectLatest { (member, fid) ->
-                    saveJob?.cancel()
+                    saveJobs.values.toList().forEach { it.cancel() }
+                    saveJobs.clear()
                     val cached = state.value.preferences.takeIf { loadedIdentity == (member to fid) }
                     if (cached == null) loadedIdentity = null
                     state.value = NotificationSettingsUiState(preferences = cached, isLoading = cached == null)
@@ -92,28 +95,38 @@ class NotificationSettingsViewModel(
         val current = state.value
         val preferences = current.preferences ?: return
         val identity = loadedIdentity ?: return
-        if (identity != (memberId.value to installationId.value) || current.isLoading || current.isSaving) return
+        if (identity != (memberId.value to installationId.value) || current.isLoading) return
+        if (setting in current.savingSettings) return
         if (setting != NotificationSetting.ALL && !preferences.enabled) return
         if (preferences.isEnabled(setting) == enabled) return
 
         mutationVersion++
-        state.value =
-            current.copy(preferences = preferences.updated(setting, enabled), isSaving = true, saveError = null)
-        saveJob = viewModelScope.launch {
+        state.value = current.copy(
+            preferences = preferences.updated(setting, enabled),
+            savingSettings = current.savingSettings + setting,
+            saveError = null,
+        )
+        val job = viewModelScope.launch {
             try {
                 repository.updatePreferences(identity.first, identity.second, setting, enabled)
-                if (loadedIdentity == identity) state.value = state.value.copy(isSaving = false)
+                if (loadedIdentity == identity) {
+                    state.value = state.value.copy(savingSettings = state.value.savingSettings - setting)
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
                 if (loadedIdentity == identity) {
                     state.value = state.value.copy(
-                        preferences = preferences,
-                        isSaving = false,
+                        preferences = state.value.preferences?.updated(setting, preferences.isEnabled(setting)),
+                        savingSettings = state.value.savingSettings - setting,
                         saveError = "알림 설정을 저장하지 못했습니다. 다시 시도해 주세요.",
                     )
                 }
             }
+        }
+        saveJobs[setting] = job
+        job.invokeOnCompletion {
+            if (saveJobs[setting] === job) saveJobs.remove(setting)
         }
     }
 
