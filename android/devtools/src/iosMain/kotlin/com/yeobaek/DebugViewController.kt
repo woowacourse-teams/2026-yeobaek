@@ -14,6 +14,7 @@ import kotlinx.serialization.Serializable
 @Suppress("FunctionName")
 fun DebugViewController(
     appContainer: AppContainer,
+    appBuild: String,
 ) = ComposeUIViewController {
     val navController = rememberNavController()
     YeobaekTheme {
@@ -27,9 +28,9 @@ fun DebugViewController(
             composable<DevToolsRoute> {
                 Surface {
                     DevToolsScreen(
-                        appVersion = appContainer.appVersion,
+                        appContainer = appContainer,
+                        appBuild = appBuild,
                         buildType = "debug",
-                        serverEnv = appContainer.apiBaseUrl,
                         navigateBack = { navController.popBackStack() },
                     )
                 }
