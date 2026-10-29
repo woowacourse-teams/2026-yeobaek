@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class RequiredUpdateActionState(
     val isBusy: Boolean = false,
+    val isPrepared: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -22,7 +23,7 @@ class ImmediateUpdateController(
     private val openStore: () -> Boolean,
     private val refreshPolicy: () -> Unit,
 ) {
-    private val mutableState = MutableStateFlow(RequiredUpdateActionState())
+    private val mutableState = MutableStateFlow(RequiredUpdateActionState(isBusy = true))
     val state = mutableState.asStateFlow()
     private var querying = false
     private var closed = false
@@ -38,6 +39,7 @@ class ImmediateUpdateController(
 
     fun onResult(resultCode: Int) {
         mutableState.value = RequiredUpdateActionState(
+            isPrepared = true,
             errorMessage = if (resultCode == Activity.RESULT_OK) null else "업데이트를 완료해야 계속 이용할 수 있어요.",
         )
         refreshPolicy()
@@ -50,7 +52,7 @@ class ImmediateUpdateController(
     private fun checkUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>, userRequested: Boolean) {
         if (closed || querying) return
         querying = true
-        mutableState.value = RequiredUpdateActionState(isBusy = true)
+        mutableState.value = state.value.copy(isBusy = true, errorMessage = null)
         manager.appUpdateInfo.addOnSuccessListener { info ->
             if (closed) return@addOnSuccessListener
             querying = false
@@ -61,7 +63,11 @@ class ImmediateUpdateController(
                 info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
             if (inProgress || (userRequested && available)) {
                 val started = try {
-                    manager.startUpdateFlowForResult(info, launcher, AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build())
+                    manager.startUpdateFlowForResult(
+                        info,
+                        launcher,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build(),
+                    )
                 } catch (_: Exception) {
                     false
                 }
@@ -69,18 +75,19 @@ class ImmediateUpdateController(
             } else if (userRequested) {
                 showStore()
             } else {
-                mutableState.value = RequiredUpdateActionState()
+                mutableState.value = RequiredUpdateActionState(isPrepared = true)
             }
         }.addOnFailureListener {
             if (closed) return@addOnFailureListener
             querying = false
-            if (userRequested) showStore() else mutableState.value = RequiredUpdateActionState()
+            if (userRequested) showStore() else mutableState.value = RequiredUpdateActionState(isPrepared = true)
         }
     }
 
     private fun showStore() {
         val opened = openStore()
         mutableState.value = RequiredUpdateActionState(
+            isPrepared = true,
             errorMessage = if (opened) null else "스토어를 열지 못했어요. 잠시 후 다시 시도해 주세요.",
         )
     }
