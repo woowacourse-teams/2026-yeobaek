@@ -28,8 +28,8 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.CommentNotification
-import com.yeobaek.core.notification.CommentNotifications
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.MyProgressModel
@@ -64,7 +64,7 @@ class ReaderViewModel(
     private val commentRepository: CommentRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
-    private val commentNotifications: CommentNotifications,
+    private val notifications: AppNotifications,
     private val isCommentLikeEnabled: () -> Boolean,
     private val commentTarget: ReaderCommentTarget? = null,
 ) : ViewModel() {
@@ -821,7 +821,7 @@ class ReaderViewModel(
         commentCollectionSession.resume()
         if (commentNotificationJob?.isActive != true) {
             commentNotificationJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                commentNotifications.events.collect { notification ->
+                notifications.events.collect { notification ->
                     if (notification.space == commentSpace && uiState.loadState == ReaderLoadState.Success) {
                         refreshComments(notification)
                     }
@@ -1041,7 +1041,7 @@ class ReaderViewModel(
             commentRepository: CommentRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
-            commentNotifications: CommentNotifications,
+            notifications: AppNotifications,
             isCommentLikeEnabled: () -> Boolean,
             commentTarget: ReaderCommentTarget? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
@@ -1057,7 +1057,7 @@ class ReaderViewModel(
                     commentRepository = commentRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
-                    commentNotifications = commentNotifications,
+                    notifications = notifications,
                     isCommentLikeEnabled = isCommentLikeEnabled,
                     commentTarget = commentTarget,
                 )

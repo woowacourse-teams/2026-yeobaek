@@ -12,7 +12,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
-import com.yeobaek.core.notification.CommentNotifications
+import com.yeobaek.core.notification.AppNotifications
+import com.yeobaek.core.notification.ClubJoinNotification
+import com.yeobaek.core.notification.CommentNotification
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.feature.group.detail.navigation.Detail
 import com.yeobaek.feature.home.navigation.Home
@@ -24,7 +26,7 @@ import kotlinx.coroutines.flow.combine
 @Composable
 internal fun NotificationEffects(
     navController: NavHostController,
-    notifications: CommentNotifications,
+    notifications: AppNotifications,
     userId: StateFlow<Int?>,
 ) {
     TrackNotificationSpace(navController, notifications)
@@ -34,7 +36,7 @@ internal fun NotificationEffects(
 @Composable
 private fun TrackNotificationSpace(
     navController: NavController,
-    notifications: CommentNotifications,
+    notifications: AppNotifications,
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(navController, notifications, lifecycle) {
@@ -67,7 +69,7 @@ private fun TrackNotificationSpace(
 @Composable
 private fun HandleNotificationOpen(
     navController: NavHostController,
-    notifications: CommentNotifications,
+    notifications: AppNotifications,
     userId: StateFlow<Int?>,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -95,14 +97,20 @@ private fun HandleNotificationOpen(
                             launchSingleTop = true
                         }
                     }
-                    when (val space = target.space) {
-                        is CommentSpace.Group -> navController.navigate(
-                            Reader(space.groupId, target.passageSequence, target.sentenceId),
-                        )
+                    when (target) {
+                        is ClubJoinNotification -> navController.navigate(Detail(target.groupId)) {
+                            launchSingleTop = true
+                        }
 
-                        is CommentSpace.PublicRoom -> navController.navigate(
-                            PublicRoomReader(space.publicRoomId, target.passageSequence, target.sentenceId),
-                        )
+                        is CommentNotification -> when (val space = target.space) {
+                            is CommentSpace.Group -> navController.navigate(
+                                Reader(space.groupId, target.passageSequence, target.sentenceId),
+                            )
+
+                            is CommentSpace.PublicRoom -> navController.navigate(
+                                PublicRoomReader(space.publicRoomId, target.passageSequence, target.sentenceId),
+                            )
+                        }
                     }
                     notifications.consumeOpen(request)
                 }

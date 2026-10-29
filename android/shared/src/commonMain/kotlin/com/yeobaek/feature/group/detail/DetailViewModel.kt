@@ -19,12 +19,14 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.model.GroupDetailModel
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.group.detail.model.DetailBookUiModel
 import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.group.detail.model.UserUiModel
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class DetailViewModel(
@@ -35,13 +37,15 @@ class DetailViewModel(
 ) : ViewModel() {
     var uiState: DetailUiState by mutableStateOf(DetailUiState())
         private set
+    private var groupLoadJob: Job? = null
 
     fun initGroupData(groupId: Long) {
         uiState = uiState.copy(
             screenState = ScreenState.Loading("모임 정보를 \n가져오는 중입니다. . ."),
         )
 
-        viewModelScope.launch {
+        groupLoadJob?.cancel()
+        groupLoadJob = viewModelScope.launch {
             try {
                 val groupDetail = groupRepository.getGroupDetail(
                     groupId = groupId,
@@ -53,19 +57,7 @@ class DetailViewModel(
                         author = groupDetail.book.authors,
                         currentProgress = groupDetail.myProgress?.progressRate ?: 0,
                     ),
-                    groupUiModel = GroupUiModel(
-                        id = groupId,
-                        name = groupDetail.name,
-                        groupCode = groupDetail.joinCode,
-                        users = groupDetail.members.map { member ->
-                            UserUiModel(
-                                id = member.id,
-                                name = member.nickname,
-                                itsMe = member.mine,
-                                blocked = member.blocked,
-                            )
-                        },
-                    ),
+                    groupUiModel = groupDetail.toGroupUiModel(groupId),
                     screenState = ScreenState.Success,
                 )
                 crashReporter.track(
@@ -90,6 +82,33 @@ class DetailViewModel(
             }
         }
     }
+
+    fun refreshMembers(groupId: Long) {
+        if (uiState.screenState != ScreenState.Success) {
+            initGroupData(groupId)
+            return
+        }
+        groupLoadJob?.cancel()
+        groupLoadJob = viewModelScope.launch {
+            try {
+                val detail = groupRepository.getGroupDetail(groupId)
+                uiState = uiState.copy(groupUiModel = detail.toGroupUiModel(groupId))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                crashReporter.recordException(exception, crashContext(CrashOperation.GROUP_DETAIL_FAILED))
+            }
+        }
+    }
+
+    private fun GroupDetailModel.toGroupUiModel(groupId: Long): GroupUiModel = GroupUiModel(
+        id = groupId,
+        name = name,
+        groupCode = joinCode,
+        users = members.map { member ->
+            UserUiModel(id = member.id, name = member.nickname, itsMe = member.mine, blocked = member.blocked)
+        },
+    )
 
     fun exitGroup(
         groupId: Long,

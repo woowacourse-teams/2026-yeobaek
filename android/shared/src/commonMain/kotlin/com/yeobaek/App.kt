@@ -277,7 +277,7 @@ fun App(
 
         NotificationEffects(
             navController = navController,
-            notifications = appContainer.commentNotifications,
+            notifications = appContainer.notifications,
             userId = appContainer.userPreferences.userId,
         )
     }

@@ -114,7 +114,7 @@ private fun ReaderRoute(
             commentRepository = appContainer.commentRepository,
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
-            commentNotifications = appContainer.commentNotifications,
+            notifications = appContainer.notifications,
             isCommentLikeEnabled = {
                 appContainer.appConfigRepository.state.value.featureFlags.commentLikeEnabled
             },

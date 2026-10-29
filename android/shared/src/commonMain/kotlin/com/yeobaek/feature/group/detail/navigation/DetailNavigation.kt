@@ -1,6 +1,9 @@
 package com.yeobaek.feature.group.detail.navigation
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -17,6 +20,7 @@ import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
+import kotlinx.coroutines.flow.filter
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -59,6 +63,15 @@ fun NavGraphBuilder.detailNavGraph(
             route.groupId,
         ) {
             detailViewModel.initGroupData(groupId = route.groupId)
+        }
+
+        val lifecycleOwner = LocalLifecycleOwner.current
+        LaunchedEffect(route.groupId, lifecycleOwner, appContainer.notifications) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                appContainer.notifications.clubJoinEvents
+                    .filter { it.groupId == route.groupId }
+                    .collect { detailViewModel.refreshMembers(route.groupId) }
+            }
         }
 
         LaunchedEffect(

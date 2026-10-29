@@ -11,7 +11,7 @@ import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
-import com.yeobaek.core.notification.CommentNotifications
+import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.core.update.AppStoreUpdateSession
@@ -95,7 +95,7 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val commentNotifications = CommentNotifications()
+    val notifications = AppNotifications()
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
@@ -175,10 +175,10 @@ class AppContainer(
     }
 
     fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
-        commentNotifications.handleReceived(data)
+        notifications.handleReceived(data)
 
     fun onNotificationOpened(data: Map<String, String>) {
-        commentNotifications.onOpened(data)
+        notifications.onOpened(data)
     }
 
     fun close() {
