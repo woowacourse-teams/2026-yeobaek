@@ -12,7 +12,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         appVersion: Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "",
-        analyticsClient: analyticsClient
+        appVersionCode: Int32(
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        ) ?? 0,
+        analyticsClient: analyticsClient,
+        updatePolicySource: IOSRealtimeUpdatePolicySource(
+            source: IOSFirebaseUpdatePolicySource(isDebug: isDebug)
+        ),
+        updatePolicyPlatform: .ios
     )
 
     private var isDebug: Bool {
@@ -29,7 +36,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
-        _ = appContainer
+        appContainer.startUpdatePolicyUpdates()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermissionOnce()

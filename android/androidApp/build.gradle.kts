@@ -21,9 +21,12 @@ dependencies {
     // firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.android.config)
+    implementation(libs.play.app.update)
 
     // compose & android
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
 
     constraints {
         implementation(libs.androidx.fragment) {
@@ -32,7 +35,8 @@ dependencies {
     }
 
     // material3
-    debugImplementation(libs.compose.material3)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.foundation)
 
     // navigation
     debugImplementation(libs.navigation.compose)
@@ -43,12 +47,11 @@ dependencies {
     // compose tooling (preview & debug)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
-    debugImplementation(libs.compose.foundation)
-    debugImplementation(libs.compose.material3)
     debugImplementation(libs.androidx.lifecycle.viewmodelCompose)
 
     // coroutines (android dispatcher)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // analytics
     implementation(libs.posthog.android)

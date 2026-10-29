@@ -33,6 +33,7 @@ navigationCompose = "2.9.2"
 
 # coroutines
 kotlinx-coroutines = "1.11.0"
+play-app-update = "2.1.0"
 
 # network (ktor & ktorfit)
 ktor = "3.5.2"
@@ -95,6 +96,7 @@ navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-co
 # coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 
 # network (ktor & ktorfit)
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -122,6 +124,7 @@ firebase-android-config = { module = "com.google.firebase:firebase-config" }
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "firebaseKotlinSdk" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+play-app-update = { module = "com.google.android.play:app-update", version.ref = "play-app-update" }
 
 # PostHog
 posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthogAndroid" }
