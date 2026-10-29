@@ -1,6 +1,16 @@
 package com.yeobaek
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -41,6 +51,23 @@ fun App(
     appContainer: AppContainer,
 ) {
     YeobaekTheme {
+        val startup = appContainer.appConfigStartup
+        val isReady by startup.isReady.collectAsState()
+        val isPreview = LocalInspectionMode.current
+
+        LaunchedEffect(startup, isPreview) {
+            if (!isPreview) startup.start()
+        }
+
+        if (!isReady && !isPreview) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            return@YeobaekTheme
+        }
+
         val navController = rememberNavController()
         val startDestination = if (appContainer.userPreferences.getUserId() == null) {
             Nickname

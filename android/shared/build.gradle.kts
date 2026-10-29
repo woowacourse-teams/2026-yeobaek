@@ -3,7 +3,6 @@ import org.gradle.kotlin.dsl.android
 import org.gradle.kotlin.dsl.androidRuntimeClasspath
 import org.gradle.kotlin.dsl.buildkonfig
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.kotlin.dsl.ktlint
 import org.gradle.kotlin.dsl.libs

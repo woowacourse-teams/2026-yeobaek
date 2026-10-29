@@ -5,6 +5,7 @@ import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
+import com.yeobaek.core.config.AppConfigStartup
 import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
 import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
@@ -79,6 +80,11 @@ class AppContainer(
     val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
         dataSource = FirebaseRemoteConfigDataSource(),
     )
+    private val appConfigScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appConfigStartup = AppConfigStartup(
+        repository = appConfigRepository,
+        scope = appConfigScope,
+    )
 
     val userRepository: UserRepository = UserRepositoryImpl(
         userApi = apiProvider.userApi,
@@ -128,6 +134,7 @@ class AppContainer(
     }
 
     fun close() {
+        appConfigScope.cancel()
         notificationScope.cancel()
         networkProvider.close()
     }
