@@ -7,12 +7,14 @@ import static yeobaek.backend.support.LogField.RESULT;
 import static yeobaek.backend.support.LogField.RECOVERED;
 import static yeobaek.backend.support.LogField.SUCCESS;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
@@ -22,6 +24,7 @@ import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.ClubMembers;
+import yeobaek.backend.club.event.ClubMemberJoinedEvent;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.dto.ClubBookResponse;
@@ -55,6 +58,7 @@ public class ClubService {
     private final MemberRepository memberRepository;
     private final MemberBlockRepository memberBlockRepository;
     private final BookCoverUrlResolver bookCoverUrlResolver;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ClubCreateResponse create(Long memberId, ClubName name, Long bookId) {
@@ -76,10 +80,14 @@ public class ClubService {
                         ErrorCode.JOIN_CODE_NOT_FOUND,
                         "참여 코드에 해당하는 모임이 존재하지 않습니다."));
         club.ensureBookAvailable();
-        clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId())
-                .ifPresentOrElse(ClubMember::rejoin,
-                        () -> clubMemberRepository.save(
-                                new ClubMember(memberRepository.getReferenceById(memberId), club)));
+        var membership = clubMemberRepository.findByMemberIdAndClubId(memberId, club.getId());
+        boolean newlyJoined = membership.isEmpty() || !membership.orElseThrow().isJoined();
+        if (newlyJoined) {
+            membership.ifPresentOrElse(ClubMember::rejoin,
+                    () -> clubMemberRepository.save(
+                            new ClubMember(memberRepository.getReferenceById(memberId), club)));
+            eventPublisher.publishEvent(new ClubMemberJoinedEvent(club.getId(), memberId, Instant.now()));
+        }
         Book book = club.getBook();
         var response = new ClubJoinResponse(club.getId(), club.getName(), toBookResponse(book, authorNames(book)));
         logSuccess("club.join", club.getId(), book.getId());

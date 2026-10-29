@@ -12,12 +12,15 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.member.domain.Members;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
+import yeobaek.backend.notification.registration.domain.NotificationPreference;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.dto.NotificationRegistrationRequest;
+import yeobaek.backend.notification.registration.repository.NotificationPreferenceRepository;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -30,6 +33,9 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     private NotificationRegistrationRepository registrationRepository;
 
     @Autowired
+    private NotificationPreferenceRepository preferenceRepository;
+
+    @Autowired
     private MemberRepository memberRepository;
 
     @Autowired
@@ -39,35 +45,37 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    @DisplayName("발송 전 확인한 등록만 삭제하고 같은 FID의 신규 등록과 다른 기기를 유지한다")
+    @DisplayName("발송 전 확인한 등록만 삭제하고 다른 회원의 같은 FID 등록과 다른 기기를 유지한다")
     void preserveNewRegistrationAndOtherDevices() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
         var tablet = save(member, 'd');
         Member other = memberRepository.save(new Member(new Nickname("다른독자")));
-        var otherPhone = save(other, 'e');
-        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
-        var newPhone = save(member, 'c');
+        var otherPhone = save(other, 'c');
+        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
 
         assertThat(deletedCount).isEqualTo(1);
         assertThat(registrationRepository.findAll()).extracting(NotificationRegistration::getId)
-                .containsExactlyInAnyOrder(tablet.getId(), otherPhone.getId(), newPhone.getId());
+                .containsExactlyInAnyOrder(tablet.getId(), otherPhone.getId());
     }
 
     @Test
-    @DisplayName("동일 FID의 기존 중복 등록은 스냅샷에 포함된 것만 모두 삭제한다")
-    void deleteDuplicateSnapshotRegistrations() {
+    @DisplayName("반복 등록은 같은 행을 유지하고 등록 실패 정리는 연결된 설정도 삭제한다")
+    void deleteRepeatedRegistrationWithPreferences() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        save(member, 'c');
-        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
+        var repeated = registrationService.register(member.getId(),
+                new NotificationRegistrationRequest(phone.getFirebaseInstallationId().value()));
+        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
 
-        assertThat(deletedCount).isEqualTo(2);
+        assertThat(repeated.getId()).isEqualTo(phone.getId());
+        assertThat(deletedCount).isEqualTo(1);
         assertThat(registrationRepository.findAll()).isEmpty();
+        assertThat(jdbcTemplate.queryForObject("select count(*) from notification_preferences", Long.class)).isZero();
     }
 
     @Test
@@ -75,7 +83,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void preserveChangedFid() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
+        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
         String changedFid = "d" + "a".repeat(21);
         jdbcTemplate.update("update notification_registrations set fid = ? where id = ?", changedFid, phone.getId());
 
@@ -91,7 +99,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void commitCleanupAfterOriginalTransaction() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.findByMembers(new Members(List.of(member)));
+        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -118,8 +126,10 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     }
 
     private NotificationRegistration save(Member member, char prefix) {
-        return registrationRepository.save(new NotificationRegistration(
+        var registration = registrationRepository.save(new NotificationRegistration(
                 member, new FirebaseInstallationId(prefix + "a".repeat(21))));
+        preferenceRepository.saveAll(NotificationPreference.defaultsFor(registration));
+        return registration;
     }
 
     @Test
@@ -132,9 +142,13 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         registrationRepository.deleteById(phone.getId());
         var replacement = save(member, 'c');
 
-        var snapshot = registrationService.snapshotForRetry(originalIds, phone.getFirebaseInstallationId());
+        var snapshot = registrationService.snapshotForRetry(
+                originalIds, phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT);
+        int deleted = registrationService.deleteUnregistered(
+                new NotificationRegistrations(List.of(phone)), phone.getFirebaseInstallationId());
 
-        assertThat(snapshot.idsFor(phone.getFirebaseInstallationId())).isEmpty();
+        assertThat(snapshot.findRegistrationIdsByFid(phone.getFirebaseInstallationId())).isEmpty();
+        assertThat(deleted).isZero();
         assertThat(registrationRepository.findAll()).extracting(NotificationRegistration::getId)
                 .containsExactlyInAnyOrder(tablet.getId(), replacement.getId());
     }
@@ -147,9 +161,10 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         jdbcTemplate.update("update notification_registrations set fid = ? where id = ?",
                 "d" + "a".repeat(21), phone.getId());
 
-        var snapshot = registrationService.snapshotForRetry(List.of(phone.getId()), phone.getFirebaseInstallationId());
+        var snapshot = registrationService.snapshotForRetry(
+                List.of(phone.getId()), phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT);
 
-        assertThat(snapshot.idsFor(phone.getFirebaseInstallationId())).isEmpty();
+        assertThat(snapshot.findRegistrationIdsByFid(phone.getFirebaseInstallationId())).isEmpty();
         assertThat(registrationRepository.findById(phone.getId())).isPresent();
     }
 }

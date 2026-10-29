@@ -5,6 +5,8 @@ import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
+import com.yeobaek.core.config.AppConfigStartup
+import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
 import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
@@ -21,12 +23,14 @@ import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.UpdatePolicyPreferences
 import com.yeobaek.data.local.UserPreferences
+import com.yeobaek.data.repository.AppConfigRepository
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
+import com.yeobaek.data.repositoryImpl.remote.AppConfigRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
@@ -102,6 +106,15 @@ class AppContainer(
         },
     )
 
+    val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
+        dataSource = FirebaseRemoteConfigDataSource(),
+    )
+    private val appConfigScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appConfigStartup = AppConfigStartup(
+        repository = appConfigRepository,
+        scope = appConfigScope,
+    )
+
     val userRepository: UserRepository = UserRepositoryImpl(
         userApi = apiProvider.userApi,
         userPreferences = userPreferences,
@@ -166,6 +179,7 @@ class AppContainer(
 
     fun close() {
         applicationScope.cancel()
+        appConfigScope.cancel()
         networkProvider.close()
     }
 

@@ -1,5 +1,6 @@
 package com.yeobaek.feature.group.create
 
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.group.create.model.SelectBookUiModel
 
 data class CreateUiState(
@@ -11,10 +12,12 @@ data class CreateUiState(
     val isGroupNameValid: Boolean = true,
     val createState: CreateState = CreateState.Idle,
     val bookState: BookState = BookState.Idle,
+    val bookDetailState: BookDetailState = BookDetailState.Idle,
     val searchTextValue: String = "",
 )
 
 enum class CreateStep {
     BookSelection,
+    BookDetail,
     GroupName,
 }

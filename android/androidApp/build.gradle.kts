@@ -16,11 +16,12 @@ kotlin {
 dependencies {
     // shared module
     implementation(project(":shared"))
+    debugImplementation(project(":devtools"))
 
     // firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
-    implementation(libs.firebase.config)
+    implementation(libs.firebase.android.config)
     implementation(libs.play.app.update)
 
     // compose & android

@@ -65,6 +65,7 @@ class ReaderViewModel(
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
     private val commentNotifications: CommentNotifications,
+    private val isCommentLikeEnabled: () -> Boolean,
     private val commentTarget: ReaderCommentTarget? = null,
 ) : ViewModel() {
     var uiState by mutableStateOf(
@@ -148,6 +149,7 @@ class ReaderViewModel(
             isAfterJump = { uiState.returnPassageSequence != null },
         ),
         onCommentsViewed = ::handleCommentsViewed,
+        isCommentLikeEnabled = isCommentLikeEnabled,
     )
 
     private var pagingJob: Job? = null
@@ -1040,6 +1042,7 @@ class ReaderViewModel(
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
             commentNotifications: CommentNotifications,
+            isCommentLikeEnabled: () -> Boolean,
             commentTarget: ReaderCommentTarget? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -1055,6 +1058,7 @@ class ReaderViewModel(
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
                     commentNotifications = commentNotifications,
+                    isCommentLikeEnabled = isCommentLikeEnabled,
                     commentTarget = commentTarget,
                 )
             }

@@ -41,6 +41,7 @@ fun ReaderScreen(
     commentSheet: CommentSheetUiState?,
     actions: ReaderActions,
     commentSheetActions: CommentSheetActions,
+    isCommentLikeEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     PlatformBackHandler(
@@ -152,6 +153,7 @@ fun ReaderScreen(
     if (commentSheet != null) {
         CommentBottomSheet(
             uiState = commentSheet,
+            isLikeEnabled = isCommentLikeEnabled,
             onDismissRequest = commentSheetActions.onDismiss,
             onRetry = commentSheetActions.onRetry,
             onGoToText = actions.onMoveToComment,
@@ -262,6 +264,7 @@ private fun ReaderContent(
 private fun ReaderScreenPreview() {
     YeobaekTheme {
         ReaderScreen(
+            isCommentLikeEnabled = true,
             uiState = ReaderUiState(
                 loadState = ReaderLoadState.Success,
                 title = "데미안",

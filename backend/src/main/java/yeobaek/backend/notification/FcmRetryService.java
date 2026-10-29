@@ -2,6 +2,7 @@ package yeobaek.backend.notification;
 
 import static yeobaek.backend.notification.domain.FcmSendFailure.MAX_JITTER_PERCENT;
 import static yeobaek.backend.support.LogField.COMMENT_ID;
+import static yeobaek.backend.support.LogField.CLUB_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 
@@ -14,6 +15,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.spi.LoggingEventBuilder;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.dao.DataAccessException;
@@ -21,6 +23,7 @@ import org.springframework.scheduling.TaskScheduler;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
+import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
@@ -58,8 +61,8 @@ public class FcmRetryService {
                 pendingSlots.release();
                 submit(task);
             }, nextRetryAt.orElseThrow());
-            log.atInfo().addKeyValue(OPERATION, "notification.retry.schedule").addKeyValue(RESULT, "success")
-                    .addKeyValue(COMMENT_ID, task.commentId()).addKeyValue("retriesPerformed", task.retriesPerformed())
+            withSource(log.atInfo(), task).addKeyValue(OPERATION, "notification.retry.schedule").addKeyValue(RESULT, "success")
+                    .addKeyValue("retriesPerformed", task.retriesPerformed())
                     .addKeyValue("scope", task.isCallFailure() ? "call" : "target")
                     .addKeyValue("nextRetryAt", nextRetryAt.orElseThrow()).log("FCM 추가 발송을 예약했습니다.");
         } catch (TaskRejectedException exception) {
@@ -73,8 +76,8 @@ public class FcmRetryService {
             CompletableFuture.runAsync(() -> execute(task), executor).whenComplete((ignored, exception) -> {
                 if (exception != null) {
                     Throwable cause = exception.getCause() == null ? exception : exception.getCause();
-                    log.atError().addKeyValue(OPERATION, "notification.retry.submit").addKeyValue(RESULT, "failure")
-                            .addKeyValue(COMMENT_ID, task.commentId()).addKeyValue("reason", "unexpectedFailure")
+                    withSource(log.atError(), task).addKeyValue(OPERATION, "notification.retry.submit").addKeyValue(RESULT, "failure")
+                            .addKeyValue("reason", "unexpectedFailure")
                             .addKeyValue("exceptionType", cause.getClass().getSimpleName())
                             .log("재시도 작업의 예상하지 못한 오류로 해당 작업을 종료했습니다.");
                 }
@@ -91,10 +94,11 @@ public class FcmRetryService {
                 return;
             }
             var fid = new FirebaseInstallationId(task.fid());
-            NotificationRegistrations snapshot = registrationService.snapshotForRetry(task.registrationIds(), fid);
-            List<Long> remainingIds = snapshot.idsFor(fid);
+            NotificationRegistrations snapshot = registrationService.snapshotForRetry(
+                    task.registrationIds(), fid, task.notificationType());
+            List<Long> remainingIds = snapshot.findRegistrationIdsByFid(fid);
             if (remainingIds.isEmpty()) {
-                logStopped(task, "REGISTRATION_REMOVED_OR_CHANGED");
+                logStopped(task, "NO_ELIGIBLE_REGISTRATION");
                 return;
             }
             if (task.isExpired(clock.instant())) {
@@ -103,10 +107,10 @@ public class FcmRetryService {
             }
             send(task, snapshot, remainingIds);
         } catch (IllegalArgumentException exception) {
-            failureHandler.handleInvalidRequest(task.commentId());
+            failureHandler.handleInvalidRequest(task.notificationType(), task.sourceId());
         } catch (DataAccessException exception) {
-            log.atError().addKeyValue(OPERATION, "notification.retry.execute").addKeyValue(RESULT, "failure")
-                    .addKeyValue(COMMENT_ID, task.commentId()).addKeyValue("exceptionType", exception.getClass().getSimpleName())
+            withSource(log.atError(), task).addKeyValue(OPERATION, "notification.retry.execute").addKeyValue(RESULT, "failure")
+                    .addKeyValue("exceptionType", exception.getClass().getSimpleName())
                     .log("재시도 대상의 등록 정보를 확인하지 못해 해당 작업을 종료했습니다.");
         }
     }
@@ -117,16 +121,14 @@ public class FcmRetryService {
             Instant observedAt = clock.instant();
             failureHandler.handle(result, snapshot);
             if (result.failureCount() == 0) {
-                log.atInfo().addKeyValue(OPERATION, "notification.retry.send").addKeyValue(RESULT, "success")
-                        .addKeyValue(COMMENT_ID, task.commentId())
+                withSource(log.atInfo(), task).addKeyValue(OPERATION, "notification.retry.send").addKeyValue(RESULT, "success")
                         .addKeyValue("retriesPerformed", task.retriesPerformed() + 1)
                         .log("추가 발송을 FCM에서 접수해 재시도를 종료했습니다.");
                 return;
             }
             scheduleNext(task, result.failures().getFirst(), observedAt, remainingIds);
         } catch (FirebaseMessagingException exception) {
-            failureHandler.handleCallFailure(task.commentId(), exception);
-            // 원래 실패 대상 하나만 보낸 호출의 예외다. 응답이 없으면 접수 불명확 정책으로 분류한다.
+            failureHandler.handleCallFailure(task.notificationType(), task.sourceId(), exception);
             scheduleNext(task, FcmSendFailure.from(null, exception), clock.instant(), remainingIds);
         }
     }
@@ -146,16 +148,21 @@ public class FcmRetryService {
     }
 
     private void logStopped(FcmRetryTask task, String reason, int retriesPerformed, boolean uncertainRetryUsed) {
-        log.atInfo().addKeyValue(OPERATION, "notification.retry.logStopped").addKeyValue(RESULT, "rejected")
-                .addKeyValue(COMMENT_ID, task.commentId()).addKeyValue("stopReason", reason)
+        withSource(log.atInfo(), task).addKeyValue(OPERATION, "notification.retry.logStopped").addKeyValue(RESULT, "rejected")
+                .addKeyValue("stopReason", reason)
                 .addKeyValue("scope", task.isCallFailure() ? "call" : "target")
                 .addKeyValue("retriesPerformed", retriesPerformed)
                 .addKeyValue("uncertainRetryUsed", uncertainRetryUsed).log("FCM 재시도를 종료했습니다.");
     }
 
     private void logRejected(FcmRetryTask task, String reason) {
-        log.atWarn().addKeyValue(OPERATION, "notification.retry.logRejected").addKeyValue(RESULT, "rejected")
-                .addKeyValue(COMMENT_ID, task.commentId()).addKeyValue("reason", reason)
+        withSource(log.atWarn(), task).addKeyValue(OPERATION, "notification.retry.logRejected").addKeyValue(RESULT, "rejected")
+                .addKeyValue("reason", reason)
                 .log("예약기 또는 실행기의 용량·종료 상태로 재시도 작업을 종료했습니다.");
+    }
+    private LoggingEventBuilder withSource(LoggingEventBuilder event, FcmRetryTask task) {
+        return event.addKeyValue("notificationType", task.notificationType().name())
+                .addKeyValue(task.notificationType() == NotificationType.CLUB_JOIN ? CLUB_ID : COMMENT_ID,
+                        task.sourceId());
     }
 }

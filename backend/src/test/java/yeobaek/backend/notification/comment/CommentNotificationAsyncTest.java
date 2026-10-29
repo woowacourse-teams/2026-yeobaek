@@ -23,6 +23,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import yeobaek.backend.notification.NotificationListener;
+import yeobaek.backend.notification.clubjoin.ClubJoinNotificationService;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.support.LogCapture;
@@ -34,13 +36,13 @@ class CommentNotificationAsyncTest {
 
     private final CommentNotificationService service = mock(CommentNotificationService.class);
     private ThreadPoolTaskExecutor executor;
-    private CommentNotificationListener listener;
+    private NotificationListener listener;
 
     @BeforeEach
     void setUp() {
         executor = new NotificationExecutorConfiguration().notificationTaskExecutor(1, 1);
         executor.initialize();
-        listener = new CommentNotificationListener(service, executor);
+        listener = new NotificationListener(service, mock(ClubJoinNotificationService.class), executor);
     }
 
     @AfterEach
@@ -107,7 +109,7 @@ class CommentNotificationAsyncTest {
             return null;
         }).when(service).notifyClub(any(ClubSentenceCommentCreatedEvent.class));
 
-        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+        try (var logs = new LogCapture(NotificationListener.class.getName())) {
             listener.onClubSentenceCommentCreated(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, CREATED_AT));
             try {
                 assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
@@ -133,7 +135,7 @@ class CommentNotificationAsyncTest {
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
 
-        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+        try (var logs = new LogCapture(NotificationListener.class.getName())) {
             MDC.put("traceId", "request-trace");
             try {
                 notify(true);

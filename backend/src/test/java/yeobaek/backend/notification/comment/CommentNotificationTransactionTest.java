@@ -3,6 +3,7 @@ package yeobaek.backend.notification.comment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.BDDMockito.given;
@@ -60,6 +61,8 @@ import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.notification.NotificationListener;
+import yeobaek.backend.notification.clubjoin.ClubJoinNotificationService;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
@@ -74,6 +77,7 @@ import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.FcmNotificationService;
 import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
@@ -144,6 +148,9 @@ class CommentNotificationTransactionTest {
     private FcmPushSender pushSender;
 
     @MockitoBean
+    private ClubJoinNotificationService clubJoinNotificationService;
+
+    @MockitoBean
     private FcmRetryService retryService;
 
     @Autowired
@@ -176,7 +183,6 @@ class CommentNotificationTransactionTest {
         given(clubMemberRepository.findJoinedByMemberIdAndClubId(7L, 5L))
                 .willReturn(Optional.of(writerMembership));
         given(sentenceRepository.findById(13L)).willReturn(Optional.of(sentence));
-        given(sentenceRepository.getReferenceById(13L)).willReturn(sentence);
         given(memberRepository.getReferenceById(7L)).willReturn(writer);
         given(commentRepository.save(any(Comment.class))).willAnswer(invocation -> {
             Comment comment = invocation.getArgument(0);
@@ -186,22 +192,17 @@ class CommentNotificationTransactionTest {
 
         var reader = new Member(new Nickname("독자"));
         ReflectionTestUtils.setField(reader, "id", 9L);
-        var readerMembership = mock(ClubMember.class);
-        var lastRead = mock(Passage.class);
-        given(lastRead.getSequence()).willReturn(new ContentSequence(2));
-        given(readerMembership.getLastReadPassage()).willReturn(lastRead);
-        given(readerMembership.getMember()).willReturn(reader);
-        given(clubMemberRepository.findNotificationCandidatesWithReadingProgress(5L, 7L))
-                .willReturn(List.of(readerMembership));
+        given(recipientQueryRepository.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L)))
+                .willReturn(List.of(9L));
         String fid = "c" + "a".repeat(21);
-        given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(
+        given(registrationService.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid)))));
 
         var room = mock(PublicRoom.class);
         given(room.isReading(sentence)).willReturn(true);
         given(publicRoomRepository.findWithBookById(8L)).willReturn(Optional.of(room));
-        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(List.of(
-                new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid))));
+        given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
+                .willReturn(List.of(reader.getId()));
         given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }
 
@@ -228,19 +229,11 @@ class CommentNotificationTransactionTest {
     void finishReadOnlyLookupBeforeSend(boolean club) throws Exception {
         var registration = new NotificationRegistration(
                 1L, mock(Member.class), new FirebaseInstallationId("c" + "a".repeat(21)));
-        if (club) {
-            doAnswer(invocation -> {
-                assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
-                        TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
-                return new NotificationRegistrations(List.of(registration));
-            }).when(registrationService).findByMembers(any());
-        } else {
-            doAnswer(invocation -> {
-                assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
-                        TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
-                return List.of(registration);
-            }).when(recipientQueryRepository).findRegistrationsForPublicRoomComment(8L, 13L, 7L);
-        }
+        doAnswer(invocation -> {
+            assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
+                    TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
+            return new NotificationRegistrations(List.of(registration));
+        }).when(registrationService).findByMemberIds(any(), any());
         doAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return new FcmSendResult(1, List.of());
@@ -362,10 +355,10 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("수신자 DB 조회 실패는 댓글 식별자와 함께 기록하고 댓글 응답을 유지한다")
     void logRecipientDatabaseFailure() throws Exception {
-        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
+        given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
                 .willThrow(new DataAccessResourceFailureException("database unavailable"));
 
-        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+        try (var logs = new LogCapture(FcmNotificationService.class.getName())) {
             var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
             executor.runNextOnWorker();
 
@@ -379,7 +372,7 @@ class CommentNotificationTransactionTest {
     @Test
     @DisplayName("커밋 후 조회 예외도 댓글 응답을 바꾸지 않고 조회 트랜잭션만 롤백한다")
     void keepResponseWhenRecipientQueryFails() throws Exception {
-        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
+        given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
                 .willThrow(new IllegalStateException("query failed"));
 
         var response = commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
@@ -406,7 +399,7 @@ class CommentNotificationTransactionTest {
     void keepCommentWhenSubmissionIsRejected(boolean club) throws SQLException {
         executor.reject = true;
 
-        try (var logs = new LogCapture(CommentNotificationListener.class.getName())) {
+        try (var logs = new LogCapture(NotificationListener.class.getName())) {
             var response = club
                     ? commentService.create(7L, 5L, 13L, new CommentContent("댓글"))
                     : commentService.createInPublicRoom(7L, 8L, 13L, new CommentContent("댓글"));
@@ -433,9 +426,9 @@ class CommentNotificationTransactionTest {
         });
         String fid = "c" + "a".repeat(21);
         var registration = new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid));
-        given(registrationService.findByMembers(any())).willReturn(new NotificationRegistrations(List.of(registration)));
-        given(recipientQueryRepository.findRegistrationsForPublicRoomComment(8L, 13L, 7L))
-                .willReturn(List.of(registration));
+        given(registrationService.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(registration)));
+        given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
+                .willReturn(List.of(9L));
         given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
                 new FcmSendFailure(fid, "UNAVAILABLE", "UNAVAILABLE", 503, null))));
 
@@ -448,7 +441,7 @@ class CommentNotificationTransactionTest {
 
         var task = ArgumentCaptor.forClass(FcmRetryTask.class);
         verify(retryService).schedule(task.capture());
-        assertThat(task.getValue().commentCreatedAt()).isEqualTo(createdAt.atZone(ZoneId.systemDefault()).toInstant());
+        assertThat(task.getValue().createdAt()).isEqualTo(createdAt.atZone(ZoneId.systemDefault()).toInstant());
         assertThat(task.getValue().stopReason(0)).contains("EXPIRED");
         verify(pushSender, times(1)).send(any(), any(), any(), any());
     }
@@ -481,8 +474,8 @@ class CommentNotificationTransactionTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableTransactionManagement
-    @Import({CommentService.class, CommentNotificationListener.class, CommentNotificationService.class,
-            FcmFailureHandler.class})
+    @Import({CommentService.class, NotificationListener.class, CommentNotificationService.class,
+            FcmNotificationService.class, FcmFailureHandler.class})
     static class TestConfig {
 
         @Bean

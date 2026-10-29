@@ -98,14 +98,13 @@ public record FcmSendFailure(
                 && retryAfterDate().isEmpty();
     }
 
-    // 재시도를 예약하거나 실행하지 않고, 주어진 이력으로 다음 시도 시각만 계산한다.
-    public Optional<Instant> nextRetryAt(Instant commentCreatedAt, Instant observedAt,
+    public Optional<Instant> nextRetryAt(Instant createdAt, Instant observedAt,
                                         int retriesPerformed, boolean uncertainRetryUsed, int jitterPercent) {
         if (retriesPerformed < 0 || jitterPercent < 0 || jitterPercent > MAX_JITTER_PERCENT
-                || observedAt.isBefore(commentCreatedAt)) {
+                || observedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException("재시도 이력과 시각, 지연 비율을 확인하세요.");
         }
-        Instant expiresAt = commentCreatedAt.plus(VALIDITY);
+        Instant expiresAt = createdAt.plus(VALIDITY);
         if (!isRetryable() || retriesPerformed >= MAX_RETRIES || !observedAt.isBefore(expiresAt)
                 || (isReceiptUncertain() && uncertainRetryUsed)) {
             return Optional.empty();
@@ -122,9 +121,9 @@ public record FcmSendFailure(
         }
     }
 
-    public Optional<String> retryStopReason(Instant commentCreatedAt, Instant observedAt,
+    public Optional<String> retryStopReason(Instant createdAt, Instant observedAt,
                                           int retriesPerformed, boolean uncertainRetryUsed, int jitterPercent) {
-        if (nextRetryAt(commentCreatedAt, observedAt, retriesPerformed, uncertainRetryUsed, jitterPercent).isPresent()) {
+        if (nextRetryAt(createdAt, observedAt, retriesPerformed, uncertainRetryUsed, jitterPercent).isPresent()) {
             return Optional.empty();
         }
         if (!isRetryable()) {
@@ -133,7 +132,7 @@ public record FcmSendFailure(
         if (retriesPerformed >= MAX_RETRIES) {
             return Optional.of("RETRY_LIMIT_REACHED");
         }
-        if (!observedAt.isBefore(commentCreatedAt.plus(VALIDITY))) {
+        if (!observedAt.isBefore(createdAt.plus(VALIDITY))) {
             return Optional.of("EXPIRED");
         }
         if (isReceiptUncertain() && uncertainRetryUsed) {
@@ -142,8 +141,8 @@ public record FcmSendFailure(
         return Optional.of("NEXT_RETRY_AT_OR_AFTER_EXPIRY");
     }
 
-    public boolean isExpired(Instant commentCreatedAt, Instant now) {
-        return !now.isBefore(commentCreatedAt.plus(VALIDITY));
+    public boolean isExpired(Instant createdAt, Instant now) {
+        return !now.isBefore(createdAt.plus(VALIDITY));
     }
 
     private Instant retryAfterAt(Instant observedAt) {
