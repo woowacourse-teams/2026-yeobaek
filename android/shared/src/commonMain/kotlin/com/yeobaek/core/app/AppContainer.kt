@@ -16,7 +16,6 @@ import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
 import com.yeobaek.core.update.UpdatePolicyRepository
 import com.yeobaek.core.update.UpdatePolicySource
-import com.yeobaek.core.update.requiredUpdateState
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
@@ -79,11 +78,6 @@ class AppContainer(
             FirebaseCrashSink.log("Update policy refresh failed: ${exception::class.simpleName}")
         },
     )
-    val isUpdateRequired = updatePolicyRepository.policy.requiredUpdateState(
-        currentVersionCode = appVersionCode,
-        scope = applicationScope,
-    )
-
     private val networkProvider = NetworkProvider(
         userPreferences = userPreferences,
         isDebug = isDebug,
