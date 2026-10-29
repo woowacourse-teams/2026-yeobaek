@@ -27,6 +27,7 @@ import com.yeobaek.data.repository.AppConfigRepository
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
@@ -95,16 +96,19 @@ class AppContainer(
     )
 
     val commentNotifications = CommentNotifications()
+    val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
         preferences = NotificationRegistrationPreferences(settings),
-        repository = NotificationRepositoryImpl(apiProvider.notificationApi),
+        repository = notificationRepository,
         server = networkProvider.baseUrl,
         scope = applicationScope,
         onFailure = { exception ->
             FirebaseCrashSink.log("Notification registration failed: ${exception::class.simpleName}")
         },
     )
+
+    val notificationInstallationId = notificationRegistration.installationId
 
     val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
         dataSource = FirebaseRemoteConfigDataSource(),

@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -22,7 +23,8 @@ class NotificationRegistrationCoordinator(
     scope: CoroutineScope,
     private val onFailure: (Exception) -> Unit,
 ) {
-    private val installationId = MutableStateFlow<String?>(null)
+    private val currentInstallationId = MutableStateFlow<String?>(null)
+    val installationId: StateFlow<String?> = currentInstallationId.asStateFlow()
 
     init {
         scope.launch {
@@ -40,7 +42,7 @@ class NotificationRegistrationCoordinator(
     }
 
     fun updateInstallationId(fid: String) {
-        installationId.value = fid
+        currentInstallationId.value = fid
     }
 
     private suspend fun register(memberId: Int, fid: String) {
