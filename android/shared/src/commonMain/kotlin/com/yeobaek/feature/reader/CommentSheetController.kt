@@ -35,6 +35,7 @@ class CommentSheetController(
     private val onCommentCountChanged: (sentenceId: Long, commentCount: Int) -> Unit,
     private val onCommentsViewed: (sentenceId: Long) -> Unit,
     private val analytics: CommentSheetAnalytics,
+    private val isCommentLikeEnabled: () -> Boolean,
 ) {
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
         private set
@@ -508,6 +509,7 @@ class CommentSheetController(
     fun toggleLike(commentId: Long) {
         val curSheetVersion = sheetVersion
         val sheet = uiState ?: return
+        if (!isCommentLikeEnabled()) return
         val comment = sheet.comments.firstOrNull { it.commentId == commentId } ?: return
         if (comment.isLikePending) return
 
@@ -524,6 +526,10 @@ class CommentSheetController(
         )
 
         scope.launch {
+            if (!isCommentLikeEnabled()) {
+                restoreLike(comment, sheet.sentenceId, curSheetVersion)
+                return@launch
+            }
             try {
                 val result = commentRepository.setCommentLiked(commentId, liked)
 
@@ -560,32 +566,44 @@ class CommentSheetController(
                     sentenceId = sheet.sentenceId,
                 )
 
-                if (curSheetVersion != sheetVersion) return@launch
-
-                updateSheet(
+                restoreLike(
+                    comment = comment,
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet ->
-                        currentSheet.comments.any { current ->
-                            current.commentId == commentId && current.isLikePending
-                        }
-                    },
-                ) { currentSheet ->
-                    currentSheet.copy(
-                        comments = currentSheet.comments.map { current ->
-                            if (current.commentId == commentId) {
-                                current.copy(
-                                    likeCount = comment.likeCount,
-                                    likedByMe = comment.likedByMe,
-                                    isLikePending = false,
-                                )
-                            } else {
-                                current
-                            }
-                        },
-                        likeErrorMessage = "좋아요를 변경하지 못했습니다.",
-                    )
-                }
+                    requestSheetVersion = curSheetVersion,
+                    errorMessage = "좋아요를 변경하지 못했습니다.",
+                )
             }
+        }
+    }
+
+    private fun restoreLike(
+        comment: CommentUiModel,
+        sentenceId: Long,
+        requestSheetVersion: Long,
+        errorMessage: String? = null,
+    ) {
+        if (requestSheetVersion != sheetVersion) return
+
+        updateSheet(
+            sentenceId = sentenceId,
+            isWaiting = { sheet ->
+                sheet.comments.any { it.commentId == comment.commentId && it.isLikePending }
+            },
+        ) { sheet ->
+            sheet.copy(
+                comments = sheet.comments.map { current ->
+                    if (current.commentId == comment.commentId) {
+                        current.copy(
+                            likeCount = comment.likeCount,
+                            likedByMe = comment.likedByMe,
+                            isLikePending = false,
+                        )
+                    } else {
+                        current
+                    }
+                },
+                likeErrorMessage = errorMessage,
+            )
         }
     }
 

@@ -25,6 +25,7 @@ import org.jetbrains.compose.resources.painterResource
 fun CommentActions(
     likedByMe: Boolean,
     likeCount: Long,
+    isLikeEnabled: Boolean,
     onMenuClick: () -> Unit,
     onLike: () -> Unit,
     menuButtonDescription: String,
@@ -41,11 +42,13 @@ fun CommentActions(
                 onMenuClick = onMenuClick,
                 menuButtonDescription = menuButtonDescription,
             )
-            LikeButtonContent(
-                likedByMe = likedByMe,
-                likeCount = likeCount,
-                onLike = onLike,
-            )
+            if (isLikeEnabled) {
+                LikeButtonContent(
+                    likedByMe = likedByMe,
+                    likeCount = likeCount,
+                    onLike = onLike,
+                )
+            }
         }
     }
 }

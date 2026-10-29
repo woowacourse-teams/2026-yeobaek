@@ -1,9 +1,11 @@
 package com.yeobaek.feature.reader.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -113,8 +115,12 @@ private fun ReaderRoute(
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
             commentNotifications = appContainer.commentNotifications,
+            isCommentLikeEnabled = {
+                appContainer.appConfigRepository.state.value.featureFlags.commentLikeEnabled
+            },
         ),
     )
+    val appConfig by appContainer.appConfigRepository.state.collectAsStateWithLifecycle()
     TrackScreen(
         crashReporter = appContainer.crashReporter,
         analyticsTracker = appContainer.analyticsTracker,
@@ -184,5 +190,6 @@ private fun ReaderRoute(
         commentSheet = commentSheet.uiState,
         actions = actions,
         commentSheetActions = commentSheetActions,
+        isCommentLikeEnabled = appConfig.featureFlags.commentLikeEnabled,
     )
 }

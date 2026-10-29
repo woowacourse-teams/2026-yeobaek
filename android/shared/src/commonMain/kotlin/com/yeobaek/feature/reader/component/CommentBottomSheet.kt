@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun CommentBottomSheet(
     uiState: CommentSheetUiState,
+    isLikeEnabled: Boolean,
     onDismissRequest: () -> Unit,
     onRetry: () -> Unit,
     onGoToText: () -> Unit,
@@ -163,6 +164,7 @@ fun CommentBottomSheet(
                 Spacer(modifier = Modifier.height(22.dp))
                 CommentList(
                     uiState = uiState,
+                    isLikeEnabled = isLikeEnabled,
                     onEdit = onEdit,
                     onDelete = onDelete,
                     onReport = onReport,

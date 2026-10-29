@@ -49,6 +49,7 @@ import com.yeobaek.feature.onboarding.selectbook.model.OnboardingBookUiModel
 @Composable
 fun OnboardingScreen(
     uiState: OnboardingUiState,
+    title: String,
     navigateToHome: () -> Unit,
     onClickSkip: () -> Unit,
     navigateToJoin: () -> Unit,
@@ -161,7 +162,7 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Text("어떤 책을 읽어볼까요?", style = MaterialTheme.typography.headlineLarge)
+                Text(title, style = MaterialTheme.typography.headlineLarge)
                 Text("책을 고르면 함께 읽는 방식을 선택할 수 있어요.", style = MaterialTheme.typography.bodyMedium)
                 OnboardingJoinCard(
                     navigateToJoin = navigateToJoin,
@@ -278,6 +279,7 @@ private fun LoadingIndicator() {
 private fun OnboardingScreenPreview() {
     YeobaekTheme {
         OnboardingScreen(
+            title = "어떤 책을 읽어볼까요?",
             uiState = OnboardingUiState(
                 bookUiModelList = listOf(
                     OnboardingBookUiModel(

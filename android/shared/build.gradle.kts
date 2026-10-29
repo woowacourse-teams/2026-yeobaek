@@ -133,7 +133,6 @@ kotlin {
         commonTest.dependencies {
             // test
             implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.jetbrains.ui.test)
         }
     }
