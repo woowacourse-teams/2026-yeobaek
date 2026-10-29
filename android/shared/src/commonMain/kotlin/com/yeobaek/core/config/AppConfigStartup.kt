@@ -10,6 +10,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeoutOrNull
 
 class AppConfigStartup(
@@ -17,8 +18,18 @@ class AppConfigStartup(
     private val scope: CoroutineScope,
 ) {
     private val started = MutableStateFlow(false)
+    private val observingUpdates = MutableStateFlow(false)
+    private val refreshMutex = Mutex()
     private val _isReady = MutableStateFlow(false)
     val isReady = _isReady.asStateFlow()
+
+    fun onForeground() {
+        start()
+        if (!_isReady.value || !repository.state.value.isInitialized) return
+
+        observeUpdates()
+        refresh()
+    }
 
     fun start() {
         if (!started.compareAndSet(expect = false, update = true)) return
@@ -39,9 +50,32 @@ class AppConfigStartup(
 
             if (result?.isSuccess != true) return@launch
 
-            if (repository.fetch().isSuccess) {
-                currentCoroutineContext().ensureActive()
-                repository.activate()
+            observeUpdates()
+            refresh()
+        }
+    }
+
+    private fun observeUpdates() {
+        if (!observingUpdates.compareAndSet(expect = false, update = true)) return
+        scope.launch {
+            try {
+                repository.observeUpdates()
+            } finally {
+                observingUpdates.value = false
+            }
+        }
+    }
+
+    private fun refresh() {
+        scope.launch {
+            if (!refreshMutex.tryLock()) return@launch
+            try {
+                if (repository.fetch().isSuccess) {
+                    currentCoroutineContext().ensureActive()
+                    repository.activate()
+                }
+            } finally {
+                refreshMutex.unlock()
             }
         }
     }

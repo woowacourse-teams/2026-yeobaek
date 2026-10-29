@@ -11,4 +11,6 @@ interface AppConfigRepository {
     suspend fun fetch(): Result<Unit>
 
     suspend fun activate(): Result<Boolean>
+
+    suspend fun observeUpdates()
 }

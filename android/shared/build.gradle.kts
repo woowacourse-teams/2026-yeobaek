@@ -74,6 +74,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             api(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.android.config)
             // compose tooling
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
@@ -132,6 +133,7 @@ kotlin {
         commonTest.dependencies {
             // test
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.jetbrains.ui.test)
         }
     }

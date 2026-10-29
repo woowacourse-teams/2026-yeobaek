@@ -5,12 +5,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -53,13 +53,12 @@ fun App(
     YeobaekTheme {
         val startup = appContainer.appConfigStartup
         val isReady by startup.isReady.collectAsState()
-        val isPreview = LocalInspectionMode.current
 
-        LaunchedEffect(startup, isPreview) {
-            if (!isPreview) startup.start()
+        LifecycleEventEffect(Lifecycle.Event.ON_START) {
+            startup.onForeground()
         }
 
-        if (!isReady && !isPreview) {
+        if (!isReady) {
             Surface(modifier = Modifier.fillMaxSize()) {
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()

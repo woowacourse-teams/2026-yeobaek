@@ -6,6 +6,7 @@ import dev.gitlive.firebase.remoteconfig.ValueSource
 import dev.gitlive.firebase.remoteconfig.remoteConfig
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.flow.Flow
 
 class FirebaseRemoteConfigDataSource : RemoteConfigDataSource {
     private val remoteConfig = Firebase.remoteConfig
@@ -24,6 +25,8 @@ class FirebaseRemoteConfigDataSource : RemoteConfigDataSource {
     }
 
     override suspend fun activate(): Boolean = remoteConfig.activate()
+
+    override fun updates(): Flow<ConfigUpdateEvent> = firebaseConfigUpdates()
 
     override fun getValue(key: String): ConfigParameterValue {
         val value = remoteConfig.getValue(key)

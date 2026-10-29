@@ -2,6 +2,7 @@ package com.yeobaek.data.repositoryImpl.remote
 
 import com.yeobaek.core.config.AppConfigState
 import com.yeobaek.core.config.ConfigFetchStatus
+import com.yeobaek.core.config.ConfigUpdateEvent
 import com.yeobaek.core.config.ConfigValueSource
 import com.yeobaek.core.config.FeatureFlags
 import com.yeobaek.core.config.RemoteConfigDataSource
@@ -108,7 +109,44 @@ class AppConfigRepositoryImpl(
 
     override suspend fun activate(): Result<Boolean> = mutex.withLock {
         initializeIfNeeded().exceptionOrNull()?.let { return@withLock Result.failure(it) }
+        activateInitializedValues()
+    }
 
+    override suspend fun observeUpdates() {
+        if (initialize().isFailure) return
+
+        try {
+            dataSource.updates().collect { event ->
+                mutex.withLock {
+                    when (event) {
+                        ConfigUpdateEvent.Updated -> {
+                            val fetchInfo = dataSource.getFetchInfo()
+                            _state.value = _state.value.copy(
+                                lastSuccessfulFetchAtMillis = fetchInfo.lastSuccessfulFetchAtMillis,
+                                lastFetchStatus = fetchInfo.status,
+                            )
+                            activateInitializedValues()
+                        }
+
+                        is ConfigUpdateEvent.Failed -> {
+                            _state.value = _state.value.copy(lastError = event.message)
+                        }
+                    }
+                }
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            currentCoroutineContext().ensureActive()
+            mutex.withLock {
+                _state.value = _state.value.copy(
+                    lastError = exception.message ?: "실시간 원격 설정 수신에 실패했습니다.",
+                )
+            }
+        }
+    }
+
+    private suspend fun activateInitializedValues(): Result<Boolean> =
         try {
             val activated = dataSource.activate()
             currentCoroutineContext().ensureActive()
@@ -127,7 +165,6 @@ class AppConfigRepositoryImpl(
             _state.value = _state.value.copy(lastError = exception.message ?: "원격 설정 활성화에 실패했습니다.")
             Result.failure(exception)
         }
-    }
 
     private fun readFeatureFlags(): FeatureFlagValues {
         val like = dataSource.getValue(RemoteConfigKeys.COMMENT_LIKE_ENABLED)
