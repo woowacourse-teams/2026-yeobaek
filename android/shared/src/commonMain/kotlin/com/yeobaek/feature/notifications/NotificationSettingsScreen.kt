@@ -3,6 +3,7 @@ package com.yeobaek.feature.notifications
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -183,7 +184,14 @@ private fun NotificationSettingRow(
         modifier = modifier.fillMaxWidth().heightIn(
             min = if (isGlobal) SettingsTokens.GlobalRowHeight else SettingsTokens.ItemRowHeight,
         )
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+            .toggleable(
+                value = checked,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SettingsTokens.CardPadding),
     ) {
