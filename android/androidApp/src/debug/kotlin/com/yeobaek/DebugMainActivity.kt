@@ -40,10 +40,9 @@ class DebugMainActivity : ComponentActivity() {
                     )
                 }
                 composable<DevTools> {
-                    DevToolsScreen(
-                        appVersion = appContainer.appVersion,
-                        buildType = BuildConfig.BUILD_TYPE,
-                        serverEnv = appContainer.apiBaseUrl,
+                    DevTools(
+                        appContainer = appContainer,
+                        navigateBack = { navController.popBackStack() },
                     )
                 }
             }

@@ -1,5 +1,7 @@
 package com.yeobaek.feature.onboarding.selectbook.navigation
 
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -48,8 +50,11 @@ fun NavGraphBuilder.onboardingNavGraph(
             ),
         )
 
+        val appConfig by appContainer.appConfigRepository.state.collectAsStateWithLifecycle()
+
         OnboardingScreen(
             uiState = onBoardingViewModel.uiState,
+            title = appConfig.sessionMessages.onboardingTitle,
             updateSearchTextValue = onBoardingViewModel::updateSearchTextValue,
             navigateToHome = {
                 navigateToHome()

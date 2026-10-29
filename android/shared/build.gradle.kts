@@ -3,7 +3,6 @@ import org.gradle.kotlin.dsl.android
 import org.gradle.kotlin.dsl.androidRuntimeClasspath
 import org.gradle.kotlin.dsl.buildkonfig
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.invoke
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.kotlin.dsl.ktlint
 import org.gradle.kotlin.dsl.libs
@@ -75,6 +74,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             api(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.android.config)
             // compose tooling
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
@@ -125,7 +125,8 @@ kotlin {
             // multiplatform settings
             implementation(libs.multiplatform.settings)
 
-            //
+            // firebase
+            implementation(libs.firebase.config)
             implementation(libs.firebase.crashlytics)
         }
 

@@ -16,6 +16,7 @@ kotlin {
 dependencies {
     // shared module
     implementation(project(":shared"))
+    debugImplementation(project(":devtools"))
 
     // firebase
     implementation(platform(libs.firebase.bom))

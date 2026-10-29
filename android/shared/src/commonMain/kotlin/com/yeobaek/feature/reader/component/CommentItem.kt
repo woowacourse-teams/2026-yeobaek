@@ -35,6 +35,7 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 @Composable
 fun CommentItem(
     comment: CommentUiModel,
+    isLikeEnabled: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onReport: () -> Unit,
@@ -88,6 +89,7 @@ fun CommentItem(
             CommentActions(
                 likedByMe = comment.likedByMe,
                 likeCount = comment.likeCount,
+                isLikeEnabled = isLikeEnabled,
                 onMenuClick = { isMenuExpanded = true },
                 onLike = onLike,
                 menuButtonDescription = menuButtonDescription,
@@ -175,6 +177,7 @@ private fun CommentAvatar(
 private fun OtherCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
+            isLikeEnabled = true,
             comment = CommentUiModel(
                 commentId = 7,
                 memberId = 2,
@@ -199,6 +202,7 @@ private fun OtherCommentItemPreview() {
 private fun MyCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
+            isLikeEnabled = true,
             comment = CommentUiModel(
                 commentId = 12,
                 memberId = 1,

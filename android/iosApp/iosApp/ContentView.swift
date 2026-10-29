@@ -8,7 +8,8 @@ struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Self.Context) -> UIViewController {
         #if DEBUG
         return DebugViewControllerKt.DebugViewController(
-            appContainer: appContainer
+            appContainer: appContainer,
+            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         )
         #else
         return MainViewControllerKt.MainViewController(

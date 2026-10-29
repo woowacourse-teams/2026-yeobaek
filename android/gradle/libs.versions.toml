@@ -117,6 +117,8 @@ coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.r
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
 
 # firebase-kotlin-sdk
+firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "firebaseKotlinSdk" }
+firebase-android-config = { module = "com.google.firebase:firebase-config" }
 firebase-crashlytics = { module = "dev.gitlive:firebase-crashlytics", version.ref = "firebaseKotlinSdk" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }

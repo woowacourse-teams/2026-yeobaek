@@ -24,6 +24,7 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 @Composable
 fun CommentList(
     uiState: CommentSheetUiState,
+    isLikeEnabled: Boolean,
     onEdit: (Long) -> Unit,
     onDelete: (Long) -> Unit,
     onReport: (Long) -> Unit,
@@ -66,6 +67,7 @@ fun CommentList(
                 ) { comment ->
                     CommentItem(
                         comment = comment,
+                        isLikeEnabled = isLikeEnabled,
                         onEdit = { onEdit(comment.commentId) },
                         onDelete = { onDelete(comment.commentId) },
                         onReport = { onReport(comment.commentId) },
@@ -122,6 +124,7 @@ private fun CommentListMessage(
 private fun CommentListPreview() {
     YeobaekTheme {
         CommentList(
+            isLikeEnabled = true,
             uiState = CommentSheetUiState(
                 sentenceId = 501,
                 sentenceContent = "거짓 품위를 보이지 않았다는 말에 공감했어요.",
