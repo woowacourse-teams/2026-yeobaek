@@ -7,7 +7,9 @@ import com.yeobaek.data.model.NotificationSetting
 import com.yeobaek.data.repository.NotificationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,14 +35,17 @@ class NotificationSettingsViewModel(
     private val refreshVersion = MutableStateFlow(0)
     private var loadedIdentity: Pair<Int, String>? = null
     private var saveJob: Job? = null
+    private var hasResumed = false
+    private var mutationVersion = 0L
 
     init {
         viewModelScope.launch {
             combine(memberId, installationId, refreshVersion) { member, fid, _ -> member to fid }
                 .collectLatest { (member, fid) ->
                     saveJob?.cancel()
-                    loadedIdentity = null
-                    state.value = NotificationSettingsUiState()
+                    val cached = state.value.preferences.takeIf { loadedIdentity == (member to fid) }
+                    if (cached == null) loadedIdentity = null
+                    state.value = NotificationSettingsUiState(preferences = cached, isLoading = cached == null)
                     if (member == null) {
                         state.value = NotificationSettingsUiState(isLoading = false, loadError = "회원 정보를 확인해 주세요.")
                         return@collectLatest
@@ -53,20 +58,30 @@ class NotificationSettingsViewModel(
                         )
                         return@collectLatest
                     }
+                    val version = mutationVersion
                     try {
                         val preferences = repository.getPreferences(member, fid)
+                        currentCoroutineContext().ensureActive()
+                        if (version != mutationVersion) return@collectLatest
                         loadedIdentity = member to fid
                         state.value = NotificationSettingsUiState(preferences = preferences, isLoading = false)
                     } catch (exception: CancellationException) {
                         throw exception
                     } catch (exception: Exception) {
+                        if (version != mutationVersion) return@collectLatest
                         state.value = NotificationSettingsUiState(
+                            preferences = cached,
                             isLoading = false,
                             loadError = "알림 설정을 가져오지 못했습니다.",
                         )
                     }
                 }
         }
+    }
+
+    fun onScreenResumed() {
+        if (hasResumed) refresh()
+        hasResumed = true
     }
 
     fun refresh() {
@@ -81,6 +96,7 @@ class NotificationSettingsViewModel(
         if (setting != NotificationSetting.ALL && !preferences.enabled) return
         if (preferences.isEnabled(setting) == enabled) return
 
+        mutationVersion++
         state.value =
             current.copy(preferences = preferences.updated(setting, enabled), isSaving = true, saveError = null)
         saveJob = viewModelScope.launch {

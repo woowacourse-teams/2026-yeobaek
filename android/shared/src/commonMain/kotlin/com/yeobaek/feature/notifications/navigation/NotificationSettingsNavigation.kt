@@ -38,7 +38,7 @@ fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, nav
         )
         val state by viewModel.uiState.collectAsStateWithLifecycle()
         val systemSettings = rememberSystemNotificationSettings()
-        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onScreenResumed() }
         NotificationSettingsScreen(
             uiState = state,
             onBackClick = navigateBack,

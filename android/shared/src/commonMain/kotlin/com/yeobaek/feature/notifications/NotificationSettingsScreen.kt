@@ -65,6 +65,9 @@ fun NotificationSettingsScreen(
             onSaveErrorShown()
         }
     }
+    LaunchedEffect(uiState.loadError) {
+        if (uiState.preferences != null) uiState.loadError?.let { snackbar.showSnackbar(it) }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

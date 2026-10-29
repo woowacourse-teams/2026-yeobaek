@@ -26,6 +26,81 @@ import kotlinx.coroutines.test.setMain
 @OptIn(ExperimentalCoroutinesApi::class)
 class NotificationSettingsViewModelTest {
     @Test
+    fun firstResumeUsesInitialLoadAndLaterResumeRefreshes() = runTest {
+        withViewModel { vm, repo, _, _ ->
+            runCurrent()
+            vm.onScreenResumed()
+            runCurrent()
+            assertEquals(1, repo.getCount)
+            vm.onScreenResumed()
+            runCurrent()
+            assertEquals(2, repo.getCount)
+        }
+    }
+
+    @Test
+    fun refreshFailureKeepsLoadedPreferencesAndReportsError() = runTest {
+        withViewModel { vm, repo, _, _ ->
+            runCurrent()
+            val previous = vm.uiState.value.preferences
+            repo.getFailure = IllegalStateException("offline")
+            vm.refresh()
+            runCurrent()
+            assertEquals(previous, vm.uiState.value.preferences)
+            assertFalse(vm.uiState.value.isLoading)
+            assertNotNull(vm.uiState.value.loadError)
+        }
+    }
+
+    @Test
+    fun staleRefreshResponseDoesNotOverwriteNewSelection() = runTest {
+        withViewModel { vm, repo, _, _ ->
+            runCurrent()
+            val gate = CompletableDeferred<Unit>()
+            repo.beforeGet = { gate.await() }
+            vm.refresh()
+            runCurrent()
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            runCurrent()
+            gate.complete(Unit)
+            runCurrent()
+            assertFalse(requireNotNull(vm.uiState.value.preferences).clubJoin)
+            assertEquals(1, repo.updateCount)
+        }
+    }
+
+    @Test
+    fun changingIdentityDoesNotShowPreviousMembersCachedSettings() = runTest {
+        withViewModel { vm, repo, member, _ ->
+            runCurrent()
+            val gate = CompletableDeferred<Unit>()
+            repo.beforeGet = { gate.await() }
+            member.value = 20
+            runCurrent()
+            assertNull(vm.uiState.value.preferences)
+            assertTrue(vm.uiState.value.isLoading)
+            gate.complete(Unit)
+            runCurrent()
+        }
+    }
+
+    @Test
+    fun refreshKeepsLoadedPreferencesVisibleWhileRequestIsPending() = runTest {
+        withViewModel { vm, repo, _, _ ->
+            runCurrent()
+            val previous = vm.uiState.value.preferences
+            val gate = CompletableDeferred<Unit>()
+            repo.beforeGet = { gate.await() }
+            vm.refresh()
+            runCurrent()
+            assertEquals(previous, vm.uiState.value.preferences)
+            assertFalse(vm.uiState.value.isLoading)
+            gate.complete(Unit)
+            runCurrent()
+        }
+    }
+
+    @Test
     fun waitsForInstallationAndLoadsServerSelections() = runTest {
         withViewModel(fid = null) { vm, repo, _, fid ->
             runCurrent()
@@ -167,13 +242,16 @@ class NotificationSettingsViewModelTest {
         var getFailure: Exception? = null
         var updateFailure: Exception? = null
         var beforeUpdate: suspend () -> Unit = {}
+        var beforeGet: suspend () -> Unit = {}
 
         override suspend fun register(memberId: Int, fid: String) = Unit
 
         override suspend fun getPreferences(memberId: Int, fid: String): NotificationPreferences {
             getCount++
+            val response = preferences
+            beforeGet()
             getFailure?.let { throw it }
-            return preferences
+            return response
         }
 
         override suspend fun updatePreferences(

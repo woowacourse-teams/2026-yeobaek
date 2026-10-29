@@ -80,6 +80,23 @@ class NotificationSettingsUiTest {
     }
 
     @Test
+    fun refreshKeepsSwitchesVisibleWhileRequestIsPending() {
+        val repository = TestNotificationRepository()
+        val vm = showSettings(repository)
+        waitForLoad(vm)
+        val gate = CompletableDeferred<Unit>()
+        repository.beforeLoad = { gate.await() }
+        rule.runOnUiThread { vm.refresh() }
+        rule.waitForIdle()
+        rule.onNodeWithText("전체 알림").assertIsDisplayed()
+        capture("16-settings-refresh-pending")
+        gate.complete(Unit)
+        waitForLoad(vm)
+        rule.onNodeWithText("전체 알림").assertIsDisplayed()
+        capture("17-settings-refresh-complete")
+    }
+
+    @Test
     fun preservesSelectionsAcrossMixedAndGlobalOffStates() {
         val repository = TestNotificationRepository()
         val vm = showSettings(repository)
