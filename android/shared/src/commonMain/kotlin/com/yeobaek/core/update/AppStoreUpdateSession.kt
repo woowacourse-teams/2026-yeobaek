@@ -4,22 +4,16 @@ import com.russhwolf.settings.Settings
 import kotlinx.serialization.json.Json
 
 class AppStoreUpdateSession(private val settings: Settings) {
-    private val availableAtLaunch = settings.getStringOrNull(AVAILABLE_VERSION_KEY)
     var hasCheckedStore: Boolean = false
         private set
 
-    fun recordAvailableVersion(version: String?) {
+    fun markStoreChecked() {
         hasCheckedStore = true
-        if (version == null) {
-            settings.remove(AVAILABLE_VERSION_KEY)
-        } else {
-            settings.putString(AVAILABLE_VERSION_KEY, version)
-        }
     }
 
-    fun canPrompt(version: String, currentVersion: String): Boolean = version == availableAtLaunch &&
+    fun canPrompt(version: String, currentVersion: String): Boolean =
         compareStoreVersions(version, currentVersion)?.let { it > 0 } == true &&
-        version !in promptedVersions()
+            version !in promptedVersions()
 
     fun markPrompted(version: String) {
         settings.putString(PROMPTED_VERSIONS_KEY, Json.encodeToString(promptedVersions() + version))
@@ -32,7 +26,6 @@ class AppStoreUpdateSession(private val settings: Settings) {
     }
 
     private companion object {
-        const val AVAILABLE_VERSION_KEY = "iosRecommendedUpdateAvailableVersion"
         const val PROMPTED_VERSIONS_KEY = "iosRecommendedUpdatePromptedVersions"
     }
 }

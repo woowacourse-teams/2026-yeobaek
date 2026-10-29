@@ -65,13 +65,15 @@ internal fun AndroidRecommendedUpdate(
     currentVersionCode: Int,
     session: RecommendedUpdateSession,
     policyRepository: UpdatePolicyRepository,
+    updatesAllowed: Boolean,
     content: @Composable () -> Unit,
 ) {
-    val controller = remember(manager, currentVersionCode, session) {
+    val controller = remember(manager, currentVersionCode, session, policyRepository) {
         RecommendedUpdateController(
             manager,
             currentVersionCode,
             session,
+            isUpdateAllowed = { !policyRepository.policy.value.isUpdateRequired(currentVersionCode) },
         )
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
@@ -81,7 +83,12 @@ internal fun AndroidRecommendedUpdate(
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { controller.pause() }
-    LaunchedEffect(controller, lifecycleOwner, policyRepository) {
+    LaunchedEffect(controller, lifecycleOwner, policyRepository, updatesAllowed) {
+        if (!updatesAllowed) {
+            controller.pause()
+            snackbarHostState.currentSnackbarData?.dismiss()
+            return@LaunchedEffect
+        }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             policyRepository.awaitFirstRefresh()
             if (!policyRepository.policy.value.isUpdateRequired(currentVersionCode)) {
@@ -98,7 +105,7 @@ internal fun AndroidRecommendedUpdate(
         onDispose { controller.close() }
     }
     YeobaekTheme {
-        val readyToInstall = state.stage == RecommendedUpdateStage.READY_TO_INSTALL
+        val readyToInstall = updatesAllowed && state.stage == RecommendedUpdateStage.READY_TO_INSTALL
         Surface(
             color = if (readyToInstall) {
                 MaterialTheme.colorScheme.primaryContainer

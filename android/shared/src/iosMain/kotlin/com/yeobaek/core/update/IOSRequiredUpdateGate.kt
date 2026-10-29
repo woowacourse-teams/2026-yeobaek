@@ -41,6 +41,10 @@ fun IOSRequiredUpdateGate(
         isUpdating = isOpeningStore,
         errorMessage = errorMessage,
     ) {
-        IOSRecommendedUpdate(appContainer, content)
+        IOSRecommendedUpdate(
+            appContainer = appContainer,
+            updatesAllowed = !policy.isUpdateRequired(appContainer.appVersionCode),
+            content = content,
+        )
     }
 }

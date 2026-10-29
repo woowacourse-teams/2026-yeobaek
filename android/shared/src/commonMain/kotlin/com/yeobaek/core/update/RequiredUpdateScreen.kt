@@ -1,6 +1,5 @@
 package com.yeobaek.core.update
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,12 +22,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
@@ -42,14 +43,13 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import com.yeobaek.core.designsystem.theme.YeobaekInk
-import com.yeobaek.core.designsystem.theme.YeobaekPaper
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.yeobaek.core.designsystem.theme.YeobaekShadow
 import com.yeobaek.core.designsystem.theme.YeobaekSurfaceElevated
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
-import com.yeobaek.core.platform.PlatformBackHandler
 
 @Composable
 fun RequiredUpdateGate(
@@ -58,17 +58,36 @@ fun RequiredUpdateGate(
     onUpdate: () -> Unit,
     isUpdating: Boolean = false,
     errorMessage: String? = null,
+    isPrepared: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    if (policy.isUpdateRequired(currentVersionCode)) {
-        RequiredUpdateScreen(
-            message = policy.forceUpdateMessage,
-            onUpdate = onUpdate,
-            isUpdating = isUpdating,
-            errorMessage = errorMessage,
-        )
-    } else {
-        content()
+    val isRequired = policy.isUpdateRequired(currentVersionCode)
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(isRequired) {
+        if (isRequired) focusManager.clearFocus(force = true)
+    }
+    Box(Modifier.fillMaxSize()) { content() }
+    if (isRequired) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false,
+            ),
+        ) {
+            // Play 정보를 준비하는 동안에도 배경 화면의 입력은 차단한다.
+            Box(Modifier.fillMaxSize()) {
+                if (isPrepared) {
+                    RequiredUpdateScreen(
+                        message = policy.forceUpdateMessage,
+                        onUpdate = onUpdate,
+                        isUpdating = isUpdating,
+                        errorMessage = errorMessage,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -80,11 +99,10 @@ fun RequiredUpdateScreen(
     errorMessage: String? = null,
 ) {
     YeobaekTheme {
-        PlatformBackHandler {}
         val safePadding = WindowInsets.safeDrawing.asPaddingValues()
         val verticalPadding = maxOf(safePadding.calculateTopPadding(), safePadding.calculateBottomPadding()) + 16.dp
         Box(
-            modifier = Modifier.fillMaxSize().background(YeobaekPaper).background(YeobaekInk.copy(alpha = 0.36f)),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             Column(

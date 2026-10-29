@@ -29,7 +29,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun IOSRecommendedUpdate(appContainer: AppContainer, content: @Composable () -> Unit) {
+internal fun IOSRecommendedUpdate(
+    appContainer: AppContainer,
+    updatesAllowed: Boolean,
+    content: @Composable () -> Unit,
+) {
     val session = requireNotNull(appContainer.appStoreUpdateSession)
     val source = remember { IOSAppStoreVersionSource() }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -39,7 +43,11 @@ internal fun IOSRecommendedUpdate(appContainer: AppContainer, content: @Composab
     val scope = rememberCoroutineScope()
 
     DisposableEffect(source) { onDispose { source.close() } }
-    LaunchedEffect(appContainer, lifecycleOwner) {
+    LaunchedEffect(appContainer, lifecycleOwner, updatesAllowed) {
+        if (!updatesAllowed) {
+            offeredVersion = null
+            return@LaunchedEffect
+        }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             appContainer.updatePolicyRepository.awaitFirstRefresh()
             if (session.hasCheckedStore ||
@@ -49,7 +57,10 @@ internal fun IOSRecommendedUpdate(appContainer: AppContainer, content: @Composab
             }
             try {
                 val version = source.latestVersion()
-                session.recordAvailableVersion(version)
+                if (appContainer.updatePolicyRepository.policy.value.isUpdateRequired(appContainer.appVersionCode)) {
+                    return@repeatOnLifecycle
+                }
+                session.markStoreChecked()
                 if (version != null && session.canPrompt(version, appContainer.appVersion)) offeredVersion = version
             } catch (exception: CancellationException) {
                 throw exception
@@ -61,7 +72,7 @@ internal fun IOSRecommendedUpdate(appContainer: AppContainer, content: @Composab
 
     content()
     val version = offeredVersion
-    if (version != null) {
+    if (updatesAllowed && version != null) {
         LaunchedEffect(version) { session.markPrompted(version) }
         YeobaekTheme {
             AlertDialog(

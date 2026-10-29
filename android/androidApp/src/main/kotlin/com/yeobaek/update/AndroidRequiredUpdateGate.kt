@@ -4,25 +4,18 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.yeobaek.core.app.AppContainer
-import com.yeobaek.core.designsystem.theme.YeobaekInk
-import com.yeobaek.core.designsystem.theme.YeobaekPaper
 import com.yeobaek.core.update.RequiredUpdateGate
 import com.yeobaek.core.update.UpdatePolicy
 
@@ -62,11 +55,12 @@ fun AndroidRequiredUpdateGate(
         actionState = actionState,
         content = {
             AndroidRecommendedUpdate(
-                manager,
-                appContainer.appVersionCode,
-                recommendedUpdateSession,
-                repository,
-                content,
+                manager = manager,
+                currentVersionCode = appContainer.appVersionCode,
+                session = recommendedUpdateSession,
+                policyRepository = repository,
+                updatesAllowed = !policy.isUpdateRequired(appContainer.appVersionCode),
+                content = content,
             )
         },
     )
@@ -80,19 +74,13 @@ internal fun AndroidRequiredUpdateContent(
     onUpdate: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    if (policy.isUpdateRequired(currentVersionCode) && !actionState.isPrepared) {
-        BackHandler {}
-        Box(
-            Modifier.fillMaxSize().background(YeobaekPaper).background(YeobaekInk.copy(alpha = 0.36f)),
-        )
-        return
-    }
     RequiredUpdateGate(
         policy = policy,
         currentVersionCode = currentVersionCode,
         onUpdate = onUpdate,
         isUpdating = actionState.isBusy,
         errorMessage = actionState.errorMessage,
+        isPrepared = actionState.isPrepared,
         content = content,
     )
 }

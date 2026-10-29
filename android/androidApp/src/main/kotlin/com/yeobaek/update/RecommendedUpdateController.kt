@@ -30,6 +30,7 @@ class RecommendedUpdateController(
     private val manager: AppUpdateManager,
     private val currentVersionCode: Int,
     private val session: RecommendedUpdateSession,
+    private val isUpdateAllowed: () -> Boolean = { true },
 ) {
     private val mutableState = MutableStateFlow(RecommendedUpdateState())
     val state = mutableState.asStateFlow()
@@ -50,6 +51,7 @@ class RecommendedUpdateController(
     }
 
     fun resume(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+        if (closed || !isUpdateAllowed()) return
         foreground = true
         checkUpdate(launcher)
     }
@@ -68,7 +70,7 @@ class RecommendedUpdateController(
     }
 
     fun install() {
-        if (closed || completing || state.value.stage != RecommendedUpdateStage.READY_TO_INSTALL) return
+        if (closed || !isUpdateAllowed() || completing || state.value.stage != RecommendedUpdateStage.READY_TO_INSTALL) return
         completing = true
         queryGeneration++
         mutableState.value = state.value.copy(stage = RecommendedUpdateStage.INSTALLING, errorMessage = null)
@@ -102,7 +104,7 @@ class RecommendedUpdateController(
         if (closed) return
         val generation = ++queryGeneration
         manager.appUpdateInfo.addOnSuccessListener { info ->
-            if (closed || !foreground || generation != queryGeneration) return@addOnSuccessListener
+            if (closed || !foreground || generation != queryGeneration || !isUpdateAllowed()) return@addOnSuccessListener
             updateInstallState(info.installStatus())
             if (flowInFlight ||
                 state.value.stage == RecommendedUpdateStage.DOWNLOADING ||
@@ -116,7 +118,6 @@ class RecommendedUpdateController(
                 versionCode > currentVersionCode &&
                 info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
             ) {
-                session.recordAvailableVersion(versionCode)
                 if (session.canPrompt(versionCode)) startUpdate(info, launcher)
             }
         }
