@@ -35,6 +35,8 @@ import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.nickname.navigation.Nickname
 import com.yeobaek.feature.nickname.navigation.navigateToNickname
 import com.yeobaek.feature.nickname.navigation.nicknameNavGraph
+import com.yeobaek.feature.notifications.navigation.navigateToNotificationSettings
+import com.yeobaek.feature.notifications.navigation.notificationSettingsNavGraph
 import com.yeobaek.feature.onboarding.create.navigation.navigateToOnboardingCreate
 import com.yeobaek.feature.onboarding.create.navigation.onboardingCreateNavGraph
 import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
@@ -253,6 +255,7 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
+                navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
                     navController.navigateToNickname(
                         navOptions = navOptions {
@@ -273,6 +276,7 @@ fun App(
                     )
                 },
             )
+            notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
         }
 
         NotificationEffects(
