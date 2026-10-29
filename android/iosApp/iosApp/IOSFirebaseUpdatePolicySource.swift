@@ -22,7 +22,7 @@ final class IOSFirebaseUpdatePolicySource: NSObject, IOSUpdatePolicySource {
         ])
     }
 
-    func fetch(completionHandler: @escaping (UpdatePolicy?, Error?) -> Void) {
+    func fetch(completionHandler_ completionHandler: @escaping (UpdatePolicy?, Error?) -> Void) {
         remoteConfig.fetchAndActivate { [remoteConfig, platform] status, error in
             if let error {
                 completionHandler(nil, error)
