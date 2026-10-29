@@ -78,9 +78,12 @@ internal fun AndroidRequiredUpdateContent(
         policy = policy,
         currentVersionCode = currentVersionCode,
         onUpdate = onUpdate,
-        isUpdating = actionState.isBusy,
-        errorMessage = actionState.errorMessage,
-        isPrepared = actionState.isPrepared,
+        isUpdating = actionState !is RequiredUpdateActionState.Ready,
+        errorMessage = when (actionState) {
+            is RequiredUpdateActionState.Ready -> actionState.errorMessage
+            RequiredUpdateActionState.Preparing, RequiredUpdateActionState.Processing -> null
+        },
+        isPrepared = actionState != RequiredUpdateActionState.Preparing,
         content = content,
     )
 }
