@@ -6,6 +6,7 @@ import com.yeobaek.core.analytics.CommentDeleteRequested
 import com.yeobaek.core.analytics.CommentDeleted
 import com.yeobaek.core.analytics.CommentEditCanceled
 import com.yeobaek.core.analytics.CommentEditStarted
+import com.yeobaek.core.analytics.CommentLikeSubmitted
 import com.yeobaek.core.analytics.CommentMode
 import com.yeobaek.core.analytics.CommentReported
 import com.yeobaek.core.analytics.CommentSheetClosed
@@ -25,6 +26,7 @@ class CommentSheetAnalytics(
     private val bookId: () -> Long?,
     private val passageSequenceOf: (sentenceId: Long) -> Int?,
     private val isAfterJump: () -> Boolean,
+    private val isCommentLikeEnabled: () -> Boolean = { true },
 ) {
     fun sheetOpened(
         sentenceId: Long,
@@ -43,8 +45,19 @@ class CommentSheetAnalytics(
                 source = source,
                 hasNewComments = hasNewComments,
                 afterJump = isAfterJump(),
+                commentLikeAvailable = isCommentLikeEnabled(),
             ),
         )
+    }
+
+    fun likeSubmitted(
+        commentId: Long,
+        sentenceId: Long,
+        liked: Boolean,
+        result: EventResult,
+        source: CommentSheetSource,
+    ) {
+        trackEvent(CommentLikeSubmitted(commentId, sentenceId, bookId(), liked, result, source))
     }
 
     fun submitted(

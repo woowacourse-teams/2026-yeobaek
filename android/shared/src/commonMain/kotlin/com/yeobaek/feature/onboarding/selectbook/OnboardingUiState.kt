@@ -9,6 +9,7 @@ data class OnboardingUiState(
     val bookUiModelList: List<OnboardingBookUiModel> = emptyList(),
     val initBookState: InitBookState = InitBookState.Idle,
     val searchState: SearchState = SearchState.Idle,
+    val searchResultVersion: Long? = null,
     val publicRoomState: PublicRoomState = PublicRoomState.Idle,
     val bookDetailState: BookDetailState = BookDetailState.Idle,
 )

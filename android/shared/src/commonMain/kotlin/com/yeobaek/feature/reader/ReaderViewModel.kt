@@ -15,6 +15,7 @@ import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.ChapterSelected
 import com.yeobaek.core.analytics.CommentCollectionEnd
 import com.yeobaek.core.analytics.CommentPassageJumped
+import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.FontSizeChanged
 import com.yeobaek.core.analytics.ProgressSeeked
 import com.yeobaek.core.analytics.ReaderPositionCleared
@@ -67,6 +68,7 @@ class ReaderViewModel(
     private val notifications: AppNotifications,
     private val isCommentLikeEnabled: () -> Boolean,
     private val commentTarget: ReaderCommentTarget? = null,
+    private val notificationOpenId: String? = null,
 ) : ViewModel() {
     var uiState by mutableStateOf(
         ReaderUiState(
@@ -85,6 +87,7 @@ class ReaderViewModel(
     private val readingProperties: Map<String, Any> = buildMap {
         put("reading_space", readingSpace)
         publicRoomId?.let { put("public_room_id", it) }
+        notificationOpenId?.let { put("notification_open_id", it) }
     }
     private val trackReaderEvent: (AnalyticsEvent) -> Unit = { event ->
         analyticsTracker.track(event, readingProperties)
@@ -147,6 +150,7 @@ class ReaderViewModel(
             bookId = { currentBookId },
             passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
             isAfterJump = { uiState.returnPassageSequence != null },
+            isCommentLikeEnabled = isCommentLikeEnabled,
         ),
         onCommentsViewed = ::handleCommentsViewed,
         isCommentLikeEnabled = isCommentLikeEnabled,
@@ -243,6 +247,7 @@ class ReaderViewModel(
                         sentence = notificationSentence,
                         passageSequence = initialCommentTarget.passageSequence,
                         scrollToLatest = true,
+                        source = CommentSheetSource.NOTIFICATION,
                     )
                 } else {
                     restoreCommentSheetIfNeeded()
@@ -1044,6 +1049,7 @@ class ReaderViewModel(
             notifications: AppNotifications,
             isCommentLikeEnabled: () -> Boolean,
             commentTarget: ReaderCommentTarget? = null,
+            notificationOpenId: String? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ReaderViewModel(
@@ -1060,6 +1066,7 @@ class ReaderViewModel(
                     notifications = notifications,
                     isCommentLikeEnabled = isCommentLikeEnabled,
                     commentTarget = commentTarget,
+                    notificationOpenId = notificationOpenId,
                 )
             }
         }

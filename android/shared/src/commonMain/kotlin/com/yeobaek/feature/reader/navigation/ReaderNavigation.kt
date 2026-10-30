@@ -29,6 +29,7 @@ data class Reader(
     val groupId: Long,
     val passageSequence: Int? = null,
     val sentenceId: Long? = null,
+    val notificationOpenId: String? = null,
 )
 
 @Serializable
@@ -36,6 +37,7 @@ data class PublicRoomReader(
     val publicRoomId: Long,
     val passageSequence: Int? = null,
     val sentenceId: Long? = null,
+    val notificationOpenId: String? = null,
 )
 
 fun NavController.navigateToReader(
@@ -70,6 +72,7 @@ fun NavGraphBuilder.readerNavGraph(
         val route = backStackEntry.toRoute<Reader>()
         ReaderRoute(
             readerTarget = ReaderTarget.Group(route.groupId),
+            notificationOpenId = route.notificationOpenId,
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.READER,
             appContainer = appContainer,
@@ -86,6 +89,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
         val route = backStackEntry.toRoute<PublicRoomReader>()
         ReaderRoute(
             readerTarget = ReaderTarget.PublicRoom(route.publicRoomId),
+            notificationOpenId = route.notificationOpenId,
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
             appContainer = appContainer,
@@ -97,6 +101,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
 @Composable
 private fun ReaderRoute(
     readerTarget: ReaderTarget,
+    notificationOpenId: String?,
     commentTarget: ReaderCommentTarget?,
     trackedScreen: TrackedScreen,
     appContainer: AppContainer,
@@ -105,6 +110,7 @@ private fun ReaderRoute(
     val readerViewModel = viewModel<ReaderViewModel>(
         factory = ReaderViewModel.readerViewModelFactory(
             readerTarget = readerTarget,
+            notificationOpenId = notificationOpenId,
             commentTarget = commentTarget,
             bookRepository = appContainer.bookRepository,
             groupRepository = appContainer.groupRepository,

@@ -1,6 +1,7 @@
 package com.yeobaek
 
 import androidx.lifecycle.ViewModelStore
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.data.model.NotificationPreferences
 import com.yeobaek.data.model.NotificationSetting
 import com.yeobaek.data.repository.NotificationRepository
@@ -25,6 +26,66 @@ import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NotificationSettingsViewModelTest {
+    @Test
+    fun tracksOneResultAfterSaveAndDoesNotTrackReadsOrDuplicateTaps() = runTest {
+        val events = mutableListOf<AnalyticsEvent>()
+        withViewModel(events = events) { vm, repo, _, _ ->
+            runCurrent()
+            vm.onScreenResumed()
+            assertTrue(events.isEmpty())
+            val gate = CompletableDeferred<Unit>()
+            repo.beforeUpdate = { gate.await() }
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            runCurrent()
+            assertTrue(events.isEmpty())
+            gate.complete(Unit)
+            runCurrent()
+            assertEquals("notification_setting_submitted", events.single().name)
+            assertEquals(
+                mapOf("setting" to "club_join", "enabled" to false, "result" to "success"),
+                events.single().properties,
+            )
+        }
+    }
+
+    @Test
+    fun failedSaveTracksRequestedValueAndGlobalOffDoesNotCreateChildEvents() = runTest {
+        val events = mutableListOf<AnalyticsEvent>()
+        withViewModel(events = events) { vm, repo, _, _ ->
+            runCurrent()
+            repo.updateFailure = IllegalStateException("private error")
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            runCurrent()
+            assertEquals(
+                mapOf("setting" to "club_join", "enabled" to false, "result" to "failure"),
+                events.single().properties,
+            )
+            repo.updateFailure = null
+            vm.update(NotificationSetting.ALL, false)
+            runCurrent()
+            vm.update(NotificationSetting.PUBLIC_ROOM_COMMENT, false)
+            runCurrent()
+            assertEquals(2, events.size)
+            assertEquals("all", events.last().properties["setting"])
+            assertTrue(requireNotNull(vm.uiState.value.preferences).publicRoomComment)
+        }
+    }
+
+    @Test
+    fun canceledSaveDoesNotInventFailureResult() = runTest {
+        val events = mutableListOf<AnalyticsEvent>()
+        withViewModel(events = events) { vm, repo, member, _ ->
+            runCurrent()
+            repo.beforeUpdate = { CompletableDeferred<Unit>().await() }
+            vm.update(NotificationSetting.CLUB_JOIN, false)
+            runCurrent()
+            member.value = 20
+            runCurrent()
+            assertTrue(events.isEmpty())
+        }
+    }
+
     @Test
     fun firstResumeUsesInitialLoadAndLaterResumeRefreshes() = runTest {
         withViewModel { vm, repo, _, _ ->
@@ -267,6 +328,7 @@ class NotificationSettingsViewModelTest {
 
     private suspend fun TestScope.withViewModel(
         fid: String? = "device-1",
+        events: MutableList<AnalyticsEvent> = mutableListOf(),
         block: suspend (
             NotificationSettingsViewModel,
             FakeNotificationRepository,
@@ -280,7 +342,7 @@ class NotificationSettingsViewModelTest {
             val repository = FakeNotificationRepository()
             val member = MutableStateFlow<Int?>(7)
             val installation = MutableStateFlow(fid)
-            val vm = NotificationSettingsViewModel(repository, member, installation)
+            val vm = NotificationSettingsViewModel(repository, member, installation, { events.add(it) })
             store.put("notifications", vm)
             block(vm, repository, member, installation)
         } finally {

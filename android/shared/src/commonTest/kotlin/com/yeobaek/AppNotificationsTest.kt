@@ -1,5 +1,7 @@
 package com.yeobaek
 
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.NotificationOpened
 import com.yeobaek.core.notification.AppNotification
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.ClubJoinNotification
@@ -9,8 +11,10 @@ import com.yeobaek.data.model.CommentSpace
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -18,6 +22,52 @@ import kotlinx.coroutines.test.runTest
 
 class AppNotificationsTest {
     private val joined = mapOf("type" to "CLUB_JOIN", "clubId" to "5", "memberId" to "7")
+
+    @Test
+    fun tracksOnlyValidTapsAndPreservesTheirIdUntilConsumed() {
+        val events = mutableListOf<AnalyticsEvent>()
+        val notifications = AppNotifications { events.add(it) }
+        notifications.handleReceived(joined)
+        notifications.onOpened(joined - "memberId")
+        assertTrue(events.isEmpty())
+
+        notifications.onOpened(joined)
+        val firstRequest = requireNotNull(notifications.pendingOpen.value)
+        val firstEvent = assertIs<NotificationOpened>(events.single())
+        assertEquals(firstRequest.analyticsId, firstEvent.properties["notification_open_id"])
+        assertEquals("club_join", firstEvent.properties["notification_type"])
+        assertEquals(5L, firstEvent.properties["group_id"])
+        assertTrue("member_id" !in firstEvent.properties)
+        assertTrue("public_room_id" !in firstEvent.properties)
+
+        notifications.consumeOpen(firstRequest)
+        notifications.onOpened(joined)
+        assertEquals(2, events.size)
+        assertNotEquals(firstRequest.analyticsId, notifications.pendingOpen.value?.analyticsId)
+    }
+
+    @Test
+    fun commentTapTracksSpaceAndCoordinatesWithoutPayloadContent() {
+        val events = mutableListOf<AnalyticsEvent>()
+        val notifications = AppNotifications { events.add(it) }
+        for ((type, spaceKey) in listOf("CLUB_COMMENT" to "clubId", "PUBLIC_ROOM_COMMENT" to "publicRoomId")) {
+            notifications.onOpened(
+                mapOf(
+                    "type" to type,
+                    spaceKey to "5",
+                    "passageSequence" to "3",
+                    "sentenceId" to "42",
+                    "body" to "private text",
+                    "token" to "private token",
+                ),
+            )
+        }
+        assertEquals(listOf("club_comment", "public_room_comment"), events.map { it.properties["notification_type"] })
+        assertEquals(listOf("group", "public_room"), events.map { it.properties["reading_space"] })
+        assertEquals(42L, events.last().properties["sentence_id"])
+        assertEquals(5L, events.last().properties["public_room_id"])
+        assertTrue(events.all { "body" !in it.properties && "token" !in it.properties })
+    }
 
     @Test
     fun parsesClubJoinWithoutCommentCoordinates() {

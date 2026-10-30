@@ -11,7 +11,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.BookDetailConfirmed
+import com.yeobaek.core.analytics.BookDetailEntryPoint
 import com.yeobaek.core.analytics.BookListExposure
+import com.yeobaek.core.analytics.BookSearchEntryPoint
+import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.GroupCreateBookSelected
 import com.yeobaek.core.analytics.GroupCreateSubmitted
@@ -28,7 +32,9 @@ import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import com.yeobaek.feature.book.detail.model.toUiModel as toBookDetailUiModel
 
@@ -47,6 +53,7 @@ class CreateViewModel(
     private var initJob: Job? = null
     private var searchJob: Job? = null
     private var bookDetailJob: Job? = null
+    val bookSearchTracker = BookSearchTracker(BookSearchEntryPoint.GROUP_CREATE, { analyticsTracker.track(it) })
 
     init {
         initBookList()
@@ -104,6 +111,8 @@ class CreateViewModel(
 
     fun updateSearchTextValue(value: String) {
         if (initJob?.isCompleted == false) return
+        if (value == uiState.searchTextValue) return
+        val searchVersion = bookSearchTracker.queryChanged(value.isNotBlank())
 
         uiState = uiState.copy(
             searchTextValue = value,
@@ -116,11 +125,13 @@ class CreateViewModel(
                 if (value.isNotBlank()) delay(300.milliseconds)
 
                 val searchBooks = bookRepository.getBooks(value)
+                currentCoroutineContext().ensureActive()
+                maxSeenBookPosition = 0
                 uiState = uiState.copy(
                     bookList = searchBooks.map { book -> book.toUiModel() },
                     searchState = SearchState.Success,
+                    searchResultVersion = searchVersion,
                 )
-                println("searchBooks: $searchBooks")
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -159,6 +170,11 @@ class CreateViewModel(
 
     fun selectBook(book: SelectBookUiModel) {
         val targetBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
+        uiState.searchResultVersion?.let { version ->
+            if (uiState.searchState is SearchState.Success) {
+                bookSearchTracker.resultsShown(version, uiState.bookList.size)
+            }
+        }
         uiState = uiState.copy(
             selectedBook = targetBook,
             step = CreateStep.BookDetail,
@@ -170,6 +186,7 @@ class CreateViewModel(
                 bookId = targetBook.id,
                 bookTitle = targetBook.title,
             ),
+            bookSearchTracker.bookSelected(),
         )
         loadBookDetail(targetBook.id)
     }
@@ -202,6 +219,8 @@ class CreateViewModel(
 
     fun moveToGroupName() {
         if (uiState.step != CreateStep.BookDetail || uiState.bookDetailState !is BookDetailState.Success) return
+        val bookId = uiState.selectedBook?.id ?: return
+        analyticsTracker.track(BookDetailConfirmed(bookId, BookDetailEntryPoint.GROUP_CREATE))
         uiState = uiState.copy(step = CreateStep.GroupName)
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.GroupName.name
     }

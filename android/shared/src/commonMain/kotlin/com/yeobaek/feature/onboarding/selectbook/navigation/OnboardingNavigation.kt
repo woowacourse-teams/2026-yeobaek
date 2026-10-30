@@ -7,14 +7,18 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
+import com.yeobaek.core.analytics.BookSearchEnd
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.ReadingOnboardingSkipped
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.TrackBookSearch
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.onboarding.selectbook.OnboardingScreen
 import com.yeobaek.feature.onboarding.selectbook.OnboardingViewModel
+import com.yeobaek.feature.onboarding.selectbook.SearchState
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -51,12 +55,20 @@ fun NavGraphBuilder.onboardingNavGraph(
         )
 
         val appConfig by appContainer.appConfigRepository.state.collectAsStateWithLifecycle()
+        val uiState = onBoardingViewModel.uiState
+        TrackBookSearch(
+            tracker = onBoardingViewModel.bookSearchTracker,
+            isVisible = uiState.bookDetailState is BookDetailState.Idle,
+            resultVersion = uiState.searchResultVersion,
+            resultCount = uiState.bookUiModelList.size.takeIf { uiState.searchState is SearchState.Success },
+        )
 
         OnboardingScreen(
             uiState = onBoardingViewModel.uiState,
             title = appConfig.sessionMessages.onboardingTitle,
             updateSearchTextValue = onBoardingViewModel::updateSearchTextValue,
             navigateToHome = {
+                onBoardingViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
                 navigateToHome()
                 appContainer.guideOnboardingPreferences.saveOnboardingState(true)
             },
@@ -64,6 +76,7 @@ fun NavGraphBuilder.onboardingNavGraph(
                 appContainer.analyticsTracker.track(ReadingOnboardingSkipped)
             },
             navigateToJoin = {
+                onBoardingViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
                 appContainer.analyticsTracker.track(
                     GroupJoinInitiated(GroupJoinEntryPoint.ONBOARDING),
                 )

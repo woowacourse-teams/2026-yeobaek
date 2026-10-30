@@ -11,6 +11,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.TrackScreen
+import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.notification.rememberSystemNotificationSettings
 import com.yeobaek.feature.notifications.NotificationSettingsScreen
 import com.yeobaek.feature.notifications.NotificationSettingsViewModel
@@ -25,6 +27,11 @@ fun NavController.navigateToNotificationSettings() {
 
 fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, navigateBack: () -> Unit) {
     composable<NotificationSettings> {
+        TrackScreen(
+            crashReporter = appContainer.crashReporter,
+            analyticsTracker = appContainer.analyticsTracker,
+            screen = TrackedScreen.NOTIFICATION_SETTINGS,
+        )
         val viewModel: NotificationSettingsViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
@@ -32,6 +39,7 @@ fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, nav
                         appContainer.notificationRepository,
                         appContainer.userPreferences.userId,
                         appContainer.notificationInstallationId,
+                        trackEvent = { appContainer.analyticsTracker.track(it) },
                     )
                 }
             },

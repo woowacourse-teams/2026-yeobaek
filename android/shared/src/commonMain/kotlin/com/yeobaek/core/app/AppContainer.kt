@@ -95,7 +95,7 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val notifications = AppNotifications()
+    val notifications = AppNotifications { analyticsTracker.track(it) }
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
