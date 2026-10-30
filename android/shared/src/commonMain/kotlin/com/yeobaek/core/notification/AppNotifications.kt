@@ -8,10 +8,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class CommentNotification(
-    val space: CommentSpace,
+    override val space: CommentSpace,
     val passageSequence: Int,
     val sentenceId: Long,
-) {
+) : AppNotification {
     companion object {
         fun from(data: Map<String, String>): CommentNotification? {
             val space = when (data["type"]) {
@@ -34,40 +34,48 @@ data class CommentNotification(
     }
 }
 
-class CommentNotifications {
+class AppNotifications {
     private val activeSpace = MutableStateFlow<CommentSpace?>(null)
-    private val pending = MutableStateFlow<CommentNotificationOpenRequest?>(null)
+    private val pending = MutableStateFlow<NotificationOpenRequest?>(null)
     val pendingOpen = pending.asStateFlow()
     private val received = MutableSharedFlow<CommentNotification>(
         extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
     val events = received.asSharedFlow()
+    private val joined = MutableSharedFlow<ClubJoinNotification>(
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val clubJoinEvents = joined.asSharedFlow()
 
     fun updateActiveSpace(space: CommentSpace?) {
         activeSpace.value = space
     }
 
     fun handleReceived(data: Map<String, String>): NotificationPresentation {
-        val notification = CommentNotification.from(data) ?: return NotificationPresentation.SHOW
+        val notification = AppNotification.from(data) ?: return NotificationPresentation.SHOW
         val presentation = if (notification.space == activeSpace.value) {
             NotificationPresentation.SUPPRESS
         } else {
             NotificationPresentation.SHOW
         }
-        received.tryEmit(notification)
+        when (notification) {
+            is CommentNotification -> received.tryEmit(notification)
+            is ClubJoinNotification -> joined.tryEmit(notification)
+        }
         return presentation
     }
 
     fun onOpened(data: Map<String, String>) {
-        val notification = CommentNotification.from(data) ?: return
-        pending.value = CommentNotificationOpenRequest(notification)
+        val notification = AppNotification.from(data) ?: return
+        pending.value = NotificationOpenRequest(notification)
     }
 
-    fun consumeOpen(request: CommentNotificationOpenRequest) {
+    fun consumeOpen(request: NotificationOpenRequest) {
         pending.compareAndSet(request, null)
     }
 }
 
 // 같은 문장의 알림을 다시 눌러도 새로운 이동 요청으로 구분한다.
-class CommentNotificationOpenRequest(val notification: CommentNotification)
+class NotificationOpenRequest(val notification: AppNotification)

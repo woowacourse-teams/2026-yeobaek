@@ -29,6 +29,7 @@ fun NavGraphBuilder.myPageNavGraph(
     appContainer: AppContainer,
     navigateToNickname: () -> Unit,
     navigateToGuide: (Boolean) -> Unit,
+    navigateToNotificationSettings: () -> Unit,
 ) {
     composable<MyPage> {
         TrackScreen(
@@ -56,6 +57,7 @@ fun NavGraphBuilder.myPageNavGraph(
             navigateToGuide = {
                 navigateToGuide(true)
             },
+            navigateToNotificationSettings = navigateToNotificationSettings,
         )
     }
 }

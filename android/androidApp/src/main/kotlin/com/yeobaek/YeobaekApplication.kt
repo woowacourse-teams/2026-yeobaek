@@ -8,6 +8,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yeobaek.analytics.AndroidPostHogAnalyticsClient
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.notification.ACTIVITY_NOTIFICATION_CHANNEL_ID
 import com.yeobaek.update.FirebaseUpdatePolicySource
 import com.yeobaek.update.RecommendedUpdatePreferences
 import com.yeobaek.update.RecommendedUpdateSession
@@ -27,7 +28,7 @@ class YeobaekApplication : Application() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(
-                    getString(R.string.notification_channel_id),
+                    ACTIVITY_NOTIFICATION_CHANNEL_ID,
                     getString(R.string.notification_channel_name),
                     NotificationManager.IMPORTANCE_HIGH,
                 ),

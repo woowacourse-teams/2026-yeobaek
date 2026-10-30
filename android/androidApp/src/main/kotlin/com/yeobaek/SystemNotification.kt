@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import com.google.firebase.messaging.RemoteMessage
+import com.yeobaek.core.notification.ACTIVITY_NOTIFICATION_CHANNEL_ID
 import java.util.UUID
 
 internal fun Context.showSystemNotification(message: RemoteMessage) {
@@ -25,7 +26,7 @@ internal fun Context.showSystemNotification(message: RemoteMessage) {
     val notificationId = message.messageId ?: UUID.randomUUID().toString()
     val contentIntent = createNotificationContentIntent(message, notificationId) ?: return
     val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        Notification.Builder(this, getString(R.string.notification_channel_id))
+        Notification.Builder(this, ACTIVITY_NOTIFICATION_CHANNEL_ID)
     } else {
         Notification.Builder(this)
             .setPriority(Notification.PRIORITY_HIGH)

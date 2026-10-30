@@ -1,17 +1,21 @@
 package com.yeobaek.feature.group.detail
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
@@ -133,14 +138,16 @@ fun DetailScreen(
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.background,
-            ) {
-                YeobaekButton(
-                    text = if (uiState.bookUiModel.currentProgress == 0) "읽기 시작" else "이어 읽기",
-                    onClick = onReadClick,
-                    modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
-                )
+            if (uiState.screenState == ScreenState.Success) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) {
+                    YeobaekButton(
+                        text = if (uiState.bookUiModel.currentProgress == 0) "읽기 시작" else "이어 읽기",
+                        onClick = onReadClick,
+                        modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp),
+                    )
+                }
             }
         },
         snackbarHost = {
@@ -150,6 +157,24 @@ fun DetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
+        if (uiState.screenState != ScreenState.Success) {
+            Box(
+                modifier = Modifier.padding(innerPadding).fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                when (uiState.screenState) {
+                    is ScreenState.Loading -> CircularProgressIndicator()
+
+                    is ScreenState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("모임에 접근할 수 없거나 정보를 불러오지 못했습니다.")
+                        TextButton(onClick = navigateToHome) { Text("홈으로 돌아가기") }
+                    }
+
+                    ScreenState.Success -> Unit
+                }
+            }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
         ) {

@@ -11,7 +11,7 @@ import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
-import com.yeobaek.core.notification.CommentNotifications
+import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.core.update.AppStoreUpdateSession
@@ -27,6 +27,7 @@ import com.yeobaek.data.repository.AppConfigRepository
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
@@ -94,17 +95,20 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val commentNotifications = CommentNotifications()
+    val notifications = AppNotifications()
+    val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
         preferences = NotificationRegistrationPreferences(settings),
-        repository = NotificationRepositoryImpl(apiProvider.notificationApi),
+        repository = notificationRepository,
         server = networkProvider.baseUrl,
         scope = applicationScope,
         onFailure = { exception ->
             FirebaseCrashSink.log("Notification registration failed: ${exception::class.simpleName}")
         },
     )
+
+    val notificationInstallationId = notificationRegistration.installationId
 
     val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
         dataSource = FirebaseRemoteConfigDataSource(),
@@ -171,10 +175,10 @@ class AppContainer(
     }
 
     fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
-        commentNotifications.handleReceived(data)
+        notifications.handleReceived(data)
 
     fun onNotificationOpened(data: Map<String, String>) {
-        commentNotifications.onOpened(data)
+        notifications.onOpened(data)
     }
 
     fun close() {
