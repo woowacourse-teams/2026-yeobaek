@@ -50,6 +50,7 @@ class AppContainer(
     private val isDebug: Boolean,
     val appVersion: String,
     val appVersionCode: Int,
+    installationId: String,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
@@ -72,6 +73,7 @@ class AppContainer(
         client = analyticsClient,
         commonProperties = mapOf(
             ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION,
+            "installation_id" to installationId,
         ),
     )
 

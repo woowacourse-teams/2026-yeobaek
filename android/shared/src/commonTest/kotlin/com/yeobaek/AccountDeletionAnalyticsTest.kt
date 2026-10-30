@@ -6,6 +6,7 @@ import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashOperation
+import com.yeobaek.data.local.InstallationIdStore
 import com.yeobaek.data.model.RecentReadingModel
 import com.yeobaek.data.model.UserModel
 import com.yeobaek.data.repository.UserRepository
@@ -45,8 +46,9 @@ class AccountDeletionAnalyticsTest {
             assertEquals("7", deletion.distinctId)
             assertEquals("success", deletion.properties["result"])
             assertEquals("production", deletion.properties["environment"])
+            assertEquals(fixture.installationId, deletion.properties["installation_id"])
             assertEquals(listOf("capture:account_deleted", "reset", "register"), fixture.client.calls)
-            assertEquals(mapOf<String, Any>("environment" to "production"), fixture.client.properties)
+            assertEquals(fixture.commonProperties, fixture.client.properties)
             assertIs<DeleteState.Success>(fixture.vm.uiState.deleteState)
             assertEquals(1, fixture.guideClearCount)
 
@@ -55,11 +57,13 @@ class AccountDeletionAnalyticsTest {
             fixture.tracker.track(AccountDeleteRequested)
             assertEquals("anonymous-1", fixture.client.events.last().distinctId)
             assertEquals("production", fixture.client.events.last().properties["environment"])
+            assertEquals(fixture.installationId, fixture.client.events.last().properties["installation_id"])
             assertEquals("nickname", fixture.client.events.last().properties["\$screen_name"])
             assertFalse("old_user_property" in fixture.client.events.last().properties)
             fixture.tracker.identify(20)
             fixture.tracker.track(AccountDeleteRequested)
             assertEquals("20", fixture.client.events.last().distinctId)
+            assertEquals(fixture.installationId, fixture.client.events.last().properties["installation_id"])
         }
     }
 
@@ -76,7 +80,7 @@ class AccountDeletionAnalyticsTest {
             assertEquals(0, fixture.guideClearCount)
             assertEquals("failure", fixture.client.events.single().properties["result"])
             assertEquals("7", fixture.client.events.single().distinctId)
-            assertEquals(mapOf<String, Any>("environment" to "production"), fixture.client.properties)
+            assertEquals(fixture.commonProperties, fixture.client.properties)
 
             fixture.repository.deleteFailure = null
             fixture.vm.deleteAccount()
@@ -118,7 +122,7 @@ class AccountDeletionAnalyticsTest {
             assertIs<DeleteState.Success>(fixture.vm.uiState.deleteState)
             assertEquals(1, fixture.client.resetCount)
             assertEquals("anonymous-1", fixture.client.distinctId)
-            assertEquals(mapOf<String, Any>("environment" to "production"), fixture.client.properties)
+            assertEquals(fixture.commonProperties, fixture.client.properties)
             assertTrue(fixture.client.events.isEmpty())
             assertEquals(1, fixture.errors.size)
             assertEquals(CrashOperation.ACCOUNT_DELETE_CLEANUP_FAILED, fixture.errors.single().second.operation)
@@ -183,12 +187,18 @@ class AccountDeletionAnalyticsTest {
     }
 
     private class Fixture {
+        private var savedInstallationId: String? = null
+        val installationId = InstallationIdStore({ savedInstallationId }, { savedInstallationId = it }).getOrCreate()
+        val commonProperties: Map<String, Any> = mapOf(
+            "environment" to "production",
+            "installation_id" to installationId,
+        )
         val client = RecordingAnalyticsClient().apply {
-            register(mapOf("environment" to "production"))
+            register(commonProperties)
             identify("7")
             calls.clear()
         }
-        val tracker = AnalyticsTracker(client, mapOf("environment" to "production"))
+        val tracker = AnalyticsTracker(client, commonProperties)
         val repository = FakeUserRepository()
         var guideClearCount = 0
         val errors = mutableListOf<Pair<Throwable, CrashContext>>()
