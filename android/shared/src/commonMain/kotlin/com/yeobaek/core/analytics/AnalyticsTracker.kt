@@ -22,8 +22,8 @@ class AnalyticsTracker(
         )
     }
 
-    fun trackScreen(screenName: String) {
-        client.screen(screenName)
+    fun trackScreen(screenName: String, properties: Map<String, Any> = emptyMap()) {
+        client.screen(screenName, properties)
     }
 
     fun identify(userId: Int) {

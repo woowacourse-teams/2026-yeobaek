@@ -267,8 +267,8 @@ class AccountDeletionAnalyticsTest {
             events.add(CapturedEvent(eventName, distinctId, this.properties + properties))
         }
 
-        override fun screen(screenName: String) {
-            properties["\$screen_name"] = screenName
+        override fun screen(screenName: String, properties: Map<String, Any>) {
+            this.properties["\$screen_name"] = screenName
         }
 
         override fun reset() {

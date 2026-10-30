@@ -44,10 +44,10 @@ final class IOSPostHogAnalyticsClient: NSObject, AnalyticsClient {
         )
     }
 
-    func screen(screenName: String) {
+    func screen(screenName: String, properties: [String: Any]) {
         guard isEnabled else { return }
 
-        PostHogSDK.shared.screen(screenName)
+        PostHogSDK.shared.screen(screenName, properties: properties)
     }
 
     func identify(userId: String) {
