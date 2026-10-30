@@ -12,6 +12,8 @@ data class CommentResponse(
     val createdAt: String,
     val updatedAt: String?,
     val mine: Boolean,
+    val likeCount: Long = 0,
+    val likedByMe: Boolean = false,
 )
 
 fun CommentResponse.toModel(): CommentModel =
@@ -23,4 +25,6 @@ fun CommentResponse.toModel(): CommentModel =
         createdAt = createdAt,
         updatedAt = updatedAt,
         mine = mine,
+        likeCount = likeCount,
+        likedByMe = likedByMe,
     )

@@ -1,7 +1,5 @@
 package com.yeobaek.feature.reader.component
 
-import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_menu
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -14,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,14 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.CommentUiModel
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CommentItem(
     comment: CommentUiModel,
+    isLikeEnabled: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onReport: () -> Unit,
+    onLike: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isMenuExpanded by remember(comment.commentId) {
@@ -82,50 +79,22 @@ fun CommentItem(
             .fillMaxWidth()
             .then(longPressModifier),
     ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                CommentAvatar(nickname = comment.nickname)
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = comment.nickname,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontSize = 12.sp,
-                        ),
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = comment.displayCreatedAt,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                IconButton(
-                    onClick = { isMenuExpanded = true },
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_menu),
-                        contentDescription = menuButtonDescription,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.width(42.dp))
-                Text(
-                    text = comment.content,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            CommentContent(
+                comment = comment,
+                modifier = Modifier.weight(1f),
+            )
+            CommentActions(
+                likedByMe = comment.likedByMe,
+                likeCount = comment.likeCount,
+                isLikeEnabled = isLikeEnabled,
+                onMenuClick = { isMenuExpanded = true },
+                onLike = onLike,
+                menuButtonDescription = menuButtonDescription,
+                modifier = Modifier.padding(end = 16.dp),
+            )
         }
 
         CommentMenu(
@@ -134,6 +103,47 @@ fun CommentItem(
             onDismissRequest = { isMenuExpanded = false },
             modifier = Modifier.padding(top = 32.dp),
         )
+    }
+}
+
+@Composable
+private fun CommentContent(
+    comment: CommentUiModel,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            CommentAvatar(nickname = comment.nickname)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = comment.nickname,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 12.sp,
+                    ),
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = comment.displayCreatedAt,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(modifier = Modifier.width(42.dp))
+            Text(
+                text = comment.content,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 
@@ -167,6 +177,7 @@ private fun CommentAvatar(
 private fun OtherCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
+            isLikeEnabled = true,
             comment = CommentUiModel(
                 commentId = 7,
                 memberId = 2,
@@ -175,10 +186,13 @@ private fun OtherCommentItemPreview() {
                 createdAt = "2026-08-05T14:30:00",
                 updatedAt = null,
                 isMine = false,
+                likeCount = 12,
+                likedByMe = true,
             ),
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onLike = {},
         )
     }
 }
@@ -188,6 +202,7 @@ private fun OtherCommentItemPreview() {
 private fun MyCommentItemPreview() {
     YeobaekTheme {
         CommentItem(
+            isLikeEnabled = true,
             comment = CommentUiModel(
                 commentId = 12,
                 memberId = 1,
@@ -196,10 +211,12 @@ private fun MyCommentItemPreview() {
                 createdAt = "2026-08-09T13:10:00",
                 updatedAt = null,
                 isMine = true,
+                likeCount = 3,
             ),
             onEdit = {},
             onDelete = {},
             onReport = {},
+            onLike = {},
         )
     }
 }

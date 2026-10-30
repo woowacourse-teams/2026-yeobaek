@@ -57,10 +57,13 @@ fun NavGraphBuilder.createNavGraph(
             selectBook = createViewModel::selectBook,
             onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,
             onNextStep = createViewModel::moveToGroupName,
+            onRetryBookDetail = createViewModel::retryBookDetail,
             onSelectOtherBook = createViewModel::moveToBookSelection,
             onBackClick = {
                 when (createViewModel.uiState.step) {
-                    CreateStep.GroupName -> createViewModel.moveToBookSelection()
+                    CreateStep.GroupName -> createViewModel.moveToBookDetail()
+
+                    CreateStep.BookDetail -> createViewModel.moveToBookSelection()
 
                     CreateStep.BookSelection -> {
                         appContainer.analyticsTracker.track(

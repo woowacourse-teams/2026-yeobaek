@@ -3,23 +3,17 @@ import SwiftUI
 import Shared
 
 struct ComposeView: UIViewControllerRepresentable {
-    let analyticsClient: AnalyticsClient
+    let appContainer: AppContainer
 
     func makeUIViewController(context: Self.Context) -> UIViewController {
-        let appVersion = Bundle.main.object(
-            forInfoDictionaryKey: "CFBundleShortVersionString"
-        ) as? String ?? ""
-
         #if DEBUG
         return DebugViewControllerKt.DebugViewController(
-            appVersion: appVersion,
-            analyticsClient: analyticsClient
+            appContainer: appContainer,
+            appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         )
         #else
         return MainViewControllerKt.MainViewController(
-            isDebug: false,
-            appVersion: appVersion,
-            analyticsClient: analyticsClient
+            appContainer: appContainer
         )
         #endif
     }
@@ -28,10 +22,10 @@ struct ComposeView: UIViewControllerRepresentable {
 }
 
 struct ContentView: View {
-    let analyticsClient: AnalyticsClient
+    let appContainer: AppContainer
 
     var body: some View {
-        ComposeView(analyticsClient: analyticsClient)
+        ComposeView(appContainer: appContainer)
             .ignoresSafeArea()
     }
 }

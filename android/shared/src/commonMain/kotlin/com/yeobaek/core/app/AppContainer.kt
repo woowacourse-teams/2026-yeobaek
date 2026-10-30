@@ -5,29 +5,54 @@ import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
+import com.yeobaek.core.config.AppConfigStartup
+import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
+import com.yeobaek.core.crashlytics.FirebaseCrashSink
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.core.notification.AppNotifications
+import com.yeobaek.core.notification.NotificationPresentation
+import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.update.AppStoreUpdateSession
+import com.yeobaek.core.update.UpdatePolicyPlatform
+import com.yeobaek.core.update.UpdatePolicyRepository
+import com.yeobaek.core.update.UpdatePolicySource
 import com.yeobaek.data.local.GuideOnboardingPreferences
+import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.local.UpdatePolicyPreferences
 import com.yeobaek.data.local.UserPreferences
+import com.yeobaek.data.repository.AppConfigRepository
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.data.repository.GroupRepository
+import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.data.repository.UserRepository
+import com.yeobaek.data.repositoryImpl.remote.AppConfigRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.CommentRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.NotificationRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.PublicRoomRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class AppContainer(
     private val isDebug: Boolean,
     val appVersion: String,
+    val appVersionCode: Int,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
+    updatePolicySource: UpdatePolicySource? = null,
+    updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
 ) {
     private val settings = Settings()
 
@@ -35,19 +60,63 @@ class AppContainer(
     val readerPreferences = ReaderPreferences(settings)
     val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
 
+    val appStoreUpdateSession = if (updatePolicyPlatform ==
+        UpdatePolicyPlatform.IOS
+    ) {
+        AppStoreUpdateSession(settings)
+    } else {
+        null
+    }
+
     val analyticsTracker = AnalyticsTracker(analyticsClient)
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
     val appName = if (isDebug) "조밀" else "여백"
 
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var updatePolicyUpdatesJob: Job? = null
+    val updatePolicyRepository = UpdatePolicyRepository(
+        preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),
+        source = updatePolicySource,
+        onFailure = { exception ->
+            FirebaseCrashSink.log("Update policy refresh failed: ${exception::class.simpleName}")
+        },
+    )
     private val networkProvider = NetworkProvider(
         userPreferences = userPreferences,
         isDebug = isDebug,
+        awaitRequestPermission = {
+            updatePolicyRepository.awaitSupportedVersion(appVersionCode)
+        },
     )
 
     private val apiProvider = ApiProvider(
         ktorfit = networkProvider.ktorfit,
+    )
+
+    val notifications = AppNotifications()
+    val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
+    private val notificationRegistration = NotificationRegistrationCoordinator(
+        memberId = userPreferences.userId,
+        preferences = NotificationRegistrationPreferences(settings),
+        repository = notificationRepository,
+        server = networkProvider.baseUrl,
+        scope = applicationScope,
+        onFailure = { exception ->
+            FirebaseCrashSink.log("Notification registration failed: ${exception::class.simpleName}")
+        },
+    )
+
+    val notificationInstallationId = notificationRegistration.installationId
+
+    val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
+        dataSource = FirebaseRemoteConfigDataSource(),
+    )
+    private val appConfigScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val appConfigStartup = AppConfigStartup(
+        repository = appConfigRepository,
+        scope = appConfigScope,
     )
 
     val userRepository: UserRepository = UserRepositoryImpl(
@@ -86,7 +155,35 @@ class AppContainer(
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 
+    fun updateFirebaseInstallationId(installationId: String) {
+        notificationRegistration.updateInstallationId(installationId)
+    }
+
+    fun refreshUpdatePolicy() {
+        applicationScope.launch {
+            updatePolicyRepository.refresh()
+        }
+    }
+
+    fun startUpdatePolicyUpdates() {
+        if (updatePolicyUpdatesJob?.isActive == true) return
+        updatePolicyUpdatesJob = applicationScope.launch {
+            updatePolicyRepository.refresh()
+            updatePolicyRepository.awaitFirstRefresh()
+            updatePolicyRepository.observeUpdates()
+        }
+    }
+
+    fun handleReceivedNotification(data: Map<String, String>): NotificationPresentation =
+        notifications.handleReceived(data)
+
+    fun onNotificationOpened(data: Map<String, String>) {
+        notifications.onOpened(data)
+    }
+
     fun close() {
+        applicationScope.cancel()
+        appConfigScope.cancel()
         networkProvider.close()
     }
 

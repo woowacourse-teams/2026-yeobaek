@@ -2,7 +2,9 @@ package com.yeobaek.feature.mypage
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_guide
+import android.shared.generated.resources.ic_notification
 import android.shared.generated.resources.ic_user_delete
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,10 +38,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.yeobaek.core.designsystem.theme.SettingsTokens
+import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import com.yeobaek.feature.mypage.component.MyPageFeatureCard
@@ -50,6 +54,7 @@ fun MyPageScreen(
     deleteAccount: () -> Unit,
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
+    navigateToNotificationSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -77,8 +82,14 @@ fun MyPageScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("마이페이지")
+                    Text(
+                        "마이페이지",
+                        modifier = Modifier.padding(start = SettingsTokens.ToolbarTitleInset),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = YeobaekTextStrong,
+                    )
                 },
+                expandedHeight = SettingsTokens.ToolbarHeight,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -90,27 +101,44 @@ fun MyPageScreen(
             )
         },
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+        Column(
+            modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()),
+        ) {
             Card(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(
+                    horizontal = SettingsTokens.ContentPadding,
+                ).padding(top = SettingsTokens.SectionSpacing, bottom = SettingsTokens.SectionSpacing),
                 colors = CardDefaults.cardColors(MaterialTheme.colorScheme.onPrimary),
-                border = CardDefaults.outlinedCardBorder(),
+                shape = SettingsTokens.CardShape,
+                border = BorderStroke(SettingsTokens.BorderWidth, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Row(
-                    modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(
+                        SettingsTokens.ProfileHeight,
+                    ).padding(horizontal = SettingsTokens.ProfilePadding),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier.clip(shape = CircleShape).size(50.dp)
-                            .border(width = 1.dp, color = Color.Black, shape = CircleShape),
+                        modifier = Modifier.clip(shape = CircleShape).size(SettingsTokens.AvatarSize)
+                            .border(
+                                width = SettingsTokens.BorderWidth,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                shape = CircleShape,
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(uiState.name.first().toString())
+                        Text(uiState.name.take(1), style = MaterialTheme.typography.titleMedium)
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(uiState.name)
+                    Spacer(modifier = Modifier.width(SettingsTokens.CardPadding))
+                    Text(uiState.name, style = MaterialTheme.typography.titleMedium)
                 }
             }
+            MyPageFeatureCard(
+                text = "알림 설정",
+                icon = Res.drawable.ic_notification,
+                onClick = navigateToNotificationSettings,
+            )
+            Spacer(modifier = Modifier.height(SettingsTokens.SectionSpacing))
             MyPageFeatureCard(
                 text = "가이드",
                 icon = Res.drawable.ic_guide,
@@ -118,20 +146,23 @@ fun MyPageScreen(
                     navigateToGuide()
                 },
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(SettingsTokens.CardPadding))
             MyPageFeatureCard(
                 text = "회원 탈퇴",
+                contentColor = MaterialTheme.colorScheme.error,
                 icon = Res.drawable.ic_user_delete,
                 onClick = {
                     onDeleteAccountClick()
                     showDeleteDialog = true
                 },
             )
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(SettingsTokens.SectionSpacing))
             Text(
                 "v$appVersion",
-                modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = SettingsTokens.ContentPadding).fillMaxWidth(),
                 textAlign = TextAlign.End,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -161,6 +192,7 @@ private fun MyPageScreenPreview() {
             deleteAccount = {},
             navigateToNickname = {},
             navigateToGuide = {},
+            navigateToNotificationSettings = {},
         )
     }
 }

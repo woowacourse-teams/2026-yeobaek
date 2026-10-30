@@ -105,6 +105,9 @@ Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습�
 앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
 `flyway_schema_history`의 버전별 성공 이력에서 확인합니다.
 
+설치별 알림 ON/OFF는 V6로 추가해요. 저장·조회 구조와 API, 신규 유형 추가 절차는
+[알림 설정 설명](docs/알림_설정.md)을 참고해요.
+
 DB·API 바인딩과 이미지의 기본값은 Compose 설정을 따릅니다.
 실제 기기에서 접속하려면 `APP_BIND_ADDRESS`를 지정하고 호스트 주소를 사용합니다.
 필요한 이미지 변경은 `BACKEND_IMAGE` 환경변수로 지정합니다. 운영 비밀번호·외부 API 키는

@@ -21,6 +21,7 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.data.repository.PublicRoomRepository
+import com.yeobaek.feature.book.detail.BookDetailState
 import com.yeobaek.feature.onboarding.selectbook.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.random.Random
@@ -30,6 +31,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import com.yeobaek.feature.book.detail.model.toUiModel as toBookDetailUiModel
 
 class OnboardingViewModel(
     private val bookRepository: BookRepository,
@@ -42,6 +44,7 @@ class OnboardingViewModel(
     var currentAttemptId: String? = null
         private set
     private var searchJob: Job? = null
+    private var bookDetailJob: Job? = null
 
     init {
         initList()
@@ -115,25 +118,63 @@ class OnboardingViewModel(
 
     fun onSelectBook(id: Long) {
         if (uiState.publicRoomState is PublicRoomState.Loading) return
-        val selectedBook = uiState.bookUiModelList.firstOrNull { bookUiModel -> bookUiModel.id == id }
-        uiState = if (selectedBook != null) {
-            currentAttemptId = Random.nextLong().toULong().toString(16)
-            analyticsTracker.track(ReadingOnboardingBookSelected(id, requireNotNull(currentAttemptId)))
-            uiState.copy(
-                selectedBookUiState = uiState.selectedBookUiState.copy(
-                    selectedBook = selectedBook,
-                    isSelected = true,
-                ),
-                publicRoomState = PublicRoomState.Idle,
-            )
-        } else {
-            currentAttemptId = null
-            uiState.copy(
-                selectedBookUiState = uiState.selectedBookUiState.copy(
-                    isSelected = false,
-                ),
-            )
+        val selectedBook = uiState.bookUiModelList.firstOrNull { it.id == id } ?: return
+        currentAttemptId = Random.nextLong().toULong().toString(16)
+        analyticsTracker.track(ReadingOnboardingBookSelected(id, requireNotNull(currentAttemptId)))
+        uiState = uiState.copy(
+            selectedBookUiState = SelectedBookUiState(selectedBook = selectedBook),
+            publicRoomState = PublicRoomState.Idle,
+        )
+        loadBookDetail(id)
+    }
+
+    fun retryBookDetail() {
+        val bookId = uiState.selectedBookUiState.selectedBook?.id ?: return
+        if (uiState.bookDetailState is BookDetailState.Idle) return
+        loadBookDetail(bookId)
+    }
+
+    private fun loadBookDetail(bookId: Long) {
+        bookDetailJob?.cancel()
+        uiState = uiState.copy(bookDetailState = BookDetailState.Loading)
+        bookDetailJob = viewModelScope.launch {
+            try {
+                val book = bookRepository.getBookDetail(bookId).toBookDetailUiModel()
+                currentCoroutineContext().ensureActive()
+                if (uiState.selectedBookUiState.selectedBook?.id == bookId) {
+                    uiState = uiState.copy(bookDetailState = BookDetailState.Success(book))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (uiState.selectedBookUiState.selectedBook?.id == bookId) {
+                    uiState = uiState.copy(
+                        bookDetailState = BookDetailState.Failure(e.message ?: "책 정보를 불러오지 못했습니다."),
+                    )
+                }
+            }
         }
+    }
+
+    fun showReadingOptions() {
+        if (uiState.bookDetailState !is BookDetailState.Success) return
+        if (uiState.publicRoomState is PublicRoomState.Loading) return
+        uiState = uiState.copy(
+            selectedBookUiState = uiState.selectedBookUiState.copy(isSelected = true),
+            publicRoomState = PublicRoomState.Idle,
+        )
+    }
+
+    fun closeBookDetail() {
+        if (uiState.publicRoomState is PublicRoomState.Loading) return
+        bookDetailJob?.cancel()
+        currentAttemptId = null
+        uiState = uiState.copy(
+            bookDetailState = BookDetailState.Idle,
+            selectedBookUiState = SelectedBookUiState(),
+            publicRoomState = PublicRoomState.Idle,
+        )
     }
 
     fun closeBottomSheet() {

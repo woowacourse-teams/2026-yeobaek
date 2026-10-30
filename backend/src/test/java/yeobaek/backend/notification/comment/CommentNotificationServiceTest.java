@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
@@ -28,21 +29,17 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.transaction.PlatformTransactionManager;
-import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.Sentence;
-import yeobaek.backend.book.domain.vo.ContentSequence;
-import yeobaek.backend.book.repository.SentenceRepository;
-import yeobaek.backend.club.repository.ClubMemberRepository;
-import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.notification.FcmFailureHandler;
+import yeobaek.backend.notification.FcmNotificationService;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmRetryService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
+import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
@@ -59,16 +56,13 @@ class CommentNotificationServiceTest {
 
     private final NotificationRegistrationService registrations = mock(NotificationRegistrationService.class);
     private final CommentNotificationRecipientQueryRepository query = mock(CommentNotificationRecipientQueryRepository.class);
-    private final ClubMemberRepository clubMembers = mock(ClubMemberRepository.class);
-    private final SentenceRepository sentences = mock(SentenceRepository.class);
-    private final MemberRepository members = mock(MemberRepository.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
     private final FcmFailureHandler handler = mock(FcmFailureHandler.class);
     private final FcmRetryService retryService = mock(FcmRetryService.class);
     private final List<FcmRetryTask> scheduledTasks = new ArrayList<>();
     private final CommentNotificationService service = new CommentNotificationService(
-            sender, handler, retryService, registrations, query, clubMembers, sentences, members,
-            mock(PlatformTransactionManager.class));
+            new FcmNotificationService(sender, handler, retryService, mock(PlatformTransactionManager.class)),
+            registrations, query);
 
     @BeforeEach
     void captureScheduledTasks() {
@@ -92,11 +86,8 @@ class CommentNotificationServiceTest {
         assertThat(notify(club)).isEmpty();
 
         var order = inOrder(registrations, query, sender, handler);
-        if (club) {
-            order.verify(registrations).findByMembers(any());
-        } else {
-            order.verify(query).findRegistrationsForPublicRoomComment(8L, 13L, 7L);
-        }
+        order.verify(registrations).findByMemberIds(any(),
+                eq(club ? NotificationType.CLUB_COMMENT : NotificationType.PUBLIC_ROOM_COMMENT));
         order.verify(sender).send(fids, "새로운 댓글이 달렸어요!", "댓글을 남겼던 문장의 이야기를 확인해 보세요.", data(club));
         order.verify(handler).handle(eq(result), any(NotificationRegistrations.class));
     }
@@ -131,7 +122,7 @@ class CommentNotificationServiceTest {
 
         List<FcmRetryTask> tasks = notify(club);
 
-        assertThat(tasks).extracting(FcmRetryTask::commentId, FcmRetryTask::registrationIds,
+        assertThat(tasks).extracting(FcmRetryTask::sourceId, FcmRetryTask::registrationIds,
                         FcmRetryTask::title, FcmRetryTask::body, FcmRetryTask::data, FcmRetryTask::failure)
                 .containsExactly(tuple(11L, List.of(1L, 2L), TITLE, BODY, data(club), failure));
         verify(handler).handle(eq(result), any(NotificationRegistrations.class));
@@ -174,12 +165,13 @@ class CommentNotificationServiceTest {
         stubRecipients(club, new NotificationRegistrations(List.of(registration(1L, FID))));
         given(sender.send(List.of(FID), TITLE, BODY, data(club))).willThrow(exception);
 
-        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+        try (var logs = new LogCapture(FcmNotificationService.class.getName())) {
             notify(club);
 
             assertThat(logs.structuredText()).doesNotContain("retryTaskCount");
         }
-        verify(handler).handleCallFailure(11L, exception);
+        verify(handler).handleCallFailure(
+                club ? NotificationType.CLUB_COMMENT : NotificationType.PUBLIC_ROOM_COMMENT, 11L, exception);
         verifyNoInteractions(retryService);
         verify(sender).send(List.of(FID), TITLE, BODY, data(club));
         verifyNoMoreInteractions(sender);
@@ -194,7 +186,7 @@ class CommentNotificationServiceTest {
         given(sender.send(List.of(FID), TITLE, BODY, data(club)))
                 .willReturn(new FcmSendResult(0, List.of(failure)));
 
-        try (var logs = new LogCapture(CommentNotificationService.class.getName())) {
+        try (var logs = new LogCapture(FcmNotificationService.class.getName())) {
             List<FcmRetryTask> tasks = notify(club);
 
             var event = logs.event("notification.comment.logRetryTasks", "success");
@@ -216,12 +208,12 @@ class CommentNotificationServiceTest {
         doAnswer(invocation -> {
             cleanupStartedAt.set(Instant.now());
             return null;
-        }).when(handler).handle(new FcmSendResult(0, List.of(failure)), snapshot);
+        }).when(handler).handle(eq(new FcmSendResult(0, List.of(failure))), any(NotificationRegistrations.class));
         Instant beforeSend = Instant.now();
 
         FcmRetryTask task = notify(true).getFirst();
 
-        assertThat(task.commentCreatedAt()).isEqualTo(CREATED_AT);
+        assertThat(task.createdAt()).isEqualTo(CREATED_AT);
         assertThat(task.observedAt()).isBetween(beforeSend, cleanupStartedAt.get());
         assertThat(task.retriesPerformed()).isZero();
         assertThat(task.uncertainRetryUsed()).isFalse();
@@ -246,7 +238,8 @@ class CommentNotificationServiceTest {
                         FcmRetryTask::isCallFailure, FcmRetryTask::registrationIds, FcmRetryTask::data)
                 .containsExactly(tuple(FID, null, true, List.of(1L), data(club)),
                         tuple(second, null, true, List.of(2L), data(club)));
-        verify(handler).handleCallFailure(11L, exception);
+        verify(handler).handleCallFailure(
+                club ? NotificationType.CLUB_COMMENT : NotificationType.PUBLIC_ROOM_COMMENT, 11L, exception);
     }
 
     @ParameterizedTest
@@ -269,7 +262,8 @@ class CommentNotificationServiceTest {
         assertThat(task.failure().isReceiptUncertain()).isFalse();
         assertThat(task.failure().httpStatus()).isEqualTo(httpStatus);
         assertThat(task.nextRetryAt(0)).contains(task.observedAt().plusSeconds(300));
-        verify(handler).handleCallFailure(11L, exception);
+        verify(handler).handleCallFailure(
+                NotificationType.CLUB_COMMENT, 11L, exception);
     }
 
     private void stubSend(FcmSendFailure failure, NotificationRegistrations snapshot)
@@ -285,19 +279,11 @@ class CommentNotificationServiceTest {
 
     private void stubRecipients(boolean club, NotificationRegistrations snapshot) {
         if (club) {
-            var sentence = mock(Sentence.class);
-            var passage = mock(Passage.class);
-            given(passage.getSequence()).willReturn(new ContentSequence(1));
-            given(sentence.getPassage()).willReturn(passage);
-            given(sentences.getReferenceById(13L)).willReturn(sentence);
-            given(members.getReferenceById(7L)).willReturn(mock(Member.class));
-            given(clubMembers.findNotificationCandidatesWithReadingProgress(5L, 7L)).willReturn(List.of());
-            given(registrations.findByMembers(any())).willReturn(snapshot);
+            given(query.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L))).willReturn(List.of());
+            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
         } else {
-            List<NotificationRegistration> selected = snapshot.firebaseInstallationIds().stream()
-                    .flatMap(fid -> snapshot.idsFor(new FirebaseInstallationId(fid)).stream()
-                            .map(id -> registration(id, fid))).toList();
-            given(query.findRegistrationsForPublicRoomComment(8L, 13L, 7L)).willReturn(selected);
+            given(query.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L)).willReturn(List.of());
+            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
         }
     }
 

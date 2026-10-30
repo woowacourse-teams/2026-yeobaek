@@ -13,6 +13,7 @@ import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.notification.ClubJoinNotificationEffect
 import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
@@ -59,6 +60,10 @@ fun NavGraphBuilder.detailNavGraph(
             route.groupId,
         ) {
             detailViewModel.initGroupData(groupId = route.groupId)
+        }
+
+        ClubJoinNotificationEffect(appContainer.notifications, route.groupId) {
+            detailViewModel.refreshMembers(route.groupId)
         }
 
         LaunchedEffect(

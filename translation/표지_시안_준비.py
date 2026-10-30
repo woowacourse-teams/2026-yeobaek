@@ -210,11 +210,16 @@ def build_prompt(meta: dict[str, Any], brief: dict[str, Any], variant: tuple[str
     )
 
 
-def expected_outputs(meta: dict[str, Any], brief: dict[str, Any]) -> tuple[dict[str, str], dict[str, Any]]:
-    prompts = {variant[0]: build_prompt(meta, brief, variant) for variant in VARIANTS}
+def expected_outputs(
+    meta: dict[str, Any], brief: dict[str, Any], style: str | None = None
+) -> tuple[dict[str, str], dict[str, Any]]:
+    if style is not None and style not in EXPECTED_IDS:
+        raise ValueError("선정 스타일은 A~G 중 하나여야 합니다.")
+    selected = tuple(variant for variant in VARIANTS if style is None or variant[0] == style)
+    prompts = {variant[0]: build_prompt(meta, brief, variant) for variant in selected}
     author_text = " · ".join(author["name"] for author in meta["authors"])
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2 if style else 1,
         "title": meta["title"],
         "authorText": author_text,
         "briefDigest": _brief_digest(brief),
@@ -225,20 +230,22 @@ def expected_outputs(meta: dict[str, Any], brief: dict[str, Any]) -> tuple[dict[
                 "prompt": f"프롬프트/{variant_id}.txt",
                 "output": f"{variant_id}.png",
             }
-            for variant_id, label, _taxonomy, _style in VARIANTS
+            for variant_id, label, _taxonomy, _style in selected
         ],
         "requirements": {
             "width": 1024,
             "height": 1536,
             "ratio": "2:3",
-            "exactCount": 7,
+            "exactCount": len(selected),
         },
     }
+    if style:
+        manifest["selectedStyle"] = style
     return prompts, manifest
 
 
-def prepare(meta: dict[str, Any], brief: dict[str, Any], output_dir: Path) -> None:
-    prompts, manifest = expected_outputs(meta, brief)
+def prepare(meta: dict[str, Any], brief: dict[str, Any], output_dir: Path, style: str | None = None) -> None:
+    prompts, manifest = expected_outputs(meta, brief, style)
     prompt_dir = output_dir / "프롬프트"
     prompt_dir.mkdir(parents=True, exist_ok=True)
     for variant_id, prompt in prompts.items():
@@ -254,7 +261,7 @@ def _validate_prepared_files(
 ) -> list[str]:
     errors: list[str] = []
     prompt_dir = output_dir / "프롬프트"
-    expected_prompt_names = {f"{variant_id}.txt" for variant_id in EXPECTED_IDS}
+    expected_prompt_names = {f"{variant_id}.txt" for variant_id in prompts}
     try:
         prompt_entries = list(prompt_dir.iterdir())
     except FileNotFoundError:
@@ -509,10 +516,22 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _validate_output_layout(output_dir: Path) -> list[str]:
+def manifest_variant_ids(manifest: Any) -> tuple[str, ...]:
+    """선정된 1종 또는 기존 7종의 고정 ID만 허용한다."""
+    if not isinstance(manifest, dict):
+        raise ValueError("시안 목록은 객체여야 합니다.")
+    if manifest.get("schemaVersion") == 1 and "selectedStyle" not in manifest:
+        return EXPECTED_IDS
+    style = manifest.get("selectedStyle")
+    if manifest.get("schemaVersion") == 2 and isinstance(style, str) and style in EXPECTED_IDS:
+        return (style,)
+    raise ValueError("시안 목록은 기존 schemaVersion 1 또는 A~G selectedStyle을 명시한 schemaVersion 2여야 합니다.")
+
+
+def _validate_output_layout(output_dir: Path, variant_ids: tuple[str, ...] = EXPECTED_IDS) -> list[str]:
     errors: list[str] = []
     allowed_files = (
-        {f"{variant_id}.png" for variant_id in EXPECTED_IDS}
+        {f"{variant_id}.png" for variant_id in variant_ids}
         | {"시안_목록.json", "표지_검수.json"}
     )
     allowed_directories = {"프롬프트", "작업"}
@@ -531,9 +550,9 @@ def _validate_output_layout(output_dir: Path) -> list[str]:
     return errors
 
 
-def _validate_images(output_dir: Path) -> list[str]:
+def _validate_images(output_dir: Path, variant_ids: tuple[str, ...] = EXPECTED_IDS) -> list[str]:
     errors: list[str] = []
-    expected_names = {f"{variant_id}.png" for variant_id in EXPECTED_IDS}
+    expected_names = {f"{variant_id}.png" for variant_id in variant_ids}
     try:
         root_pngs = {
             path.name for path in output_dir.iterdir() if path.is_file() and path.suffix.lower() == ".png"
@@ -586,7 +605,7 @@ def _reject_unexpected_keys(
         errors.append(f"{prefix}에 허용되지 않은 키가 있습니다: {field}")
 
 
-def _validate_review(output_dir: Path) -> list[str]:
+def _validate_review(output_dir: Path, variant_ids: tuple[str, ...] = EXPECTED_IDS) -> list[str]:
     errors: list[str] = []
     review = _read_json(output_dir / "표지_검수.json", "표지 검수", errors)
     if review is None:
@@ -595,19 +614,20 @@ def _validate_review(output_dir: Path) -> list[str]:
         errors.append("표지_검수.json 최상위 값은 객체여야 합니다.")
         return errors
     _reject_unexpected_keys(review, {"schemaVersion", "variants", "setChecks"}, "표지_검수.json", errors)
-    if review.get("schemaVersion") != 1:
-        errors.append("표지_검수.json의 schemaVersion은 1이어야 합니다.")
+    schema_version = 2 if len(variant_ids) == 1 else 1
+    if review.get("schemaVersion") != schema_version:
+        errors.append(f"표지_검수.json의 schemaVersion은 {schema_version}이어야 합니다.")
     variants = review.get("variants")
     if not isinstance(variants, dict):
-        errors.append("표지_검수.json의 variants는 A~G 객체를 담은 객체여야 합니다.")
+        errors.append("표지_검수.json의 variants는 준비된 시안 ID 객체를 담은 객체여야 합니다.")
     else:
-        expected_ids = set(EXPECTED_IDS)
+        expected_ids = set(variant_ids)
         actual_ids = set(variants)
         for variant_id in sorted(expected_ids - actual_ids):
             errors.append(f"표지_검수.json에 {variant_id}안 검수 결과가 없습니다.")
         for variant_id in sorted(actual_ids - expected_ids):
             errors.append(f"표지_검수.json에 허용되지 않은 시안 키가 있습니다: {variant_id}")
-        for variant_id in EXPECTED_IDS:
+        for variant_id in variant_ids:
             if variant_id in variants:
                 value = variants[variant_id]
                 if not isinstance(value, dict):
@@ -649,26 +669,36 @@ def _validate_review(output_dir: Path) -> list[str]:
                                 f"variants.{variant_id}.{field}가 현재 파일 SHA-256과 일치하지 않습니다."
                             )
     set_checks = review.get("setChecks")
+    required_set_checks = (("noExtraTextAcrossSet",) if schema_version == 2
+                           else ("visuallyDistinct", "noExtraTextAcrossSet"))
     if isinstance(set_checks, dict):
         _reject_unexpected_keys(
             set_checks,
-            {"visuallyDistinct", "noExtraTextAcrossSet"},
+            set(required_set_checks),
             "setChecks",
             errors,
         )
-    _all_true_fields(set_checks, ("visuallyDistinct", "noExtraTextAcrossSet"), "setChecks", errors)
+    _all_true_fields(set_checks, required_set_checks, "setChecks", errors)
     return errors
 
 
 def validate_result(
     meta: dict[str, Any], brief: dict[str, Any], output_dir: Path, structural_only: bool
 ) -> list[str]:
-    prompts, manifest = expected_outputs(meta, brief)
-    errors = _validate_output_layout(output_dir)
+    errors: list[str] = []
+    current_manifest = _read_json(output_dir / "시안_목록.json", "시안 목록", errors)
+    if errors:
+        return errors
+    try:
+        variant_ids = manifest_variant_ids(current_manifest)
+    except ValueError as exc:
+        return [str(exc)]
+    prompts, manifest = expected_outputs(meta, brief, variant_ids[0] if len(variant_ids) == 1 else None)
+    errors = _validate_output_layout(output_dir, variant_ids)
     errors.extend(_validate_prepared_files(output_dir, prompts, manifest))
-    errors.extend(_validate_images(output_dir))
+    errors.extend(_validate_images(output_dir, variant_ids))
     if not structural_only:
-        errors.extend(_validate_review(output_dir))
+        errors.extend(_validate_review(output_dir, variant_ids))
     return errors
 
 
@@ -698,6 +728,9 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--meta", required=True, type=Path, help="메타데이터.json 경로")
         subparser.add_argument("--brief", required=True, type=Path, help="표지_브리프.json 경로")
         subparser.add_argument("--output-dir", required=True, type=Path, help="표지 출력 폴더")
+        if command == "prepare":
+            subparser.add_argument("--style", choices=EXPECTED_IDS,
+                                   help="생성 전에 선정한 1종. 생략하면 기존 A~G 7종 호환 모드")
         if command == "validate":
             subparser.add_argument(
                 "--structural-only",
@@ -716,11 +749,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "prepare":
         try:
-            prepare(meta, brief, args.output_dir)
+            prepare(meta, brief, args.output_dir, args.style)
         except OSError as exc:
             _print_errors([f"표지 준비 산출물을 저장할 수 없습니다: {exc}"])
             return 1
-        print(f"[표지 시안 준비 완료] 프롬프트 7개와 시안 목록을 생성했습니다: {args.output_dir}")
+        print(f"[표지 시안 준비 완료] 프롬프트 {1 if args.style else 7}개와 시안 목록을 생성했습니다: {args.output_dir}")
         print("기존 표지 이미지 파일은 변경하지 않았습니다.")
         return 0
 
@@ -729,7 +762,7 @@ def main(argv: list[str] | None = None) -> int:
         _print_errors(errors)
         return 1
     review_text = "구조 검증" if args.structural_only else "구조 및 수동 검수"
-    print(f"[표지 시안 검증 통과] A~G 7개, 2:3, 최소 1024×1536, 중복 없음, {review_text} 통과")
+    print(f"[표지 시안 검증 통과] 준비된 시안, 2:3, 최소 1024×1536, 중복 없음, {review_text} 통과")
     return 0
 
 

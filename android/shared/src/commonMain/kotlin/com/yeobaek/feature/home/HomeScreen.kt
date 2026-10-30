@@ -46,6 +46,7 @@ import com.yeobaek.feature.home.component.GroupFabMenu
 import com.yeobaek.feature.home.component.GroupTab
 import com.yeobaek.feature.home.component.GroupTabBar
 import com.yeobaek.feature.home.component.PublicGroupSection
+import com.yeobaek.feature.home.model.PublicRoomBookUiModel
 import com.yeobaek.feature.reader.ReaderTarget
 import org.jetbrains.compose.resources.painterResource
 
@@ -57,7 +58,7 @@ fun HomeScreen(
     navigateToDetail: (Long) -> Unit,
     navigateToCreate: () -> Unit,
     navigateToReader: (ReaderTarget) -> Unit,
-    onPublicRoomClick: (Long, PublicRoomEntryPoint, String?) -> Unit,
+    onPublicRoomClick: (PublicRoomBookUiModel, PublicRoomEntryPoint, String?) -> Unit,
     navigateToMyPage: () -> Unit,
     updatePublicRoomSearchTextValue: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -165,17 +166,17 @@ fun HomeScreen(
                 GroupTab.PublicRooms -> PublicGroupSection(
                     uiState = uiState.publicRoomTab,
                     updateSearchTextValue = updatePublicRoomSearchTextValue,
-                    onPublicRoomClick = { publicRoomId, entryPoint ->
+                    onPublicRoomClick = { publicRoom, entryPoint ->
                         val listVisitId = if (entryPoint == PublicRoomEntryPoint.ROOM_LIST) {
                             val rooms = uiState.publicRoomTab.visiblePublicRooms
-                            val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoomId } + 1
+                            val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoom.publicRoomId } + 1
                             listVisitTracker.observe(rooms.size, selectedPosition.takeIf { it > 0 })
                             listVisitTracker.selectRoom()
                         } else {
                             listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                             null
                         }
-                        onPublicRoomClick(publicRoomId, entryPoint, listVisitId)
+                        onPublicRoomClick(publicRoom, entryPoint, listVisitId)
                     },
                     onListObserved = listVisitTracker::observe,
                     onListUserScrolled = listVisitTracker::onUserScrolled,

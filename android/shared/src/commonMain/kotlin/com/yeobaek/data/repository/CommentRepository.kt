@@ -1,5 +1,6 @@
 package com.yeobaek.data.repository
 
+import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.CommentedSentencesModel
@@ -24,6 +25,8 @@ interface CommentRepository {
     ): CommentModel
 
     suspend fun deleteComment(commentId: Long)
+
+    suspend fun setCommentLiked(commentId: Long, liked: Boolean): CommentLikeModel
 
     suspend fun reportComment(commentId: Long)
 

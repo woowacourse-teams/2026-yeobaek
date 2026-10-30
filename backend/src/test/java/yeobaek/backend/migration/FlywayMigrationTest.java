@@ -51,7 +51,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5");
+                    .containsExactly("1", "2", "3", "4", "5", "6");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -67,7 +67,7 @@ class FlywayMigrationTest {
     }
 
     @Test
-    @DisplayName("V2가 적용된 DB는 기존 데이터를 보존하면서 알림 등록 V3만 추가한다")
+    @DisplayName("V2가 적용된 DB는 기존 데이터를 보존하면서 알림 등록과 설정을 추가한다")
     void upgradeExistingV2Database() {
         Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .target("2").load().migrate();
@@ -84,17 +84,28 @@ class FlywayMigrationTest {
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5");
+                    .containsExactly("1", "2", "3", "4", "5", "6");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
 
     @Test
-    @DisplayName("같은 FID를 여러 등록 정보로 저장할 수 있다")
-    void allowDuplicateFids() {
+    @DisplayName("같은 회원·FID의 중복 등록은 DB 제약으로 거절한다")
+    void rejectDuplicateMemberAndFid() {
         JdbcTemplate jdbc = migrateWithMember();
+        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?)", FID);
 
-        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?), (40, ?)", FID, FID);
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?)", FID))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("FID만 같은 다른 회원의 등록은 별도로 저장한다")
+    void allowSameFidAcrossMembers() {
+        JdbcTemplate jdbc = migrateWithMember();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (41, '다른회원')");
+        jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?), (41, ?)", FID, FID);
 
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations WHERE fid = ?", Long.class, FID))
                 .hasSize(2).doesNotHaveDuplicates();
@@ -137,18 +148,45 @@ class FlywayMigrationTest {
     }
 
     @Test
-    @DisplayName("알림 등록이 남은 회원은 삭제를 거절하고 기존 등록 정보를 보존한다")
-    void preventMemberDeletionWithRegistration() {
+    @DisplayName("회원 삭제는 모든 등록 정보와 연결된 설정을 함께 삭제한다")
+    void cascadeMemberDeletion() {
         JdbcTemplate jdbc = migrateWithMember();
         jdbc.update("INSERT INTO notification_registrations (member_id, fid) VALUES (40, ?)", FID);
+        jdbc.update("""
+                INSERT INTO notification_preferences (registration_id, notification_type, enabled, updated_at)
+                SELECT id, 'CLUB_COMMENT', TRUE, CURRENT_TIMESTAMP(6) FROM notification_registrations
+                """);
 
-        assertThatThrownBy(() -> jdbc.update("DELETE FROM members WHERE id = 40"))
-                .isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(jdbc.queryForObject("SELECT nickname FROM members WHERE id = 40", String.class))
-                .isEqualTo("등록 회원");
+        jdbc.update("DELETE FROM members WHERE id = 40");
+
         assertThat(jdbc.queryForList(
                 "SELECT fid FROM notification_registrations WHERE member_id = 40", String.class))
-                .containsExactly(FID);
+                .isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notification_preferences", Long.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("V3의 중복 등록을 정리하고 기존 모든 기기에 세 유형을 ON으로 채운다")
+    void upgradeV3WithDuplicateRegistrations() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("3").load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, '기존회원'), (41, '다른회원')");
+        jdbc.update("INSERT INTO notification_registrations (id, member_id, fid) "
+                + "VALUES (1, 40, ?), (2, 40, ?), (3, 41, ?)", FID, FID, FID);
+
+        var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .load().migrate();
+
+        assertThat(result.migrationsExecuted).isEqualTo(3);
+        assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
+                .containsExactly(1L, 3L);
+        assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))
+                .containsExactly(true, true);
+        assertThat(jdbc.queryForList("SELECT enabled FROM notification_preferences", Boolean.class))
+                .hasSize(6).containsOnly(true);
+        assertThat(jdbc.queryForList("SELECT DISTINCT notification_type FROM notification_preferences", String.class))
+                .containsExactlyInAnyOrder("CLUB_JOIN", "CLUB_COMMENT", "PUBLIC_ROOM_COMMENT");
     }
 
     private JdbcTemplate migrateWithMember() {

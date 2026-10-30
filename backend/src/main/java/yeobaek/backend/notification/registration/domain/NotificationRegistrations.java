@@ -3,14 +3,22 @@ package yeobaek.backend.notification.registration.domain;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import yeobaek.backend.notification.domain.NotificationType;
 
 @RequiredArgsConstructor
 public class NotificationRegistrations {
     private final Collection<NotificationRegistration> values;
 
-    public List<Long> idsFor(FirebaseInstallationId fid) {
+    public static NotificationRegistrations fromEnabledPreferences(
+            List<NotificationPreference> preferences, NotificationType type) {
+        return new NotificationRegistrations(preferences.stream()
+                .filter(preference -> preference.isNotificationAllowed(type))
+                .map(NotificationPreference::getRegistration).toList());
+    }
+
+    public List<Long> findRegistrationIdsByFid(FirebaseInstallationId fid) {
         return values.stream()
-                .filter(registration -> registration.isFor(fid))
+                .filter(registration -> registration.hasInstallationId(fid))
                 .map(NotificationRegistration::getId)
                 .toList();
     }

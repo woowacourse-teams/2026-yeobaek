@@ -34,6 +34,7 @@
 번역본 파일을 여러 개 주면 인자 순서대로 이어 붙여 처리한다(장 단위 분할 번역 지원).
 """
 import argparse
+import hashlib
 import copy
 import json
 import os
@@ -42,6 +43,7 @@ import tempfile
 import subprocess
 import sys
 import zipfile
+from 표지_시안_준비 import manifest_variant_ids
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -534,7 +536,137 @@ def plan_work_assignments(chapters, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRAPHS,
     return assignments
 
 
-def parse_original(path, chapter_re):
+SOURCE_EXCLUSION_CATEGORIES = {
+    "metadata", "toc", "heading", "gutenberg", "editorial", "end-marker",
+}
+
+
+def _source_index_object(path):
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(data, dict) or type(data.get("version")) is not int or data["version"] != 1:
+        raise ValueError("원문 색인은 version: 1 객체여야 합니다.")
+    return data
+
+
+def parse_source_index(original_path, index_path):
+    """원본 바이트에 결속된 명시적 색인을 검증하고 기존 장 metrics를 반환한다.
+
+    범위는 원문 물리행 기준 1-based inclusive. 원문의 모든 비공백 행은
+    문단 또는 사유 있는 제외 구간에 정확히 한 번 속해야 한다.
+    """
+    raw = original_path.read_bytes()
+    lines = raw.decode("utf-8-sig").splitlines()
+    data = _source_index_object(index_path)
+    if data.get("sourceSha256") != hashlib.sha256(raw).hexdigest():
+        raise ValueError("원문 색인의 sourceSha256이 원문 바이트와 다릅니다.")
+    entries = data.get("chapters")
+    exclusions = data.get("exclusions")
+    if not isinstance(entries, list) or not entries or not isinstance(exclusions, list):
+        raise ValueError("원문 색인에는 비어 있지 않은 chapters와 exclusions 배열이 필요합니다.")
+    owners = [None] * len(lines)
+
+    def claim(item, label):
+        if not isinstance(item, dict):
+            raise ValueError(f"{label}: 범위는 객체여야 합니다.")
+        start, end = item.get("start"), item.get("end")
+        if (type(start) is not int or type(end) is not int
+                or not 1 <= start <= end <= len(lines)):
+            raise ValueError(f"{label}: 유효하지 않은 1-based inclusive 행 범위입니다.")
+        for line_index in range(start - 1, end):
+            if owners[line_index] is not None:
+                raise ValueError(f"{label}: {line_index + 1}행 범위가 중복됩니다.")
+            owners[line_index] = label
+        return start, end
+
+    previous = 0
+    for item in exclusions:
+        if (not isinstance(item, dict)
+                or not isinstance(item.get("category"), str)
+                or item["category"] not in SOURCE_EXCLUSION_CATEGORIES
+                or not isinstance(item.get("reason"), str) or not item["reason"].strip()):
+            raise ValueError("제외 구간에는 허용된 category와 구체적인 reason이 필요합니다.")
+        start, end = claim(item, "제외 구간")
+        if start <= previous:
+            raise ValueError("제외 구간은 원문 순서여야 합니다.")
+        previous = end
+
+    chapters = []
+    previous = 0
+    for chapter_number, entry in enumerate(entries, 1):
+        if (not isinstance(entry, dict) or not isinstance(entry.get("title"), str)
+                or not entry["title"].strip() or not isinstance(entry.get("paragraphs"), list)
+                or not entry["paragraphs"]):
+            raise ValueError(f"색인 {chapter_number}장에는 title과 비어 있지 않은 paragraphs가 필요합니다.")
+        metrics = {"characters": 0, "estimatedTokens": 0, "paragraphs": []}
+        chapter = {"title": entry["title"].strip(), "count": len(entry["paragraphs"]),
+                   "metrics": metrics, "sourceParagraphs": []}
+        for paragraph_number, item in enumerate(entry["paragraphs"], 1):
+            start, end = claim(item, f"{chapter_number}장 {paragraph_number}문단")
+            if start <= previous:
+                raise ValueError("장과 문단은 원문 순서여야 합니다.")
+            kind = item.get("kind", "prose")
+            if kind not in ("prose", "verse", "mixed"):
+                raise ValueError("문단 kind는 prose, verse 또는 mixed여야 합니다.")
+            spans = item.get("verseSpans")
+            if kind != "mixed" and "verseSpans" in item:
+                raise ValueError("verseSpans는 mixed 문단에서만 사용할 수 있습니다.")
+            if kind == "mixed":
+                if not isinstance(spans, list) or not spans:
+                    raise ValueError("mixed 문단에는 비어 있지 않은 verseSpans가 필요합니다.")
+                previous_source, previous_translation, verse_lines = start - 1, 0, 0
+                for span in spans:
+                    keys = ("start", "end", "translationStart", "translationEnd")
+                    if not isinstance(span, dict) or any(type(span.get(key)) is not int for key in keys):
+                        raise ValueError("verseSpans의 네 행 번호는 정수여야 합니다.")
+                    a, b, c, d = (span[key] for key in keys)
+                    if (not start <= a <= b <= end or not 1 <= c <= d
+                            or a <= previous_source or c <= previous_translation
+                            or b - a != d - c):
+                        raise ValueError("verseSpans 범위·순서·중복·시행 수가 유효하지 않습니다.")
+                    previous_source, previous_translation = b, d
+                    verse_lines += b - a + 1
+                if verse_lines >= end - start + 1:
+                    raise ValueError("mixed 문단에는 운문 이외의 원문 행도 있어야 합니다.")
+            paragraph_lines = lines[start - 1:end]
+            if any(not line.strip() for line in paragraph_lines):
+                raise ValueError("문단 범위에는 빈 줄을 포함할 수 없습니다.")
+            # 원문 문단을 임의로 쪼개거나 일부만 선택하지 못하게 한다.
+            for adjacent in (start - 2, end):
+                if (0 <= adjacent < len(lines) and lines[adjacent].strip()
+                        and owners[adjacent] != "제외 구간"):
+                    raise ValueError("문단 범위가 원문의 빈 줄 경계를 보존하지 않습니다.")
+            text = "\n".join(paragraph_lines)
+            paragraph_metrics = {"characters": len(text), "estimatedTokens": estimate_tokens(text)}
+            metrics["paragraphs"].append(paragraph_metrics)
+            metrics["characters"] += paragraph_metrics["characters"]
+            metrics["estimatedTokens"] += paragraph_metrics["estimatedTokens"]
+            source_paragraph = {"start": start, "end": end, "kind": kind}
+            if kind == "mixed":
+                source_paragraph["verseSpans"] = spans
+            chapter["sourceParagraphs"].append(source_paragraph)
+            previous = end
+        chapter["start"] = entry["paragraphs"][0]["start"]
+        chapter["end"] = entry["paragraphs"][-1]["end"]
+        chapters.append(chapter)
+    uncovered = [str(i + 1) for i, line in enumerate(lines) if line.strip() and owners[i] is None]
+    if uncovered:
+        raise ValueError("원문 색인에 분류하지 않은 비공백 행이 있습니다: " + ", ".join(uncovered[:10]))
+    return chapters
+
+
+def validate_source_index_review(original_path, index_path, review_path):
+    if review_path is None:
+        raise ValueError("색인을 사용한 최종 변환에는 --source-index-review 독립 검토 기록이 필요합니다.")
+    review = _source_index_object(review_path)
+    if (review.get("status") != "pass"
+            or review.get("sourceIndexSha256") != hashlib.sha256(index_path.read_bytes()).hexdigest()
+            or review.get("sourceSha256") != hashlib.sha256(original_path.read_bytes()).hexdigest()
+            or any(not isinstance(review.get(key), str) or not review[key].strip()
+                   for key in ("reviewer", "evidence"))):
+        raise ValueError("독립 검토 기록의 판정·원문/색인 SHA256·reviewer·evidence가 유효하지 않습니다.")
+
+
+def parse_original(path, chapter_re, source_index=None):
     """원문 장 정보와 호환 가능한 작업량 metrics를 만든다.
 
     기존 소비자를 위해 title/count/start/end 키를 그대로 유지하고, metrics에
@@ -543,6 +675,8 @@ def parse_original(path, chapter_re):
     start/end는 원문 파일 기준 1-based 라인 번호(장 제목 줄 ~ 다음 장 직전).
     Gutenberg 텍스트의 *** START/END 마커 바깥은 무시한다.
     """
+    if source_index is not None:
+        return parse_source_index(path, source_index)
     lines = path.read_text(encoding="utf-8-sig").splitlines()
 
     start, end = 0, len(lines)
@@ -821,6 +955,29 @@ def verify_counts(original, translated, partial=False):
         o_n = o["count"] if o else "-"
         t_n = len(t["passages"]) if t else "-"
         match = o is not None and t is not None and o["count"] == len(t["passages"])
+        if match and "sourceParagraphs" in o:
+            for source_paragraph, passage in zip(o["sourceParagraphs"], t["passages"]):
+                if source_paragraph["kind"] == "verse":
+                    text = "".join(s["content"] for s in passage["sentences"])
+                    expected_lines = source_paragraph["end"] - source_paragraph["start"] + 1
+                    if len(text.splitlines()) != expected_lines:
+                        match = False
+                        print(f"[오류] {i + 1}장 운문 {source_paragraph['start']}–"
+                              f"{source_paragraph['end']}행의 시행 수 불일치")
+                elif source_paragraph["kind"] == "mixed":
+                    text = "".join(s["content"] for s in passage["sentences"])
+                    translated_lines = text.splitlines()
+                    mapped_lines = 0
+                    for span in source_paragraph["verseSpans"]:
+                        a, b = span["translationStart"], span["translationEnd"]
+                        mapped_lines += b - a + 1
+                        if (b > len(translated_lines)
+                                or any(not line.strip() for line in translated_lines[a - 1:b])):
+                            match = False
+                            print(f"[오류] {i + 1}장 혼합 문단의 번역 운문 행 범위가 없거나 비어 있습니다.")
+                    if mapped_lines >= len(translated_lines):
+                        match = False
+                        print(f"[오류] {i + 1}장 혼합 문단에 운문 이외의 번역 행이 없습니다.")
         if not match:
             ok = False
         mark = "OK" if match else "불일치"
@@ -840,9 +997,9 @@ def verify_counts(original, translated, partial=False):
 
 def list_chapters(original, chapter_re, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRAPHS,
                   max_characters=DEFAULT_CHUNK_MAX_CHARACTERS,
-                  max_tokens=DEFAULT_CHUNK_MAX_TOKENS):
+                  max_tokens=DEFAULT_CHUNK_MAX_TOKENS, source_index=None):
     """원문 장 목록과 언어 비종속 작업량·권장 청크를 출력한다."""
-    chapters = parse_original(original, chapter_re)
+    chapters = parse_original(original, chapter_re, source_index)
     if not chapters:
         sys.exit("[오류] 장 제목을 하나도 찾지 못했습니다. "
                  "--chapter-re로 이 책의 장 제목 패턴을 지정하세요.")
@@ -889,8 +1046,14 @@ def list_chapters(original, chapter_re, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRA
           f"추정 토큰 {max_tokens:,}개")
 
 
-def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
+def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path,
+                   source_index=None, source_index_review=None):
     """원문과 최종 산출물을 포함한 보관용 ZIP을 만든다."""
+    if source_index_review is not None and source_index is None:
+        raise ValueError("원문 색인 검토 기록에는 원문 색인이 필요합니다.")
+    if source_index is not None:
+        parse_source_index(original_path, source_index)
+        validate_source_index_review(original_path, source_index, source_index_review)
     book_dir = book_dir.resolve()
     zip_output = zip_output.resolve()
     original_path = original_path.resolve()
@@ -903,6 +1066,9 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
         ingest_path.resolve(): "인제스트 JSON",
         meta_path.resolve(): "메타데이터",
     }
+    for protected_path in (source_index, source_index_review):
+        if protected_path is not None and protected_path.resolve() in conflicting_outputs:
+            raise ValueError("원문 색인/검토 기록과 JSON·메타데이터·ZIP 출력 경로는 달라야 합니다.")
     if original_path in conflicting_outputs:
         raise ValueError(
             f"원문 파일과 {conflicting_outputs[original_path]} 경로는 달라야 합니다."
@@ -911,12 +1077,17 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
         book_dir, zip_output, ingest_path, meta_path, original_path
     )
     cover_dir = book_dir / "표지"
+    try:
+        manifest = json.loads((cover_dir / "시안_목록.json").read_text(encoding="utf-8-sig"))
+        cover_ids = manifest_variant_ids(manifest)
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"ZIP에 포함할 표지 시안 목록을 확인할 수 없습니다: {exc}") from exc
     required_cover_files = [
         book_dir / "표지_브리프.json",
         cover_dir / "시안_목록.json",
         cover_dir / "표지_검수.json",
-        *(cover_dir / f"{variant_id}.png" for variant_id in "ABCDEFG"),
-        *(cover_dir / "프롬프트" / f"{variant_id}.txt" for variant_id in "ABCDEFG"),
+        *(cover_dir / f"{variant_id}.png" for variant_id in cover_ids),
+        *(cover_dir / "프롬프트" / f"{variant_id}.txt" for variant_id in cover_ids),
     ]
     missing_cover_files = [path for path in required_cover_files if not path.is_file()]
     if missing_cover_files:
@@ -937,8 +1108,12 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path):
     ]
 
     archive_entries = [(original_path, f"원문/{original_path.name}")]
-    seen_paths = {original_path}
-    seen_arcnames = {archive_entries[0][1]}
+    for path, arcname in ((source_index, "원문_검증/원문_색인.json"),
+                          (source_index_review, "원문_검증/원문_색인_검토.json")):
+        if path is not None:
+            archive_entries.append((path.resolve(), arcname))
+    seen_paths = {path for path, _arcname in archive_entries}
+    seen_arcnames = {arcname for _path, arcname in archive_entries}
     for path in fixed_files:
         if not path or not path.exists() or not path.is_file():
             continue
@@ -985,7 +1160,7 @@ def default_archive_name(title, fallback):
 
 
 def validate_cover_artifacts(meta_path):
-    """현재 메타데이터에 대응하는 표지 A~G와 시각 검수 기록을 검증한다."""
+    """현재 메타데이터에 대응하는 선정 표지 또는 기존 A~G와 시각 검수를 검증한다."""
     validator = Path(__file__).resolve().with_name("표지_시안_준비.py")
     book_dir = meta_path.resolve().parent
     if not validator.is_file():
@@ -1029,6 +1204,10 @@ def main():
                     help="메타데이터.json 경로 (--partial이면 생략 가능; 구형 정규화에서는 "
                          "서지 필드만 적용)")
     ap.add_argument("--original", type=Path, help="원문 .txt 경로 (언어 무관)")
+    ap.add_argument("--source-index", type=Path,
+                    help="원문 SHA256·문단 행 범위·제외 근거가 있는 명시적 원문 색인")
+    ap.add_argument("--source-index-review", type=Path,
+                    help="최종 변환에 필요한 원문 색인 독립 검토 기록")
     ap.add_argument("--chapter-re", default=DEFAULT_CHAPTER_RE,
                     help="원문 장 제목 정규식 (기본: 로마숫자 'I. 제목' 형태)")
     ap.add_argument("-o", "--output", type=Path,
@@ -1052,6 +1231,20 @@ def main():
                     help="번역 완료된 장까지만 대조하고 JSON은 출력하지 않음(진행 중 검증용)")
     ap.add_argument("--force", action="store_true", help="검증 실패해도 JSON을 출력")
     args = ap.parse_args()
+
+    if args.source_index_review is not None and args.source_index is None:
+        ap.error("--source-index-review에는 --source-index가 필요합니다.")
+    if args.source_index is not None:
+        if args.force or args.no_verify or args.normalize_legacy_ingest:
+            ap.error("--source-index는 --force/--no-verify/--normalize-legacy-ingest와 함께 사용할 수 없습니다.")
+        if args.original is None or not args.original.is_file():
+            ap.error("--source-index에는 --original 원문 파일이 필요합니다.")
+        try:
+            parse_source_index(args.original, args.source_index)
+            if not args.partial and not args.list_chapters:
+                validate_source_index_review(args.original, args.source_index, args.source_index_review)
+        except (ValueError, OSError, UnicodeError) as error:
+            ap.error(f"원문 색인 검증 실패: {error}")
 
     if args.backup_output is not None and args.normalize_legacy_ingest is None:
         ap.error("--backup-output은 --normalize-legacy-ingest와 함께 사용해야 합니다.")
@@ -1103,6 +1296,7 @@ def main():
                 args.max_chunk_paragraphs,
                 args.max_chunk_characters,
                 args.max_chunk_estimated_tokens,
+                source_index=args.source_index,
             )
         except ValueError as error:
             ap.error(str(error))
@@ -1148,7 +1342,7 @@ def main():
     elif not args.original or not args.original.exists():
         sys.exit(f"[오류] 원문 파일 없음: {args.original} (대조 없이 변환하려면 --no-verify)")
     else:
-        original = parse_original(args.original, chapter_re)
+        original = parse_original(args.original, chapter_re, args.source_index)
         if not original:
             sys.exit("[오류] 원문에서 장 제목을 하나도 찾지 못했습니다. "
                      "--chapter-re로 이 책의 장 제목 패턴을 지정하세요.")
@@ -1188,6 +1382,9 @@ def main():
         args.meta.resolve(): "메타데이터",
         zip_output.resolve(): "ZIP 출력",
     }
+    for protected_path in (args.source_index, args.source_index_review):
+        if protected_path is not None and protected_path.resolve() in conflicting_outputs:
+            sys.exit("[오류] 원문 색인/검토 기록과 JSON·메타데이터·ZIP 출력 경로는 달라야 합니다.")
     if original_resolved in conflicting_outputs:
         sys.exit(
             f"[오류] 원문 파일과 {conflicting_outputs[original_resolved]} 경로는 "
@@ -1209,7 +1406,8 @@ def main():
     output.write_text(json.dumps(book, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"저장 완료: {output}")
 
-    create_archive(zip_output, book_dir, output, args.meta, args.original)
+    create_archive(zip_output, book_dir, output, args.meta, args.original,
+                   source_index=args.source_index, source_index_review=args.source_index_review)
     print(f"ZIP 저장 완료: {zip_output}")
     print("소개 초안: 책_소개.txt와 ingest.json의 description에 포함했습니다. 운영자 검수 후 업로드하세요.")
 

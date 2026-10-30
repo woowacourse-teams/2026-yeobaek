@@ -1,5 +1,7 @@
 package yeobaek.backend.notification;
 
+import yeobaek.backend.notification.domain.NotificationType;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -125,7 +127,7 @@ class FcmFailureHandlerTest {
         given(exception.getErrorCode()).willReturn(ErrorCode.DEADLINE_EXCEEDED);
 
         try (var logs = new LogCapture(FcmFailureHandler.class.getName())) {
-            handler.handleCallFailure(11L, exception);
+            handler.handleCallFailure(NotificationType.CLUB_COMMENT, 11L, exception);
 
             var event = logs.event("notification.fcm.logFailure", "failure");
             assertThat(event.getLevel()).isEqualTo(Level.WARN);

@@ -61,3 +61,6 @@ val YeobaekOnNeutralContainer = Color(0xFF746B5E)
 
 // 댓글 달린 문장 밑줄
 val YeobaekUnderline = Color(0xFF8B7660)
+
+// 댓글 좋아요 선택 상태
+val YeobaekLike = Color(0xFFC94B55)

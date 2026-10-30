@@ -1,9 +1,11 @@
 package com.yeobaek.feature.reader.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -16,6 +18,7 @@ import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
+import com.yeobaek.feature.reader.ReaderCommentTarget
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderTarget
 import com.yeobaek.feature.reader.ReaderViewModel
@@ -24,11 +27,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Reader(
     val groupId: Long,
+    val passageSequence: Int? = null,
+    val sentenceId: Long? = null,
 )
 
 @Serializable
 data class PublicRoomReader(
     val publicRoomId: Long,
+    val passageSequence: Int? = null,
+    val sentenceId: Long? = null,
 )
 
 fun NavController.navigateToReader(
@@ -63,6 +70,7 @@ fun NavGraphBuilder.readerNavGraph(
         val route = backStackEntry.toRoute<Reader>()
         ReaderRoute(
             readerTarget = ReaderTarget.Group(route.groupId),
+            commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.READER,
             appContainer = appContainer,
             onBackClick = navController::popBackStack,
@@ -78,6 +86,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
         val route = backStackEntry.toRoute<PublicRoomReader>()
         ReaderRoute(
             readerTarget = ReaderTarget.PublicRoom(route.publicRoomId),
+            commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
             appContainer = appContainer,
             onBackClick = navController::popBackStack,
@@ -88,6 +97,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
 @Composable
 private fun ReaderRoute(
     readerTarget: ReaderTarget,
+    commentTarget: ReaderCommentTarget?,
     trackedScreen: TrackedScreen,
     appContainer: AppContainer,
     onBackClick: () -> Unit,
@@ -95,6 +105,7 @@ private fun ReaderRoute(
     val readerViewModel = viewModel<ReaderViewModel>(
         factory = ReaderViewModel.readerViewModelFactory(
             readerTarget = readerTarget,
+            commentTarget = commentTarget,
             bookRepository = appContainer.bookRepository,
             groupRepository = appContainer.groupRepository,
             publicRoomRepository = appContainer.publicRoomRepository,
@@ -103,8 +114,13 @@ private fun ReaderRoute(
             commentRepository = appContainer.commentRepository,
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
+            notifications = appContainer.notifications,
+            isCommentLikeEnabled = {
+                appContainer.appConfigRepository.state.value.featureFlags.commentLikeEnabled
+            },
         ),
     )
+    val appConfig by appContainer.appConfigRepository.state.collectAsStateWithLifecycle()
     TrackScreen(
         crashReporter = appContainer.crashReporter,
         analyticsTracker = appContainer.analyticsTracker,
@@ -163,6 +179,9 @@ private fun ReaderRoute(
             onDeleteConfirm = commentSheet::confirmDelete,
             onReport = commentSheet::report,
             onReportResultConsumed = commentSheet::consumeReportResult,
+            onScrollToLatestConsumed = commentSheet::consumeScrollToLatest,
+            onLike = commentSheet::toggleLike,
+            onLikeErrorConsumed = commentSheet::consumeLikeError,
         )
     }
 
@@ -171,5 +190,6 @@ private fun ReaderRoute(
         commentSheet = commentSheet.uiState,
         actions = actions,
         commentSheetActions = commentSheetActions,
+        isCommentLikeEnabled = appConfig.featureFlags.commentLikeEnabled,
     )
 }

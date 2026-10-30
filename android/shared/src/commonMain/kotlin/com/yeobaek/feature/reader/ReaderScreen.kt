@@ -41,6 +41,7 @@ fun ReaderScreen(
     commentSheet: CommentSheetUiState?,
     actions: ReaderActions,
     commentSheetActions: CommentSheetActions,
+    isCommentLikeEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     PlatformBackHandler(
@@ -152,6 +153,7 @@ fun ReaderScreen(
     if (commentSheet != null) {
         CommentBottomSheet(
             uiState = commentSheet,
+            isLikeEnabled = isCommentLikeEnabled,
             onDismissRequest = commentSheetActions.onDismiss,
             onRetry = commentSheetActions.onRetry,
             onGoToText = actions.onMoveToComment,
@@ -161,9 +163,12 @@ fun ReaderScreen(
             onEditCancel = commentSheetActions.onEditCancel,
             onReport = commentSheetActions.onReport,
             onReportResultConsumed = commentSheetActions.onReportResultConsumed,
+            onLike = commentSheetActions.onLike,
+            onLikeErrorConsumed = commentSheetActions.onLikeErrorConsumed,
             onDelete = commentSheetActions.onDelete,
             onDeleteCancel = commentSheetActions.onDeleteCancel,
             onDeleteConfirm = commentSheetActions.onDeleteConfirm,
+            onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
         )
     }
 }
@@ -259,6 +264,7 @@ private fun ReaderContent(
 private fun ReaderScreenPreview() {
     YeobaekTheme {
         ReaderScreen(
+            isCommentLikeEnabled = true,
             uiState = ReaderUiState(
                 loadState = ReaderLoadState.Success,
                 title = "데미안",
@@ -386,6 +392,9 @@ private fun ReaderScreenPreview() {
                 onDeleteConfirm = {},
                 onReport = {},
                 onReportResultConsumed = {},
+                onScrollToLatestConsumed = {},
+                onLike = {},
+                onLikeErrorConsumed = {},
             ),
         )
     }

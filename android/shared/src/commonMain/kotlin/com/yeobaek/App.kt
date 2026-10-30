@@ -1,12 +1,24 @@
 package com.yeobaek
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.book.detail.navigation.navigateToPublicRoomBookDetail
+import com.yeobaek.feature.book.detail.navigation.publicRoomBookDetailNavGraph
 import com.yeobaek.feature.group.create.navigation.createNavGraph
 import com.yeobaek.feature.group.create.navigation.navigateToCreate
 import com.yeobaek.feature.group.detail.navigation.detailNavGraph
@@ -25,6 +37,8 @@ import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.nickname.navigation.Nickname
 import com.yeobaek.feature.nickname.navigation.navigateToNickname
 import com.yeobaek.feature.nickname.navigation.nicknameNavGraph
+import com.yeobaek.feature.notifications.navigation.navigateToNotificationSettings
+import com.yeobaek.feature.notifications.navigation.notificationSettingsNavGraph
 import com.yeobaek.feature.onboarding.create.navigation.navigateToOnboardingCreate
 import com.yeobaek.feature.onboarding.create.navigation.onboardingCreateNavGraph
 import com.yeobaek.feature.onboarding.selectbook.navigation.Onboarding
@@ -41,6 +55,22 @@ fun App(
     appContainer: AppContainer,
 ) {
     YeobaekTheme {
+        val startup = appContainer.appConfigStartup
+        val isReady by startup.isReady.collectAsState()
+
+        LifecycleEventEffect(Lifecycle.Event.ON_START) {
+            startup.onForeground()
+        }
+
+        if (!isReady) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+            return@YeobaekTheme
+        }
+
         val navController = rememberNavController()
         val startDestination = if (appContainer.userPreferences.getUserId() == null) {
             Nickname
@@ -164,9 +194,28 @@ fun App(
                 navigateToPublicRoomReader = { publicRoomId ->
                     navController.navigateToPublicRoomReader(publicRoomId = publicRoomId)
                 },
+                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, listVisitId ->
+                    navController.navigateToPublicRoomBookDetail(
+                        publicRoomId = publicRoomId,
+                        bookId = bookId,
+                        entryPoint = entryPoint,
+                        listVisitId = listVisitId,
+                        navOptions = navOptions { launchSingleTop = true },
+                    )
+                },
                 navigateToMyPage = {
                     navController.navigateToMyPage()
                 },
+            )
+            publicRoomBookDetailNavGraph(
+                appContainer = appContainer,
+                navigateToPublicRoomReader = { publicRoomId ->
+                    navController.navigateToPublicRoomReader(
+                        publicRoomId = publicRoomId,
+                        navOptions = navOptions { launchSingleTop = true },
+                    )
+                },
+                navigateToBack = { navController.popBackStack() },
             )
             detailNavGraph(
                 appContainer = appContainer,
@@ -227,6 +276,7 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
+                navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
                     navController.navigateToNickname(
                         navOptions = navOptions {
@@ -247,6 +297,13 @@ fun App(
                     )
                 },
             )
+            notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
         }
+
+        NotificationEffects(
+            navController = navController,
+            notifications = appContainer.notifications,
+            userId = appContainer.userPreferences.userId,
+        )
     }
 }
