@@ -46,7 +46,7 @@ import androidx.compose.foundation.lazy.items as rowItems
 fun PublicGroupSection(
     uiState: PublicRoomTabUiState,
     updateSearchTextValue: (String) -> Unit,
-    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
+    onPublicRoomClick: (PublicRoomBookUiModel, PublicRoomEntryPoint) -> Unit,
     onListObserved: (Int, Int?) -> Unit,
     onListUserScrolled: () -> Unit,
     observationEpoch: Int,
@@ -96,7 +96,7 @@ private fun PublicRoomGrid(
     visitedPublicRooms: List<PublicRoomBookUiModel>,
     publicRooms: List<PublicRoomBookUiModel>,
     searchTextValue: String,
-    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
+    onPublicRoomClick: (PublicRoomBookUiModel, PublicRoomEntryPoint) -> Unit,
     onListObserved: (Int, Int?) -> Unit,
     onListUserScrolled: () -> Unit,
     observationEpoch: Int,
@@ -166,7 +166,7 @@ private fun PublicRoomGrid(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
-                    onClick = { onPublicRoomClick(publicRoom.publicRoomId, PublicRoomEntryPoint.ROOM_LIST) },
+                    onClick = { onPublicRoomClick(publicRoom, PublicRoomEntryPoint.ROOM_LIST) },
                 )
             }
         }
@@ -176,7 +176,7 @@ private fun PublicRoomGrid(
 @Composable
 private fun VisitedPublicRoomRow(
     publicRooms: List<PublicRoomBookUiModel>,
-    onPublicRoomClick: (Long, PublicRoomEntryPoint) -> Unit,
+    onPublicRoomClick: (PublicRoomBookUiModel, PublicRoomEntryPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -204,7 +204,7 @@ private fun VisitedPublicRoomRow(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
-                    onClick = { onPublicRoomClick(publicRoom.publicRoomId, PublicRoomEntryPoint.RECENT_ROOMS) },
+                    onClick = { onPublicRoomClick(publicRoom, PublicRoomEntryPoint.RECENT_ROOMS) },
                     modifier = Modifier.width(itemWidth),
                 )
             }
@@ -266,24 +266,28 @@ private fun PublicGroupSectionPreview() {
 private val previewPublicRooms = listOf(
     PublicRoomBookUiModel(
         publicRoomId = 1L,
+        bookId = 101L,
         title = "데미안",
         authors = "헤르만 헤세",
         coverImageUrl = null,
     ),
     PublicRoomBookUiModel(
         publicRoomId = 2L,
+        bookId = 102L,
         title = "동물농장",
         authors = "조지 오웰",
         coverImageUrl = null,
     ),
     PublicRoomBookUiModel(
         publicRoomId = 3L,
+        bookId = 103L,
         title = "1984",
         authors = "조지 오웰",
         coverImageUrl = null,
     ),
     PublicRoomBookUiModel(
         publicRoomId = 4L,
+        bookId = 104L,
         title = "오만과 편견",
         authors = "제인 오스틴",
         coverImageUrl = null,
