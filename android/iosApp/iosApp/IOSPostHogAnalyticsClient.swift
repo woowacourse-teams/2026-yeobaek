@@ -55,4 +55,10 @@ final class IOSPostHogAnalyticsClient: NSObject, AnalyticsClient {
 
         PostHogSDK.shared.identify(userId)
     }
+
+    func reset() {
+        guard isEnabled else { return }
+
+        PostHogSDK.shared.reset()
+    }
 }

@@ -67,4 +67,10 @@ class AndroidPostHogAnalyticsClient(
 
         PostHog.identify(distinctId = userId)
     }
+
+    override fun reset() {
+        if (!isEnabled) return
+
+        PostHog.reset()
+    }
 }

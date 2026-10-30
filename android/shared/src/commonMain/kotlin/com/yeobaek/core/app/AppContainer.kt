@@ -68,7 +68,12 @@ class AppContainer(
         null
     }
 
-    val analyticsTracker = AnalyticsTracker(analyticsClient)
+    val analyticsTracker = AnalyticsTracker(
+        client = analyticsClient,
+        commonProperties = mapOf(
+            ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION,
+        ),
+    )
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
@@ -149,9 +154,7 @@ class AppContainer(
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )
-        analyticsClient.register(
-            mapOf(ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION),
-        )
+        analyticsTracker.registerCommonProperties()
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 
