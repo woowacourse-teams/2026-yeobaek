@@ -33,7 +33,7 @@ class PublicRoomListVisitTracker(
     fun selectRoom(): String? {
         val selectedVisitId = visitId
         roomSelected = true
-        close(PublicRoomListEnd.READER_OPENED)
+        close(PublicRoomListEnd.NAVIGATION)
         return selectedVisitId
     }
 

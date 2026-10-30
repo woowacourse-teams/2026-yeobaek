@@ -8,6 +8,7 @@ enum class TrackedScreen(
     ONBOARDING("onboarding"),
     ONBOARDING_CREATE("onboarding_create"),
     HOME("home"),
+    BOOK_DETAIL("book_detail"),
     GROUP_DETAIL("group_detail"),
     GROUP_JOIN("group_join"),
     GROUP_CREATE("group_create"),

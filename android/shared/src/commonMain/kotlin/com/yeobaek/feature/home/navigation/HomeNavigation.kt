@@ -42,6 +42,7 @@ fun NavGraphBuilder.homeNavGraph(
     navigateToCreate: () -> Unit,
     navigateToReader: (Long) -> Unit,
     navigateToPublicRoomReader: (Long) -> Unit,
+    navigateToPublicRoomBookDetail: (Long, Long, PublicRoomEntryPoint, String?) -> Unit,
     navigateToMyPage: () -> Unit,
 ) {
     composable<Home> {
@@ -109,11 +110,13 @@ fun NavGraphBuilder.homeNavGraph(
                     }
                 }
             },
-            onPublicRoomClick = { publicRoomId, entryPoint, listVisitId ->
-                appContainer.analyticsTracker.track(
-                    PublicRoomReaderOpened(publicRoomId, entryPoint, listVisitId),
+            onPublicRoomClick = { publicRoom, entryPoint, listVisitId ->
+                navigateToPublicRoomBookDetail(
+                    publicRoom.publicRoomId,
+                    publicRoom.bookId,
+                    entryPoint,
+                    listVisitId,
                 )
-                navigateToPublicRoomReader(publicRoomId)
             },
             navigateToMyPage = {
                 appContainer.analyticsTracker.track(MyPageOpened)

@@ -17,6 +17,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.feature.book.detail.navigation.navigateToPublicRoomBookDetail
+import com.yeobaek.feature.book.detail.navigation.publicRoomBookDetailNavGraph
 import com.yeobaek.feature.group.create.navigation.createNavGraph
 import com.yeobaek.feature.group.create.navigation.navigateToCreate
 import com.yeobaek.feature.group.detail.navigation.detailNavGraph
@@ -190,9 +192,28 @@ fun App(
                 navigateToPublicRoomReader = { publicRoomId ->
                     navController.navigateToPublicRoomReader(publicRoomId = publicRoomId)
                 },
+                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, listVisitId ->
+                    navController.navigateToPublicRoomBookDetail(
+                        publicRoomId = publicRoomId,
+                        bookId = bookId,
+                        entryPoint = entryPoint,
+                        listVisitId = listVisitId,
+                        navOptions = navOptions { launchSingleTop = true },
+                    )
+                },
                 navigateToMyPage = {
                     navController.navigateToMyPage()
                 },
+            )
+            publicRoomBookDetailNavGraph(
+                appContainer = appContainer,
+                navigateToPublicRoomReader = { publicRoomId ->
+                    navController.navigateToPublicRoomReader(
+                        publicRoomId = publicRoomId,
+                        navOptions = navOptions { launchSingleTop = true },
+                    )
+                },
+                navigateToBack = { navController.popBackStack() },
             )
             detailNavGraph(
                 appContainer = appContainer,
