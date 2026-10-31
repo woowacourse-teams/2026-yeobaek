@@ -347,13 +347,125 @@ class LogicalVerseIndexTests(unittest.TestCase):
         translation.write_text("## I\n\n산문.\n\n합친 시행.\n", encoding="utf-8")
         self.assertFalse(converter.verify_counts(self.parse(), converter.parse_translation([translation])))
 
+    def permuted_fixture(self, source="Verb\nSubject", translation="주어 동사"):
+        paragraph = self.logical_fixture(source, translation, "verse", [
+            {"source": [self.segment(1, 1, 4)], "translation": [self.segment(1, 4, 5)]},
+            {"source": [self.segment(2, 1, 7)], "translation": [self.segment(1, 1, 2)]}])
+        return paragraph
+
+    def test_mapped_order_allows_permutation_only_when_explicit(self):
+        paragraph = self.permuted_fixture()
+        with self.assertRaises(ValueError):
+            self.parse()
+        paragraph["translationOrder"] = "source"
+        self.write_index()
+        with self.assertRaises(ValueError):
+            self.parse()
+        paragraph["translationOrder"] = "mapped"
+        self.write_index()
+        before = self.original.read_bytes(), self.translation.read_bytes()
+        self.assertTrue(self.verify_logical())
+        self.assertEqual(self.parse()[0]["sourceParagraphs"][0]["translationOrder"], "mapped")
+        self.assertEqual(before, (self.original.read_bytes(), self.translation.read_bytes()))
+
+    def test_mapped_order_allows_interleaved_fragments_between_verses(self):
+        paragraph = self.logical_fixture("verb end\nsubject", "동사 주어 끝", "verse", [
+            {"source": [self.segment(1, 1, 4), self.segment(1, 6, 8)],
+             "translation": [self.segment(1, 1, 2), self.segment(1, 7, 7)]},
+            {"source": [self.segment(2, 1, 7)], "translation": [self.segment(1, 4, 5)]}])
+        paragraph["translationOrder"] = "mapped"
+        self.write_index()
+        self.assertTrue(self.verify_logical())
+        paragraph["verseLines"][0]["translation"].reverse()
+        self.write_index()
+        with self.assertRaises(ValueError):
+            self.parse()
+
+    def test_mapped_unicode_multiline_coordinates_keep_source_order(self):
+        paragraph = self.logical_fixture("😀노래\n끝말\n주어", "주어\n😀노래\n끝말", "verse", [
+            {"source": [self.segment(1, 1, 3), self.segment(2, 1, 2)],
+             "translation": [self.segment(2, 1, 3), self.segment(3, 1, 2)]},
+            {"source": [self.segment(3, 1, 2)], "translation": [self.segment(1, 1, 2)]}])
+        paragraph["translationOrder"] = "mapped"
+        self.write_index()
+        self.assertTrue(self.verify_logical())
+        paragraph["verseLines"].reverse()
+        self.write_index()
+        with self.assertRaises(ValueError):
+            self.parse()
+
+    def test_mapped_global_translation_overlap_and_coverage_fail_closed(self):
+        paragraph = self.permuted_fixture()
+        paragraph["translationOrder"] = "mapped"
+        valid = copy.deepcopy(self.data)
+        for overlap in ([self.segment(1, 4, 5)], [self.segment(1, 2, 4)]):
+            with self.subTest(overlap=overlap):
+                self.data = copy.deepcopy(valid)
+                self.data["chapters"][0]["paragraphs"][0]["verseLines"][1]["translation"] = overlap
+                self.write_index()
+                with self.assertRaises(ValueError):
+                    self.parse()
+        self.data = copy.deepcopy(valid)
+        self.data["chapters"][0]["paragraphs"][0]["verseLines"][1]["translation"][0]["end"] = 1
+        self.write_index()
+        self.assertFalse(self.verify_logical())
+        self.data = copy.deepcopy(valid)
+        self.data["chapters"][0]["paragraphs"][0]["kind"] = "mixed"
+        self.write_index()
+        with self.assertRaises(ValueError):
+            self.parse()  # Source has no actual non-whitespace prose remainder.
+        paragraph = self.permuted_fixture("Verb\nSubject prose")
+        paragraph.update(translationOrder="mapped", kind="mixed")
+        self.write_index()
+        self.assertFalse(self.verify_logical())  # Translation has no prose remainder.
+        self.translation.write_text("## I\n\n주어 동사 서술.\n", encoding="utf-8")
+        self.assertTrue(self.verify_logical())
+
+    def test_translation_order_invalid_values_and_contexts_fail_closed(self):
+        self.logical_fixture()
+        valid = copy.deepcopy(self.data)
+        for value in (None, True, 1, [], {}, "", "anything"):
+            with self.subTest(value=value):
+                self.data = copy.deepcopy(valid)
+                self.data["chapters"][0]["paragraphs"][0]["translationOrder"] = value
+                self.write_index()
+                with self.assertRaises(ValueError):
+                    self.parse()
+        for version, kind, new_mapping in ((1, "mixed", True), (2, "prose", True),
+                                            (2, "mixed", False), (2, "verse", False)):
+            with self.subTest(version=version, kind=kind, new_mapping=new_mapping):
+                self.data = copy.deepcopy(valid)
+                self.data["version"] = version
+                paragraph = self.data["chapters"][0]["paragraphs"][0]
+                paragraph.update(kind=kind, translationOrder="mapped")
+                if not new_mapping:
+                    paragraph.pop("verseLines")
+                    if kind == "mixed":
+                        paragraph["verseSpans"] = [{"start": 1, "end": 1,
+                                                    "translationStart": 1, "translationEnd": 1}]
+                self.write_index()
+                with self.assertRaises(ValueError):
+                    self.parse()
+
     def test_v2_final_cli_requires_current_review_and_preserves_archive_bytes(self):
+        self.logical_fixture()
+        self.final_cli_preserves_logical_fixture()
+
+    def test_mapped_order_partial_final_cli_and_archive_keep_review_gate(self):
+        paragraph = self.permuted_fixture()
+        paragraph["translationOrder"] = "mapped"
+        self.write_index()
+        partial = self.cli(self.translation, "--original", self.original,
+                           "--source-index", self.index, "--partial")
+        self.assertEqual(partial.returncode, 0, partial.stdout + partial.stderr)
+        self.final_cli_preserves_logical_fixture()
+
+    def final_cli_preserves_logical_fixture(self):
         # Reuse the existing final-conversion fixtures; no production files or gates are bypassed.
         from test_인제스트_변환 import CreateArchiveCoverTests
         import 표지_시안_준비 as cover
 
         _, _, meta_path, meta = CreateArchiveCoverTests._write_book_inputs(self.root, "논리 시행 책")
-        self.logical_fixture()
         (self.root / "번역본").mkdir()
         self.translation = self.translation.rename(self.root / "번역본/01.md")
         brief = {"genre": "고전 문학", "coreSummary": ["기억의 이야기.", "선택의 이야기."],
