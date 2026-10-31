@@ -541,11 +541,77 @@ SOURCE_EXCLUSION_CATEGORIES = {
 }
 
 
-def _source_index_object(path):
+def _source_index_object(path, versions=(1,)):
     data = json.loads(path.read_text(encoding="utf-8-sig"))
-    if not isinstance(data, dict) or type(data.get("version")) is not int or data["version"] != 1:
-        raise ValueError("원문 색인은 version: 1 객체여야 합니다.")
+    if (not isinstance(data, dict) or type(data.get("version")) is not int
+            or data["version"] not in versions):
+        raise ValueError(f"원문 색인/검토 기록의 version은 {versions} 중 하나여야 합니다.")
     return data
+
+
+def _validate_logical_verse_segments(verse_lines, side, lines=None, start=1, end=None,
+                                     translation_order="source"):
+    """명시한 논리 시행의 순서/문자 경계를 검사하고 비운문 잔여 여부를 반환한다.
+
+    lines=None이면 번역 파일을 읽기 전의 형식 검사만 한다. 열은 Python Unicode
+    code point 기준 1-based inclusive이며 원문/번역의 실제 바이트는 바꾸지 않는다.
+    """
+    if not isinstance(verse_lines, list) or not verse_lines:
+        raise ValueError("verseLines에는 비어 있지 않은 논리 시행 배열이 필요합니다.")
+    previous = (0, 0)
+    covered = {}
+    for verse in verse_lines:
+        if side == "translation" and translation_order == "mapped":
+            # 각 시행 안의 읽기 순서는 유지하고 시행 사이의 어순 차이만 허용한다.
+            previous = (0, 0)
+        if not isinstance(verse, dict) or set(verse) != {"source", "translation"}:
+            raise ValueError("verseLines 각 시행에는 source와 translation 구간만 필요합니다.")
+        segments = verse[side]
+        if not isinstance(segments, list) or not segments:
+            raise ValueError(f"verseLines {side}에는 비어 있지 않은 문자 구간 배열이 필요합니다.")
+        for segment in segments:
+            keys = ("line", "start", "end")
+            if (not isinstance(segment, dict) or set(segment) != set(keys)
+                    or any(type(segment.get(key)) is not int for key in keys)):
+                raise ValueError("verseLines 문자 구간의 line/start/end는 정수여야 합니다.")
+            line, first, last = (segment[key] for key in keys)
+            if (line < start or first < 1 or last < first
+                    or (end is not None and line > end)
+                    or (line, first) <= previous):
+                raise ValueError(f"verseLines {side}의 범위·순서·중복이 유효하지 않습니다.")
+            if lines is not None:
+                if line > len(lines) or last > len(lines[line - 1]):
+                    raise ValueError(f"verseLines {side} 문자 구간이 실제 행/열 범위를 벗어납니다.")
+                if not lines[line - 1][first - 1:last].strip():
+                    raise ValueError(f"verseLines {side} 문자 구간이 비어 있거나 공백입니다.")
+            covered.setdefault(line, []).append((first, last))
+            previous = (line, last)
+    # mapped 시행은 번역 행에서 서로 교차할 수 있다. 읽기 순서와 별개로 전체
+    # 점유 범위를 정렬해 중복을 거부하고 같은 범위로 잔여 문자를 검사한다.
+    for ranges in covered.values():
+        ranges.sort()
+        if any(first <= previous_end for (_, previous_end), (first, _) in zip(ranges, ranges[1:])):
+            raise ValueError(f"verseLines {side} 문자 구간이 논리 시행 사이에서 중복됩니다.")
+    if lines is None:
+        return None
+    has_residual = False
+    for line in range(start, (len(lines) if end is None else end) + 1):
+        cursor = 0
+        for first, last in covered.get(line, []):
+            has_residual |= bool(lines[line - 1][cursor:first - 1].strip())
+            cursor = last
+        has_residual |= bool(lines[line - 1][cursor:].strip())
+    return has_residual
+
+
+def _validate_logical_verse_content(verse_lines, side, kind, lines, start=1, end=None,
+                                    translation_order="source"):
+    residual = _validate_logical_verse_segments(verse_lines, side, lines, start, end,
+                                               translation_order=translation_order)
+    if kind == "verse" and residual:
+        raise ValueError(f"순수 운문 verseLines가 {side}의 비공백 문자 전체를 포함하지 않습니다.")
+    if kind == "mixed" and not residual:
+        raise ValueError(f"mixed 문단에는 verseLines 이외의 {side} 산문 문자가 있어야 합니다.")
 
 
 def parse_source_index(original_path, index_path):
@@ -556,7 +622,7 @@ def parse_source_index(original_path, index_path):
     """
     raw = original_path.read_bytes()
     lines = raw.decode("utf-8-sig").splitlines()
-    data = _source_index_object(index_path)
+    data = _source_index_object(index_path, versions=(1, 2))
     if data.get("sourceSha256") != hashlib.sha256(raw).hexdigest():
         raise ValueError("원문 색인의 sourceSha256이 원문 바이트와 다릅니다.")
     entries = data.get("chapters")
@@ -608,9 +674,25 @@ def parse_source_index(original_path, index_path):
             if kind not in ("prose", "verse", "mixed"):
                 raise ValueError("문단 kind는 prose, verse 또는 mixed여야 합니다.")
             spans = item.get("verseSpans")
+            logical_verse = item.get("verseLines")
+            translation_order = item.get("translationOrder", "source")
+            if "translationOrder" in item:
+                if (data["version"] != 2 or kind not in ("verse", "mixed")
+                        or "verseLines" not in item):
+                    raise ValueError("translationOrder는 version 2의 verseLines 문단에서만 사용할 수 있습니다.")
+                if not isinstance(translation_order, str) or translation_order not in ("source", "mapped"):
+                    raise ValueError("translationOrder는 source 또는 mapped여야 합니다.")
+            if "verseLines" in item:
+                if data["version"] != 2 or kind not in ("verse", "mixed"):
+                    raise ValueError("verseLines는 version 2의 verse/mixed 문단에서만 사용할 수 있습니다.")
+                if "verseSpans" in item:
+                    raise ValueError("verseLines와 verseSpans를 동시에 선언할 수 없습니다.")
+                _validate_logical_verse_content(logical_verse, "source", kind, lines, start, end)
+                _validate_logical_verse_segments(logical_verse, "translation",
+                                                translation_order=translation_order)
             if kind != "mixed" and "verseSpans" in item:
                 raise ValueError("verseSpans는 mixed 문단에서만 사용할 수 있습니다.")
-            if kind == "mixed":
+            if kind == "mixed" and "verseLines" not in item:
                 if not isinstance(spans, list) or not spans:
                     raise ValueError("mixed 문단에는 비어 있지 않은 verseSpans가 필요합니다.")
                 previous_source, previous_translation, verse_lines = start - 1, 0, 0
@@ -641,7 +723,11 @@ def parse_source_index(original_path, index_path):
             metrics["characters"] += paragraph_metrics["characters"]
             metrics["estimatedTokens"] += paragraph_metrics["estimatedTokens"]
             source_paragraph = {"start": start, "end": end, "kind": kind}
-            if kind == "mixed":
+            if "verseLines" in item:
+                source_paragraph["verseLines"] = logical_verse
+                if "translationOrder" in item:
+                    source_paragraph["translationOrder"] = translation_order
+            elif kind == "mixed":
                 source_paragraph["verseSpans"] = spans
             chapter["sourceParagraphs"].append(source_paragraph)
             previous = end
@@ -957,7 +1043,16 @@ def verify_counts(original, translated, partial=False):
         match = o is not None and t is not None and o["count"] == len(t["passages"])
         if match and "sourceParagraphs" in o:
             for source_paragraph, passage in zip(o["sourceParagraphs"], t["passages"]):
-                if source_paragraph["kind"] == "verse":
+                if "verseLines" in source_paragraph:
+                    text = "".join(s["content"] for s in passage["sentences"])
+                    try:
+                        _validate_logical_verse_content(source_paragraph["verseLines"], "translation",
+                                                        source_paragraph["kind"], text.splitlines(),
+                                                        translation_order=source_paragraph.get("translationOrder", "source"))
+                    except ValueError as error:
+                        match = False
+                        print(f"[오류] {i + 1}장 논리 시행 대응: {error}")
+                elif source_paragraph["kind"] == "verse":
                     text = "".join(s["content"] for s in passage["sentences"])
                     expected_lines = source_paragraph["end"] - source_paragraph["start"] + 1
                     if len(text.splitlines()) != expected_lines:
