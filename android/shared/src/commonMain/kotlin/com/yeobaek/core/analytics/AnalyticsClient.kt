@@ -14,9 +14,11 @@ interface AnalyticsClient {
         properties: Map<String, Any>,
     )
 
-    fun screen(screenName: String)
+    fun screen(screenName: String, properties: Map<String, Any>)
 
     fun identify(userId: String)
+
+    fun reset()
 }
 
 object NoOpAnalyticsClient : AnalyticsClient {
@@ -33,7 +35,9 @@ object NoOpAnalyticsClient : AnalyticsClient {
         properties: Map<String, Any>,
     ) = Unit
 
-    override fun screen(screenName: String) = Unit
+    override fun screen(screenName: String, properties: Map<String, Any>) = Unit
 
     override fun identify(userId: String) = Unit
+
+    override fun reset() = Unit
 }

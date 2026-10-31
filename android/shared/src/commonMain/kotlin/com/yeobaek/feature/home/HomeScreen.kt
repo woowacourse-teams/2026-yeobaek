@@ -33,11 +33,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.BookSearchEnd
+import com.yeobaek.core.analytics.BookSearchEntryPoint
+import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.HomeReadingSpace
 import com.yeobaek.core.analytics.HomeReadingTabSelected
 import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.analytics.PublicRoomListEnd
 import com.yeobaek.core.common.ScreenState
+import com.yeobaek.core.common.TrackBookSearch
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
@@ -73,7 +77,23 @@ fun HomeScreen(
         mutableStateOf(GroupTab.MyGroups)
     }
     val listVisitTracker = remember { PublicRoomListVisitTracker(onAnalyticsEvent) }
+    val searchTracker = remember {
+        BookSearchTracker(BookSearchEntryPoint.PUBLIC_ROOM, onAnalyticsEvent).apply {
+            queryChanged(uiState.publicRoomTab.searchTextValue.isNotBlank())
+        }
+    }
     var observationEpoch by remember { mutableIntStateOf(0) }
+    TrackBookSearch(
+        tracker = searchTracker,
+        isVisible = selectedGroupTab == GroupTab.PublicRooms,
+        resultVersion = searchTracker.queryVersion,
+        resultCount = if (uiState.publicRoomTab.screenState is ScreenState.Success) {
+            uiState.publicRoomTab.visiblePublicRooms.size + uiState.publicRoomTab.visibleVisitedPublicRooms.size
+        } else {
+            null
+        },
+        resultDebounceMillis = 300,
+    )
 
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         observationEpoch++
@@ -94,6 +114,7 @@ fun HomeScreen(
             AppTitle(
                 title = "$appName | ${uiState.username}",
                 navigateToMyPage = {
+                    searchTracker.close(BookSearchEnd.NAVIGATION)
                     listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                     navigateToMyPage()
                 },
@@ -102,10 +123,12 @@ fun HomeScreen(
         floatingActionButton = {
             GroupFabMenu(
                 navigateToJoin = {
+                    searchTracker.close(BookSearchEnd.NAVIGATION)
                     listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                     navigateToJoin()
                 },
                 navigateToCreate = {
+                    searchTracker.close(BookSearchEnd.NAVIGATION)
                     listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                     navigateToCreate()
                 },
@@ -119,6 +142,7 @@ fun HomeScreen(
                 CurrentlyReadingBookSection(
                     bookUiModel = book,
                     navigateToReader = { target ->
+                        searchTracker.close(BookSearchEnd.NAVIGATION)
                         listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                         navigateToReader(target)
                     },
@@ -135,6 +159,7 @@ fun HomeScreen(
                 onTabSelected = { tab ->
                     if (tab != selectedGroupTab) {
                         if (selectedGroupTab == GroupTab.PublicRooms) {
+                            searchTracker.close(BookSearchEnd.TAB_SWITCH)
                             listVisitTracker.close(PublicRoomListEnd.TAB_SWITCH)
                         }
                         selectedGroupTab = tab
@@ -157,6 +182,7 @@ fun HomeScreen(
                     groupUiModelList = uiState.groups,
                     emptyMessage = "모임을 만들거나 참여해 보세요!",
                     navigateToDetail = { groupId ->
+                        searchTracker.close(BookSearchEnd.NAVIGATION)
                         listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
                         navigateToDetail(groupId)
                     },
@@ -165,8 +191,19 @@ fun HomeScreen(
 
                 GroupTab.PublicRooms -> PublicGroupSection(
                     uiState = uiState.publicRoomTab,
-                    updateSearchTextValue = updatePublicRoomSearchTextValue,
+                    updateSearchTextValue = { value ->
+                        if (value != uiState.publicRoomTab.searchTextValue) {
+                            searchTracker.queryChanged(value.isNotBlank())
+                            updatePublicRoomSearchTextValue(value)
+                        }
+                    },
                     onPublicRoomClick = { publicRoom, entryPoint ->
+                        searchTracker.resultsShown(
+                            searchTracker.queryVersion,
+                            uiState.publicRoomTab.visiblePublicRooms.size +
+                                uiState.publicRoomTab.visibleVisitedPublicRooms.size,
+                        )
+                        searchTracker.bookSelected()
                         val listVisitId = if (entryPoint == PublicRoomEntryPoint.ROOM_LIST) {
                             val rooms = uiState.publicRoomTab.visiblePublicRooms
                             val selectedPosition = rooms.indexOfFirst { it.publicRoomId == publicRoom.publicRoomId } + 1

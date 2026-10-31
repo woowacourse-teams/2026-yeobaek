@@ -5,6 +5,7 @@ enum class CommentSheetSource(
 ) {
     READER("reader"),
     COMMENT_COLLECTION("comment_collection"),
+    NOTIFICATION("notification"),
 }
 
 enum class CommentMode(
@@ -22,6 +23,7 @@ data class CommentSheetOpened(
     val source: CommentSheetSource,
     val hasNewComments: Boolean?,
     val afterJump: Boolean,
+    val commentLikeAvailable: Boolean = true,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
     override val properties = buildMap {
@@ -32,6 +34,26 @@ data class CommentSheetOpened(
         put(KEY_SOURCE, source.value)
         hasNewComments?.let { put(KEY_HAS_NEW_COMMENTS, it) }
         put(KEY_AFTER_JUMP, afterJump)
+        put("comment_like_available", commentLikeAvailable)
+    }
+}
+
+data class CommentLikeSubmitted(
+    val commentId: Long,
+    val sentenceId: Long,
+    val bookId: Long?,
+    val liked: Boolean,
+    val result: EventResult,
+    val source: CommentSheetSource,
+) : AnalyticsEvent {
+    override val name = "comment_like_submitted"
+    override val properties = buildMap {
+        put(KEY_COMMENT_ID, commentId)
+        put(KEY_SENTENCE_ID, sentenceId)
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put("liked", liked)
+        put(KEY_RESULT, result.value)
+        put(KEY_SOURCE, source.value)
     }
 }
 

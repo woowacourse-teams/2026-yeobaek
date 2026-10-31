@@ -21,9 +21,9 @@ import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
 class MyPageViewModel(
-    private val guideOnboardingPreferences: GuideOnboardingPreferences,
+    private val clearGuideState: () -> Unit,
     private val userRepository: UserRepository,
-    private val crashReporter: CrashReporter,
+    private val recordException: (Throwable, CrashContext) -> Unit,
     private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
     var uiState by mutableStateOf(MyPageUiState())
@@ -43,7 +43,7 @@ class MyPageViewModel(
     }
 
     fun deleteAccount() {
-        if (uiState.deleteState is DeleteState.Loading) return
+        if (uiState.deleteState is DeleteState.Loading || uiState.deleteState is DeleteState.Success) return
 
         uiState = uiState.copy(
             deleteState = DeleteState.Loading,
@@ -52,17 +52,12 @@ class MyPageViewModel(
         viewModelScope.launch {
             try {
                 userRepository.deleteAccount()
-                uiState = uiState.copy(
-                    deleteState = DeleteState.Success,
-                )
-                guideOnboardingPreferences.clearGuideState()
-                analyticsTracker.track(AccountDeleted(result = EventResult.SUCCESS))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                crashReporter.recordException(
-                    throwable = e,
-                    context = CrashContext(
+                recordException(
+                    e,
+                    CrashContext(
                         screen = TrackedScreen.MY_PAGE,
                         operation = CrashOperation.ACCOUNT_DELETE_FAILED,
                     ),
@@ -71,9 +66,31 @@ class MyPageViewModel(
                 uiState = uiState.copy(
                     deleteState = DeleteState.Failure(e.message ?: "알 수 없는 오류가 발생했습니다."),
                 )
+                return@launch
             }
+
+            try {
+                try {
+                    analyticsTracker.track(AccountDeleted(result = EventResult.SUCCESS))
+                } finally {
+                    analyticsTracker.resetIdentity()
+                }
+            } catch (e: Exception) {
+                recordException(e, cleanupContext())
+            }
+            try {
+                clearGuideState()
+            } catch (e: Exception) {
+                recordException(e, cleanupContext())
+            }
+            uiState = uiState.copy(deleteState = DeleteState.Success)
         }
     }
+
+    private fun cleanupContext() = CrashContext(
+        screen = TrackedScreen.MY_PAGE,
+        operation = CrashOperation.ACCOUNT_DELETE_CLEANUP_FAILED,
+    )
 
     companion object {
         fun myPageViewModelFactory(
@@ -84,9 +101,9 @@ class MyPageViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MyPageViewModel(
-                    guideOnboardingPreferences = guideOnboardingPreferences,
+                    clearGuideState = guideOnboardingPreferences::clearGuideState,
                     userRepository = userRepository,
-                    crashReporter = crashReporter,
+                    recordException = crashReporter::recordException,
                     analyticsTracker = analyticsTracker,
                 )
             }

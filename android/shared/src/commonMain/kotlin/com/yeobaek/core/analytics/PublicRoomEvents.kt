@@ -22,12 +22,14 @@ data class PublicRoomReaderOpened(
     val publicRoomId: Long,
     val entryPoint: PublicRoomEntryPoint,
     val listVisitId: String? = null,
+    val bookId: Long? = null,
 ) : AnalyticsEvent {
     override val name = "public_room_reader_opened"
     override val properties = buildMap {
         put(KEY_PUBLIC_ROOM_ID, publicRoomId)
         put(KEY_ENTRY_POINT, entryPoint.value)
         listVisitId?.let { put(KEY_LIST_VISIT_ID, it) }
+        bookId?.let { put("book_id", it) }
     }
 }
 

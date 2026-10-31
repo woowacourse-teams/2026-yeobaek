@@ -6,6 +6,7 @@ import com.yeobaek.feature.group.create.model.SelectBookUiModel
 data class CreateUiState(
     val step: CreateStep = CreateStep.BookSelection,
     val searchState: SearchState = SearchState.Idle,
+    val searchResultVersion: Long? = null,
     val groupNameValue: String = "",
     val bookList: List<SelectBookUiModel> = emptyList(),
     val selectedBook: SelectBookUiModel? = null,

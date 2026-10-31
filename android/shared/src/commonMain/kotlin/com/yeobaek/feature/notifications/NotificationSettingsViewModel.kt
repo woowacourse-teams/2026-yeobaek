@@ -2,6 +2,9 @@ package com.yeobaek.feature.notifications
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.NotificationSettingSubmitted
 import com.yeobaek.data.model.NotificationPreferences
 import com.yeobaek.data.model.NotificationSetting
 import com.yeobaek.data.repository.NotificationRepository
@@ -31,6 +34,7 @@ class NotificationSettingsViewModel(
     private val repository: NotificationRepository,
     private val memberId: StateFlow<Int?>,
     private val installationId: StateFlow<String?>,
+    private val trackEvent: (AnalyticsEvent) -> Unit = {},
 ) : ViewModel() {
     private val state = MutableStateFlow(NotificationSettingsUiState())
     val uiState = state.asStateFlow()
@@ -109,12 +113,14 @@ class NotificationSettingsViewModel(
         val job = viewModelScope.launch {
             try {
                 repository.updatePreferences(identity.first, identity.second, setting, enabled)
+                trackEvent(NotificationSettingSubmitted(setting, enabled, EventResult.SUCCESS))
                 if (loadedIdentity == identity) {
                     state.value = state.value.copy(savingSettings = state.value.savingSettings - setting)
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                trackEvent(NotificationSettingSubmitted(setting, enabled, EventResult.FAILURE))
                 if (loadedIdentity == identity) {
                     state.value = state.value.copy(
                         preferences = state.value.preferences?.updated(setting, preferences.isEnabled(setting)),
