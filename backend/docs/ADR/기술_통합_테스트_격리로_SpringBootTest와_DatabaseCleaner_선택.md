@@ -121,35 +121,45 @@
 - 정리 및 외래 키 설정 복구 실패 시 동작 검증은 [DatabaseCleanerFailureTest.java](../../src/test/java/yeobaek/backend/support/DatabaseCleanerFailureTest.java)에 있다.
 - MySQL Testcontainers와 DatabaseCleaner 빈 구성은 [TestcontainersConfiguration.java](../../src/test/java/yeobaek/backend/support/TestcontainersConfiguration.java)에 있다.
 
-## 성능 개선 실측 (2026-08-14)
+## 성능 개선 실측: `@SpringBootTest` 구성 통일 (2026-11-01)
 
-### 측정 환경
+### 비교 범위
 
-| 항목 | 값 |
-| --- | --- |
-| CPU | 13th Gen Intel Core i7-1360P 2.20GHz |
-| RAM | 32.0GB |
-| 디스크 | 954GB NVMe SSD |
-| Java | 21.0.4 |
-| Gradle | 9.5.1 |
-| Docker Engine | 28.0.1 |
-| Docker VM 메모리 | 16,624,467,968 bytes (약 15.5GiB) |
-| MySQL | 8.4 |
+서비스마다 다른 컨텍스트를 준비하던 방식을 `@SpringBootTest`로 통일했을 때의 차이만 확인했다. `DatabaseCleaner` 도입이나 일부 테스트의 단위 테스트 전환은 포함하지 않았다. 기존의 혼합 측정값 대신 아래 분리 측정 결과를 사용한다.
 
-CPU, RAM, 디스크 정보는 사용자가 제공했다.
+두 버전 모두 `b20452a42a71b6f4855ebe5361f48e85a4a0656a`에서 시작했다. 변경 전은 해당 커밋 그대로이며, 변경 후는 같은 커밋에 테스트 설정 파일 9개만 수정한 비교용 버전이다. 구현 커밋 `32c8b9b`와 비교한 결과가 아니다.
 
-### 비교 대상
+- 공통 부모 `RepositoryTest`의 `@DataJpaTest`를 `@SpringBootTest`로 바꾸고, 서비스 테스트 8개의 개별 `@Import`를 제거했다.
+- 기존 롤백 방식을 유지하도록 `@Transactional`을 명시했다.
+- 기존 테스트가 사용하는 `TestEntityManager`를 유지하도록 `@AutoConfigureTestEntityManager`를 추가했다.
+- SQL 출력 차이가 결과에 섞이지 않도록 `@DataJpaTest`의 기본값과 같은 `spring.jpa.show-sql=true`를 지정했다.
 
-- 변경 전: `b20452a42a71b6f4855ebe5361f48e85a4a0656a` (`32c8b9b^`)
-- 변경 후: `32c8b9b39b13f249bc5458aaca839e88e0214cfd`
+비교용 공통 설정은 다음과 같다.
 
-### 측정 방법
+```java
+@SpringBootTest(properties = "spring.jpa.show-sql=true")
+@Transactional
+@AutoConfigureTestEntityManager
+@Import(TestcontainersConfiguration.class)
+public abstract class RepositoryTest {
+}
+```
 
-- 두 버전을 별도의 detached worktree에서 측정했다.
-- 각 버전에서 `testClasses --no-daemon`으로 사전 워밍업했다. 변경 전은 57초,
-  변경 후는 55초였으며 측정 결과에서 제외했다.
-- Docker 이미지 레이어는 캐시된 상태였지만, 매 실행마다 새 컨테이너를 생성했다.
-- 동일 64개 테스트의 측정 명령은 다음과 같다.
+13개 클래스의 64개 테스트 본문과 검증, mock, 운영 코드, DB 프로퍼티, 컨테이너 설정은 바꾸지 않았다. `ClubJoinCodeCollisionTest`의 `@MockitoBean`도 유지했으며, 공통 컨테이너 설정을 가져오는 `@Import`는 양쪽에서 동일하다.
+
+### 측정 환경과 방법
+
+- 측정 시간: 2026-11-01 22:09~22:21 (KST), 로컬 PC 1대.
+- CPU: Intel Core i7-1360P, RAM: 약 32GB.
+- Java 21.0.4, Gradle 9.5.1, Spring Boot 4.1.0, Docker Engine 29.7.2, MySQL 8.4.
+- Docker 이미지는 캐시된 상태였고, 매 실행마다 컨테이너를 새로 생성했다.
+- 각 버전에서 `testClasses --no-daemon --console=plain`으로 컴파일과 의존성을 먼저 준비했다. 변경 전 30초, 변경 후 22초의 준비 시간은 측정에서 제외했다.
+- 별도 작업 공간에서 변경 전 → 변경 후 → 변경 후 → 변경 전 → 변경 전 → 변경 후 순서로 실행해 각 버전을 3회 측정했다.
+- 매번 `cleanTest`로 이전 테스트 결과를 지웠고, 결과 XML의 테스트 클래스·메서드 이름을 대조해 같은 64개가 실행됐는지 확인했다.
+- 전체 실행 시간은 Gradle 명령을 호출하기 직전부터 종료할 때까지 스톱워치로 측정했다. 테스트 시간은 XML의 13개 테스트 클래스 실행 시간을 합산한 값이다.
+- 컨텍스트와 MySQL 컨테이너 생성 횟수는 XML에 저장된 `Started <TestClass> in`, `Container mysql:8.4 started in` 로그로 집계했다. 병렬 실행은 사용하지 않았다.
+
+각 작업 공간의 `backend/`에서 실행한 명령은 다음과 같다.
 
 ```powershell
 .\gradlew.bat cleanTest test --no-daemon --console=plain `
@@ -167,92 +177,36 @@ CPU, RAM, 디스크 정보는 사용자가 제공했다.
   --tests 'yeobaek.backend.member.repository.MemberRepositoryTest' `
   --tests 'yeobaek.backend.support.DevDataSeederTest'
 ```
-- 저장소에 병렬 실행 설정이 없고, 측정 명령에도 `--parallel`을 사용하지 않았다.
-- 동일한 13개 테스트 클래스와 64개 테스트 케이스를
-  변경 전 → 변경 후 → 변경 후 → 변경 전 → 변경 전 → 변경 후 순서로 실행해
-  각 버전을 3회씩 측정했다.
-- Gradle wall time은 `BUILD SUCCESSFUL`에 표시된 초 단위 값을 기록했다.
-- suite time, 컨테이너 시간, 컨텍스트 시간은 XML 로그 값을 합산했다.
-- 컨테이너 시작은 `Container mysql:8.4 started in`, Spring Context 시작은
-  `Started <TestClass> in`, Hikari 시작은 `Start completed` 문자열로 집계했다.
 
-### 동일 64개 테스트의 원시 측정값
+### 원시 측정값
 
-아래 값은 측정 사실이다. 여섯 번의 실행 모두 13개 suite, 64개 test였고
-failure, error, skipped는 각각 0이었다.
+각 실행에서 13개 클래스의 64개 테스트가 모두 통과했다. 총 384회 테스트 실행에서 실패·오류·건너뛴 테스트는 모두 0이었다.
 
-| 실행 순서 | 버전 | 회차 | Wall time | Suite time | 컨테이너 수 | 컨테이너 누적 시간 | Context/Hikari 수 | Context 누적 시간 |
-| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 변경 전 | 1 | 312s | 261.110s | 9 | 167.607s | 9 | 245.529s |
-| 2 | 변경 후 | 1 | 152s | 117.763s | 1 | 17.499s | 1 | 49.112s |
-| 3 | 변경 후 | 2 | 119s | 98.903s | 1 | 14.544s | 1 | 34.795s |
-| 4 | 변경 전 | 2 | 220s | 189.139s | 9 | 141.500s | 9 | 181.539s |
-| 5 | 변경 전 | 3 | 248s | 205.660s | 9 | 137.149s | 9 | 193.707s |
-| 6 | 변경 후 | 3 | 58s | 45.013s | 1 | 7.877s | 1 | 16.568s |
+| 순서 | 버전 | 회차 | 전체 실행 시간 | 테스트 시간 합계 | DB 컨텍스트 수 | MySQL 컨테이너 수 |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 변경 전 | 1 | 210.889s | 181.403s | 9 | 9 |
+| 2 | 변경 후 | 1 | 53.601s | 36.985s | 2 | 2 |
+| 3 | 변경 후 | 2 | 71.905s | 55.443s | 2 | 2 |
+| 4 | 변경 전 | 2 | 150.358s | 126.308s | 9 | 9 |
+| 5 | 변경 전 | 3 | 170.678s | 146.707s | 9 | 9 |
+| 6 | 변경 후 | 3 | 49.150s | 31.947s | 2 | 2 |
 
-### 동일 64개 테스트의 중앙값 비교
+### 중앙값 비교
 
-아래 차이와 비율은 원시 측정값으로 계산한 결과다.
+각 버전의 세 측정값 중 가운데 값인 중앙값을 비교했다.
 
-| 지표 | 변경 전 중앙값 | 변경 후 중앙값 | 차이 | 변화율 |
-| --- | ---: | ---: | ---: | ---: |
-| Wall time | 248s (범위 220..312s) | 119s (범위 58..152s) | -129s | -52.0% |
-| Suite time | 205.660s | 98.903s | -106.757s | -51.9% |
-| 컨테이너 수 | 9 | 1 | -8 | -88.9% |
-| 컨테이너 누적 시간 | 141.500s | 14.544s | -126.956s | -89.7% |
-| Context/Hikari 수 | 9 | 1 | -8 | -88.9% |
-| Context 누적 시간 | 193.707s | 34.795s | -158.912s | -82.0% |
-| Suite time - Context 누적 시간 단순 차감 근사 | 11.953s | 64.108s | +52.155s | +436.3% |
+| 지표 | 변경 전 중앙값 | 변경 후 중앙값 | 변화 |
+| --- | ---: | ---: | ---: |
+| 전체 실행 시간 | 170.678s | 53.601s | 68.6% 감소 |
+| 테스트 시간 합계 | 146.707s | 36.985s | 74.8% 감소 |
+| DB 컨텍스트 수 | 9 | 2 | 77.8% 감소 |
+| MySQL 컨테이너 수 | 9 | 2 | 77.8% 감소 |
 
-**추론:** `Suite time - Context 누적 시간`의 단순 차감 근사값 증가는
-DatabaseCleaner가 매 테스트마다 수행하는 `TRUNCATE`와 실제 커밋 등 Context 외 비용의
-증가로 해석할 수 있다. 이 비용은 분리 측정하지 않았으므로 원인을 확정할 수 없다.
+전체 실행 시간의 범위는 변경 전 150.358~210.889초, 변경 후 49.150~71.905초였다.
 
-### 전체 테스트 suite 1회 측정
+변경 전에는 공통 JPA 구성 1개와 서로 다른 서비스 `@Import` 구성 8개 때문에 DB 컨텍스트가 9개 생성됐다. 각 컨텍스트에서 MySQL 컨테이너 준비도 반복됐다. 변경 후에는 공통 컨텍스트 1개와 `@MockitoBean`으로 구성이 다른 충돌 테스트용 컨텍스트 1개로 줄었다. 테스트를 그대로 보존했으므로 하나가 아닌 2개를 사용하는 결과가 나왔다.
 
-아래 변경 전과 변경 후 값은 각 버전을 1회씩 실행한 측정 사실이고, 차이와 변화율은
-그 값으로 계산한 결과다. 두 실행 모두 failure, error, skipped는 각각 0이었다.
-
-| 지표 | 변경 전 | 변경 후 | 차이 | 변화율 |
-| --- | ---: | ---: | ---: | ---: |
-| 테스트 수 | 253 | 255 | +2 | - |
-| Suite 수 | 35 | 37 | +2 | - |
-| Wall time | 193s | 81s | -112s | -58.0% |
-| Suite time | 168.205s | 67.719s | -100.486s | -59.7% |
-| 컨테이너 수 | 11 | 1 | -10 | -90.9% |
-| 컨테이너 누적 시간 | 119.494s | 11.122s | -108.372s | -90.7% |
-| Hikari 수 | 11 | 1 | -10 | -90.9% |
-| 전체 Context 수 | 20 | 10 | -10 | -50.0% |
-| Context 누적 시간 | 156.029s | 27.519s | -128.510s | -82.4% |
-
-전체 Context 중 나머지 9개는 양쪽에 동일한 MVC slice Context다. DB Context가
-11개에서 1개로 줄어든 결과가 전체 Context 20개에서 10개로 나타났다.
-
-### 측정된 Context 구성
-
-변경 전 동일 64개 테스트에서는 공통 DataJpa Context 1개와 서로 다른 서비스
-`@Import` Context 8개로 DB Context가 9개였다. Context마다
-TestcontainersConfiguration 빈을 구성하므로 MySQL 컨테이너 시작, Hikari 시작,
-스키마 create-drop이 반복됐다.
-
-전체 suite에서는 BackendApplicationTests와 ApiDocsServingTest가 DB Context 2개를
-추가해 변경 전 DB Context가 11개였다.
-
-변경 후에는 IntegrationTest의 공통 Context와 AutoConfigureMockMvc 구성을 사용해
-DB Context가 1개였다. 충돌 테스트 2개는 Mockito 단위 테스트로 분리했다.
-
-### 비교 시 주의 사항
-
-- 동일 64개 테스트 비교에서 ClubJoin 테스트 2개는 케이스 수는 같지만 성격이
-  통합 테스트에서 단위 테스트로 변경됐다.
-- 측정은 로컬 PC 1대에서 하루 동안 수행했고, 각 버전을 3회만 반복했다.
-- Docker 및 OS 캐시와 백그라운드 부하로 실행 간 편차가 크다.
-- 전체 suite 측정은 각 버전 1회만 실행한 보조 지표다.
-- Wall time은 초 단위로 반올림된 값이다.
-- Docker 이미지 레이어가 캐시된 상태에서 측정했다.
-- 결과를 CI나 다른 PC의 성능으로 일반화할 수 없다.
-- 컨테이너 시간은 Context 시간에 포함되므로 두 값을 합산하면 안 된다.
-- DatabaseCleaner의 순수 비용을 분리하는 microbenchmark는 수행하지 않았다.
+이번 비교에서는 빈을 넓게 로드하는 비용보다, 컨텍스트와 MySQL 컨테이너를 반복해서 준비하던 비용을 줄인 효과가 컸다. 다만 이 수치는 `DatabaseCleaner`를 사용하는 현재 전체 테스트의 성능을 나타내지는 않는다.
 
 ## 장기적 의미와 트레이드오프
 
@@ -279,9 +233,15 @@ DB Context가 1개였다. 충돌 테스트 2개는 Mockito 단위 테스트로 �
 
 ### 실측 결과의 적용 범위
 
-이번 실측은 현재 테스트 구성에서 Context 시작 감소분이 DatabaseCleaner를 포함한
-Context 외 비용 증가분보다 컸다는 증거다. 모든 테스트 규모와 실행 환경에서 이
-구조가 항상 더 빠르다는 의미는 아니다.
+이번 실측은 같은 과거 코드와 테스트 본문을 유지한 상태에서, 개별 JPA 테스트 구성을
+`@SpringBootTest`로 통일한 효과를 비교했다. 컨텍스트 재사용의 이점과 더 넓은 범위의
+빈을 로드하는 비용이 함께 반영되므로, 캐시 자체의 비용만 따로 측정한 결과는 아니다.
+
+양쪽 모두 롤백 방식으로 데이터를 정리했으며 `DatabaseCleaner`는 사용하지 않았다.
+따라서 이 결과로 `DatabaseCleaner`의 비용이나 실제 커밋을 검증하는 현재 전체 통합
+테스트의 성능을 설명할 수는 없다. 로컬 PC 한 대에서 버전별 3회만 측정했으므로
+OS·Docker 캐시와 백그라운드 부하의 영향을 받을 수 있고, 다른 PC나 CI에서도 같은
+차이가 난다고 일반화하지 않는다.
 
 ### 미래 판단 신호
 
