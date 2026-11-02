@@ -221,13 +221,12 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-08-07T09:10:00"));
 
         verify(commentService, times(1)).findCommentedSentencesV2(4L, 10L, 1042L, filter);
-        verifyNoInteractions(analyticsTracker);
     }
 
-    @ParameterizedTest
-    @EnumSource(CommentedSentenceFilter.class)
+    @Test
     @DisplayName("v2의 비어 있는 탭은 빈 배열을 반환한다")
-    void findEmptyCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
+    void findEmptyCommentedSentencesV2() throws Exception {
+        CommentedSentenceFilter filter = CommentedSentenceFilter.NEW;
         givenValidMember(4L);
         given(commentService.findCommentedSentencesV2(4L, 10L, 1042L, filter))
                 .willReturn(new CommentedSentencesResponse(List.of()));

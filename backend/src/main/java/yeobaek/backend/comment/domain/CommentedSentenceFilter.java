@@ -4,7 +4,7 @@ public enum CommentedSentenceFilter {
     ALL,
     NEW;
 
-    public boolean includes(long unreadCommentCount) {
-        return this == ALL || unreadCommentCount > 0;
+    public boolean matches(CommentedSentence sentence) {
+        return this == ALL || sentence.unreadCommentCount() > 0;
     }
 }

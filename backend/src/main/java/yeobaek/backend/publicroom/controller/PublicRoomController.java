@@ -111,7 +111,7 @@ public class PublicRoomController {
     }
 
     @Operation(summary = "공개방 댓글 문장 전체 목록 조회 (deprecated)",
-            description = "호환 API. 보이는 댓글이 있는 책 전체의 문장을 새 댓글 문장 → 미래 문장 → 확인한 문장 순으로 반환한다. 미래 문장에 미확인 댓글이 있으면 REVEAL_REQUIRED이며 본문은 응답에 포함한다. 조회는 댓글 확인 상태·진도·방문 시각을 변경하지 않는다. 없거나 다른 책의 현재 문단이면 400(INVALID_REQUEST). 신규 클라이언트는 GET /api/v2/public-rooms/{publicRoomId}/commented-sentences를 사용한다.",
+            description = "기존 응답과 정렬을 유지한다. 신규 클라이언트는 GET /api/v2/public-rooms/{publicRoomId}/commented-sentences를 사용한다.",
             deprecated = true)
     @GetMapping("/api/public-rooms/{publicRoomId}/commented-sentences")
     public CommentedSentencesResponse findCommentedSentences(@AuthMember Long memberId,
@@ -122,13 +122,14 @@ public class PublicRoomController {
     }
 
     @Operation(summary = "공개방 댓글 문장 목록 탭별 조회",
-            description = "ALL은 보이는 댓글이 있는 책 전체 문장, NEW는 그중 미확인 댓글이 있는 문장만 반환한다. 두 목록 모두 책의 문단·문장 순서이며 미래 문장도 포함한다. 가림 정책은 contentVisibility를 따르고 댓글 확인 상태·진도·방문 시각은 변경하지 않는다. 없거나 다른 책의 현재 문단이면 400(INVALID_REQUEST).")
+            description = "ALL은 보이는 댓글이 있는 모든 문장, NEW는 그중 미확인 댓글이 있는 문장이다. 미래 문장도 포함해 문단·문장 순서로 반환한다. 미확인 댓글이 있는 미래 문장은 contentVisibility=REVEAL_REQUIRED이며, 응답에 포함된 content를 화면에서 가린다. 조회는 읽음 처리·진도·방문 시각을 변경하지 않는다. 상단 새 댓글 수는 현재 문단까지만 세므로 NEW 목록과 다를 수 있다.")
     @GetMapping("/api/v2/public-rooms/{publicRoomId}/commented-sentences")
     public CommentedSentencesResponse findCommentedSentencesV2(
             @AuthMember Long memberId,
             @Parameter(description = PUBLIC_ROOM_ID_DESCRIPTION) @PathVariable Long publicRoomId,
+            @Parameter(description = "이 책에서 현재 읽고 있는 문단 ID. 저장 진도와 별개로 미래 문장과 가림 상태를 판단한다. 없거나 다른 책의 문단이면 400(INVALID_REQUEST).")
             @RequestParam("currentPassageId") Long currentPassageId,
-            @Parameter(description = "필수 탭 필터: ALL 또는 NEW")
+            @Parameter(description = "조회할 댓글 탭: 전체 댓글(ALL), 새 댓글(NEW)")
             @RequestParam("filter") CommentedSentenceFilter filter) {
         return commentService.findPublicRoomCommentedSentencesV2(memberId, publicRoomId, currentPassageId, filter);
     }

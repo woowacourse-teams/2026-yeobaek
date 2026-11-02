@@ -34,6 +34,7 @@ import yeobaek.backend.comment.domain.CommentReport;
 import yeobaek.backend.comment.domain.CommentView;
 import yeobaek.backend.comment.domain.CommentedSentence;
 import yeobaek.backend.comment.domain.CommentedSentenceFilter;
+import yeobaek.backend.comment.domain.CommentedSentences;
 import yeobaek.backend.comment.domain.Comments;
 import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.domain.vo.CommentContent;
@@ -150,35 +151,57 @@ public class CommentService {
     @Transactional(readOnly = true)
     public CommentedSentencesResponse findPublicRoomCommentedSentences(Long memberId, Long publicRoomId,
                                                                        Long currentPassageId) {
-        return new CommentedSentencesResponse(loadPublicRoomCommentedSentences(
-                memberId, publicRoomId, currentPassageId).stream()
+        PublicRoom room = findPublicRoom(publicRoomId);
+        Passage currentPassage = findPassage(currentPassageId);
+
+        room.ensureCanRead(currentPassage);
+
+        return new CommentedSentencesResponse(loadPublicRoomCommentedSentences(memberId, publicRoomId).values().stream()
+                .map(sentence -> toResponse(sentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList());
     }
 
     @Transactional(readOnly = true)
-    public CommentedSentencesResponse findPublicRoomCommentedSentencesV2(Long memberId, Long publicRoomId,
-                                                                         Long currentPassageId,
-                                                                         CommentedSentenceFilter filter) {
-        return filterAndOrderByBook(loadPublicRoomCommentedSentences(memberId, publicRoomId, currentPassageId), filter);
-    }
+    public CommentedSentencesResponse findPublicRoomCommentedSentencesV2(
+            Long memberId,
+            Long publicRoomId,
+            Long currentPassageId,
+            CommentedSentenceFilter filter
+    ) {
+        log.atInfo().addKeyValue(OPERATION, "comment.findPublicRoomCommentedSentencesV2")
+                .addKeyValue("publicRoomId", publicRoomId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .addKeyValue("filter", filter).log("공개방 댓글 문장 목록 v2를 조회합니다.");
 
-    private List<CommentedSentenceResponse> loadPublicRoomCommentedSentences(Long memberId, Long publicRoomId,
-                                                                           Long currentPassageId) {
         PublicRoom room = findPublicRoom(publicRoomId);
         Passage currentPassage = findPassage(currentPassageId);
+
         room.ensureCanRead(currentPassage);
 
+        List<CommentedSentence> sentences = loadPublicRoomCommentedSentences(memberId, publicRoomId)
+                .filteredBy(filter)
+                .sortedInBookOrder();
+        CommentedSentencesResponse response = toResponse(sentences, currentPassage);
+
+        log.atInfo().addKeyValue(OPERATION, "comment.findPublicRoomCommentedSentencesV2")
+                .addKeyValue(RESULT, SUCCESS).addKeyValue("publicRoomId", publicRoomId)
+                .addKeyValue(CURRENT_PASSAGE_ID, currentPassageId).addKeyValue("filter", filter)
+                .addKeyValue("resultCount", response.commentedSentences().size())
+                .log("공개방 댓글 문장 목록 v2를 조회했습니다.");
+        return response;
+    }
+
+    private CommentedSentences loadPublicRoomCommentedSentences(Long memberId, Long publicRoomId) {
         Comments comments = new Comments(commentRepository.findAllWithSentenceByPublicRoomId(publicRoomId));
         Set<Long> blockedMemberIds = new HashSet<>(memberBlockRepository.findBlockedMemberIdsByBlockerId(memberId));
+
         Comments visibleComments = comments.excludingWrittenBy(blockedMemberIds);
+
         Set<Long> viewedCommentIds = visibleComments.isEmpty()
                 ? Set.of()
                 : new HashSet<>(commentViewRepository.findViewedCommentIds(memberId, visibleComments.ids()));
 
-        return visibleComments.summarizeBySentence(viewedCommentIds).stream()
-                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
-                .toList();
+        return new CommentedSentences(visibleComments.summarizeBySentence(viewedCommentIds));
     }
 
     @Transactional(readOnly = true)
@@ -204,7 +227,13 @@ public class CommentService {
                 .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
                 .log("댓글이 있는 문장 목록을 조회합니다.");
 
-        List<CommentedSentenceResponse> responses = loadClubCommentedSentences(memberId, clubId, currentPassageId).stream()
+        ClubMember clubMember = findClubMember(memberId, clubId);
+        Passage currentPassage = findPassage(currentPassageId);
+
+        clubMember.ensureCanRead(currentPassage);
+
+        List<CommentedSentenceResponse> responses = loadClubCommentedSentences(memberId, clubId).values().stream()
+                .map(sentence -> toResponse(sentence, currentPassage))
                 .sorted(commentedSentenceComparator())
                 .toList();
         CommentedSentencesResponse response = new CommentedSentencesResponse(responses);
@@ -216,35 +245,49 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public CommentedSentencesResponse findCommentedSentencesV2(Long memberId, Long clubId, Long currentPassageId,
-                                                               CommentedSentenceFilter filter) {
-        return filterAndOrderByBook(loadClubCommentedSentences(memberId, clubId, currentPassageId), filter);
-    }
+    public CommentedSentencesResponse findCommentedSentencesV2(
+            Long memberId,
+            Long clubId,
+            Long currentPassageId,
+            CommentedSentenceFilter filter
+    ) {
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue(CURRENT_PASSAGE_ID, currentPassageId)
+                .addKeyValue("filter", filter).log("모임 댓글 문장 목록 v2를 조회합니다.");
 
-    private List<CommentedSentenceResponse> loadClubCommentedSentences(Long memberId, Long clubId,
-                                                                     Long currentPassageId) {
         ClubMember clubMember = findClubMember(memberId, clubId);
         Passage currentPassage = findPassage(currentPassageId);
+
         clubMember.ensureCanRead(currentPassage);
 
+        List<CommentedSentence> sentences = loadClubCommentedSentences(memberId, clubId)
+                .filteredBy(filter)
+                .sortedInBookOrder();
+        CommentedSentencesResponse response = toResponse(sentences, currentPassage);
+
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
+                .addKeyValue(RESULT, SUCCESS).addKeyValue(CLUB_ID, clubId)
+                .addKeyValue(CURRENT_PASSAGE_ID, currentPassageId).addKeyValue("filter", filter)
+                .addKeyValue("resultCount", response.commentedSentences().size())
+                .log("모임 댓글 문장 목록 v2를 조회했습니다.");
+        return response;
+    }
+
+    private CommentedSentences loadClubCommentedSentences(Long memberId, Long clubId) {
         List<CommentSentenceRow> commentRows = commentRepository
                 .findAllVisibleSentenceRowsByMemberIdAndClubId(memberId, clubId);
+
         Set<Long> viewedCommentIds = commentRows.isEmpty()
                 ? Set.of()
                 : new HashSet<>(commentViewRepository.findViewedCommentIds(
                         memberId, commentRows.stream().map(CommentSentenceRow::commentId).toList()));
-        return CommentedSentence.summarize(commentRows, viewedCommentIds).stream()
-                .map(commentedSentence -> toResponse(commentedSentence, currentPassage))
-                .toList();
+
+        return new CommentedSentences(CommentedSentence.summarize(commentRows, viewedCommentIds));
     }
 
-    private CommentedSentencesResponse filterAndOrderByBook(List<CommentedSentenceResponse> sentences,
-                                                            CommentedSentenceFilter filter) {
+    private CommentedSentencesResponse toResponse(List<CommentedSentence> sentences, Passage currentPassage) {
         return new CommentedSentencesResponse(sentences.stream()
-                .filter(sentence -> filter.includes(sentence.unreadCommentCount()))
-                .sorted(Comparator.comparingInt(CommentedSentenceResponse::passageSequence)
-                        .thenComparingInt(CommentedSentenceResponse::sentenceSequence)
-                        .thenComparing(CommentedSentenceResponse::sentenceId, Comparator.reverseOrder()))
+                .map(sentence -> toResponse(sentence, currentPassage))
                 .toList());
     }
 

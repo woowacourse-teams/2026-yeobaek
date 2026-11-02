@@ -630,26 +630,27 @@
 ### 댓글 문장 목록 조회 v2
 `GET /api/v2/clubs/{clubId}/commented-sentences?currentPassageId=1042&filter=ALL`
 
-전체 댓글·새 댓글 탭을 위한 조회다. 응답은 기존과 같은 `200 {"commentedSentences": [...]}`이며,
-각 문장 항목의 10개 필드와 의미도 위 호환 API와 같다.
+전체 댓글·새 댓글 탭의 문장 목록을 책 순서로 반환한다. 모임과 공개방의 v2 목록에 공통으로 적용한다.
 
-- `currentPassageId`는 필수이며, 요청 시점의 현재 문단을 기준으로 미래 문장과 가림 상태를 판단한다.
-- `filter`는 필수다. `ALL`은 보이는 댓글이 있는 책 전체의 문장을, `NEW`는 그중
-  `unreadCommentCount > 0`인 문장만 반환한다. 대소문자를 구분하며 그 외 값이나 필수 쿼리
-  누락·형식 오류는 `400 INVALID_REQUEST`다.
-- 두 필터 모두 `passageSequence` 오름차순, `sentenceSequence` 오름차순,
-  두 순번이 같으면 `sentenceId` 내림차순이다. 새 댓글 여부·미래 여부로 그룹을 나누지 않으며
-  `latestCommentCreatedAt`을 정렬 기준으로 사용하지 않는다.
-- `NEW`에도 현재 진도 뒤의 문장을 포함한다. 미래 문장에 미확인 댓글이 있으면
-  `contentVisibility=REVEAL_REQUIRED`이며, 가림 상태여도 `content`는 포함한다.
-- `NEW`의 `commentCount`도 해당 문장의 보이는 전체 댓글 수다. `unreadCommentCount`만
-  미확인 수를 뜻한다. 미확인 댓글이 없으면 `NEW`는 빈 배열이다.
-- 목록 조회는 댓글 확인 상태·저장 진도·방문 시각을 변경하지 않는다. 상세 조회로 확인한 뒤
-  목록을 새로 요청하면 갱신된 미확인 수를 반영하며, 미확인 댓글이 없어진 문장은 `NEW`에서 빠진다.
-- 상단 새 댓글 수 API는 기존처럼 현재 문단까지만 센다. 미래 댓글만 남아 있으면 배지는 0이어도
-  `NEW`에는 미래 문장이 포함될 수 있다.
-- 차단에 따른 가시성, 인가·도서 검증, 전체 반환과 클라이언트의 탐색 중 목록 유지 규칙은
-  위 호환 API와 같다. 기존 목록·새 댓글 수·댓글 상세 API의 계약은 바뀌지 않는다.
+필수 쿼리:
+
+- `currentPassageId`: 현재 읽고 있는 문단 ID. 저장 진도와 별개로 미래 문장과 가림 상태를 판단한다.
+- `filter`: 전체 댓글 탭은 `ALL`, 새 댓글 탭은 `NEW`.
+  `ALL`은 보이는 댓글이 있는 책 전체의 문장, `NEW`는 그중 `unreadCommentCount > 0`인 문장이다.
+  두 필터 모두 현재 문단 뒤의 문장도 포함한다. 필수 값 누락·형식 오류·대소문자를 포함한 잘못된
+  `filter`는 `400 INVALID_REQUEST`다.
+
+응답은 `200 {"commentedSentences": [...]}`이며, 문장 항목의 10개 필드는 위 기존 목록 응답과 같다.
+결과가 없으면 빈 배열이다. 차단·접근 권한·도서 검증과 전체 반환·탐색 중 목록 유지 규칙도 기존과 같다.
+
+- **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순 → `sentenceId` 내림차순.
+- **댓글 수:** `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 그중 미확인 수다.
+- **미래 문장 가림:** `future=true`이고 `unreadCommentCount > 0`이면 `REVEAL_REQUIRED`,
+  그 외에는 `VISIBLE`이다. `content`는 항상 포함하므로 클라이언트가 `contentVisibility`에 따라 가린다.
+- **읽음 처리:** 목록 조회는 댓글 확인 상태·저장 진도·방문 시각을 변경하지 않는다.
+  댓글 상세 조회 후 목록을 다시 요청하면 읽은 댓글이 반영되고, 미확인 댓글이 없어진 문장은 `NEW`에서 빠진다.
+- **상단 배지와의 차이:** 기존 새 댓글 수 API는 현재 문단까지만 센다.
+  미래 문장에만 새 댓글이 남으면 배지는 0이어도 `NEW` 목록에는 문장이 있을 수 있다.
 
 ### 문장의 댓글 상세 조회 + 직접 확인
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
@@ -1502,7 +1503,7 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 |---|---|---|
 | `GET /api/public-rooms/{publicRoomId}/comments/new-count` | 필수 쿼리 `currentPassageId` | `200 {"newCommentCount": 3}`. 현재 문단까지의 보이는 `NEW` 댓글 수. 상태 변경 없음 |
 | `GET /api/public-rooms/{publicRoomId}/commented-sentences` (deprecated) | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 호환 목록의 모든 필드·정렬·가림·전체 반환 규칙 유지 |
-| `GET /api/v2/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` | `200 {"commentedSentences": [...]}`. 5절 v2 목록의 필터·책 순서 정렬·가림 규칙 적용 |
+| `GET /api/v2/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` | 5절 「댓글 문장 목록 조회 v2」의 요청·응답·동작을 그대로 적용 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 본문 없음 | `200 {"comments": [...]}`. 작성일 오름차순의 댓글 객체와 직접 확인 처리 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | `{"content": "이 문장에서 멈칫했어요."}`. `content` 1~1000자 | `201`, 생성한 댓글 객체 하나. 작성자에게 즉시 `VIEWED` |
 
@@ -1530,9 +1531,6 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
   확인한 문장 순이며, 그룹 안에서는 `passageSequence` 오름차순, `sentenceSequence` 오름차순,
   두 순번이 같으면 `sentenceId` 내림차순이다. `latestCommentCreatedAt`은 정렬에 사용하지 않는다.
   받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
-- 신규 클라이언트는 v2 경로로 `filter=ALL` 또는 `filter=NEW`를 요청한다. 두 필터 모두 책 순서이며,
-  `NEW`는 미래 문장을 포함한 책 전체의 미확인 댓글 문장만 반환한다. 필수 `filter`가 없거나
-  `ALL`·`NEW` 외의 값이면 `400 INVALID_REQUEST`다. 기존 배지 수의 진도 범위는 유지한다.
 - `future=true`이고 `unreadCommentCount>0`일 때 `contentVisibility=REVEAL_REQUIRED`, 그 외에는
   `VISIBLE`이다. 가림 상태여도 `content`는 포함한다. 클라이언트는 이 정책 값을 따르며, 화면에서
   가림을 해제하는 것만으로 서버의 댓글 확인 상태는 바뀌지 않는다.

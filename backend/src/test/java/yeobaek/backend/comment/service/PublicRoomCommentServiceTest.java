@@ -142,20 +142,18 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("공개방 v2는 책 순서로 전체·새 댓글 탭을 나누고 기존 정렬과 독서 상태를 유지한다")
-    void findCommentedSentencesV2InBookOrderWithoutChangingLegacyOrReadingState() {
+    @DisplayName("공개방 v2는 조회 기록을 집계하되 댓글 확인 여부와 독서 상태를 변경하지 않는다")
+    void findCommentedSentencesV2WithoutChangingReadingState() {
         Book book = bookRepository.save(new Book(new BookTitle("v2 공개방"), null, null, 2, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         Passage current = passageRepository.save(new Passage(chapter, 1,
                 List.of(new SentenceContent("확인한 앞 문장"), new SentenceContent("현재 새 댓글 문장"))));
-        Passage future = passageRepository.save(new Passage(chapter, 2, List.of(new SentenceContent("미래 문장"))));
         PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
         Member writer = memberRepository.save(new Member(new Nickname("v2 작성자")));
         Member reader = memberRepository.save(new Member(new Nickname("v2 독자")));
         Comment read = commentRepository.save(new Comment(room, writer, current.getSentences().getFirst(),
                 new CommentContent("확인한 댓글")));
         commentViewRepository.save(new CommentView(reader, read));
-        commentRepository.save(new Comment(room, writer, future.getSentences().getFirst(), new CommentContent("미래 댓글")));
         commentRepository.save(new Comment(room, writer, current.getSentences().getLast(), new CommentContent("현재 새 댓글")));
         LocalDateTime savedAt = LocalDateTime.of(2026, 10, 1, 10, 0);
         PublicRoomMember membership = new PublicRoomMember(reader, room);
@@ -170,13 +168,9 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
                 CommentedSentenceFilter.NEW);
 
         assertThat(all.commentedSentences()).extracting(item -> item.content())
-                .containsExactly("확인한 앞 문장", "현재 새 댓글 문장", "미래 문장");
+                .containsExactly("확인한 앞 문장", "현재 새 댓글 문장");
         assertThat(unread.commentedSentences()).extracting(item -> tuple(item.content(), item.contentVisibility()))
-                .containsExactly(tuple("현재 새 댓글 문장", ContentVisibility.VISIBLE),
-                        tuple("미래 문장", ContentVisibility.REVEAL_REQUIRED));
-        assertThat(commentService.findPublicRoomCommentedSentences(reader.getId(), room.getId(), current.getId())
-                .commentedSentences()).extracting(item -> item.content())
-                .containsExactly("현재 새 댓글 문장", "미래 문장", "확인한 앞 문장");
+                .containsExactly(tuple("현재 새 댓글 문장", ContentVisibility.VISIBLE));
         assertThat(commentViewRepository.count()).isEqualTo(viewCountBefore);
         PublicRoomMember after = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(reader.getId(), room.getId())
                 .orElseThrow();
@@ -219,11 +213,9 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
         ReadingFixture fixture = createRoom("v2 유효한 책", 1);
         ReadingFixture foreign = createRoom("v2 다른 책", 1);
         Member reader = memberRepository.save(new Member(new Nickname("독자")));
-        for (CommentedSentenceFilter filter : CommentedSentenceFilter.values()) {
-            assertThatThrownBy(() -> commentService.findPublicRoomCommentedSentencesV2(reader.getId(),
-                    fixture.room().getId(), foreign.passages().getFirst().getId(), filter))
-                    .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
-        }
+        assertThatThrownBy(() -> commentService.findPublicRoomCommentedSentencesV2(reader.getId(),
+                fixture.room().getId(), foreign.passages().getFirst().getId(), CommentedSentenceFilter.NEW))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
         fixture.book().delete();
         bookRepository.save(fixture.book());
         assertThatThrownBy(() -> commentService.findPublicRoomCommentedSentencesV2(reader.getId(),

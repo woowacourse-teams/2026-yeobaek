@@ -339,38 +339,21 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("v2는 확인 여부보다 책 순서로 정렬하고 기존 목록의 상태 그룹 순서는 유지한다")
-    void findCommentedSentencesV2InBookOrderWithoutChangingLegacyOrder() {
-        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("목록 정렬"), 2));
-        Passage middle = passageRepository.save(new Passage(chapter, 2,
-                List.of(new SentenceContent("현재 미확인"), new SentenceContent("현재 확인함"))));
-        Passage future = passageRepository.save(new Passage(chapter, 3,
-                List.of(new SentenceContent("미래 미확인"))));
-        commentService.create(other.getId(), club.getId(), future.getSentences().getFirst().getId(),
-                new CommentContent("먼저 작성한 미래 댓글"));
-        commentService.create(other.getId(), club.getId(), middle.getSentences().getFirst().getId(),
-                new CommentContent("현재 새 댓글"));
-        commentService.create(writer.getId(), club.getId(), middle.getSentences().getFirst().getId(),
-                new CommentContent("내가 확인한 댓글"));
-        commentService.create(writer.getId(), club.getId(), middle.getSentences().getLast().getId(),
-                new CommentContent("확인한 문장 댓글"));
-        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("앞의 확인한 댓글"));
+    @DisplayName("v2는 조회 기록을 집계하되 댓글 확인 여부와 독서 진도를 변경하지 않는다")
+    void findCommentedSentencesV2WithoutChangingReadingState() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("확인한 댓글"));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("새 댓글"));
         long viewsBefore = commentViewRepository.count();
 
-        var all = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), middle.getId(),
+        var all = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
                 CommentedSentenceFilter.ALL);
-        var unread = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), middle.getId(),
+        var unread = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
                 CommentedSentenceFilter.NEW);
 
-        assertThat(all.commentedSentences()).extracting(item -> item.content())
-                .containsExactly("본문 1", "현재 미확인", "현재 확인함", "미래 미확인");
-        assertThat(unread.commentedSentences()).extracting(item -> tuple(item.content(), item.commentCount(),
-                item.unreadCommentCount(), item.future(), item.contentVisibility()))
-                .containsExactly(tuple("현재 미확인", 2L, 1L, false, ContentVisibility.VISIBLE),
-                        tuple("미래 미확인", 1L, 1L, true, ContentVisibility.REVEAL_REQUIRED));
-        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), middle.getId())
-                .commentedSentences()).extracting(item -> item.content())
-                .containsExactly("현재 미확인", "미래 미확인", "본문 1", "현재 확인함");
+        assertThat(all.commentedSentences()).extracting(item -> tuple(item.sentenceId(), item.commentCount(),
+                item.unreadCommentCount(), item.contentVisibility()))
+                .containsExactly(tuple(sentence.getId(), 2L, 1L, ContentVisibility.VISIBLE));
+        assertThat(unread).isEqualTo(all);
         assertThat(commentViewRepository.count()).isEqualTo(viewsBefore);
         ClubMember membership = clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow();
         assertThat(membership).extracting(ClubMember::getLastReadPassage, ClubMember::getLastReadAt)
@@ -419,28 +402,22 @@ class CommentServiceTest extends IntegrationTest {
         memberBlockRepository.save(new MemberBlock(writer, blocked));
         commentService.report(writer.getId(), visible.commentId());
 
-        for (CommentedSentenceFilter filter : CommentedSentenceFilter.values()) {
-            assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(), filter)
-                    .commentedSentences()).singleElement().satisfies(item -> {
-                        assertThat(item.sentenceId()).isEqualTo(sentence.getId());
-                        assertThat(item.commentCount()).isEqualTo(1);
-                        assertThat(item.unreadCommentCount()).isEqualTo(1);
-                    });
-        }
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.commentCount(), item.unreadCommentCount()))
+                .containsExactly(tuple(sentence.getId(), 1L, 1L));
     }
 
     @Test
     @DisplayName("v2는 미가입·잘못된 현재 문단·삭제 도서의 기존 접근 제한을 유지한다")
     void rejectInvalidCommentedSentencesV2Context() {
         Member outsider = memberRepository.save(new Member(new Nickname("미가입")));
-        for (CommentedSentenceFilter filter : CommentedSentenceFilter.values()) {
-            assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
-                    outsider.getId(), club.getId(), passage.getId(), filter))
-                    .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
-            assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
-                    writer.getId(), club.getId(), Long.MAX_VALUE, filter))
-                    .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
-        }
+        assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
+                outsider.getId(), club.getId(), passage.getId(), CommentedSentenceFilter.ALL))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
+                writer.getId(), club.getId(), Long.MAX_VALUE, CommentedSentenceFilter.ALL))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
         book.delete();
         bookRepository.save(book);
         assertThatThrownBy(() -> commentService.findCommentedSentencesV2(

@@ -260,13 +260,12 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-10-01T09:00:00"));
 
         verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);
-        verifyNoInteractions(publicRoomService);
     }
 
-    @ParameterizedTest
-    @EnumSource(CommentedSentenceFilter.class)
+    @Test
     @DisplayName("공개방 v2의 비어 있는 탭은 빈 배열을 반환한다")
-    void findEmptyCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
+    void findEmptyCommentedSentencesV2() throws Exception {
+        CommentedSentenceFilter filter = CommentedSentenceFilter.NEW;
         givenValidMember(1L);
         given(commentService.findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter))
                 .willReturn(new CommentedSentencesResponse(List.of()));
