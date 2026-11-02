@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
 import yeobaek.backend.comment.dto.CommentCreateRequest;
 import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
@@ -94,7 +95,9 @@ public class CommentController {
         return response;
     }
 
-    @Operation(summary = "댓글 문장 전체 목록 조회")
+    @Operation(summary = "댓글 문장 전체 목록 조회 (deprecated)",
+            description = "호환 API. 기존 새 댓글·미래 문장·확인한 문장 그룹 정렬을 유지한다. 신규 클라이언트는 GET /api/v2/clubs/{clubId}/commented-sentences를 사용한다.",
+            deprecated = true)
     @GetMapping("/api/clubs/{clubId}/commented-sentences")
     public CommentedSentencesResponse findCommentedSentences(
             @AuthMember Long memberId,
@@ -111,6 +114,18 @@ public class CommentController {
                 .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.commentedSentences().size()).log("댓글 문장 목록 API 처리를 완료했습니다.");
         return response;
+    }
+
+    @Operation(summary = "댓글 문장 목록 탭별 조회",
+            description = "ALL은 보이는 댓글이 있는 책 전체 문장, NEW는 그중 미확인 댓글이 있는 문장만 반환한다. 두 목록 모두 책의 문단·문장 순서이며 미래 문장도 포함한다. 가림 정책은 contentVisibility를 따르고 조회 상태·진도는 변경하지 않는다.")
+    @GetMapping("/api/v2/clubs/{clubId}/commented-sentences")
+    public CommentedSentencesResponse findCommentedSentencesV2(
+            @AuthMember Long memberId,
+            @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
+            @RequestParam("currentPassageId") Long currentPassageId,
+            @Parameter(description = "필수 탭 필터: ALL 또는 NEW")
+            @RequestParam("filter") CommentedSentenceFilter filter) {
+        return commentService.findCommentedSentencesV2(memberId, clubId, currentPassageId, filter);
     }
 
     @Operation(summary = "댓글 작성")

@@ -17,6 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -25,8 +26,11 @@ import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.dto.PassagesResponse;
 import yeobaek.backend.club.dto.ClubBookResponse;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
+import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
+import yeobaek.backend.comment.dto.CommentedSentenceResponse;
 import yeobaek.backend.comment.dto.CommentsResponse;
 import yeobaek.backend.comment.dto.NewCommentCountResponse;
 import yeobaek.backend.comment.service.CommentService;
@@ -227,6 +231,67 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.commentedSentences").isEmpty());
 
         verify(commentService).findPublicRoomCommentedSentences(1L, 2L, 7L);
+    }
+
+    @ParameterizedTest
+    @EnumSource(CommentedSentenceFilter.class)
+    @DisplayName("공개방 v2는 필터를 전달하고 댓글 문장 전체 필드를 반환한다")
+    void findCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
+        givenValidMember(1L);
+        var response = new CommentedSentencesResponse(List.of(new CommentedSentenceResponse(
+                8L, "미래 문장", 9L, 3, 2, true,
+                3, 1, ContentVisibility.REVEAL_REQUIRED, LocalDateTime.of(2026, 10, 1, 9, 0))));
+        given(commentService.findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter)).willReturn(response);
+
+        mockMvc.perform(get("/api/v2/public-rooms/2/commented-sentences").header("X-Member-Id", "1")
+                        .queryParam("currentPassageId", "7").queryParam("filter", filter.name()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentedSentences.length()").value(1))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceId").value(8))
+                .andExpect(jsonPath("$.commentedSentences[0].content").value("미래 문장"))
+                .andExpect(jsonPath("$.commentedSentences[0].passageId").value(9))
+                .andExpect(jsonPath("$.commentedSentences[0].passageSequence").value(3))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceSequence").value(2))
+                .andExpect(jsonPath("$.commentedSentences[0].future").value(true))
+                .andExpect(jsonPath("$.commentedSentences[0].commentCount").value(3))
+                .andExpect(jsonPath("$.commentedSentences[0].unreadCommentCount").value(1))
+                .andExpect(jsonPath("$.commentedSentences[0].contentVisibility").value("REVEAL_REQUIRED"))
+                .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-10-01T09:00:00"));
+
+        verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);
+        verifyNoInteractions(publicRoomService);
+    }
+
+    @ParameterizedTest
+    @EnumSource(CommentedSentenceFilter.class)
+    @DisplayName("공개방 v2의 비어 있는 탭은 빈 배열을 반환한다")
+    void findEmptyCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
+        givenValidMember(1L);
+        given(commentService.findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter))
+                .willReturn(new CommentedSentencesResponse(List.of()));
+
+        mockMvc.perform(get("/api/v2/public-rooms/2/commented-sentences").header("X-Member-Id", "1")
+                        .queryParam("currentPassageId", "7").queryParam("filter", filter.name()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentedSentences").isEmpty());
+
+        verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"?currentPassageId=7", "?filter=ALL", "?currentPassageId=7&filter=INVALID",
+            "?currentPassageId=7&filter=", "?currentPassageId=invalid&filter=NEW"})
+    @DisplayName("공개방 v2 필수 파라미터가 없거나 잘못되면 400이며 서비스를 호출하지 않는다")
+    void rejectInvalidCommentedSentencesV2Parameters(String query) throws Exception {
+        givenValidMember(1L);
+
+        mockMvc.perform(get("/api/v2/public-rooms/2/commented-sentences" + query).header("X-Member-Id", "1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(commentService, publicRoomService);
     }
 
     @Test
