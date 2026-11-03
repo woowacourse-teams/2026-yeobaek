@@ -27,17 +27,12 @@ public class BookHashtag {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    @Column(nullable = false)
-    @Getter
-    private int position;
-
     @Column(nullable = false, length = Book.MAX_HASHTAG_LENGTH)
     @Getter
     private String value;
 
-    BookHashtag(Book book, int position, String value) {
+    BookHashtag(Book book, String value) {
         this.book = book;
-        this.position = position;
         this.value = value;
     }
 }

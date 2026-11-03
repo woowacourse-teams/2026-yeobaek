@@ -82,7 +82,7 @@ class AdminBookControllerTest extends ControllerTest {
                         42,
                         "https://covers.example/books/3.jpg",
                         BookStatus.ACTIVE,
-                        "두 작가의 시선으로 일상의 작은 변화를 담은 책입니다."),
+                        "두 작가의 시선으로 일상의 작은 변화를 담은 책입니다.", List.of(), List.of()),
                 new AdminBookResponse(
                         4L,
                         "삭제된 책",
@@ -92,7 +92,7 @@ class AdminBookControllerTest extends ControllerTest {
                         0,
                         null,
                         BookStatus.DELETED,
-                        null)));
+                        null, List.of(), List.of())));
         given(adminBookService.findBooks()).willReturn(response);
 
         mockMvc.perform(get("/api/admin/books")
@@ -216,7 +216,7 @@ class AdminBookControllerTest extends ControllerTest {
                                 passage("첫 본문"),
                                 passage("둘째 본문"))),
                         new ChapterUploadRequest(new ChapterTitle("2장"), List.of(
-                                passage("셋째 본문")))), null);
+                                passage("셋째 본문")))), null, null, null);
         var response = new BookUploadResponse(3L, "운수 좋은 날",
                 "https://covers.example/yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg", 3);
         given(bookIngestService.upload(request)).willReturn(response);
@@ -262,7 +262,7 @@ class AdminBookControllerTest extends ControllerTest {
     @Test
     @DisplayName("표지가 없는 도서 업로드 응답은 coverImageUrl을 null로 포함한다")
     void uploadBookWithoutCover() throws Exception {
-        var request = new BookUploadRequest(new BookTitle("표지 없는 책"), null, null, null, List.of(), List.of(), null);
+        var request = new BookUploadRequest(new BookTitle("표지 없는 책"), null, null, null, List.of(), List.of(), null, null, null);
         given(bookIngestService.upload(request))
                 .willReturn(new BookUploadResponse(4L, "표지 없는 책", null, 0));
 
@@ -314,7 +314,7 @@ class AdminBookControllerTest extends ControllerTest {
                 null,
                 List.of(new AuthorEntryRequest(999L, null, null)),
                 List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(passage("본문")))), null);
+                        List.of(passage("본문")))), null, null, null);
         var serviceException = new NotFoundException(
                 ErrorCode.AUTHOR_NOT_FOUND,
                 "authorId가 가리키는 작가가 존재하지 않습니다: authorId=99");
@@ -504,5 +504,115 @@ class AdminBookControllerTest extends ControllerTest {
                      "chapters":[{"title":"장","passages":[{"sentences":[{"content":"본문"}]}]}]}
                     """.replace("DESCRIPTION", description);
         }
+    }
+
+    @Test
+    @DisplayName("기존 관리자 응답에 장르와 해시태그 배열을 추가한다")
+    void returnsGenresAndHashtags() throws Exception {
+        given(adminBookService.findBooks()).willReturn(new AdminBooksResponse(List.of(
+                new AdminBookResponse(1L, "책", List.of(), null, null, 1, null, BookStatus.ACTIVE,
+                        null, List.of("로맨스", "비극"), List.of("재회", "첫사랑")))));
+
+        mockMvc.perform(get("/api/admin/books").header("X-Admin-Token", "controller-test-token"))
+                .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.books[0].bookId").value(1))
+                .andExpect(jsonPath("$.books[0].genres[0]").value("로맨스"))
+                .andExpect(jsonPath("$.books[0].genres[1]").value("비극"))
+                .andExpect(jsonPath("$.books[0].hashtags.length()").value(2))
+                .andExpect(jsonPath("$.books[0].hashtags[0]").value("재회"))
+                .andExpect(jsonPath("$.books[0].hashtags[1]").value("첫사랑"));
+
+        verify(adminBookService, times(1)).findBooks();
+    }
+
+    @Test
+    @DisplayName("장르와 해시태그를 단일 인제스트 요청으로 전달한다")
+    void uploadsGenresAndHashtags() throws Exception {
+        given(bookIngestService.upload(org.mockito.ArgumentMatchers.any()))
+                .willReturn(new BookUploadResponse(1L, "책", null, 0));
+
+        mockMvc.perform(post("/api/admin/books").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"책","authors":[],"chapters":[],"genres":["로맨스","비극"],
+                                 "hashtags":["첫사랑","#파국예감"]}
+                                """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<BookUploadRequest> captor = ArgumentCaptor.forClass(BookUploadRequest.class);
+        verify(bookIngestService, times(1)).upload(captor.capture());
+        assertThat(captor.getValue().genres()).containsExactly("로맨스", "비극");
+        assertThat(captor.getValue().hashtags()).containsExactly("첫사랑", "#파국예감");
+    }
+
+    @Test
+    @DisplayName("복수 장르 교체 요청의 배열을 그대로 전달한다")
+    void replacesGenres() throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/genres").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"genres\":[\"로맨스\",\"비극\"]}"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+
+        verify(adminBookService, times(1)).replaceGenres(3L, List.of("로맨스", "비극"));
+    }
+
+    @Test
+    @DisplayName("해시태그 전체 교체 배열을 전달하고 204를 반환한다")
+    void replacesHashtags() throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/hashtags").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"hashtags\":[\"재회\",\"첫사랑\"]}"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+
+        verify(adminBookService, times(1)).replaceHashtags(3L, List.of("재회", "첫사랑"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"hashtags\":[]}", "{\"hashtags\":null}"})
+    @DisplayName("빈 배열·null 저장 요청은 해시태그 제거 인자로 전달한다")
+    void clearsHashtags(String json) throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/hashtags").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.captor();
+        verify(adminBookService, times(1)).replaceHashtags(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
+        assertThat(captor.getValue() == null || captor.getValue().isEmpty()).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"genres\":[]}", "{\"genres\":null}"})
+    @DisplayName("빈 장르 저장 요청은 제거 가능한 인자로 전달한다")
+    void clearsGenres(String json) throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/genres").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.captor();
+        verify(adminBookService, times(1)).replaceGenres(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
+        assertThat(captor.getValue() == null || captor.getValue().isEmpty()).isTrue();
+    }
+
+    @Test
+    @DisplayName("도메인의 잘못된 태그 오류를 400으로 반환한다")
+    void returnsBadRequestForInvalidHashtags() throws Exception {
+        List<String> invalid = List.of("가나다라마바사아자차카");
+        willThrow(new IllegalArgumentException("해시태그는 각각 최대 10자까지 등록할 수 있습니다."))
+                .given(adminBookService).replaceHashtags(3L, invalid);
+
+        mockMvc.perform(put("/api/admin/books/3/hashtags").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"hashtags\":[\"가나다라마바사아자차카\"]}"))
+                .andExpect(status().isBadRequest());
+
+        verify(adminBookService, times(1)).replaceHashtags(3L, invalid);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"genres", "hashtags"})
+    @DisplayName("수정할 필드가 없는 요청은 명시적인 비우기 요청으로 처리하지 않는다")
+    void rejectsMissingUpdateField(String field) throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/" + field).header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(adminBookService);
     }
 }

@@ -27,17 +27,12 @@ public class BookGenre {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    @Column(nullable = false)
-    @Getter
-    private int position;
-
     @Column(nullable = false, columnDefinition = "TEXT")
     @Getter
     private String value;
 
-    BookGenre(Book book, int position, String value) {
+    BookGenre(Book book, String value) {
         this.book = book;
-        this.position = position;
         this.value = value;
     }
 }

@@ -19,13 +19,6 @@ public record BookDetailResponse(
         @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
 
-    public BookDetailResponse(Long bookId, String title, List<String> authors, String publisher,
-                              Integer publishedYear, String coverImageUrl, int passageCount,
-                              List<ChapterResponse> chapters, String description, Long pageCount) {
-        this(bookId, title, authors, publisher, publishedYear, coverImageUrl, passageCount, chapters,
-                description, pageCount, List.of(), List.of());
-    }
-
     public BookDetailResponse {
         authors = List.copyOf(authors);
         chapters = List.copyOf(chapters);

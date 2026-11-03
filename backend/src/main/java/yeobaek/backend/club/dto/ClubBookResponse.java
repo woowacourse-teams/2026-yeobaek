@@ -16,11 +16,6 @@ public record ClubBookResponse(
         @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
 
-    public ClubBookResponse(Long bookId, String title, List<String> authors, String coverImageUrl,
-                            int passageCount, BookStatus status) {
-        this(bookId, title, authors, coverImageUrl, passageCount, status, List.of(), List.of());
-    }
-
     public ClubBookResponse {
         authors = List.copyOf(authors);
         genres = List.copyOf(genres);

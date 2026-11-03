@@ -89,14 +89,16 @@ public class AdminBookController {
         adminBookService.removeDescription(bookId);
     }
 
-    @Operation(summary = "도서 장르 목록 교체", description = "목록 전체를 교체한다. null/빈 배열은 제거한다.")
+    @Operation(summary = "도서 장르 목록 교체",
+            description = "목록 전체를 교체한다. null 또는 []를 보내면 이 책에 등록된 장르를 모두 삭제한다.")
     @PutMapping("/api/admin/books/{bookId}/genres")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void replaceGenres(@PathVariable Long bookId, @RequestBody BookGenresUpdateRequest request) {
         adminBookService.replaceGenres(bookId, request.genres());
     }
 
-    @Operation(summary = "도서 해시태그 목록 교체", description = "목록 전체를 교체한다. null/빈 배열은 제거한다.")
+    @Operation(summary = "도서 해시태그 목록 교체",
+            description = "목록 전체를 교체한다. null 또는 []를 보내면 이 책에 등록된 해시태그를 모두 삭제한다.")
     @PutMapping("/api/admin/books/{bookId}/hashtags")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void replaceHashtags(@PathVariable Long bookId, @RequestBody BookHashtagsUpdateRequest request) {

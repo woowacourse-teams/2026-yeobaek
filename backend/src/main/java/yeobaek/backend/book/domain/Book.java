@@ -4,7 +4,6 @@ import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.OrderBy;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -42,7 +41,7 @@ public class Book {
 
     public static final int MAX_HASHTAG_COUNT = 5;
     public static final int MAX_HASHTAG_LENGTH = 10;
-    private static final int METADATA_BATCH_SIZE = 100;
+    private static final int GENRE_AND_HASHTAG_BATCH_SIZE = 100;
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_ID_PATTERN = Pattern.compile(
             "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
@@ -69,13 +68,11 @@ public class Book {
     private BookDescription description;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("position ASC")
-    @BatchSize(size = METADATA_BATCH_SIZE)
+    @BatchSize(size = GENRE_AND_HASHTAG_BATCH_SIZE)
     private List<BookGenre> genres = new ArrayList<>();
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("position ASC")
-    @BatchSize(size = METADATA_BATCH_SIZE)
+    @BatchSize(size = GENRE_AND_HASHTAG_BATCH_SIZE)
     private List<BookHashtag> hashtags = new ArrayList<>();
 
     @Embedded
@@ -95,11 +92,6 @@ public class Book {
     @Column(nullable = false, length = 20)
     @ColumnDefault("'ACTIVE'")
     private BookStatus status = BookStatus.ACTIVE;
-
-    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
-                BookDescription description, BodyCharacterCount bodyCharacterCount) {
-        this(title, publisher, publishedYear, passageCount, coverImageKey, description, bodyCharacterCount, null, null);
-    }
 
     public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
                 BookDescription description, BodyCharacterCount bodyCharacterCount, List<String> genres,
@@ -155,8 +147,8 @@ public class Book {
             throw new IllegalArgumentException("장르는 null일 수 없습니다.");
         }
         List<BookGenre> result = new ArrayList<>();
-        for (int position = 0; position < snapshot.size(); position++) {
-            result.add(new BookGenre(this, position, snapshot.get(position)));
+        for (String value : snapshot) {
+            result.add(new BookGenre(this, value));
         }
         return result;
     }
@@ -172,8 +164,8 @@ public class Book {
             }
         }
         List<BookHashtag> result = new ArrayList<>();
-        for (int position = 0; position < snapshot.size(); position++) {
-            result.add(new BookHashtag(this, position, snapshot.get(position)));
+        for (String value : snapshot) {
+            result.add(new BookHashtag(this, value));
         }
         return result;
     }

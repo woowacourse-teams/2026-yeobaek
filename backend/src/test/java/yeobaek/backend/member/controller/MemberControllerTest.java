@@ -74,7 +74,7 @@ class MemberControllerTest extends ControllerTest {
     void findRecentReading() throws Exception {
         givenValidMember(1L);
         var response = new RecentReadingResponse(new PublicRoomReadingSpaceResponse(3L),
-                new ClubBookResponse(2L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE),
+                new ClubBookResponse(2L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE, List.of(), List.of()),
                 4, 40, LocalDateTime.of(2026, 9, 30, 10, 0));
         given(recentReadingService.findRecent(1L)).willReturn(Optional.of(response));
 
