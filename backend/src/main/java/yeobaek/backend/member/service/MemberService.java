@@ -9,6 +9,8 @@ import static yeobaek.backend.support.LogField.SUCCESS;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.club.repository.ClubMemberRepository;
@@ -38,12 +40,12 @@ public class MemberService {
         log.atInfo().addKeyValue(OPERATION, "member.create")
                 .log("회원을 생성합니다.");
         Member member = new Member(nickname);
-        if (memberRepository.existsByNickname(member.getNickname())) {
-            throw new InvalidRequestException(
-                    "이미 사용 중인 닉네임입니다.", Map.of(REASON, "duplicate_nickname"));
+        Member savedMember;
+        try {
+            savedMember = memberRepository.saveAndFlush(member);
+        } catch (DataIntegrityViolationException e) {
+            throw translateNicknameConflict(e);
         }
-
-        Member savedMember = memberRepository.save(member);
         var response = new MemberCreateResponse(savedMember.getId(), savedMember.getNickname());
         log.atInfo().addKeyValue(OPERATION, "member.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CREATED_MEMBER_ID, savedMember.getId()).log("회원을 생성했습니다.");
@@ -54,11 +56,12 @@ public class MemberService {
     public MemberNicknameUpdateResponse updateNickname(Long memberId, Nickname nickname) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.MEMBER_NOT_FOUND, "회원이 존재하지 않습니다."));
-        if (memberRepository.existsByNicknameExcludingMember(nickname.value(), memberId)) {
-            throw new InvalidRequestException(
-                    "이미 사용 중인 닉네임입니다.", Map.of(REASON, "duplicate_nickname"));
-        }
         member.changeNickname(nickname);
+        try {
+            memberRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw translateNicknameConflict(e);
+        }
         return new MemberNicknameUpdateResponse(member.getId(), member.getNickname());
     }
 
@@ -71,6 +74,20 @@ public class MemberService {
         deleteMember(memberId);
         log.atInfo().addKeyValue(OPERATION, "member.delete").addKeyValue(RESULT, SUCCESS)
                 .log("회원을 삭제했습니다.");
+    }
+
+    private RuntimeException translateNicknameConflict(DataIntegrityViolationException exception) {
+        Throwable cause = exception.getCause();
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException violation
+                    && ("uk_members_nickname".equals(violation.getConstraintName())
+                    || "members.uk_members_nickname".equals(violation.getConstraintName()))) {
+                return new InvalidRequestException(
+                        "이미 사용 중인 닉네임입니다.", exception, Map.of(REASON, "duplicate_nickname"));
+            }
+            cause = cause.getCause();
+        }
+        return exception;
     }
 
     private void deleteComments(Long memberId) {

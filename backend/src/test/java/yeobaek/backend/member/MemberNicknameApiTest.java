@@ -1,9 +1,6 @@
 package yeobaek.backend.member;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,9 +11,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
@@ -28,7 +26,7 @@ class MemberNicknameApiTest extends IntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoSpyBean
+    @Autowired
     private MemberRepository memberRepository;
 
     @Test
@@ -53,38 +51,17 @@ class MemberNicknameApiTest extends IntegrationTest {
         assertThat(memberRepository.findById(other.getId()).orElseThrow().getNickname()).isEqualTo("다른회원");
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(strings = {"Reader", "reader"})
     @DisplayName("다른 회원이 사용 중인 닉네임으로 변경을 요청하면 오류 응답을 반환하고 기존 닉네임을 유지한다")
-    void rejectDuplicateNickname() throws Exception {
-        Member member = memberRepository.save(new Member(new Nickname("기존닉네임")));
-        memberRepository.save(new Member(new Nickname("사용중")));
-
-        mockMvc.perform(put("/api/members/me/nickname")
-                        .header("X-Member-Id", member.getId())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"nickname":"사용중"}
-                                """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
-
-        assertThat(memberRepository.findById(member.getId()).orElseThrow().getNickname()).isEqualTo("기존닉네임");
-    }
-
-    @Test
-    @DisplayName("닉네임 변경 중 DB에서 중복이 감지되면 오류 응답을 반환하고 기존 닉네임을 유지한다")
-    void rejectDatabaseConflictOnUpdate() throws Exception {
+    void rejectDuplicateNickname(String nickname) throws Exception {
         Member member = memberRepository.save(new Member(new Nickname("기존닉네임")));
         memberRepository.save(new Member(new Nickname("Reader")));
-        doReturn(false).when(memberRepository).existsByNicknameExcludingMember(anyString(), anyLong());
 
         mockMvc.perform(put("/api/members/me/nickname")
                         .header("X-Member-Id", member.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"nickname":"reader"}
-                                """))
+                        .content("{\"nickname\":\"%s\"}".formatted(nickname)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
@@ -96,7 +73,6 @@ class MemberNicknameApiTest extends IntegrationTest {
     @DisplayName("회원 생성 중 DB에서 중복이 감지되면 오류 응답을 반환하고 회원을 추가하지 않는다")
     void rejectDatabaseConflictOnCreate() throws Exception {
         memberRepository.save(new Member(new Nickname("사용중")));
-        doReturn(false).when(memberRepository).existsByNickname(anyString());
 
         mockMvc.perform(post("/api/members")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -115,7 +91,6 @@ class MemberNicknameApiTest extends IntegrationTest {
     void concurrentNicknameUpdates() throws Exception {
         Member first = memberRepository.save(new Member(new Nickname("첫회원")));
         Member second = memberRepository.save(new Member(new Nickname("둘째회원")));
-        doReturn(false).when(memberRepository).existsByNicknameExcludingMember(anyString(), anyLong());
         var start = new CountDownLatch(1);
 
         try (var executor = Executors.newFixedThreadPool(2)) {
