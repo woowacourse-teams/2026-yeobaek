@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -84,7 +85,7 @@ class FlywayMigrationTest {
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
@@ -178,7 +179,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(3);
+        assertThat(result.migrationsExecuted).isEqualTo(4);
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
                 .containsExactly(1L, 3L);
         assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))
@@ -187,6 +188,38 @@ class FlywayMigrationTest {
                 .hasSize(6).containsOnly(true);
         assertThat(jdbc.queryForList("SELECT DISTINCT notification_type FROM notification_preferences", String.class))
                 .containsExactlyInAnyOrder("CLUB_JOIN", "CLUB_COMMENT", "PUBLIC_ROOM_COMMENT");
+    }
+
+    @Test
+    @DisplayName("V6의 기존 회원을 보존하면서 V7의 닉네임 유일성 제약을 추가한다")
+    void upgradeV6WithUniqueNicknames() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("6").load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, 'Reader')");
+
+        var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .load().migrate();
+
+        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("Reader");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO members (nickname) VALUES ('reader')"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("기존 중복 닉네임이 있으면 V7 적용을 거절하고 회원 데이터를 보존한다")
+    void rejectV7WithExistingDuplicateNicknames() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("6").load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, 'Reader'), (41, 'reader')");
+        Flyway flyway = Flyway.configure()
+                .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()).load();
+
+        assertThatThrownBy(flyway::migrate).isInstanceOf(FlywayException.class);
+        assertThat(jdbc.queryForList("SELECT nickname FROM members ORDER BY id", String.class))
+                .containsExactly("Reader", "reader");
     }
 
     private JdbcTemplate migrateWithMember() {

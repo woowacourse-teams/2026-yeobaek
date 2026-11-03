@@ -1,10 +1,12 @@
 package yeobaek.backend.member.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.support.IntegrationTest;
@@ -25,11 +27,12 @@ class MemberRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("이미 저장된 닉네임의 존재 여부를 확인한다")
-    void existsByNickname() {
-        memberRepository.save(new Member(new Nickname("민서")));
+    @DisplayName("DB는 대소문자만 다른 닉네임도 중복으로 거절한다")
+    void rejectDuplicateNicknameAtDatabase() {
+        memberRepository.saveAndFlush(new Member(new Nickname("Reader")));
 
-        assertThat(memberRepository.existsByNickname("민서")).isTrue();
-        assertThat(memberRepository.existsByNickname("지수")).isFalse();
+        assertThatThrownBy(() -> memberRepository.saveAndFlush(new Member(new Nickname("reader"))))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(memberRepository.count()).isOne();
     }
 }

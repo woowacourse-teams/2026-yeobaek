@@ -27,6 +27,8 @@ import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.dto.MemberCreateRequest;
 import yeobaek.backend.member.dto.MemberCreateResponse;
+import yeobaek.backend.member.dto.MemberNicknameUpdateRequest;
+import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.service.MemberBlockService;
 import yeobaek.backend.member.service.MemberService;
 import yeobaek.backend.publicroom.dto.RecentReadingResponse;
@@ -58,6 +60,19 @@ public class MemberController {
         log.atInfo().addKeyValue(OPERATION, "member.createMember").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CREATED_MEMBER_ID, response.memberId())
                 .log("회원 생성 API 처리를 완료했습니다.");
+        return response;
+    }
+
+    @Operation(summary = "닉네임 변경", description = "요청 회원의 닉네임을 변경한다. 현재 닉네임을 다시 요청해도 성공한다.")
+    @SecurityRequirement(name = MEMBER_ID_SECURITY_SCHEME)
+    @PutMapping("/api/members/me/nickname")
+    public MemberNicknameUpdateResponse updateNickname(@AuthMember Long memberId,
+                                                       @Valid @RequestBody MemberNicknameUpdateRequest request) {
+        log.atInfo().addKeyValue(OPERATION, "member.updateNickname")
+                .log("닉네임 변경 API 처리를 시작합니다.");
+        MemberNicknameUpdateResponse response = memberService.updateNickname(memberId, request.nickname());
+        log.atInfo().addKeyValue(OPERATION, "member.updateNickname").addKeyValue(RESULT, SUCCESS)
+                .log("닉네임 변경 API 처리를 완료했습니다.");
         return response;
     }
 

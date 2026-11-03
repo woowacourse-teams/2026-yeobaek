@@ -27,7 +27,7 @@ class MemberLoggingTest {
         var savedMember = mock(Member.class);
         given(savedMember.getId()).willReturn(7L);
         given(savedMember.getNickname()).willReturn("새회원");
-        given(members.save(any(Member.class))).willReturn(savedMember);
+        given(members.saveAndFlush(any(Member.class))).willReturn(savedMember);
         var service = new MemberService(members, mock(CommentRepository.class), mock(ClubMemberRepository.class),
                 mock(PublicRoomMemberRepository.class));
 
