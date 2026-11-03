@@ -51,7 +51,7 @@ class MemberRepositoryTest extends IntegrationTest {
         Member member = memberRepository.save(new Member(new Nickname("Reader")));
         Member other = memberRepository.save(new Member(new Nickname("다른회원")));
 
-        assertThat(memberRepository.existsByNicknameExcludingMember("reader", member.getId())).isFalse();
-        assertThat(memberRepository.existsByNicknameExcludingMember("reader", other.getId())).isTrue();
+        assertThat(memberRepository.existsByNicknameExcludingMember("Reader", member.getId())).isFalse();
+        assertThat(memberRepository.existsByNicknameExcludingMember("Reader", other.getId())).isTrue();
     }
 }
