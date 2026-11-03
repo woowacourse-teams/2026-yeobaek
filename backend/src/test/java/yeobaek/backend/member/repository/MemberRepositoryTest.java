@@ -36,7 +36,7 @@ class MemberRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("중복 닉네임은 서비스를 거치지 않아도 DB에서 거절한다")
+    @DisplayName("DB는 대소문자만 다른 닉네임도 중복으로 거절한다")
     void rejectDuplicateNicknameAtDatabase() {
         memberRepository.saveAndFlush(new Member(new Nickname("Reader")));
 
