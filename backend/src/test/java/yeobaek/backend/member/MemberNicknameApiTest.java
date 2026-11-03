@@ -54,7 +54,7 @@ class MemberNicknameApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("다른 회원의 닉네임으로 변경하면 거절하고 기존 값을 보존한다")
+    @DisplayName("다른 회원이 사용 중인 닉네임으로 변경을 요청하면 오류 응답을 반환하고 기존 닉네임을 유지한다")
     void rejectDuplicateNickname() throws Exception {
         Member member = memberRepository.save(new Member(new Nickname("기존닉네임")));
         memberRepository.save(new Member(new Nickname("사용중")));
