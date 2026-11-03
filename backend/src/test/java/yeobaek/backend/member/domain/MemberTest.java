@@ -32,7 +32,7 @@ class MemberTest {
     }
 
     @Test
-    @DisplayName("null로 닉네임을 변경하면 기존 닉네임을 유지한다")
+    @DisplayName("null로 닉네임을 변경하면 예외가 발생하고 기존 닉네임을 유지한다")
     void rejectNullNicknameOnChange() {
         Member member = new Member(new Nickname("왓슨"));
 
