@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createCategoryEditor, createHashtagsEditor } =
+const { createGenresEditor, createHashtagsEditor } =
     require('../../main/resources/static/admin-book-inventory.js');
 
 function editorHarness(create, book, onSave) {
@@ -38,15 +38,14 @@ test('해시태그는 문구·순서·중복·#를 보정하지 않고 전체 �
 
 test('장르는 자유 입력하며 빈 값 저장도 같은 저장 동작을 사용한다', async () => {
     const values = [];
-    const h = editorHarness(createCategoryEditor, { title: '책', category: '비극', status: 'ACTIVE' },
+    const h = editorHarness(createGenresEditor, { title: '책', genres: ['비극', '사실주의'], status: 'ACTIVE' },
         async value => values.push(value));
-    assert.equal(h.input.value, '비극');
-    h.input.value = '로맨스';
+    assert.equal(h.input.value, '비극\n사실주의');
+    h.input.value = '로맨스\n비극';
     await h.save.listeners.click();
     h.input.value = '';
     await h.save.listeners.click();
-    assert.deepEqual(values, ['로맨스', '']);
-    assert.equal(h.editor.children.filter(child => child.tag === 'button').length, 1);
+    assert.deepEqual(values, [['로맨스', '비극'], []]);
 });
 
 test('중복 저장 요청을 막고 요청 실패 후 재시도할 수 있다', async () => {
@@ -67,7 +66,7 @@ test('중복 저장 요청을 막고 요청 실패 후 재시도할 수 있다',
 });
 
 test('삭제 도서는 두 메타데이터 편집기에서 수정할 수 없다', async () => {
-    for (const create of [createCategoryEditor, createHashtagsEditor]) {
+    for (const create of [createGenresEditor, createHashtagsEditor]) {
         let calls = 0;
         const h = editorHarness(create, { title: '책', status: 'DELETED' }, async () => { calls++; });
         assert.equal(h.input.disabled, true);
@@ -102,12 +101,12 @@ function requestHarness(response) {
 test('메타데이터 비우기는 DELETE 없이 독립 PUT 요청을 보내고 저장 후 목록을 다시 조회한다', async () => {
     const h = requestHarness({ ok: true });
     const book = { bookId: 42, title: '책' };
-    await h.sandbox.saveBookMetadata(book, 'category', '', '장르');
+    await h.sandbox.saveBookMetadata(book, 'genres', [], '장르');
     await h.sandbox.saveBookMetadata(book, 'hashtags', [], '해시태그');
     assert.deepEqual(h.requests.map(request => ({
         url: request.url, method: request.options.method, body: JSON.parse(request.options.body)
     })), [
-        { url: '/api/admin/books/42/category', method: 'PUT', body: { category: '' } },
+        { url: '/api/admin/books/42/genres', method: 'PUT', body: { genres: [] } },
         { url: '/api/admin/books/42/hashtags', method: 'PUT', body: { hashtags: [] } }
     ]);
     assert.equal(h.requests[0].options.headers['X-Admin-Token'], 'test-token');

@@ -29,6 +29,7 @@ import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
 import yeobaek.backend.book.domain.vo.BookHashtags;
+import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.support.ControllerTest;
 
@@ -47,12 +48,13 @@ class AdminBookMetadataControllerTest extends ControllerTest {
     void returnsMetadata() throws Exception {
         given(adminBookService.findBooks()).willReturn(new AdminBooksResponse(List.of(
                 new AdminBookResponse(1L, "책", List.of(), null, null, 1, null, BookStatus.ACTIVE,
-                        null, "비극", List.of("재회", "첫사랑")))));
+                        null, List.of("로맨스", "비극"), List.of("재회", "첫사랑")))));
 
         mockMvc.perform(get("/api/admin/books").header("X-Admin-Token", "controller-test-token"))
                 .andExpect(status().isOk()).andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.books[0].bookId").value(1))
-                .andExpect(jsonPath("$.books[0].category").value("비극"))
+                .andExpect(jsonPath("$.books[0].genres[0]").value("로맨스"))
+                .andExpect(jsonPath("$.books[0].genres[1]").value("비극"))
                 .andExpect(jsonPath("$.books[0].hashtags.length()").value(2))
                 .andExpect(jsonPath("$.books[0].hashtags[0]").value("재회"))
                 .andExpect(jsonPath("$.books[0].hashtags[1]").value("첫사랑"));
@@ -69,15 +71,25 @@ class AdminBookMetadataControllerTest extends ControllerTest {
         mockMvc.perform(post("/api/admin/books").header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title":"책","authors":[],"chapters":[],"category":"비극",
+                                {"title":"책","authors":[],"chapters":[],"genres":["로맨스","비극"],
                                  "hashtags":["첫사랑","#파국예감"]}
                                 """))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<BookUploadRequest> captor = ArgumentCaptor.forClass(BookUploadRequest.class);
         verify(bookIngestService, times(1)).upload(captor.capture());
-        assertThat(captor.getValue().category()).isEqualTo("비극");
+        assertThat(captor.getValue().genres().value()).containsExactly("로맨스", "비극");
         assertThat(captor.getValue().hashtags().value()).containsExactly("첫사랑", "#파국예감");
+    }
+
+    @Test
+    @DisplayName("복수 장르 교체 요청의 배열을 그대로 전달한다")
+    void replacesGenres() throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/genres").header("X-Admin-Token", "controller-test-token")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"genres\":[\"로맨스\",\"비극\"]}"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+
+        verify(adminBookService, times(1)).replaceGenres(3L, new BookGenres(List.of("로맨스", "비극")));
     }
 
     @Test
@@ -104,16 +116,16 @@ class AdminBookMetadataControllerTest extends ControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"{\"category\":\"\"}", "{\"category\":null}"})
+    @ValueSource(strings = {"{\"genres\":[]}", "{\"genres\":null}"})
     @DisplayName("빈 장르 저장 요청은 제거 가능한 인자로 전달한다")
-    void clearsCategory(String json) throws Exception {
-        mockMvc.perform(put("/api/admin/books/3/category").header("X-Admin-Token", "controller-test-token")
+    void clearsGenres(String json) throws Exception {
+        mockMvc.perform(put("/api/admin/books/3/genres").header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
 
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(adminBookService, times(1)).replaceCategory(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
-        assertThat(captor.getValue() == null || captor.getValue().isEmpty()).isTrue();
+        ArgumentCaptor<BookGenres> captor = ArgumentCaptor.forClass(BookGenres.class);
+        verify(adminBookService, times(1)).replaceGenres(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
+        assertThat(captor.getValue() == null || captor.getValue().value().isEmpty()).isTrue();
     }
 
     @ParameterizedTest
@@ -129,7 +141,7 @@ class AdminBookMetadataControllerTest extends ControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"category", "hashtags"})
+    @ValueSource(strings = {"genres", "hashtags"})
     @DisplayName("수정할 필드가 없는 요청은 명시적인 비우기 요청으로 처리하지 않는다")
     void rejectsMissingUpdateField(String field) throws Exception {
         mockMvc.perform(put("/api/admin/books/3/" + field).header("X-Admin-Token", "controller-test-token")

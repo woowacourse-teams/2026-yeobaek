@@ -18,6 +18,7 @@ import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BookHashtags;
+import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.book.service.BookCoverUrlResolver;
@@ -73,10 +74,10 @@ public class AdminBookService {
     }
 
     @Transactional
-    public void replaceCategory(Long bookId, String category) {
-        logAttempt("admin.book.replaceCategory", bookId);
-        bookManagementRepository.getByIdForUpdate(bookId).replaceCategory(category);
-        logSuccess("admin.book.replaceCategory", bookId);
+    public void replaceGenres(Long bookId, BookGenres genres) {
+        logAttempt("admin.book.replaceGenres", bookId);
+        bookManagementRepository.getByIdForUpdate(bookId).replaceGenres(genres);
+        logSuccess("admin.book.replaceGenres", bookId);
     }
 
     @Transactional

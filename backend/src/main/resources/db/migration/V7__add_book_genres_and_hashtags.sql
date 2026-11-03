@@ -1,3 +1,3 @@
 ALTER TABLE books
-    ADD COLUMN category TEXT NULL,
+    ADD COLUMN genres JSON NULL,
     ADD COLUMN hashtags JSON NULL;

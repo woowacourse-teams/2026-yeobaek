@@ -102,7 +102,7 @@
 <section>
     <h2>도서 업로드 (인제스트 규격 JSON)</h2>
     <p>규격은 API 문서 6장을 따릅니다. 문단과 문장 순서는 각 배열 순서대로 서버가 부여합니다.
-        장르(category)와 해시태그(hashtags)도 같은 JSON에 담습니다. 두 필드가 없는 과거 파일도 업로드할 수 있습니다.</p>
+        장르(genres)와 해시태그(hashtags)도 같은 JSON에 담습니다. 두 필드가 없는 과거 파일도 업로드할 수 있습니다.</p>
     <label for="upload-json-file" id="upload-json-drop-zone" class="json-drop-zone">
         <span>도서 JSON 파일 (선택)</span>
         <span>.json 파일을 여기로 끌어다 놓거나 클릭해서 선택하세요.</span>
@@ -113,7 +113,7 @@
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
   "publishedYear": 1924,
-  "category": "비극",
+  "genres": ["비극", "사실주의"],
   "hashtags": ["도시빈민", "불길한하루"],
   "authors": [{ "name": "현진건", "isni": "0000 0001 2345 964X" }],
   "chapters": [{
@@ -261,7 +261,7 @@
                     + escapeHtml(book.coverImageUrl) + '" alt="">' : '-') + '</td>'
                 + '<td class="book-title">' + escapeHtml(book.title) + '</td>'
                 + '<td class="description-cell" data-book-id="' + book.bookId + '"></td>'
-                + '<td><div class="category-cell" data-book-id="' + book.bookId + '"></div>'
+                + '<td><div class="genres-cell" data-book-id="' + book.bookId + '"></div>'
                     + '<div class="hashtags-cell" data-book-id="' + book.bookId + '"></div></td>'
                 + '<td>' + book.authors.map(author => '<div class="book-author">'
                     + escapeHtml(author.name) + ' (#' + author.authorId + ')'
@@ -291,10 +291,10 @@
                 cell.append(AdminBookInventory.createDescriptionEditor(document, book,
                     description => saveBookDescription(book, description)));
             });
-            booksTable.querySelectorAll('.category-cell').forEach(cell => {
+            booksTable.querySelectorAll('.genres-cell').forEach(cell => {
                 const book = booksById.get(cell.dataset.bookId);
-                cell.append(AdminBookInventory.createCategoryEditor(document, book,
-                    category => saveBookMetadata(book, 'category', category, '장르')));
+                cell.append(AdminBookInventory.createGenresEditor(document, book,
+                    genres => saveBookMetadata(book, 'genres', genres, '장르')));
             });
             booksTable.querySelectorAll('.hashtags-cell').forEach(cell => {
                 const book = booksById.get(cell.dataset.bookId);

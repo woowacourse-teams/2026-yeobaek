@@ -24,6 +24,7 @@ import org.hibernate.annotations.ColumnDefault;
 import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookHashtags;
+import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.PassageCount;
@@ -31,6 +32,7 @@ import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.book.repository.BookHashtagsConverter;
+import yeobaek.backend.book.repository.BookGenresConverter;
 
 @Entity
 @Table(name = "books")
@@ -63,8 +65,9 @@ public class Book {
     @AttributeOverride(name = "value", column = @Column(name = "description", columnDefinition = "TEXT"))
     private BookDescription description;
 
-    @Column(columnDefinition = "TEXT")
-    private String category;
+    @Convert(converter = BookGenresConverter.class)
+    @Column(columnDefinition = "JSON")
+    private BookGenres genres;
 
     @Convert(converter = BookHashtagsConverter.class)
     @Column(columnDefinition = "JSON")
@@ -94,7 +97,7 @@ public class Book {
     }
 
     public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
-                BookDescription description, BodyCharacterCount bodyCharacterCount, String category,
+                BookDescription description, BodyCharacterCount bodyCharacterCount, BookGenres genres,
                 BookHashtags hashtags) {
         validateCoverImageKey(coverImageKey);
         if (title == null) {
@@ -107,13 +110,13 @@ public class Book {
         this.coverImageKey = coverImageKey;
         this.description = description;
         this.bodyCharacterCount = bodyCharacterCount;
-        this.category = categoryOrNull(category);
+        this.genres = genresOrNull(genres);
         this.hashtags = hashtagsOrNull(hashtags);
     }
 
-    public void replaceCategory(String category) {
+    public void replaceGenres(BookGenres genres) {
         ensureAvailable();
-        this.category = categoryOrNull(category);
+        this.genres = genresOrNull(genres);
     }
 
     public void replaceHashtags(BookHashtags hashtags) {
@@ -125,8 +128,12 @@ public class Book {
         return hashtags == null ? List.of() : hashtags.value();
     }
 
-    private String categoryOrNull(String category) {
-        return category == null || category.isEmpty() ? null : category;
+    public List<String> genreValues() {
+        return genres == null ? List.of() : genres.value();
+    }
+
+    private BookGenres genresOrNull(BookGenres genres) {
+        return genres == null || genres.value().isEmpty() ? null : genres;
     }
 
     private BookHashtags hashtagsOrNull(BookHashtags hashtags) {

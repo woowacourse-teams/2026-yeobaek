@@ -202,11 +202,11 @@ class FlywayMigrationTest {
                 .load().migrate();
 
         assertThat(result.migrationsExecuted).isEqualTo(1);
-        assertThat(jdbc.queryForMap("SELECT title, passage_count, description, category, hashtags FROM books WHERE id = 1"))
+        assertThat(jdbc.queryForMap("SELECT title, passage_count, description, genres, hashtags FROM books WHERE id = 1"))
                 .containsEntry("title", "기존 책")
                 .containsEntry("passage_count", 3)
                 .containsEntry("description", "보존할 소개")
-                .containsEntry("category", null)
+                .containsEntry("genres", null)
                 .containsEntry("hashtags", null);
     }
 

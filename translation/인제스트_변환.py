@@ -357,7 +357,7 @@ def apply_legacy_metadata(book, metadata):
     required_fields = ("title", "publisher", "publishedYear", "authors")
     for field in required_fields:
         book[field] = copy.deepcopy(metadata[field])
-    for field in ("description", "category", "hashtags"):
+    for field in ("description", "genres", "hashtags"):
         if field in metadata:
             book[field] = copy.deepcopy(metadata[field])
 
@@ -910,34 +910,30 @@ def normalize_description(book):
 def validate_discovery_metadata(book, required=False):
     """장르·태그를 보정하지 않고 검증한다. 새 최종 산출물에는 두 값이 필요하다."""
     errors = []
-    category = book.get("category")
-    if category is not None and not isinstance(category, str):
-        errors.append("category는 문자열 또는 null이어야 합니다.")
-    elif required and (category is None or not category.strip()):
-        errors.append("새 최종 산출물에는 category가 필요합니다.")
-
-    hashtags = book.get("hashtags")
-    if hashtags is None:
-        if required:
-            errors.append("새 최종 산출물에는 hashtags가 필요합니다.")
-        return errors
-    if not isinstance(hashtags, list):
-        errors.append("hashtags는 문자열 배열 또는 null이어야 합니다.")
-        return errors
-    if len(hashtags) > 5:
-        errors.append("hashtags는 최대 5개입니다.")
-    if required and not hashtags:
-        errors.append("새 최종 산출물에는 해시태그가 하나 이상 필요합니다.")
-    for index, tag in enumerate(hashtags, 1):
-        if not isinstance(tag, str):
-            errors.append(f"{index}번째 해시태그는 문자열이어야 합니다.")
+    for field in ("genres", "hashtags"):
+        values = book.get(field)
+        if values is None:
+            if required:
+                errors.append(f"새 최종 산출물에는 {field}가 필요합니다.")
             continue
-        if len(tag) > 10:
-            errors.append(f"{index}번째 해시태그는 최대 10자입니다.")
-        if required and not tag.strip():
-            errors.append(f"{index}번째 해시태그 문구가 비어 있습니다.")
-        if required and tag.startswith("#"):
-            errors.append(f"{index}번째 해시태그는 # 없이 작성해야 합니다.")
+        if not isinstance(values, list):
+            errors.append(f"{field}는 문자열 배열 또는 null이어야 합니다.")
+            continue
+        if required and not values:
+            errors.append(f"새 최종 산출물의 {field}에는 문구가 하나 이상 필요합니다.")
+        if field == "hashtags" and len(values) > 5:
+            errors.append("hashtags는 최대 5개입니다.")
+        for index, value in enumerate(values, 1):
+            if not isinstance(value, str):
+                errors.append(f"{field}의 {index}번째 값은 문자열이어야 합니다.")
+                continue
+            if required and not value.strip():
+                errors.append(f"{field}의 {index}번째 문구가 비어 있습니다.")
+            if field == "hashtags":
+                if len(value) > 10:
+                    errors.append(f"{index}번째 해시태그는 최대 10자입니다.")
+                if required and value.startswith("#"):
+                    errors.append(f"{index}번째 해시태그는 # 없이 작성해야 합니다.")
     return errors
 
 

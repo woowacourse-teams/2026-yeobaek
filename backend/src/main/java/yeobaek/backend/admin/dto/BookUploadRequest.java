@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookHashtags;
+import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.Publisher;
 
@@ -27,8 +28,8 @@ public record BookUploadRequest(
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters,
         @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description,
-        @Schema(description = "자유 입력 장르 (선택)", nullable = true) String category,
-        @Schema(type = "array", description = "해시태그 (선택, 최대 5개, 각각 최대 10자)", nullable = true)
+        @Schema(description = "자유 입력 장르 목록 (선택)", requiredMode = Schema.RequiredMode.NOT_REQUIRED) BookGenres genres,
+        @Schema(description = "해시태그 목록 (선택)", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         BookHashtags hashtags
 ) {
 

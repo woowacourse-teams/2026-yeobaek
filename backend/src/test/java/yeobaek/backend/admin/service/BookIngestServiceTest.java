@@ -22,6 +22,7 @@ import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BookHashtags;
+import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
@@ -70,16 +71,16 @@ class BookIngestServiceTest extends IntegrationTest {
     void uploadStoresOptionalMetadata() {
         var tags = new BookHashtags(List.of("첫사랑", "#반전", "첫사랑"));
         var response = bookIngestService.upload(new BookUploadRequest(new BookTitle("메타데이터 도서"), null,
-                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null, "비극", tags));
+                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null, new BookGenres(List.of("로맨스", "비극")), tags));
 
         Book stored = bookRepository.getById(response.bookId());
-        assertThat(stored.getCategory()).isEqualTo("비극");
+        assertThat(stored.genreValues()).containsExactly("로맨스", "비극");
         assertThat(stored.getHashtags()).isEqualTo(tags);
 
         var legacyResponse = bookIngestService.upload(new BookUploadRequest(new BookTitle("과거 인제스트"), null,
                 null, null, authorsOfUnknown(), chaptersWithOnePassage(), null));
         Book legacy = bookRepository.getById(legacyResponse.bookId());
-        assertThat(legacy.getCategory()).isNull();
+        assertThat(legacy.genreValues()).isEmpty();
         assertThat(legacy.hashtagValues()).isEmpty();
     }
 

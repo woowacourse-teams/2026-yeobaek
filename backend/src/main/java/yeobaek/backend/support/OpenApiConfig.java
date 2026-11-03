@@ -6,9 +6,13 @@ import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
+import io.swagger.v3.oas.models.media.ArraySchema;
+import io.swagger.v3.oas.models.media.StringSchema;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Configuration;
 import yeobaek.backend.auth.AuthMember;
+import yeobaek.backend.book.domain.vo.BookGenres;
+import yeobaek.backend.book.domain.vo.BookHashtags;
 
 @Configuration
 @OpenAPIDefinition(info = @Info(title = "여백 API", description = "여백 백엔드 API 문서", version = "0.0.1-SNAPSHOT"),
@@ -23,5 +27,17 @@ public class OpenApiConfig {
     static {
         // @AuthMember 파라미터는 X-Member-Id 헤더에서 주입되므로 요청 파라미터 스펙에서 제외한다
         SpringDocUtils.getConfig().addAnnotationsToIgnore(AuthMember.class);
+        // 두 VO는 JSON 객체가 아니라 문자열 배열로 직렬화하며, 요청의 null은 삭제를 뜻한다.
+        ArraySchema genresSchema = new ArraySchema();
+        genresSchema.setItems(new StringSchema());
+        genresSchema.addType("array");
+        genresSchema.addType("null");
+        SpringDocUtils.getConfig().replaceWithSchema(BookGenres.class, genresSchema);
+        ArraySchema hashtagsSchema = new ArraySchema();
+        hashtagsSchema.setItems(new StringSchema().maxLength(BookHashtags.MAX_LENGTH));
+        hashtagsSchema.setMaxItems(BookHashtags.MAX_COUNT);
+        hashtagsSchema.addType("array");
+        hashtagsSchema.addType("null");
+        SpringDocUtils.getConfig().replaceWithSchema(BookHashtags.class, hashtagsSchema);
     }
 }

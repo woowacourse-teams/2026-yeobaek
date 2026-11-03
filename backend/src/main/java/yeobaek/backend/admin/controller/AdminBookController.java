@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.dto.BookCoverUpdateRequest;
-import yeobaek.backend.admin.dto.BookCategoryUpdateRequest;
+import yeobaek.backend.admin.dto.BookGenresUpdateRequest;
 import yeobaek.backend.admin.dto.BookHashtagsUpdateRequest;
 import yeobaek.backend.admin.dto.BookDescriptionUpdateRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
@@ -89,11 +89,11 @@ public class AdminBookController {
         adminBookService.removeDescription(bookId);
     }
 
-    @Operation(summary = "도서 장르 교체", description = "자유 입력 장르를 교체한다. null/빈 문자열은 제거한다.")
-    @PutMapping("/api/admin/books/{bookId}/category")
+    @Operation(summary = "도서 장르 목록 교체", description = "목록 전체를 교체한다. null/빈 배열은 제거한다.")
+    @PutMapping("/api/admin/books/{bookId}/genres")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void replaceCategory(@PathVariable Long bookId, @RequestBody BookCategoryUpdateRequest request) {
-        adminBookService.replaceCategory(bookId, request.category());
+    public void replaceGenres(@PathVariable Long bookId, @RequestBody BookGenresUpdateRequest request) {
+        adminBookService.replaceGenres(bookId, request.genres());
     }
 
     @Operation(summary = "도서 해시태그 목록 교체", description = "목록 전체를 교체한다. null/빈 배열은 제거한다.")

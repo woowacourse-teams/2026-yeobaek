@@ -15,7 +15,7 @@ public record AdminBookResponse(
         @Schema(description = "표지 이미지 공개 URL", nullable = true) String coverImageUrl,
         @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) BookStatus status,
         @Schema(description = "책 소개", nullable = true) String description,
-        @Schema(description = "장르", nullable = true) String category,
+        @Schema(description = "장르 목록") List<String> genres,
         @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
 
@@ -23,11 +23,12 @@ public record AdminBookResponse(
                              Integer publishedYear, int passageCount, String coverImageUrl, BookStatus status,
                              String description) {
         this(bookId, title, authors, publisher, publishedYear, passageCount, coverImageUrl, status, description,
-                null, List.of());
+                List.of(), List.of());
     }
 
     public AdminBookResponse {
         authors = List.copyOf(authors);
+        genres = List.copyOf(genres);
         hashtags = List.copyOf(hashtags);
     }
 
@@ -46,6 +47,6 @@ public record AdminBookResponse(
                 coverImageUrl,
                 book.getStatus(),
                 book.getDescription() == null ? null : book.getDescription().value(),
-                book.getCategory(), book.hashtagValues());
+                book.genreValues(), book.hashtagValues());
     }
 }

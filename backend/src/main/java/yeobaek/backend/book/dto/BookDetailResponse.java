@@ -15,7 +15,7 @@ public record BookDetailResponse(
         @Schema(description = "목차 목록") List<ChapterResponse> chapters,
         @Schema(description = "책 소개", nullable = true) String description,
         @Schema(description = "본문 700자 기준 환산 쪽수. 기존 도서 보완 전에는 null", nullable = true) Long pageCount,
-        @Schema(description = "장르", nullable = true) String category,
+        @Schema(description = "장르 목록") List<String> genres,
         @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
 
@@ -23,12 +23,13 @@ public record BookDetailResponse(
                               Integer publishedYear, String coverImageUrl, int passageCount,
                               List<ChapterResponse> chapters, String description, Long pageCount) {
         this(bookId, title, authors, publisher, publishedYear, coverImageUrl, passageCount, chapters,
-                description, pageCount, null, List.of());
+                description, pageCount, List.of(), List.of());
     }
 
     public BookDetailResponse {
         authors = List.copyOf(authors);
         chapters = List.copyOf(chapters);
+        genres = List.copyOf(genres);
         hashtags = List.copyOf(hashtags);
     }
 
@@ -38,6 +39,6 @@ public record BookDetailResponse(
                 book.getPublisher() == null ? null : book.getPublisher().value(), book.getPublishedYear(),
                 coverImageUrl, book.getPassageCount().value(), chapters,
                 book.getDescription() == null ? null : book.getDescription().value(), book.pageCount(),
-                book.getCategory(), book.hashtagValues());
+                book.genreValues(), book.hashtagValues());
     }
 }

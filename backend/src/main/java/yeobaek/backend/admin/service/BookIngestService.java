@@ -77,7 +77,7 @@ public class BookIngestService {
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
                 request.coverImageKey(), request.description(), BodyCharacterCount.fromParagraphs(bodyParagraphs(request)),
-                request.category(), request.hashtags());
+                request.genres(), request.hashtags());
         Authors authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
