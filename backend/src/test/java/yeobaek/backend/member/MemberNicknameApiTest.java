@@ -93,7 +93,7 @@ class MemberNicknameApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("회원 생성도 사전 조회가 중복을 놓치면 DB 제약 위반을 400으로 반환한다")
+    @DisplayName("회원 생성 중 DB에서 중복이 감지되면 오류 응답을 반환하고 회원을 추가하지 않는다")
     void rejectDatabaseConflictOnCreate() throws Exception {
         memberRepository.save(new Member(new Nickname("사용중")));
         doReturn(false).when(memberRepository).existsByNickname(anyString());
