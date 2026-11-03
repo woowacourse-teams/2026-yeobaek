@@ -8,6 +8,10 @@ Kotlin Multiplatform과 Compose Multiplatform으로 화면과 주요 로직을 �
 
 `android/` 폴더에 Android와 iOS 모바일 프로젝트가 함께 있습니다.
 
+![모바일 프로젝트 구조](https://github.com/user-attachments/assets/75e03044-5b62-4d77-ab7d-0a6f452a470f)
+
+[원본 크기로 보기](https://github.com/user-attachments/assets/75e03044-5b62-4d77-ab7d-0a6f452a470f)
+
 | 경로 | 역할 |
 | :--- | :--- |
 | [androidApp/](androidApp/) | Android 앱 진입점과 플랫폼 SDK 연동 |
