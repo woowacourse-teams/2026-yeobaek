@@ -48,13 +48,22 @@
 
 ## 프로젝트 구조
 
-| 폴더 | 내용 |
-| :--- | :--- |
-| [android](android/) | Android·iOS 앱과 공통 UI·로직 |
-| [backend](backend/) | Spring Boot API 서버 |
-| [translation](translation/) | 도서 번역 도구 |
-| [docs](docs/) | 제품 요구사항, API 명세와 협업 지침 |
-| [.github](.github/) | GitHub Actions 워크플로 |
+| 폴더                          | 내용                      |
+| :-------------------------- | :---------------------- |
+| [android](android/)         | Android·iOS 앱과 공통 UI·로직 |
+| [backend](backend/)         | Spring Boot API 서버      |
+| [translation](translation/) | 도서 번역 도구                |
+| [docs](docs/)               | 제품 요구사항, API 명세와 협업 지침  |
+| [.github](.github/)         | GitHub Actions 워크플로     |
+
+## 개발 문서
+
+각 파트의 프로젝트 구조와 실행 방법 등 자세한 개발 정보는 아래 문서를 참고해 주세요.
+
+| 파트                 | 개발 가이드                              |
+| :----------------- | :---------------------------------- |
+| 모바일(Android & iOS) | [Android README](android/README.md) |
+| 백엔드                | [Backend README](backend/README.md) |
 
 ## 프로젝트 아키텍처
 
