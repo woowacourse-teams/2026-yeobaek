@@ -101,9 +101,6 @@ java gradle/WorktreeGradleLockVerification.java
 통합 테스트도 같은 Flyway 마이그레이션으로 스키마를 만들고 데이터 정리 시 `flyway_schema_history`를 보존합니다.
 Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
-닉네임 유일성 제약은 V7로 추가한다. 기존 DB에 적용하기 전에
-[배포 가이드의 V7 적용 절차](docs/배포_가이드.md#v7-닉네임-유일성-제약-적용)의 중복 확인 절차를 따른다.
-
 알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
 앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
 `flyway_schema_history`의 버전별 성공 이력에서 확인합니다.
