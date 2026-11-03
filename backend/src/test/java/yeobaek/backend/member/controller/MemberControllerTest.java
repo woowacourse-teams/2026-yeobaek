@@ -29,6 +29,7 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.BlockedMemberResponse;
 import yeobaek.backend.member.dto.BlockedMembersResponse;
 import yeobaek.backend.member.dto.MemberCreateResponse;
+import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.service.MemberBlockService;
 import yeobaek.backend.member.service.MemberService;
 import yeobaek.backend.support.ControllerTest;
@@ -106,6 +107,46 @@ class MemberControllerTest extends ControllerTest {
 
         verify(memberService, times(1)).create(new Nickname("민서"));
         verify(analyticsTracker, times(1)).track(7L, AnalyticsEvent.memberCreate());
+    }
+
+    @Test
+    @DisplayName("요청 회원 ID와 새 닉네임을 전달하고 변경 응답을 반환한다")
+    void updateNickname() throws Exception {
+        givenValidMember(7L);
+        given(memberService.updateNickname(7L, new Nickname("새닉네임")))
+                .willReturn(new MemberNicknameUpdateResponse(7L, "새닉네임"));
+
+        mockMvc.perform(put("/api/members/me/nickname")
+                        .header("X-Member-Id", "7")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nickname":"새닉네임"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.memberId").value(7))
+                .andExpect(jsonPath("$.nickname").value("새닉네임"));
+
+        verify(memberService, times(1)).updateNickname(7L, new Nickname("새닉네임"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "{\"nickname\":null}", "{\"nickname\":\"\"}", "{\"nickname\":\" \"}",
+            "{\"nickname\":\"가나다라마바사아자차카타파하가나다라마바사\"}",
+            "{\"nickname\":{\"value\":\"민서\"}}", "{\"nickname\":[]}"})
+    @DisplayName("잘못된 변경 닉네임은 서비스 호출 전에 거부한다")
+    void rejectInvalidNicknameOnPut(String body) throws Exception {
+        givenValidMember(7L);
+
+        mockMvc.perform(put("/api/members/me/nickname")
+                        .header("X-Member-Id", "7")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(result -> assertInstanceOf(
+                        HttpMessageNotReadableException.class, result.getResolvedException()));
+
+        verifyNoInteractions(memberService);
     }
 
     @Test

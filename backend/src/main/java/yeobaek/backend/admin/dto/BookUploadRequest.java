@@ -10,8 +10,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.BookHashtags;
-import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.Publisher;
 
@@ -28,9 +26,10 @@ public record BookUploadRequest(
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters,
         @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description,
-        @Schema(description = "자유 입력 장르 목록 (선택)", requiredMode = Schema.RequiredMode.NOT_REQUIRED) BookGenres genres,
-        @Schema(description = "해시태그 목록 (선택)", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        BookHashtags hashtags
+        @Schema(description = "자유 입력 장르 목록 (선택)", types = {"array", "null"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED) List<String> genres,
+        @Schema(description = "해시태그 목록 (선택, 최대 5개, 각 10자). null/빈 배열은 태그 없음.", types = {"array", "null"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED) List<String> hashtags
 ) {
 
     public BookUploadRequest(BookTitle title, Publisher publisher, Integer publishedYear, String coverImageKey,
@@ -40,12 +39,28 @@ public record BookUploadRequest(
     }
 
     public BookUploadRequest {
+        if (genres != null) {
+            genres = Collections.unmodifiableList(new ArrayList<>(genres));
+        }
+        if (hashtags != null) {
+            hashtags = Collections.unmodifiableList(new ArrayList<>(hashtags));
+        }
         if (authors != null) {
             authors = Collections.unmodifiableList(new ArrayList<>(authors));
         }
         if (chapters != null) {
             chapters = Collections.unmodifiableList(new ArrayList<>(chapters));
         }
+    }
+
+    @Override
+    public List<String> genres() {
+        return genres == null ? null : Collections.unmodifiableList(genres);
+    }
+
+    @Override
+    public List<String> hashtags() {
+        return hashtags == null ? null : Collections.unmodifiableList(hashtags);
     }
 
     @Override

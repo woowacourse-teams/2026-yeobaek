@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.admin.dto.AuthorEntryRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
@@ -21,8 +22,6 @@ import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookDescription;
-import yeobaek.backend.book.domain.vo.BookHashtags;
-import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
@@ -52,6 +51,9 @@ class BookIngestServiceTest extends IntegrationTest {
     private BookManagementRepository bookRepository;
 
     @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Autowired
     private AuthorRepository authorRepository;
 
     @Autowired
@@ -69,19 +71,23 @@ class BookIngestServiceTest extends IntegrationTest {
     @Test
     @DisplayName("인제스트의 장르와 해시태그를 함께 저장하고 과거 입력은 부재로 유지한다")
     void uploadStoresOptionalMetadata() {
-        var tags = new BookHashtags(List.of("첫사랑", "#반전", "첫사랑"));
+        var tags = List.of("첫사랑", "#반전", "첫사랑");
         var response = bookIngestService.upload(new BookUploadRequest(new BookTitle("메타데이터 도서"), null,
-                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null, new BookGenres(List.of("로맨스", "비극")), tags));
+                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null, List.of("로맨스", "비극"), tags));
 
-        Book stored = bookRepository.getById(response.bookId());
-        assertThat(stored.genreValues()).containsExactly("로맨스", "비극");
-        assertThat(stored.getHashtags()).isEqualTo(tags);
+        transactionTemplate.executeWithoutResult(status -> {
+            Book stored = bookRepository.getById(response.bookId());
+            assertThat(stored.genreValues()).containsExactly("로맨스", "비극");
+            assertThat(stored.hashtagValues()).isEqualTo(tags);
+        });
 
         var legacyResponse = bookIngestService.upload(new BookUploadRequest(new BookTitle("과거 인제스트"), null,
                 null, null, authorsOfUnknown(), chaptersWithOnePassage(), null));
-        Book legacy = bookRepository.getById(legacyResponse.bookId());
-        assertThat(legacy.genreValues()).isEmpty();
-        assertThat(legacy.hashtagValues()).isEmpty();
+        transactionTemplate.executeWithoutResult(status -> {
+            Book legacy = bookRepository.getById(legacyResponse.bookId());
+            assertThat(legacy.genreValues()).isEmpty();
+            assertThat(legacy.hashtagValues()).isEmpty();
+        });
     }
 
     @Test

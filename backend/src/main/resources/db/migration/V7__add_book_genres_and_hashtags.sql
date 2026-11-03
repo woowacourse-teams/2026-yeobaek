@@ -1,3 +1,0 @@
-ALTER TABLE books
-    ADD COLUMN genres JSON NULL,
-    ADD COLUMN hashtags JSON NULL;

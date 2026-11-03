@@ -7,8 +7,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import yeobaek.backend.admin.dto.AdminBookResponse;
 import yeobaek.backend.book.domain.Book;
-import yeobaek.backend.book.domain.vo.BookGenres;
-import yeobaek.backend.book.domain.vo.BookHashtags;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.club.dto.ClubBookResponse;
 
@@ -18,7 +16,7 @@ class BookMetadataResponseTest {
     @DisplayName("도서·모임·관리자 응답은 같은 장르·태그 순서를 전달한다")
     void returnsStoredMetadata() {
         Book book = new Book(new BookTitle("책"), null, null, 1, null, null, null,
-                new BookGenres(List.of("로맨스", "비극")), new BookHashtags(List.of("재회", "첫사랑")));
+                List.of("로맨스", "비극"), List.of("재회", "첫사랑"));
 
         var summary = BookSummaryResponse.of(book, List.of(), null);
         var detail = BookDetailResponse.of(book, List.of(), null, List.of());

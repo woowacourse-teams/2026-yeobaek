@@ -2,6 +2,7 @@ package yeobaek.backend.admin.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -28,8 +29,6 @@ import yeobaek.backend.admin.dto.AdminBookResponse;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.service.AdminBookService;
 import yeobaek.backend.admin.service.BookIngestService;
-import yeobaek.backend.book.domain.vo.BookHashtags;
-import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.support.ControllerTest;
 
@@ -78,8 +77,8 @@ class AdminBookMetadataControllerTest extends ControllerTest {
 
         ArgumentCaptor<BookUploadRequest> captor = ArgumentCaptor.forClass(BookUploadRequest.class);
         verify(bookIngestService, times(1)).upload(captor.capture());
-        assertThat(captor.getValue().genres().value()).containsExactly("로맨스", "비극");
-        assertThat(captor.getValue().hashtags().value()).containsExactly("첫사랑", "#파국예감");
+        assertThat(captor.getValue().genres()).containsExactly("로맨스", "비극");
+        assertThat(captor.getValue().hashtags()).containsExactly("첫사랑", "#파국예감");
     }
 
     @Test
@@ -89,17 +88,17 @@ class AdminBookMetadataControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"genres\":[\"로맨스\",\"비극\"]}"))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
 
-        verify(adminBookService, times(1)).replaceGenres(3L, new BookGenres(List.of("로맨스", "비극")));
+        verify(adminBookService, times(1)).replaceGenres(3L, List.of("로맨스", "비극"));
     }
 
     @Test
-    @DisplayName("해시태그 전체 교체 요청을 VO로 바인딩하고 204를 반환한다")
+    @DisplayName("해시태그 전체 교체 배열을 전달하고 204를 반환한다")
     void replacesHashtags() throws Exception {
         mockMvc.perform(put("/api/admin/books/3/hashtags").header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"hashtags\":[\"재회\",\"첫사랑\"]}"))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
 
-        verify(adminBookService, times(1)).replaceHashtags(3L, new BookHashtags(List.of("재회", "첫사랑")));
+        verify(adminBookService, times(1)).replaceHashtags(3L, List.of("재회", "첫사랑"));
     }
 
     @ParameterizedTest
@@ -110,9 +109,9 @@ class AdminBookMetadataControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
 
-        ArgumentCaptor<BookHashtags> captor = ArgumentCaptor.forClass(BookHashtags.class);
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.captor();
         verify(adminBookService, times(1)).replaceHashtags(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
-        assertThat(captor.getValue() == null || captor.getValue().value().isEmpty()).isTrue();
+        assertThat(captor.getValue() == null || captor.getValue().isEmpty()).isTrue();
     }
 
     @ParameterizedTest
@@ -123,21 +122,23 @@ class AdminBookMetadataControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(json))
                 .andExpect(status().isNoContent()).andExpect(content().string(""));
 
-        ArgumentCaptor<BookGenres> captor = ArgumentCaptor.forClass(BookGenres.class);
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.captor();
         verify(adminBookService, times(1)).replaceGenres(org.mockito.ArgumentMatchers.eq(3L), captor.capture());
-        assertThat(captor.getValue() == null || captor.getValue().value().isEmpty()).isTrue();
+        assertThat(captor.getValue() == null || captor.getValue().isEmpty()).isTrue();
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"{\"hashtags\":[\"가\",\"나\",\"다\",\"라\",\"마\",\"바\"]}",
-            "{\"hashtags\":[\"가나다라마바사아자차카\"]}"})
-    @DisplayName("해시태그 개수·길이 초과는 서비스 호출 전에 400으로 거절한다")
-    void rejectsOverflow(String json) throws Exception {
+    @Test
+    @DisplayName("도메인의 잘못된 태그 오류를 400으로 반환한다")
+    void returnsBadRequestForInvalidHashtags() throws Exception {
+        List<String> invalid = List.of("가나다라마바사아자차카");
+        willThrow(new IllegalArgumentException("해시태그는 각각 최대 10자까지 등록할 수 있습니다."))
+                .given(adminBookService).replaceHashtags(3L, invalid);
+
         mockMvc.perform(put("/api/admin/books/3/hashtags").header("X-Admin-Token", "controller-test-token")
-                        .contentType(MediaType.APPLICATION_JSON).content(json))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"hashtags\":[\"가나다라마바사아자차카\"]}"))
                 .andExpect(status().isBadRequest());
 
-        verifyNoInteractions(adminBookService);
+        verify(adminBookService, times(1)).replaceHashtags(3L, invalid);
     }
 
     @ParameterizedTest

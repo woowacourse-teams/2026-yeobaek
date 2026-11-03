@@ -2,7 +2,9 @@ package yeobaek.backend.book.domain;
 
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +14,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -21,18 +24,15 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.BatchSize;
 import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
-import yeobaek.backend.book.domain.vo.BookHashtags;
-import yeobaek.backend.book.domain.vo.BookGenres;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.book.repository.BookHashtagsConverter;
-import yeobaek.backend.book.repository.BookGenresConverter;
 
 @Entity
 @Table(name = "books")
@@ -40,6 +40,9 @@ import yeobaek.backend.book.repository.BookGenresConverter;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
+    public static final int MAX_HASHTAG_COUNT = 5;
+    public static final int MAX_HASHTAG_LENGTH = 10;
+    private static final int METADATA_BATCH_SIZE = 100;
     private static final int MAX_COVER_IMAGE_KEY_LENGTH = 80;
     private static final Pattern COVER_IMAGE_ID_PATTERN = Pattern.compile(
             "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
@@ -65,13 +68,15 @@ public class Book {
     @AttributeOverride(name = "value", column = @Column(name = "description", columnDefinition = "TEXT"))
     private BookDescription description;
 
-    @Convert(converter = BookGenresConverter.class)
-    @Column(columnDefinition = "JSON")
-    private BookGenres genres;
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    @BatchSize(size = METADATA_BATCH_SIZE)
+    private List<BookGenre> genres = new ArrayList<>();
 
-    @Convert(converter = BookHashtagsConverter.class)
-    @Column(columnDefinition = "JSON")
-    private BookHashtags hashtags;
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    @BatchSize(size = METADATA_BATCH_SIZE)
+    private List<BookHashtag> hashtags = new ArrayList<>();
 
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "body_character_count"))
@@ -97,8 +102,8 @@ public class Book {
     }
 
     public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
-                BookDescription description, BodyCharacterCount bodyCharacterCount, BookGenres genres,
-                BookHashtags hashtags) {
+                BookDescription description, BodyCharacterCount bodyCharacterCount, List<String> genres,
+                List<String> hashtags) {
         validateCoverImageKey(coverImageKey);
         if (title == null) {
             throw new IllegalArgumentException("도서 제목은 필수입니다.");
@@ -110,34 +115,67 @@ public class Book {
         this.coverImageKey = coverImageKey;
         this.description = description;
         this.bodyCharacterCount = bodyCharacterCount;
-        this.genres = genresOrNull(genres);
-        this.hashtags = hashtagsOrNull(hashtags);
+        this.genres = createGenres(genres);
+        this.hashtags = createHashtags(hashtags);
     }
 
-    public void replaceGenres(BookGenres genres) {
+    public void replaceGenres(List<String> genres) {
         ensureAvailable();
-        this.genres = genresOrNull(genres);
+        List<BookGenre> replacement = createGenres(genres);
+        this.genres.clear();
+        this.genres.addAll(replacement);
     }
 
-    public void replaceHashtags(BookHashtags hashtags) {
+    public void replaceHashtags(List<String> hashtags) {
         ensureAvailable();
-        this.hashtags = hashtagsOrNull(hashtags);
+        List<BookHashtag> replacement = createHashtags(hashtags);
+        this.hashtags.clear();
+        this.hashtags.addAll(replacement);
     }
 
     public List<String> hashtagValues() {
-        return hashtags == null ? List.of() : hashtags.value();
+        return hashtags.stream().map(BookHashtag::getValue).toList();
     }
 
     public List<String> genreValues() {
-        return genres == null ? List.of() : genres.value();
+        return genres.stream().map(BookGenre::getValue).toList();
     }
 
-    private BookGenres genresOrNull(BookGenres genres) {
-        return genres == null || genres.value().isEmpty() ? null : genres;
+    public List<BookGenre> getGenres() {
+        return List.copyOf(genres);
     }
 
-    private BookHashtags hashtagsOrNull(BookHashtags hashtags) {
-        return hashtags == null || hashtags.value().isEmpty() ? null : hashtags;
+    public List<BookHashtag> getHashtags() {
+        return List.copyOf(hashtags);
+    }
+
+    private List<BookGenre> createGenres(List<String> values) {
+        List<String> snapshot = values == null ? List.of() : new ArrayList<>(values);
+        if (snapshot.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("장르는 null일 수 없습니다.");
+        }
+        List<BookGenre> result = new ArrayList<>();
+        for (int position = 0; position < snapshot.size(); position++) {
+            result.add(new BookGenre(this, position, snapshot.get(position)));
+        }
+        return result;
+    }
+
+    private List<BookHashtag> createHashtags(List<String> values) {
+        List<String> snapshot = values == null ? List.of() : new ArrayList<>(values);
+        if (snapshot.size() > MAX_HASHTAG_COUNT) {
+            throw new IllegalArgumentException("해시태그는 최대 5개까지 등록할 수 있습니다.");
+        }
+        for (String value : snapshot) {
+            if (value == null || value.codePointCount(0, value.length()) > MAX_HASHTAG_LENGTH) {
+                throw new IllegalArgumentException("해시태그는 각각 최대 10자까지 등록할 수 있습니다.");
+            }
+        }
+        List<BookHashtag> result = new ArrayList<>();
+        for (int position = 0; position < snapshot.size(); position++) {
+            result.add(new BookHashtag(this, position, snapshot.get(position)));
+        }
+        return result;
     }
 
     public boolean isSame(Book other) {
