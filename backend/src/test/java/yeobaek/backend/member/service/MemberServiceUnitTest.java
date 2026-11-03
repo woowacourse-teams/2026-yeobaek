@@ -101,7 +101,7 @@ class MemberServiceUnitTest {
     }
 
     @Test
-    @DisplayName("변경할 회원이 없으면 MEMBER_NOT_FOUND로 거절한다")
+    @DisplayName("존재하지 않는 회원의 닉네임을 변경하면 예외가 발생한다")
     void rejectMissingMemberOnUpdate() {
         given(memberRepository.findById(7L)).willReturn(Optional.empty());
 
