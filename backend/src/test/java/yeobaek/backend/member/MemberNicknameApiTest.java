@@ -32,7 +32,7 @@ class MemberNicknameApiTest extends IntegrationTest {
     private MemberRepository memberRepository;
 
     @Test
-    @DisplayName("본인 닉네임만 변경하고 같은 요청을 반복해도 성공한다")
+    @DisplayName("본인의 닉네임만 변경하며 현재 닉네임과 같은 값으로 요청해도 성공한다")
     void updateNicknameIdempotently() throws Exception {
         Member member = memberRepository.save(new Member(new Nickname("기존닉네임")));
         Member other = memberRepository.save(new Member(new Nickname("다른회원")));
