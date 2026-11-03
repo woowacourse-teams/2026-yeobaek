@@ -73,7 +73,7 @@ class MemberNicknameApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("사전 조회가 중복을 놓쳐도 DB 제약 위반을 400으로 반환하고 변경을 롤백한다")
+    @DisplayName("닉네임 변경 중 DB에서 중복이 감지되면 오류 응답을 반환하고 기존 닉네임을 유지한다")
     void rejectDatabaseConflictOnUpdate() throws Exception {
         Member member = memberRepository.save(new Member(new Nickname("기존닉네임")));
         memberRepository.save(new Member(new Nickname("Reader")));
