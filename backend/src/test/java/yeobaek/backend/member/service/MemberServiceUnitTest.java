@@ -88,7 +88,7 @@ class MemberServiceUnitTest {
     }
 
     @Test
-    @DisplayName("다른 회원과 중복되는 닉네임으로 변경하지 않는다")
+    @DisplayName("다른 회원과 중복되는 닉네임으로 변경하면 예외가 발생하고 기존 닉네임을 유지한다")
     void rejectDuplicateNicknameOnUpdate() {
         Member member = new Member(new Nickname("기존닉네임"));
         given(memberRepository.findById(7L)).willReturn(Optional.of(member));
