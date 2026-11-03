@@ -130,5 +130,48 @@
         return editor;
     }
 
-    return { booksToCsv, createState, createDescriptionEditor };
+    function createMetadataEditor(document, book, field, label, onSave) {
+        const isHashtags = field === 'hashtags';
+        const editor = document.createElement('details');
+        editor.className = 'metadata-editor';
+        const summary = document.createElement('summary');
+        summary.textContent = label + ' 보기·수정';
+        const input = document.createElement(isHashtags ? 'textarea' : 'input');
+        input.value = isHashtags ? (book.hashtags ?? []).join('\n') : (book.category ?? '');
+        input.setAttribute('aria-label', book.title + ' ' + label);
+        input.disabled = book.status === 'DELETED';
+        const help = document.createElement('p');
+        help.textContent = isHashtags
+            ? '한 줄에 하나씩 입력하세요. 최대 5개, 문구당 10자입니다. 모두 비우고 저장하면 삭제됩니다.'
+            : '로맨스, 비극 등 장르를 하나 입력하세요. 비우고 저장하면 삭제됩니다.';
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.textContent = label + ' 저장';
+        save.disabled = input.disabled;
+        let pending = false;
+        save.addEventListener('click', async () => {
+            if (pending || book.status === 'DELETED') return;
+            pending = true;
+            save.disabled = input.disabled = true;
+            try {
+                const value = isHashtags ? (input.value === '' ? [] : input.value.split(/\r?\n/)) : input.value;
+                await onSave(value);
+            } finally {
+                pending = false;
+                save.disabled = input.disabled = false;
+            }
+        });
+        editor.append(summary, input, help, save);
+        return editor;
+    }
+
+    function createCategoryEditor(document, book, onSave) {
+        return createMetadataEditor(document, book, 'category', '장르', onSave);
+    }
+
+    function createHashtagsEditor(document, book, onSave) {
+        return createMetadataEditor(document, book, 'hashtags', '해시태그', onSave);
+    }
+
+    return { booksToCsv, createState, createDescriptionEditor, createCategoryEditor, createHashtagsEditor };
 }));

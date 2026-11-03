@@ -11,16 +11,25 @@ public record BookSummaryResponse(
         @Schema(description = "출판사", nullable = true) String publisher,
         @Schema(description = "출판연도", nullable = true) Integer publishedYear,
         @Schema(description = "표지 이미지 공개 URL", nullable = true) String coverImageUrl,
-        @Schema(description = "본문 개수") int passageCount
+        @Schema(description = "본문 개수") int passageCount,
+        @Schema(description = "장르", nullable = true) String category,
+        @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
+
+    public BookSummaryResponse(Long bookId, String title, List<String> authors, String publisher,
+                               Integer publishedYear, String coverImageUrl, int passageCount) {
+        this(bookId, title, authors, publisher, publishedYear, coverImageUrl, passageCount, null, List.of());
+    }
 
     public BookSummaryResponse {
         authors = List.copyOf(authors);
+        hashtags = List.copyOf(hashtags);
     }
 
     public static BookSummaryResponse of(Book book, List<String> authors, String coverImageUrl) {
         return new BookSummaryResponse(book.getId(), book.getTitle().value(), authors,
                 book.getPublisher() == null ? null : book.getPublisher().value(),
-                book.getPublishedYear(), coverImageUrl, book.getPassageCount().value());
+                book.getPublishedYear(), coverImageUrl, book.getPassageCount().value(),
+                book.getCategory(), book.hashtagValues());
     }
 }

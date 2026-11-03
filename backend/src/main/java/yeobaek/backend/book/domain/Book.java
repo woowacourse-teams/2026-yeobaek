@@ -2,6 +2,7 @@ package yeobaek.backend.book.domain;
 
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -21,12 +23,14 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
 import yeobaek.backend.book.domain.vo.BookDeduplicationKey;
 import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.BookHashtags;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.PassageCount;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.book.repository.BookHashtagsConverter;
 
 @Entity
 @Table(name = "books")
@@ -59,6 +63,13 @@ public class Book {
     @AttributeOverride(name = "value", column = @Column(name = "description", columnDefinition = "TEXT"))
     private BookDescription description;
 
+    @Column(columnDefinition = "TEXT")
+    private String category;
+
+    @Convert(converter = BookHashtagsConverter.class)
+    @Column(columnDefinition = "JSON")
+    private BookHashtags hashtags;
+
     @Embedded
     @AttributeOverride(name = "value", column = @Column(name = "body_character_count"))
     private BodyCharacterCount bodyCharacterCount;
@@ -79,6 +90,12 @@ public class Book {
 
     public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
                 BookDescription description, BodyCharacterCount bodyCharacterCount) {
+        this(title, publisher, publishedYear, passageCount, coverImageKey, description, bodyCharacterCount, null, null);
+    }
+
+    public Book(BookTitle title, Publisher publisher, Integer publishedYear, int passageCount, String coverImageKey,
+                BookDescription description, BodyCharacterCount bodyCharacterCount, String category,
+                BookHashtags hashtags) {
         validateCoverImageKey(coverImageKey);
         if (title == null) {
             throw new IllegalArgumentException("도서 제목은 필수입니다.");
@@ -90,6 +107,30 @@ public class Book {
         this.coverImageKey = coverImageKey;
         this.description = description;
         this.bodyCharacterCount = bodyCharacterCount;
+        this.category = categoryOrNull(category);
+        this.hashtags = hashtagsOrNull(hashtags);
+    }
+
+    public void replaceCategory(String category) {
+        ensureAvailable();
+        this.category = categoryOrNull(category);
+    }
+
+    public void replaceHashtags(BookHashtags hashtags) {
+        ensureAvailable();
+        this.hashtags = hashtagsOrNull(hashtags);
+    }
+
+    public List<String> hashtagValues() {
+        return hashtags == null ? List.of() : hashtags.value();
+    }
+
+    private String categoryOrNull(String category) {
+        return category == null || category.isEmpty() ? null : category;
+    }
+
+    private BookHashtags hashtagsOrNull(BookHashtags hashtags) {
+        return hashtags == null || hashtags.value().isEmpty() ? null : hashtags;
     }
 
     public boolean isSame(Book other) {

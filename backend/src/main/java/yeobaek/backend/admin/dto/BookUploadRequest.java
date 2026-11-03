@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.BookHashtags;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.Publisher;
 
@@ -25,8 +26,17 @@ public record BookUploadRequest(
         @Schema(description = "표지 UUID (선택, 기존 전체 객체 키도 허용)", nullable = true) String coverImageKey,
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters,
-        @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description
+        @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description,
+        @Schema(description = "자유 입력 장르 (선택)", nullable = true) String category,
+        @Schema(type = "array", description = "해시태그 (선택, 최대 5개, 각각 최대 10자)", nullable = true)
+        BookHashtags hashtags
 ) {
+
+    public BookUploadRequest(BookTitle title, Publisher publisher, Integer publishedYear, String coverImageKey,
+                             List<AuthorEntryRequest> authors, List<ChapterUploadRequest> chapters,
+                             BookDescription description) {
+        this(title, publisher, publishedYear, coverImageKey, authors, chapters, description, null, null);
+    }
 
     public BookUploadRequest {
         if (authors != null) {

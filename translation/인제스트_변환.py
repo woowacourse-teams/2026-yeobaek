@@ -348,7 +348,7 @@ def _atomic_write_text(path, text):
 
 
 def apply_legacy_metadata(book, metadata):
-    """검증된 메타데이터의 서지 필드만 적용하고 본문은 건드리지 않는다."""
+    """서지·소개·탐색 메타데이터를 적용하고 본문은 건드리지 않는다."""
     if not isinstance(book, dict):
         raise LegacyNormalizationError("구형 ingest JSON의 최상위 값이 객체가 아닙니다.")
     if not isinstance(metadata, dict):
@@ -357,8 +357,9 @@ def apply_legacy_metadata(book, metadata):
     required_fields = ("title", "publisher", "publishedYear", "authors")
     for field in required_fields:
         book[field] = copy.deepcopy(metadata[field])
-    if "description" in metadata:
-        book["description"] = copy.deepcopy(metadata["description"])
+    for field in ("description", "category", "hashtags"):
+        if field in metadata:
+            book[field] = copy.deepcopy(metadata[field])
 
 
 def _validate_legacy_metadata(book, label):
@@ -906,6 +907,40 @@ def normalize_description(book):
     book["description"] = description
 
 
+def validate_discovery_metadata(book, required=False):
+    """장르·태그를 보정하지 않고 검증한다. 새 최종 산출물에는 두 값이 필요하다."""
+    errors = []
+    category = book.get("category")
+    if category is not None and not isinstance(category, str):
+        errors.append("category는 문자열 또는 null이어야 합니다.")
+    elif required and (category is None or not category.strip()):
+        errors.append("새 최종 산출물에는 category가 필요합니다.")
+
+    hashtags = book.get("hashtags")
+    if hashtags is None:
+        if required:
+            errors.append("새 최종 산출물에는 hashtags가 필요합니다.")
+        return errors
+    if not isinstance(hashtags, list):
+        errors.append("hashtags는 문자열 배열 또는 null이어야 합니다.")
+        return errors
+    if len(hashtags) > 5:
+        errors.append("hashtags는 최대 5개입니다.")
+    if required and not hashtags:
+        errors.append("새 최종 산출물에는 해시태그가 하나 이상 필요합니다.")
+    for index, tag in enumerate(hashtags, 1):
+        if not isinstance(tag, str):
+            errors.append(f"{index}번째 해시태그는 문자열이어야 합니다.")
+            continue
+        if len(tag) > 10:
+            errors.append(f"{index}번째 해시태그는 최대 10자입니다.")
+        if required and not tag.strip():
+            errors.append(f"{index}번째 해시태그 문구가 비어 있습니다.")
+        if required and tag.startswith("#"):
+            errors.append(f"{index}번째 해시태그는 # 없이 작성해야 합니다.")
+    return errors
+
+
 def validate_introduction(book_dir, *protected_paths):
     """소개를 출력과 분리하고 책 폴더 안의 UTF-8 초안인지 출력 전에 확인한다."""
     book_dir = book_dir.resolve()
@@ -932,6 +967,7 @@ def validate(book):
         normalize_description(book)
     except ValueError as error:
         errors.append(str(error))
+    errors.extend(validate_discovery_metadata(book))
     _check_len(errors, "도서 제목", book.get("title", ""))
     _check_len(errors, "출판사", book.get("publisher", ""))
     if not book.get("authors"):
@@ -1495,6 +1531,11 @@ def main():
     except (ValueError, OSError, UnicodeError) as error:
         sys.exit(f"[소개 검증 실패] {error} — ingest.json과 ZIP을 출력하지 않았습니다.")
 
+    discovery_errors = validate_discovery_metadata(book, required=True)
+    if discovery_errors:
+        sys.exit("[탐색 정보 검증 실패] " + " / ".join(discovery_errors)
+                 + " — ingest.json과 ZIP을 출력하지 않았습니다.")
+
     if not validate_cover_artifacts(args.meta):
         sys.exit("\n표지 검증 실패 — ingest.json과 ZIP을 출력하지 않았습니다.")
 
@@ -1504,7 +1545,7 @@ def main():
     create_archive(zip_output, book_dir, output, args.meta, args.original,
                    source_index=args.source_index, source_index_review=args.source_index_review)
     print(f"ZIP 저장 완료: {zip_output}")
-    print("소개 초안: 책_소개.txt와 ingest.json의 description에 포함했습니다. 운영자 검수 후 업로드하세요.")
+    print("소개·장르·해시태그를 ingest.json에 포함했습니다. 독립 검토와 필요한 운영자 검수 후 업로드하세요.")
 
 
 if __name__ == "__main__":

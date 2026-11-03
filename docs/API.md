@@ -174,7 +174,9 @@
       "coverImageUrl": "https://<public-base-url>/yeobaek/book-covers/550e8400-e29b-41d4-a716-446655440000.jpg",
       "publisher": "자체 제작",
       "publishedYear": 1924,
-      "passageCount": 312
+      "passageCount": 312,
+      "category": "비극",
+      "hashtags": ["엇갈린하루", "가족"]
     }
   ]
 }
@@ -195,6 +197,8 @@
   "passageCount": 312,
   "description": null,
   "pageCount": 28,
+  "category": "비극",
+  "hashtags": ["엇갈린하루", "가족"],
   "chapters": [
     { "chapterId": 1, "title": "1장", "sequence": 1, "startPassageSequence": 1, "endPassageSequence": 105 }
   ]
@@ -205,6 +209,10 @@
 - 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
 - `description`: 책 소개. 없으면 `null`이며 클라이언트는 소개 영역을 생략한다.
+- `category`: 책당 하나의 자유 입력 장르. 없으면 `null`이다.
+- `hashtags`: 입력 순서를 보존한 문자열 배열. 없으면 `[]`이다. 도서 목록·상세, 공개방·모임의 책 정보,
+  관리자 도서 목록에 같은 필드를 추가하며 기존 필드·타입은 유지한다. 기존 클라이언트는 추가 필드를 무시할 수 있어
+  별도 v2나 기존 API deprecated 처리는 하지 않는다.
 - `pageCount`: 본문을 700자당 1쪽으로 환산하여 올림한 정수. 실제 종이책 쪽수가 아니다.
   문단의 문장을 순서대로 합친 뒤 NFC 정규화하고 Unicode 코드 포인트를 센다. 공백·문장부호는 포함하고
   CR/LF/탭과 제목·목차·소개는 제외한다. 책 전체를 합산한 뒤 한 번만 올림한다.
@@ -908,6 +916,8 @@
   "publishedYear": 1924,
   "coverImageKey": "550e8400-e29b-41d4-a716-446655440000",
   "description": null,
+  "category": "비극",
+  "hashtags": ["엇갈린하루", "가족"],
   "authors": [
     { "name": "현진건", "isni": "0000 0001 2345 964X" },
     { "authorId": 12 }
@@ -929,6 +939,11 @@
 ```
 
 필드 규칙:
+- `category`: 선택 문자열. 생략·`null`·빈 문자열은 장르 없음으로 처리한다. 정해진 허용 목록은 없다.
+- `hashtags`: 선택 문자열 배열. 생략·`null`·빈 배열은 태그 없음으로 처리한다. 최대 5개이며 각 문구는
+  Unicode 코드 포인트 기준 최대 10자다. 개수·길이 초과 또는 null 원소는 `400` (`INVALID_REQUEST`)으로 거절한다.
+  서버는 `#` 검사·제거, 앞뒤 공백 제거, 중복 제거, 정렬을 하지 않고 입력을 그대로 보존한다.
+  새 번역 산출물은 두 필드를 모두 작성하며, `#` 없는 태그 생성과 자연스러움은 번역 하네스에서 검수한다.
 - `description`: 선택 문자열. 생략·`null`은 소개 없음으로 처리한다. 빈 문자열이나 공백만 있는 값은
   `400` (`INVALID_REQUEST`)으로 거부한다. 유효한 소개는 앞뒤 공백만 제거하고 내부 개행을 보존한다.
   기존 ZIP의 JSON에 소개가 없어도 등록할 수 있다.
@@ -970,6 +985,27 @@
 ```
 
 표지 키를 생략하거나 `null`로 보내면 `coverImageUrl`도 `null`이다.
+
+### 도서 장르·해시태그 교체 및 비우기
+`PUT /api/admin/books/{bookId}/category`
+
+```json
+{ "category": "비극" }
+```
+
+`PUT /api/admin/books/{bookId}/hashtags`
+
+```json
+{ "hashtags": ["첫사랑", "파국예감"] }
+```
+
+- 관리자 토큰 인증, 성공 응답 `204 No Content`다. 장르와 해시태그는 서로 독립적으로 수정한다.
+- 해시태그는 최종 목록 전체로 교체한다. 입력 순서·중복·기호는 그대로 보존한다.
+- 장르는 `null` 또는 `""`, 해시태그는 `null` 또는 `[]`로 저장하면 해당 정보가 제거된다.
+  별도 DELETE API나 태그별 추가·삭제 API는 제공하지 않는다.
+- 수정 요청에는 해당 필드가 있어야 한다. `{}`처럼 필드를 생략한 요청은 `400` (`INVALID_REQUEST`)이다.
+- 해시태그는 업로드와 동일한 5개·10자 제한을 적용하며 초과 요청은 저장 전에 `400` (`INVALID_REQUEST`)으로 거절한다.
+- 존재하지 않는 도서: `400` (`BOOK_NOT_FOUND`). 삭제된 도서: `400` (`BOOK_NOT_AVAILABLE`).
 
 ### 도서 소개 교체
 `PUT /api/admin/books/{bookId}/description`
@@ -1031,7 +1067,9 @@
       "passageCount": 30,
       "coverImageUrl": null,
       "status": "ACTIVE",
-      "description": null
+      "description": null,
+      "category": null,
+      "hashtags": []
     }
   ]
 }
@@ -1045,6 +1083,7 @@
 - 미업로드 도서 관리, 보유 목록과의 자동 대조, 별도 CSV 다운로드 API는 제공하지 않는다.
 
 - `description`은 현재 책 소개이며 없으면 `null`이다. 삭제 도서의 소개도 조회할 수 있지만 수정할 수 없다.
+- `category`는 없으면 `null`, `hashtags`는 없으면 `[]`이다. 삭제 도서는 메타데이터를 조회할 수 있지만 수정할 수 없다.
 
 ### 작가 목록 조회 (업로드 전 기존 작가 확인용)
 `GET /api/admin/authors`
@@ -1174,6 +1213,8 @@
 | POST | /api/admin/book-covers/upload-url | (관리자) S3 표지 업로드 URL 발급 |
 | POST | /api/admin/books | (관리자) 도서 업로드 |
 | GET | /api/admin/books | (관리자) 업로드된 전체 도서 목록 조회 |
+| PUT | /api/admin/books/{bookId}/category | (관리자) 장르 교체·빈 값 저장으로 제거 |
+| PUT | /api/admin/books/{bookId}/hashtags | (관리자) 해시태그 목록 전체 교체·빈 값 저장으로 제거 |
 | PUT | /api/admin/books/{bookId}/description | (관리자) 도서 소개 교체 |
 | DELETE | /api/admin/books/{bookId}/description | (관리자) 도서 소개 제거 |
 | PUT | /api/admin/books/{bookId}/cover | (관리자) 기존 도서 표지 교체 |

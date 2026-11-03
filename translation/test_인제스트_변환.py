@@ -17,6 +17,7 @@ from 인제스트_변환 import (
     MAX_SENTENCE_CONTENT_BYTES,
     create_archive,
     normalize_description,
+    validate_discovery_metadata,
     validate_introduction,
     estimate_tokens,
     parse_original,
@@ -162,7 +163,7 @@ class LegacyIngestNormalizationTests(unittest.TestCase):
                 with self.assertRaisesRegex(LegacyNormalizationError, expected):
                     normalize_legacy_book(book)
 
-    def test_metadata_file_replaces_only_bibliographic_fields(self):
+    def test_metadata_file_replaces_book_metadata_without_touching_body(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "ingest.json"
             output = Path(tmp) / "normalized.json"
@@ -175,6 +176,8 @@ class LegacyIngestNormalizationTests(unittest.TestCase):
                 "publisher": "현재 출판사",
                 "publishedYear": 2027,
                 "authors": [{"name": "현재 작가", "isni": "0000000121441305"}],
+                "category": "비극",
+                "hashtags": ["선택의대가", "파국예감"],
                 "chapters": [{"title": "메타데이터 본문은 적용하면 안 됨", "passages": []}],
                 "unrelated": "적용하지 않음",
             }
@@ -191,6 +194,8 @@ class LegacyIngestNormalizationTests(unittest.TestCase):
             self.assertEqual(normalized["publisher"], "현재 출판사")
             self.assertEqual(normalized["publishedYear"], 2027)
             self.assertEqual(normalized["authors"], metadata["authors"])
+            self.assertEqual(normalized["category"], metadata["category"])
+            self.assertEqual(normalized["hashtags"], metadata["hashtags"])
             self.assertEqual(normalized["chapters"][0]["title"], "첫째")
             self.assertNotIn("unrelated", normalized)
             rejoined = "".join(
@@ -635,6 +640,8 @@ class CreateArchiveCoverTests(unittest.TestCase):
             "publisher": "테스트 출판사",
             "publishedYear": 2026,
             "authors": [{"name": "테스트 작가", "isni": "0000000121441305"}],
+            "category": "비극",
+            "hashtags": ["선택의대가", "관계맛집"],
         }
         original.write_text(
             "*** START OF THE PROJECT GUTENBERG EBOOK TEST ***\n\n"
@@ -662,7 +669,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
         return original, translation, meta_path, meta
 
     @staticmethod
-    def _run_conversion(book_dir, original, translation, meta_path):
+    def _run_conversion(book_dir, original, translation, meta_path, extra_args=()):
         return subprocess.run(
             [
                 sys.executable,
@@ -672,6 +679,7 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 str(original),
                 "--meta",
                 str(meta_path),
+                *extra_args,
             ],
             cwd=book_dir,
             capture_output=True,
@@ -698,6 +706,34 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 result = self._run_conversion(book_dir, original, translation, meta_path)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("소개 검증 실패", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"existing ingest")
+                self.assertEqual(archive.read_bytes(), b"existing zip")
+
+    def test_final_discovery_metadata_is_required_before_outputs_are_replaced(self):
+        invalid_values = [
+            {"category": None},
+            {"category": "  "},
+            {"hashtags": None},
+            {"hashtags": []},
+            {"hashtags": [""]},
+            {"hashtags": ["#첫사랑"]},
+            {"hashtags": ["태그"] * 6},
+            {"hashtags": ["가"] * 4 + ["나" * 11]},
+        ]
+        for invalid in invalid_values:
+            with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as tmp:
+                book_dir = Path(tmp)
+                original, translation, meta_path, meta = self._write_book_inputs(book_dir, "탐색 정보")
+                meta.update(invalid)
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+                ingest = book_dir / "ingest.json"
+                archive = book_dir / "탐색_정보.zip"
+                ingest.write_bytes(b"existing ingest")
+                archive.write_bytes(b"existing zip")
+
+                result = self._run_conversion(book_dir, original, translation, meta_path, ("--force",))
+
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertEqual(ingest.read_bytes(), b"existing ingest")
                 self.assertEqual(archive.read_bytes(), b"existing zip")
 
@@ -1109,6 +1145,8 @@ class CreateArchiveCoverTests(unittest.TestCase):
             ingest_path = book_dir / "ingest.json"
             self.assertTrue(ingest_path.is_file())
             ingest = json.loads(ingest_path.read_text(encoding="utf-8"))
+            self.assertEqual(ingest["category"], meta["category"])
+            self.assertEqual(ingest["hashtags"], meta["hashtags"])
             passage = ingest["chapters"][0]["passages"][0]
             self.assertEqual(passage, {"sentences": [{"content": "첫 문단."}]})
             self.assertEqual(
@@ -1123,6 +1161,9 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 names = set(archive.namelist())
                 archived_original = archive.read(f"원문/{original.name}")
                 self.assertEqual(json.loads(archive.read("ingest.json")), ingest)
+                archived_meta = json.loads(archive.read("메타데이터.json"))
+                self.assertEqual(archived_meta["category"], ingest["category"])
+                self.assertEqual(archived_meta["hashtags"], ingest["hashtags"])
                 self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
             self.assertEqual(archived_original, original.read_bytes())
             self.assertIn("표지/A.png", names)
@@ -1158,6 +1199,46 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 self.assertIn("책_소개.txt", archive.namelist())
                 self.assertIn("산출물/ingest.json", archive.namelist())
             self.assertIn("표지/표지_검수.json", names)
+
+
+class DiscoveryMetadataTests(unittest.TestCase):
+    def test_legacy_metadata_accepts_missing_null_and_empty_values(self):
+        for values in ({}, {"category": None, "hashtags": None}, {"category": "", "hashtags": []}):
+            with self.subTest(values=values):
+                book = LegacyIngestNormalizationTests._legacy_book()
+                book.update(values)
+                normalize_legacy_book(book)
+                for field, value in values.items():
+                    self.assertEqual(book[field], value)
+
+    def test_preserves_genre_tag_order_duplicates_and_hash_without_normalization(self):
+        values = {"category": "  자유 장르  ", "hashtags": ["#첫사랑", "오해", "오해"]}
+        self.assertEqual(validate_discovery_metadata(values), [])
+        self.assertEqual(values, {"category": "  자유 장르  ", "hashtags": ["#첫사랑", "오해", "오해"]})
+
+    def test_count_and_unicode_codepoint_length_boundaries(self):
+        self.assertEqual(validate_discovery_metadata({"hashtags": ["😀" * 10] * 5}), [])
+        for values, expected in (({"hashtags": ["태그"] * 6}, "최대 5개"),
+                                 ({"hashtags": ["😀" * 11]}, "최대 10자")):
+            with self.subTest(values=values):
+                self.assertTrue(any(expected in error for error in validate_discovery_metadata(values)))
+
+    def test_rejects_invalid_json_types(self):
+        for values in ({"category": []}, {"category": False}, {"hashtags": "첫사랑"},
+                       {"hashtags": [None]}, {"hashtags": [1]}):
+            with self.subTest(values=values):
+                self.assertTrue(validate_discovery_metadata(values))
+
+    def test_final_requiredness_is_separate_from_legacy_acceptance(self):
+        for values in ({}, {"category": None, "hashtags": None},
+                       {"category": "비극", "hashtags": []},
+                       {"category": "비극", "hashtags": ["#첫사랑"]}):
+            with self.subTest(values=values):
+                self.assertTrue(validate_discovery_metadata(values, required=True))
+        for tags in (["선택의대가"], ["선택의대가", "파국예감"]):
+            with self.subTest(tags=tags):
+                self.assertEqual(validate_discovery_metadata(
+                    {"category": "비극", "hashtags": tags}, required=True), [])
 
 
 class BookDescriptionTests(unittest.TestCase):

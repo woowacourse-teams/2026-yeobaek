@@ -14,11 +14,21 @@ public record AdminBookResponse(
         @Schema(description = "본문 수") int passageCount,
         @Schema(description = "표지 이미지 공개 URL", nullable = true) String coverImageUrl,
         @Schema(description = "도서 상태", allowableValues = {"ACTIVE", "DELETED"}) BookStatus status,
-        @Schema(description = "책 소개", nullable = true) String description
+        @Schema(description = "책 소개", nullable = true) String description,
+        @Schema(description = "장르", nullable = true) String category,
+        @Schema(description = "해시태그 목록") List<String> hashtags
 ) {
+
+    public AdminBookResponse(Long bookId, String title, List<AdminBookAuthorResponse> authors, String publisher,
+                             Integer publishedYear, int passageCount, String coverImageUrl, BookStatus status,
+                             String description) {
+        this(bookId, title, authors, publisher, publishedYear, passageCount, coverImageUrl, status, description,
+                null, List.of());
+    }
 
     public AdminBookResponse {
         authors = List.copyOf(authors);
+        hashtags = List.copyOf(hashtags);
     }
 
     public static AdminBookResponse of(
@@ -35,6 +45,7 @@ public record AdminBookResponse(
                 book.getPassageCount().value(),
                 coverImageUrl,
                 book.getStatus(),
-                book.getDescription() == null ? null : book.getDescription().value());
+                book.getDescription() == null ? null : book.getDescription().value(),
+                book.getCategory(), book.hashtagValues());
     }
 }

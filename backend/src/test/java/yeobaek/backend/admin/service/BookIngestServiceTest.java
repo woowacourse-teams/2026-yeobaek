@@ -21,6 +21,7 @@ import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookDescription;
+import yeobaek.backend.book.domain.vo.BookHashtags;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
@@ -63,6 +64,24 @@ class BookIngestServiceTest extends IntegrationTest {
 
     @Autowired
     private PublicRoomRepository publicRoomRepository;
+
+    @Test
+    @DisplayName("인제스트의 장르와 해시태그를 함께 저장하고 과거 입력은 부재로 유지한다")
+    void uploadStoresOptionalMetadata() {
+        var tags = new BookHashtags(List.of("첫사랑", "#반전", "첫사랑"));
+        var response = bookIngestService.upload(new BookUploadRequest(new BookTitle("메타데이터 도서"), null,
+                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null, "비극", tags));
+
+        Book stored = bookRepository.getById(response.bookId());
+        assertThat(stored.getCategory()).isEqualTo("비극");
+        assertThat(stored.getHashtags()).isEqualTo(tags);
+
+        var legacyResponse = bookIngestService.upload(new BookUploadRequest(new BookTitle("과거 인제스트"), null,
+                null, null, authorsOfUnknown(), chaptersWithOnePassage(), null));
+        Book legacy = bookRepository.getById(legacyResponse.bookId());
+        assertThat(legacy.getCategory()).isNull();
+        assertThat(legacy.hashtagValues()).isEmpty();
+    }
 
     @Test
     @DisplayName("업로드한 책의 본문 글자 수를 저장한다")
