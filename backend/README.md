@@ -102,7 +102,7 @@ java gradle/WorktreeGradleLockVerification.java
 Hibernate `create`/`create-drop`으로 스키마 생성을 우회하지 않습니다.
 
 닉네임 유일성 제약은 V7로 추가한다. 기존 DB에 적용하기 전에
-[닉네임 유일성 제약 적용 안내](docs/migrations/member-nickname-uniqueness.md)의 중복 확인 절차를 따른다.
+[배포 가이드의 V7 적용 절차](docs/배포_가이드.md#v7-닉네임-유일성-제약-적용)의 중복 확인 절차를 따른다.
 
 알림 등록 테이블은 `db/migration/V3__create_notification_registrations.sql`로 생성합니다.
 앱 기동 시 Flyway가 미적용 버전을 순서대로 실행하며, 적용 결과는 기동 로그와
