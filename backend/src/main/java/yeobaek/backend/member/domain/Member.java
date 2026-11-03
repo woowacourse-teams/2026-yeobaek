@@ -8,13 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import yeobaek.backend.member.domain.vo.Nickname;
 
 @Entity
-@Table(name = "members")
+@Table(name = "members", uniqueConstraints = @UniqueConstraint(name = "uk_members_nickname", columnNames = "nickname"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member {
@@ -36,5 +37,12 @@ public class Member {
 
     public String getNickname() {
         return nickname.value();
+    }
+
+    public void changeNickname(Nickname nickname) {
+        if (nickname == null) {
+            throw new IllegalArgumentException("닉네임은 필수입니다.");
+        }
+        this.nickname = nickname;
     }
 }

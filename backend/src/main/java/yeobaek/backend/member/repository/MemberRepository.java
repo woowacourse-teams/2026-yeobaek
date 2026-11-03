@@ -9,4 +9,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("select (count(m) > 0) from Member m where m.nickname.value = :nickname")
     boolean existsByNickname(@Param("nickname") String nickname);
+
+    @Query("select (count(m) > 0) from Member m where m.nickname.value = :nickname and m.id <> :memberId")
+    boolean existsByNicknameExcludingMember(@Param("nickname") String nickname, @Param("memberId") Long memberId);
 }

@@ -20,6 +20,8 @@ class ValueObjectOpenApiTest extends IntegrationTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.components.schemas.MemberCreateRequest.properties.nickname.type").value("string"))
+                .andExpect(jsonPath("$.components.schemas.MemberNicknameUpdateRequest.properties.nickname.type")
+                        .value("string"))
                 .andExpect(jsonPath("$.components.schemas.ClubCreateRequest.properties.name.type").value("string"))
                 .andExpect(jsonPath("$.components.schemas.ClubJoinRequest.properties.joinCode.type").value("string"))
                 .andExpect(jsonPath("$.components.schemas.CommentCreateRequest.properties.content.type").value("string"))

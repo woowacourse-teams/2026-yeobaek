@@ -21,6 +21,25 @@ class MemberTest {
         assertThat(new Member(new Nickname("가".repeat(20))).getNickname()).hasSize(20);
     }
 
+    @Test
+    @DisplayName("닉네임을 변경할 수 있다")
+    void changeNickname() {
+        Member member = new Member(new Nickname("왓슨"));
+
+        member.changeNickname(new Nickname("새닉네임"));
+
+        assertThat(member.getNickname()).isEqualTo("새닉네임");
+    }
+
+    @Test
+    @DisplayName("null로 닉네임을 변경하면 기존 닉네임을 유지한다")
+    void rejectNullNicknameOnChange() {
+        Member member = new Member(new Nickname("왓슨"));
+
+        assertThatThrownBy(() -> member.changeNickname(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(member.getNickname()).isEqualTo("왓슨");
+    }
+
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", " ", "   "})

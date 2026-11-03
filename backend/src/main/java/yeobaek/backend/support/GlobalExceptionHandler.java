@@ -4,8 +4,10 @@ import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 
 import java.util.Map;
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -91,6 +93,23 @@ public class GlobalExceptionHandler {
         logExpected("exception.handleUnauthorized", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException violation
+                    && ("uk_members_nickname".equals(violation.getConstraintName())
+                    || "members.uk_members_nickname".equals(violation.getConstraintName()))) {
+                logExpected("exception.handleDataIntegrityViolation", ErrorCode.INVALID_REQUEST,
+                        Map.of("reason", "duplicate_nickname"));
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "이미 사용 중인 닉네임입니다."));
+            }
+            cause = cause.getCause();
+        }
+        return handleException(e);
     }
 
     @ExceptionHandler(Exception.class)

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,8 +22,12 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
+import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.InvalidRequestException;
+import yeobaek.backend.support.NotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class MemberServiceUnitTest {
@@ -66,6 +71,43 @@ class MemberServiceUnitTest {
                 .hasMessage("이미 사용 중인 닉네임입니다.");
 
         verify(memberRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ID로 조회한 회원의 닉네임을 변경하고 응답한다")
+    void updateNickname() {
+        Member member = new Member(new Nickname("기존닉네임"));
+        ReflectionTestUtils.setField(member, "id", 7L);
+        given(memberRepository.findById(7L)).willReturn(Optional.of(member));
+
+        MemberNicknameUpdateResponse response = memberService.updateNickname(7L, new Nickname("새닉네임"));
+
+        assertThat(response).isEqualTo(new MemberNicknameUpdateResponse(7L, "새닉네임"));
+        assertThat(member.getNickname()).isEqualTo("새닉네임");
+        verify(memberRepository).existsByNicknameExcludingMember("새닉네임", 7L);
+    }
+
+    @Test
+    @DisplayName("다른 회원과 중복되는 닉네임으로 변경하지 않는다")
+    void rejectDuplicateNicknameOnUpdate() {
+        Member member = new Member(new Nickname("기존닉네임"));
+        given(memberRepository.findById(7L)).willReturn(Optional.of(member));
+        given(memberRepository.existsByNicknameExcludingMember("중복닉네임", 7L)).willReturn(true);
+
+        assertThatThrownBy(() -> memberService.updateNickname(7L, new Nickname("중복닉네임")))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessage("이미 사용 중인 닉네임입니다.");
+        assertThat(member.getNickname()).isEqualTo("기존닉네임");
+    }
+
+    @Test
+    @DisplayName("변경할 회원이 없으면 MEMBER_NOT_FOUND로 거절한다")
+    void rejectMissingMemberOnUpdate() {
+        given(memberRepository.findById(7L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> memberService.updateNickname(7L, new Nickname("새닉네임")))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
     }
 
     @Test

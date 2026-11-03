@@ -4,8 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.sql.SQLException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
 
@@ -59,6 +64,36 @@ class GlobalExceptionHandlerTest {
                         "BOOK_NOT_AVAILABLE", body.code(), "이용 불가 도서의 개별 코드를 반환해야 한다"),
                 () -> assertEquals(
                         "더 이상 이용할 수 없는 도서입니다.", body.message(), "이용 불가 안내 메시지를 반환해야 한다"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"uk_members_nickname", "members.uk_members_nickname"})
+    @DisplayName("닉네임 유일성 제약 충돌을 400과 기존 중복 메시지로 변환한다")
+    void handleDuplicateNickname(String constraintName) {
+        var violation = new ConstraintViolationException("duplicate", new SQLException("duplicate"), constraintName);
+        var exception = new DataIntegrityViolationException("저장 실패", violation);
+
+        var response = handler.handleDataIntegrityViolation(exception);
+        var body = response.getBody();
+
+        assertNotNull(body, "닉네임 중복 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode(), "닉네임 중복은 400이어야 한다"),
+                () -> assertEquals("INVALID_REQUEST", body.code(), "기존 잘못된 요청 코드를 반환해야 한다"),
+                () -> assertEquals("이미 사용 중인 닉네임입니다.", body.message(), "기존 중복 안내를 반환해야 한다"));
+    }
+
+    @Test
+    @DisplayName("다른 DB 제약 위반은 닉네임 중복으로 오인하지 않는다")
+    void handleOtherConstraintViolation() {
+        var violation = new ConstraintViolationException("foreign key", new SQLException("foreign key"), "fk_other");
+        var exception = new DataIntegrityViolationException("다른 무결성 오류", violation);
+
+        var response = handler.handleDataIntegrityViolation(exception);
+
+        assertNotNull(response.getBody(), "무결성 오류 응답에는 본문이 있어야 한다");
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode(), "다른 무결성 오류는 500이어야 한다");
+        assertEquals("INTERNAL_ERROR", response.getBody().code(), "다른 무결성 오류를 닉네임 중복으로 처리하면 안 된다");
     }
 
     @Test

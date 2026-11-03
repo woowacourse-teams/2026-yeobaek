@@ -16,9 +16,12 @@ import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.dto.MemberCreateResponse;
+import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
+import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.InvalidRequestException;
+import yeobaek.backend.support.NotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +48,18 @@ public class MemberService {
         log.atInfo().addKeyValue(OPERATION, "member.create").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CREATED_MEMBER_ID, savedMember.getId()).log("회원을 생성했습니다.");
         return response;
+    }
+
+    @Transactional
+    public MemberNicknameUpdateResponse updateNickname(Long memberId, Nickname nickname) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.MEMBER_NOT_FOUND, "회원이 존재하지 않습니다."));
+        if (memberRepository.existsByNicknameExcludingMember(nickname.value(), memberId)) {
+            throw new InvalidRequestException(
+                    "이미 사용 중인 닉네임입니다.", Map.of(REASON, "duplicate_nickname"));
+        }
+        member.changeNickname(nickname);
+        return new MemberNicknameUpdateResponse(member.getId(), member.getNickname());
     }
 
     @Transactional
