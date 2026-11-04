@@ -27,5 +27,8 @@ struct ContentView: View {
     var body: some View {
         ComposeView(appContainer: appContainer)
             .ignoresSafeArea()
+            .onOpenURL { url in
+                appContainer.onInvitationOpened(uri: url.absoluteString)
+            }
     }
 }

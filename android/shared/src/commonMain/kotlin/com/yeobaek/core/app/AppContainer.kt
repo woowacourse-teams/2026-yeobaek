@@ -189,6 +189,10 @@ class AppContainer(
         notifications.onOpened(data)
     }
 
+    fun onInvitationOpened(uri: String) {
+        invitations.open(uri)
+    }
+
     fun close() {
         applicationScope.cancel()
         appConfigScope.cancel()
