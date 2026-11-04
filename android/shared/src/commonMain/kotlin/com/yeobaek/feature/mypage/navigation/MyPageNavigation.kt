@@ -37,6 +37,7 @@ fun NavGraphBuilder.myPageNavGraph(
     navigateToGuide: (Boolean) -> Unit,
     navigateToNotificationSettings: () -> Unit,
     navigateToNicknameChange: () -> Unit,
+    navigateBack: () -> Unit,
 ) {
     composable<MyPage> { entry ->
         TrackScreen(
@@ -70,6 +71,9 @@ fun NavGraphBuilder.myPageNavGraph(
             },
             navigateToNotificationSettings = navigateToNotificationSettings,
             navigateToNicknameChange = navigateToNicknameChange,
+            onBackClick = {
+                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) navigateBack()
+            },
             nicknameChanged = changedNickname != null,
             onNicknameChangeMessageShown = {
                 entry.savedStateHandle[MY_PAGE_NICKNAME_CHANGED_KEY] = null

@@ -1,4 +1,5 @@
 <resources>
+    <string name="mypage_back">뒤로가기</string>
     <string name="nickname_change_title">닉네임 변경</string>
     <string name="nickname_change_heading">새 닉네임을 입력해주세요</string>
     <string name="nickname_change_description">모임과 댓글에서 다른 사람에게 보이는 이름이에요.</string>

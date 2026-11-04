@@ -97,6 +97,7 @@ class NicknameChangeUiTest {
                             navigateToNickname = {},
                             navigateToGuide = {},
                             navigateToNotificationSettings = {},
+                            onBackClick = {},
                             navigateToNicknameChange = { editing = true },
                             nicknameChanged = showSuccess,
                             onNicknameChangeMessageShown = { showSuccess = false },

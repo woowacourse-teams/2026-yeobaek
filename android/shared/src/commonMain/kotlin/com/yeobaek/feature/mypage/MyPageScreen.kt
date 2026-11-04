@@ -1,9 +1,11 @@
 package com.yeobaek.feature.mypage
 
 import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_back_arrow
 import android.shared.generated.resources.ic_guide
 import android.shared.generated.resources.ic_notification
 import android.shared.generated.resources.ic_user_delete
+import android.shared.generated.resources.mypage_back
 import android.shared.generated.resources.nickname_change_profile_button
 import android.shared.generated.resources.nickname_change_success
 import androidx.compose.foundation.BorderStroke
@@ -25,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -55,6 +59,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import com.yeobaek.feature.mypage.component.MyPageFeatureCard
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -66,6 +71,7 @@ fun MyPageScreen(
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
     navigateToNotificationSettings: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     navigateToNicknameChange: () -> Unit = {},
     nicknameChanged: Boolean = false,
@@ -110,6 +116,15 @@ fun MyPageScreen(
                         style = MaterialTheme.typography.titleLarge,
                         color = YeobaekTextStrong,
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_back_arrow),
+                            contentDescription = stringResource(Res.string.mypage_back),
+                            modifier = Modifier.size(SettingsTokens.MenuIconSize),
+                        )
+                    }
                 },
                 expandedHeight = SettingsTokens.ToolbarHeight,
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -242,6 +257,7 @@ private fun MyPageScreenPreview() {
             navigateToNickname = {},
             navigateToGuide = {},
             navigateToNotificationSettings = {},
+            onBackClick = {},
         )
     }
 }

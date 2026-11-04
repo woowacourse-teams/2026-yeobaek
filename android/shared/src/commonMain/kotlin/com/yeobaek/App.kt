@@ -279,6 +279,7 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
+                navigateBack = { navController.popBackStack() },
                 navigateToNicknameChange = { navController.navigateToNicknameChange() },
                 navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
