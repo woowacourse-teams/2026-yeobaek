@@ -61,6 +61,7 @@ fun NavGraphBuilder.joinNavGraph(
                 groupRepository = appContainer.groupRepository,
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
+                onJoiningChanged = { joining -> appContainer.invitations.setJoining(backStackEntry.id, joining) },
             ),
         )
 
@@ -87,6 +88,7 @@ fun NavGraphBuilder.joinNavGraph(
                         entryPoint = entryPoint,
                     ),
                 )
+                appContainer.invitations.cancelPending()
                 navigateToBack()
             },
             onJoinClick = {

@@ -26,6 +26,7 @@ class JoinViewModel(
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
     savedStateHandle: SavedStateHandle,
+    private val onJoiningChanged: (Boolean) -> Unit,
 ) : ViewModel() {
 
     private val input = JoinInputState(savedStateHandle)
@@ -39,6 +40,7 @@ class JoinViewModel(
 
     fun joinGroup() {
         val code = input.beginJoin() ?: return
+        onJoiningChanged(true)
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = crashContext(CrashOperation.GROUP_JOIN_STARTED),
@@ -65,8 +67,14 @@ class JoinViewModel(
                 )
                 analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE, entryPoint = entryPoint))
                 input.finishJoin(success = false)
+            } finally {
+                if (!uiState.successJoin) onJoiningChanged(false)
             }
         }
+    }
+
+    override fun onCleared() {
+        onJoiningChanged(false)
     }
 
     companion object {
@@ -75,6 +83,7 @@ class JoinViewModel(
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
+            onJoiningChanged: (Boolean) -> Unit = {},
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
@@ -83,6 +92,7 @@ class JoinViewModel(
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
                     savedStateHandle = createSavedStateHandle(),
+                    onJoiningChanged = onJoiningChanged,
                 )
             }
         }

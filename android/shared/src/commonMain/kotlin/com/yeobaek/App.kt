@@ -55,6 +55,7 @@ fun App(
     appContainer: AppContainer,
 ) {
     YeobaekTheme {
+        val invitations = rememberInvitations(appContainer.invitations)
         val startup = appContainer.appConfigStartup
         val isReady by startup.isReady.collectAsState()
 
@@ -300,6 +301,12 @@ fun App(
             notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
         }
 
+        InvitationEffects(
+            navController = navController,
+            invitations = invitations,
+            userId = appContainer.userPreferences.userId,
+            isGuideFinished = appContainer.guideOnboardingPreferences::getGuideState,
+        )
         NotificationEffects(
             navController = navController,
             notifications = appContainer.notifications,
