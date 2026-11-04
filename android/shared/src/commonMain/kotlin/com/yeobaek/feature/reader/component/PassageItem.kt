@@ -28,6 +28,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekHighlight
 import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.designsystem.theme.YeobaekUnderline
+import com.yeobaek.feature.reader.ReaderPassageText
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 
@@ -37,8 +38,10 @@ fun PassageItem(
     fontSize: Int,
     onSentenceClick: (SentenceUiModel) -> Unit,
     modifier: Modifier = Modifier,
+    onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
     val currentOnSentenceClick by rememberUpdatedState(onSentenceClick)
+    val currentOnTextLayout by rememberUpdatedState(onTextLayout)
     val underlineOffset = 6.dp
     val passageTextStyle = MaterialTheme.typography.bodyLarge.copy(
         fontFamily = YeobaekMaruBuri,
@@ -47,9 +50,10 @@ fun PassageItem(
         letterSpacing = 1.sp,
     )
     val (passageText, underlineTextRanges) = remember(passage.sentences) {
+        val readerText = ReaderPassageText(passage.sentences)
         val commentedSentenceRanges = mutableListOf<TextRange>()
         val text = buildAnnotatedString {
-            passage.sentences.forEach { sentence ->
+            passage.sentences.forEachIndexed { index, sentence ->
                 val sentenceStart = length
                 withLink(
                     LinkAnnotation.Clickable(
@@ -64,7 +68,8 @@ fun PassageItem(
                         },
                     ),
                 ) {
-                    append(sentence.content.allowCharacterBreaks())
+                    val range = readerText.sentenceRanges[index]
+                    append(readerText.text, range.start, range.end)
                 }
 
                 if (sentence.hasComment && sentenceStart < length) {
@@ -87,6 +92,7 @@ fun PassageItem(
         text = passageText,
         onTextLayout = { result ->
             textLayoutResult = result
+            currentOnTextLayout(result)
         },
         modifier = modifier
             .fillMaxWidth()
@@ -162,17 +168,6 @@ internal fun String.underlineRangeOf(range: TextRange): TextRange? {
 }
 
 private fun Char.isWhitespaceOrZeroWidthSpace(): Boolean = isWhitespace() || this == '\u200B'
-
-private fun String.allowCharacterBreaks(): String =
-    buildString {
-        this@allowCharacterBreaks.forEach { character ->
-            append(character)
-
-            if (!character.isWhitespace()) {
-                append('\u200B')
-            }
-        }
-    }
 
 @Preview(showBackground = true)
 @Composable
