@@ -16,10 +16,10 @@ public class ClubJoinNotificationService {
     private final ClubJoinNotificationRecipientQueryRepository recipientQueryRepository;
 
     public void notifyMembers(ClubMemberJoinedEvent event) {
-        notificationService.notifyRecipients(NotificationType.CLUB_JOIN, event.clubId(), event.joinedAt(),
-                () -> registrationService.findByMemberIds(
+        notificationService.notifyRecipients(NotificationType.CLUB_JOIN, event.clubId(), event.clubId(), event.joinedAt(),
+                () -> registrationService.findByMemberIdsForClub(
                         recipientQueryRepository.findRecipientMemberIds(event.clubId(), event.memberId()),
-                        NotificationType.CLUB_JOIN),
+                        NotificationType.CLUB_JOIN, event.clubId()),
                 "새로운 모임원이 참여했어요!", "모임에서 함께 이야기를 나눠 보세요.",
                 Map.of("type", "CLUB_JOIN", "clubId", event.clubId().toString(),
                         "memberId", event.memberId().toString()));

@@ -52,7 +52,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -85,7 +85,7 @@ class FlywayMigrationTest {
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
@@ -179,7 +179,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(4);
+        assertThat(result.migrationsExecuted).isEqualTo(5);
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
                 .containsExactly(1L, 3L);
         assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))
@@ -199,7 +199,7 @@ class FlywayMigrationTest {
         jdbc.update("INSERT INTO members (id, nickname) VALUES (40, 'Reader')");
 
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
-                .load().migrate();
+                .target("7").load().migrate();
 
         assertThat(result.migrationsExecuted).isEqualTo(1);
         assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("Reader");
@@ -220,6 +220,32 @@ class FlywayMigrationTest {
         assertThatThrownBy(flyway::migrate).isInstanceOf(FlywayException.class);
         assertThat(jdbc.queryForList("SELECT nickname FROM members ORDER BY id", String.class))
                 .containsExactly("Reader", "reader");
+    }
+
+    @Test
+    @DisplayName("V8은 기존 등록과 설정을 보존하고 모임 설정 행을 미리 생성하지 않아요")
+    void upgradeV7WithClubPreferences() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("7").load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO members (id, nickname) VALUES (40, '기존회원')");
+        jdbc.update("INSERT INTO clubs (id, name, join_code) VALUES (20, '기존모임', 'CLUB01')");
+        jdbc.update("INSERT INTO club_members (member_id, club_id) VALUES (40, 20)");
+        jdbc.update("INSERT INTO notification_registrations (id, member_id, fid, enabled) VALUES (1, 40, ?, FALSE)", FID);
+        jdbc.update("""
+                INSERT INTO notification_preferences (registration_id, notification_type, enabled, updated_at)
+                VALUES (1, 'CLUB_COMMENT', FALSE, CURRENT_TIMESTAMP(6))
+                """);
+
+        var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .load().migrate();
+
+        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notification_club_preferences", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT enabled FROM notification_registrations WHERE id = 1", Boolean.class))
+                .isFalse();
+        assertThat(jdbc.queryForObject("SELECT enabled FROM notification_preferences WHERE registration_id = 1",
+                Boolean.class)).isFalse();
     }
 
     private JdbcTemplate migrateWithMember() {

@@ -86,8 +86,11 @@ class CommentNotificationServiceTest {
         assertThat(notify(club)).isEmpty();
 
         var order = inOrder(registrations, query, sender, handler);
-        order.verify(registrations).findByMemberIds(any(),
-                eq(club ? NotificationType.CLUB_COMMENT : NotificationType.PUBLIC_ROOM_COMMENT));
+        if (club) {
+            order.verify(registrations).findByMemberIdsForClub(any(), eq(NotificationType.CLUB_COMMENT), eq(5L));
+        } else {
+            order.verify(registrations).findByMemberIds(any(), eq(NotificationType.PUBLIC_ROOM_COMMENT));
+        }
         order.verify(sender).send(fids, "새로운 댓글이 달렸어요!", "댓글을 남겼던 문장의 이야기를 확인해 보세요.", data(club));
         order.verify(handler).handle(eq(result), any(NotificationRegistrations.class));
     }
@@ -280,7 +283,7 @@ class CommentNotificationServiceTest {
     private void stubRecipients(boolean club, NotificationRegistrations snapshot) {
         if (club) {
             given(query.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L))).willReturn(List.of());
-            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
+            given(registrations.findByMemberIdsForClub(any(), any(), eq(5L))).willReturn(snapshot);
         } else {
             given(query.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L)).willReturn(List.of());
             given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);

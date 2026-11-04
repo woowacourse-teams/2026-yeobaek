@@ -234,7 +234,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         preferences.update(member.getId(), PHONE,
                 new NotificationPreferencesUpdateRequest(enabled, clubJoin, clubComment, publicRoomComment));
 
-        var snapshot = registrations.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE, type);
+        var snapshot = registrations.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE, type, null);
 
         assertThat(snapshot.firebaseInstallationIds()).isEmpty();
         assertThat(registrationRepository.findById(original.getId())).isPresent();
@@ -258,7 +258,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         statistics.setStatisticsEnabled(true);
         statistics.clear();
         try {
-            var snapshot = registrations.snapshotForRetry(List.of(original.getId(), tablet.getId()), PHONE, type);
+            var snapshot = registrations.snapshotForRetry(List.of(original.getId(), tablet.getId()), PHONE, type, null);
 
             assertThat(snapshot.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
             assertThat(snapshot.firebaseInstallationIds()).containsExactly(PHONE.value());

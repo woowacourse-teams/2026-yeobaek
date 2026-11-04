@@ -195,8 +195,10 @@ class CommentNotificationTransactionTest {
         given(recipientQueryRepository.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L)))
                 .willReturn(List.of(9L));
         String fid = "c" + "a".repeat(21);
-        given(registrationService.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(
-                new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid)))));
+        var snapshot = new NotificationRegistrations(List.of(
+                new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid))));
+        given(registrationService.findByMemberIds(any(), any())).willReturn(snapshot);
+        given(registrationService.findByMemberIdsForClub(any(), any(), eq(5L))).willReturn(snapshot);
 
         var room = mock(PublicRoom.class);
         given(room.isReading(sentence)).willReturn(true);
@@ -229,11 +231,13 @@ class CommentNotificationTransactionTest {
     void finishReadOnlyLookupBeforeSend(boolean club) throws Exception {
         var registration = new NotificationRegistration(
                 1L, mock(Member.class), new FirebaseInstallationId("c" + "a".repeat(21)));
-        doAnswer(invocation -> {
+        org.mockito.stubbing.Answer<NotificationRegistrations> lookup = invocation -> {
             assertThat(List.of(TransactionSynchronizationManager.isActualTransactionActive(),
                     TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
             return new NotificationRegistrations(List.of(registration));
-        }).when(registrationService).findByMemberIds(any(), any());
+        };
+        doAnswer(lookup).when(registrationService).findByMemberIds(any(), any());
+        doAnswer(lookup).when(registrationService).findByMemberIdsForClub(any(), any(), eq(5L));
         doAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return new FcmSendResult(1, List.of());
@@ -427,6 +431,8 @@ class CommentNotificationTransactionTest {
         String fid = "c" + "a".repeat(21);
         var registration = new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid));
         given(registrationService.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(registration)));
+        given(registrationService.findByMemberIdsForClub(any(), any(), eq(5L)))
+                .willReturn(new NotificationRegistrations(List.of(registration)));
         given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
                 .willReturn(List.of(9L));
         given(pushSender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(0, List.of(

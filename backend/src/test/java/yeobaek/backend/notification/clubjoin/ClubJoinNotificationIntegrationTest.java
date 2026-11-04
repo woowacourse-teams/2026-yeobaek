@@ -49,6 +49,8 @@ import yeobaek.backend.notification.registration.dto.NotificationPreferencesUpda
 import yeobaek.backend.notification.registration.dto.NotificationRegistrationRequest;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
+import yeobaek.backend.notification.registration.service.NotificationClubPreferencesService;
+import yeobaek.backend.notification.registration.dto.NotificationClubPreferenceUpdateRequest;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -58,6 +60,9 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     private static final String TABLET = "d" + "a".repeat(21);
     private static final String TITLE = "새로운 모임원이 참여했어요!";
     private static final String BODY = "모임에서 함께 이야기를 나눠 보세요.";
+
+    @Autowired
+    private NotificationClubPreferencesService clubPreferences;
 
     @Autowired
     private ClubService clubService;
@@ -95,6 +100,18 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
         joiner = members.save(new Member(new Nickname("입장자")));
         register(recipient, PHONE);
         given(sender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
+    }
+
+    @Test
+    @DisplayName("모임 입장 알림을 끈 설치만 제외하고 같은 회원의 다른 설치는 발송해요")
+    void applyClubPreferencePerInstallation() throws FirebaseMessagingException {
+        register(recipient, TABLET);
+        clubPreferences.update(recipient.getId(), new FirebaseInstallationId(PHONE), club.getId(),
+                new NotificationClubPreferenceUpdateRequest(false));
+
+        clubService.join(joiner.getId(), JOIN_CODE);
+
+        verify(sender).send(List.of(TABLET), TITLE, BODY, data());
     }
 
     @Test

@@ -34,7 +34,7 @@ public class FcmNotificationService {
     private final FcmRetryService retryService;
     private final PlatformTransactionManager transactionManager;
 
-    public void notifyRecipients(NotificationType type, Long sourceId, Instant createdAt,
+    public void notifyRecipients(NotificationType type, Long sourceId, Long clubId, Instant createdAt,
                                  Supplier<NotificationRegistrations> recipients,
                                  String title, String body, Map<String, String> data) {
         try {
@@ -42,7 +42,7 @@ public class FcmNotificationService {
             transaction.setReadOnly(true);
             NotificationRegistrations snapshot = transaction.execute(status -> recipients.get());
             // 수신자 조회 트랜잭션을 종료한 뒤 FCM을 호출해요.
-            List<FcmRetryTask> tasks = sendAndCreateRetryTasks(type, sourceId, createdAt, snapshot, title, body, data);
+            List<FcmRetryTask> tasks = sendAndCreateRetryTasks(type, sourceId, clubId, createdAt, snapshot, title, body, data);
             tasks.forEach(retryService::schedule);
             sourceLog(log.atInfo(), type, sourceId, "logRetryTasks")
                     .addKeyValue(RESULT, "success").addKeyValue("retryTaskCount", tasks.size())
@@ -59,7 +59,7 @@ public class FcmNotificationService {
     }
 
     private List<FcmRetryTask> sendAndCreateRetryTasks(
-            NotificationType type, Long sourceId, Instant createdAt, NotificationRegistrations snapshot,
+            NotificationType type, Long sourceId, Long clubId, Instant createdAt, NotificationRegistrations snapshot,
             String title, String body, Map<String, String> data) throws FirebaseMessagingException {
         List<String> fids = snapshot.firebaseInstallationIds();
         if (fids.isEmpty()) {
@@ -75,16 +75,16 @@ public class FcmNotificationService {
                 throw exception;
             }
             failureHandler.handleCallFailure(type, sourceId, exception);
-            return createCallRetryTasks(type, sourceId, createdAt, observedAt, failure, snapshot, title, body, data);
+            return createCallRetryTasks(type, sourceId, clubId, createdAt, observedAt, failure, snapshot, title, body, data);
         }
         // SDK의 개별 HTTP 수신 시각이 아니라 호출 결과를 확인한 시각이에요.
         Instant observedAt = Instant.now();
         failureHandler.handle(result, snapshot);
-        return createRetryTasks(type, sourceId, createdAt, observedAt, result, snapshot, title, body, data);
+        return createRetryTasks(type, sourceId, clubId, createdAt, observedAt, result, snapshot, title, body, data);
     }
 
     private List<FcmRetryTask> createRetryTasks(
-            NotificationType type, Long sourceId, Instant createdAt, Instant observedAt,
+            NotificationType type, Long sourceId, Long clubId, Instant createdAt, Instant observedAt,
             FcmSendResult result, NotificationRegistrations snapshot, String title, String body, Map<String, String> data) {
         List<FcmRetryTask> tasks = new ArrayList<>();
         for (FcmSendFailure failure : result.retryableFailures()) {
@@ -95,19 +95,19 @@ public class FcmNotificationService {
                         .log("발송 당시 등록이 없어 재시도 후보 작업을 만들지 않았습니다.");
                 continue;
             }
-            tasks.add(new FcmRetryTask(type, sourceId, registrationIds, title, body, data, failure,
+            tasks.add(new FcmRetryTask(type, sourceId, clubId, registrationIds, title, body, data, failure,
                     createdAt, observedAt, 0, false));
         }
         return List.copyOf(tasks);
     }
 
     private List<FcmRetryTask> createCallRetryTasks(
-            NotificationType type, Long sourceId, Instant createdAt, Instant observedAt,
+            NotificationType type, Long sourceId, Long clubId, Instant createdAt, Instant observedAt,
             FcmSendFailure failure, NotificationRegistrations snapshot, String title, String body, Map<String, String> data) {
         // 호출 전체 실패는 개별 접수 여부를 확정하지 않고, 원래 등록에만 재시도 대상을 연결해요.
         List<FcmRetryTask> tasks = new ArrayList<>();
         for (String fid : snapshot.firebaseInstallationIds()) {
-            tasks.add(new FcmRetryTask(type, sourceId,
+            tasks.add(new FcmRetryTask(type, sourceId, clubId,
                     snapshot.findRegistrationIdsByFid(new FirebaseInstallationId(fid)),
                     title, body, data, failure, createdAt, observedAt, 0, false, fid));
         }
