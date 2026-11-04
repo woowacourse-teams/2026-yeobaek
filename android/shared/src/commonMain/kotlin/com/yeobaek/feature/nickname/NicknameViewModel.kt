@@ -30,10 +30,17 @@ class NicknameViewModel(
         private set
 
     fun onNicknameValueChange(inputValue: String) {
+        if (uiState.nicknameUpdateState is NicknameUpdateState.Loading ||
+            uiState.nicknameUpdateState is NicknameUpdateState.Success
+        ) {
+            return
+        }
+
         uiState = uiState.copy(
             nicknameValue = inputValue,
             nicknameState = true,
             isEnabled = true,
+            nicknameUpdateState = NicknameUpdateState.Idle,
         )
     }
 
@@ -87,6 +94,42 @@ class NicknameViewModel(
                     isEnabled = false,
                     nicknameState = false,
                     successNicknameSet = false,
+                )
+            }
+        }
+    }
+
+    fun updateNickname() {
+        if (uiState.nicknameUpdateState is NicknameUpdateState.Loading ||
+            uiState.nicknameUpdateState is NicknameUpdateState.Success
+        ) {
+            return
+        }
+
+        checkNickname()
+        if (!uiState.nicknameState) return
+
+        val nickname = uiState.nicknameValue
+        uiState = uiState.copy(
+            isEnabled = false,
+            nicknameUpdateState = NicknameUpdateState.Loading,
+        )
+
+        viewModelScope.launch {
+            try {
+                val updatedUser = userRepository.updateNickname(nickname)
+                uiState = uiState.copy(
+                    nicknameValue = updatedUser.name,
+                    nicknameUpdateState = NicknameUpdateState.Success,
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                uiState = uiState.copy(
+                    isEnabled = true,
+                    nicknameUpdateState = NicknameUpdateState.Failure(
+                        exception.message ?: "닉네임을 변경하지 못했습니다.",
+                    ),
                 )
             }
         }
