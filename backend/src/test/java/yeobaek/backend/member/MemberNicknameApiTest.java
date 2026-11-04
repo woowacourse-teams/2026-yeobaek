@@ -63,7 +63,7 @@ class MemberNicknameApiTest extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"%s\"}".formatted(nickname)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.code").value("DUPLICATE_NICKNAME"))
                 .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
 
         assertThat(memberRepository.findById(member.getId()).orElseThrow().getNickname()).isEqualTo("기존닉네임");
@@ -80,7 +80,7 @@ class MemberNicknameApiTest extends IntegrationTest {
                                 {"nickname":"사용중"}
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.code").value("DUPLICATE_NICKNAME"))
                 .andExpect(jsonPath("$.message").value("이미 사용 중인 닉네임입니다."));
 
         assertThat(memberRepository.count()).isOne();
