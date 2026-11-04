@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.admin.dto.AdminBooksResponse;
 import yeobaek.backend.admin.dto.BookCoverUpdateRequest;
+import yeobaek.backend.admin.dto.BookGenresUpdateRequest;
+import yeobaek.backend.admin.dto.BookHashtagsUpdateRequest;
 import yeobaek.backend.admin.dto.BookDescriptionUpdateRequest;
 import yeobaek.backend.admin.dto.BookUploadRequest;
 import yeobaek.backend.admin.dto.BookUploadResponse;
@@ -85,6 +87,22 @@ public class AdminBookController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeDescription(@PathVariable Long bookId) {
         adminBookService.removeDescription(bookId);
+    }
+
+    @Operation(summary = "도서 장르 목록 교체",
+            description = "목록 전체를 교체한다. null 또는 []를 보내면 이 책에 등록된 장르를 모두 삭제한다.")
+    @PutMapping("/api/admin/books/{bookId}/genres")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void replaceGenres(@PathVariable Long bookId, @RequestBody BookGenresUpdateRequest request) {
+        adminBookService.replaceGenres(bookId, request.genres());
+    }
+
+    @Operation(summary = "도서 해시태그 목록 교체",
+            description = "목록 전체를 교체한다. null 또는 []를 보내면 이 책에 등록된 해시태그를 모두 삭제한다.")
+    @PutMapping("/api/admin/books/{bookId}/hashtags")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void replaceHashtags(@PathVariable Long bookId, @RequestBody BookHashtagsUpdateRequest request) {
+        adminBookService.replaceHashtags(bookId, request.hashtags());
     }
 
     @Operation(summary = "도서 표지 교체", description = "기존 S3 객체는 삭제하지 않고 새 객체 키로 교체한다.")

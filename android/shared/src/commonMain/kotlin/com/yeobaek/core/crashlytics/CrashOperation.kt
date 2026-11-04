@@ -8,6 +8,7 @@ enum class CrashOperation(
     NICKNAME_SUBMIT_SUCCEEDED("nickname_submit_succeeded"),
     NICKNAME_SUBMIT_FAILED("nickname_submit_failed"),
     ACCOUNT_DELETE_FAILED("account_delete_failed"),
+    ACCOUNT_DELETE_CLEANUP_FAILED("account_delete_cleanup_failed"),
     ONBOARDING_BOOKS_LOADED("onboarding_books_loaded"),
     ONBOARDING_BOOKS_LOAD_FAILED("onboarding_books_load_failed"),
     ONBOARDING_SELECTED_BOOK_LOAD_FAILED("onboarding_selected_book_load_failed"),

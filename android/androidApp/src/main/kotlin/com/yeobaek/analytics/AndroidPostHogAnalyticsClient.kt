@@ -56,15 +56,21 @@ class AndroidPostHogAnalyticsClient(
         )
     }
 
-    override fun screen(screenName: String) {
+    override fun screen(screenName: String, properties: Map<String, Any>) {
         if (!isEnabled) return
 
-        PostHog.screen(screenTitle = screenName)
+        PostHog.screen(screenTitle = screenName, properties = properties)
     }
 
     override fun identify(userId: String) {
         if (!isEnabled) return
 
         PostHog.identify(distinctId = userId)
+    }
+
+    override fun reset() {
+        if (!isEnabled) return
+
+        PostHog.reset()
     }
 }

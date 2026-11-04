@@ -13,9 +13,10 @@ fun TrackScreen(
     crashReporter: CrashReporter,
     analyticsTracker: AnalyticsTracker,
     screen: TrackedScreen,
+    properties: Map<String, Any> = emptyMap(),
 ) {
-    LaunchedEffect(screen) {
-        analyticsTracker.trackScreen(screen.value)
+    LaunchedEffect(screen, properties) {
+        analyticsTracker.trackScreen(screen.value, properties)
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = CrashContext(

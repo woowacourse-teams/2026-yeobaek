@@ -7,6 +7,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.GroupDetailOpened
 import com.yeobaek.core.analytics.GroupExitRequested
 import com.yeobaek.core.analytics.InviteCodeCopied
 import com.yeobaek.core.analytics.ReaderOpened
@@ -23,6 +24,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Detail(
     val groupId: Long,
+    val notificationOpenId: String? = null,
 )
 
 fun NavController.navigateToDetail(
@@ -58,7 +60,14 @@ fun NavGraphBuilder.detailNavGraph(
         )
         LaunchedEffect(
             route.groupId,
+            route.notificationOpenId,
         ) {
+            route.notificationOpenId?.let { openId ->
+                appContainer.analyticsTracker.track(
+                    GroupDetailOpened(route.groupId),
+                    mapOf("notification_open_id" to openId),
+                )
+            }
             detailViewModel.initGroupData(groupId = route.groupId)
         }
 

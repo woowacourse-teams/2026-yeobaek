@@ -51,7 +51,12 @@ class CommentSheetController(
     val pendingRestorePassageSequence: Int?
         get() = savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY]
 
-    fun open(sentence: SentenceUiModel, passageSequence: Int?, scrollToLatest: Boolean = false) {
+    fun open(
+        sentence: SentenceUiModel,
+        passageSequence: Int?,
+        scrollToLatest: Boolean = false,
+        source: CommentSheetSource = CommentSheetSource.READER,
+    ) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
@@ -60,6 +65,7 @@ class CommentSheetController(
             targetPassageSequence = null,
             hasNewComments = null,
             scrollToLatest = scrollToLatest,
+            source = source,
         )
     }
 
@@ -71,6 +77,7 @@ class CommentSheetController(
             passageSequence = sentence.passageSequence,
             targetPassageSequence = sentence.passageSequence,
             hasNewComments = sentence.isNewComment(),
+            source = CommentSheetSource.COMMENT_COLLECTION,
         )
     }
 
@@ -80,6 +87,9 @@ class CommentSheetController(
         uiState = CommentSheetUiState(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
+            source =
+                CommentSheetSource.entries.firstOrNull { it.value == savedStateHandle.get<String>(SHEET_SOURCE_KEY) }
+                    ?: sheetSourceOf(savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY]),
             targetPassageSequence = savedStateHandle[SHEET_TARGET_PASSAGE_SEQUENCE_KEY],
             input = savedStateHandle.get<String>(SHEET_INPUT_KEY).orEmpty(),
             editingCommentId = savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY],
@@ -125,6 +135,7 @@ class CommentSheetController(
         targetPassageSequence: Int?,
         hasNewComments: Boolean?,
         scrollToLatest: Boolean = false,
+        source: CommentSheetSource,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -138,18 +149,20 @@ class CommentSheetController(
             sentenceId = sentenceId,
             passageSequence = targetPassageSequence,
             commentCount = itemCount,
-            source = sheetSourceOf(targetPassageSequence),
+            source = source,
             hasNewComments = hasNewComments,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
             sentenceContent = sentenceContent,
+            source = source,
             targetPassageSequence = targetPassageSequence,
             scrollToLatestPending = scrollToLatest,
             isLoading = true,
         )
         sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
+        savedStateHandle[SHEET_SOURCE_KEY] = source.value
         savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] = scrollToLatest
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
@@ -229,6 +242,7 @@ class CommentSheetController(
         }
         uiState = null
         savedStateHandle.remove<Long>(SHEET_SENTENCE_ID_KEY)
+        savedStateHandle.remove<String>(SHEET_SOURCE_KEY)
         savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<String>(SHEET_INPUT_KEY)
@@ -426,7 +440,7 @@ class CommentSheetController(
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     passageSequence = sheet.targetPassageSequence,
-                    source = sheetSourceOf(sheet.targetPassageSequence),
+                    source = sheet.source,
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.SUCCESS,
@@ -442,7 +456,7 @@ class CommentSheetController(
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     passageSequence = sheet.targetPassageSequence,
-                    source = sheetSourceOf(sheet.targetPassageSequence),
+                    source = sheet.source,
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.FAILURE,
@@ -532,6 +546,7 @@ class CommentSheetController(
             }
             try {
                 val result = commentRepository.setCommentLiked(commentId, liked)
+                analytics.likeSubmitted(commentId, sheet.sentenceId, liked, EventResult.SUCCESS, sheet.source)
 
                 if (curSheetVersion != sheetVersion) return@launch
 
@@ -560,6 +575,7 @@ class CommentSheetController(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                analytics.likeSubmitted(commentId, sheet.sentenceId, liked, EventResult.FAILURE, sheet.source)
                 recordFailure(
                     exception = exception,
                     operation = CrashOperation.COMMENT_LIKE_FAILED,
@@ -676,6 +692,7 @@ class CommentSheetController(
 
     private companion object {
         const val SHEET_SENTENCE_ID_KEY = "commentSheetSentenceId"
+        const val SHEET_SOURCE_KEY = "commentSheetSource"
         const val SHEET_PASSAGE_SEQUENCE_KEY = "commentSheetPassageSequence"
         const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
         const val SHEET_INPUT_KEY = "commentSheetInput"

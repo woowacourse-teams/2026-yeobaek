@@ -2,7 +2,19 @@ package com.yeobaek.core.analytics
 
 class AnalyticsTracker(
     private val client: AnalyticsClient,
+    commonProperties: Map<String, Any> = emptyMap(),
 ) {
+    private val commonProperties = commonProperties.toMap()
+
+    fun registerCommonProperties() {
+        client.register(commonProperties)
+    }
+
+    fun resetIdentity() {
+        client.reset()
+        registerCommonProperties()
+    }
+
     fun track(event: AnalyticsEvent, additionalProperties: Map<String, Any> = emptyMap()) {
         client.capture(
             eventName = event.name,
@@ -10,8 +22,8 @@ class AnalyticsTracker(
         )
     }
 
-    fun trackScreen(screenName: String) {
-        client.screen(screenName)
+    fun trackScreen(screenName: String, properties: Map<String, Any> = emptyMap()) {
+        client.screen(screenName, properties)
     }
 
     fun identify(userId: Int) {

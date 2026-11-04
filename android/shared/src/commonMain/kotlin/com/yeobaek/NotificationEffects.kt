@@ -98,17 +98,22 @@ private fun HandleNotificationOpen(
                         }
                     }
                     when (target) {
-                        is ClubJoinNotification -> navController.navigate(Detail(target.groupId)) {
+                        is ClubJoinNotification -> navController.navigate(Detail(target.groupId, request.analyticsId)) {
                             launchSingleTop = true
                         }
 
                         is CommentNotification -> when (val space = target.space) {
                             is CommentSpace.Group -> navController.navigate(
-                                Reader(space.groupId, target.passageSequence, target.sentenceId),
+                                Reader(space.groupId, target.passageSequence, target.sentenceId, request.analyticsId),
                             )
 
                             is CommentSpace.PublicRoom -> navController.navigate(
-                                PublicRoomReader(space.publicRoomId, target.passageSequence, target.sentenceId),
+                                PublicRoomReader(
+                                    space.publicRoomId,
+                                    target.passageSequence,
+                                    target.sentenceId,
+                                    request.analyticsId,
+                                ),
                             )
                         }
                     }

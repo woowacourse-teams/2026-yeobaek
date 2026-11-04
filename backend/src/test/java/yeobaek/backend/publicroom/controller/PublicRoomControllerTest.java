@@ -289,6 +289,6 @@ class PublicRoomControllerTest extends ControllerTest {
     }
 
     private ClubBookResponse book() {
-        return new ClubBookResponse(5L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE);
+        return new ClubBookResponse(5L, "책", List.of("작가"), null, 10, BookStatus.ACTIVE, List.of(), List.of());
     }
 }

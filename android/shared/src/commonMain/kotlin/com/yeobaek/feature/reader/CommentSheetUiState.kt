@@ -1,10 +1,12 @@
 package com.yeobaek.feature.reader
 
+import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.feature.reader.model.CommentUiModel
 
 data class CommentSheetUiState(
     val sentenceId: Long,
     val sentenceContent: String,
+    val source: CommentSheetSource = CommentSheetSource.READER,
     val targetPassageSequence: Int? = null,
     val comments: List<CommentUiModel> = emptyList(),
     val submittedCommentId: Long? = null,

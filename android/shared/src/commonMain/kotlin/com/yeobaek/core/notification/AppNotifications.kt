@@ -1,6 +1,9 @@
 package com.yeobaek.core.notification
 
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.NotificationOpened
 import com.yeobaek.data.model.CommentSpace
+import kotlin.random.Random
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +37,9 @@ data class CommentNotification(
     }
 }
 
-class AppNotifications {
+class AppNotifications(
+    private val trackEvent: (AnalyticsEvent) -> Unit = {},
+) {
     private val activeSpace = MutableStateFlow<CommentSpace?>(null)
     private val pending = MutableStateFlow<NotificationOpenRequest?>(null)
     val pendingOpen = pending.asStateFlow()
@@ -69,7 +74,9 @@ class AppNotifications {
 
     fun onOpened(data: Map<String, String>) {
         val notification = AppNotification.from(data) ?: return
-        pending.value = NotificationOpenRequest(notification)
+        val request = NotificationOpenRequest(notification)
+        trackEvent(NotificationOpened(notification, request.analyticsId))
+        pending.value = request
     }
 
     fun consumeOpen(request: NotificationOpenRequest) {
@@ -78,4 +85,6 @@ class AppNotifications {
 }
 
 // 같은 문장의 알림을 다시 눌러도 새로운 이동 요청으로 구분한다.
-class NotificationOpenRequest(val notification: AppNotification)
+class NotificationOpenRequest(val notification: AppNotification) {
+    val analyticsId: String = Random.nextLong().toULong().toString(16)
+}

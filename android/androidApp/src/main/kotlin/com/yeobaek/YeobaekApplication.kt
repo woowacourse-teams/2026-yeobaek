@@ -9,6 +9,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.yeobaek.analytics.AndroidPostHogAnalyticsClient
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.notification.ACTIVITY_NOTIFICATION_CHANNEL_ID
+import com.yeobaek.data.local.AndroidInstallationIdStore
 import com.yeobaek.update.FirebaseUpdatePolicySource
 import com.yeobaek.update.RecommendedUpdatePreferences
 import com.yeobaek.update.RecommendedUpdateSession
@@ -40,6 +41,7 @@ class YeobaekApplication : Application() {
             isDebug = isDebug,
             appVersion = BuildConfig.VERSION_NAME,
             appVersionCode = BuildConfig.VERSION_CODE,
+            installationId = AndroidInstallationIdStore(noBackupFilesDir).getOrCreate(),
             updatePolicySource = FirebaseUpdatePolicySource(isDebug = isDebug),
             analyticsClient = AndroidPostHogAnalyticsClient(
                 application = this,

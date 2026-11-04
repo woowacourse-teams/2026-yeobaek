@@ -7,13 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -75,8 +75,12 @@ fun ReaderScreen(
                     onTextSettingDismiss = actions.onTextSettingDismiss,
                     onCommentCollectionsClick = actions.onCommentCollectionsClick,
                     onFontSizeChange = { fontSize ->
-                        if (fontSize != uiState.fontSize) {
-                            readerListState.savePositionBeforeFontSizeChange(uiState.passages)
+                        if (fontSize != uiState.fontSize || readerListState.fontSizeRestoreRequest != null) {
+                            readerListState.savePositionBeforeFontSizeChange(
+                                passages = uiState.passages,
+                                currentFontSize = uiState.fontSize,
+                                targetFontSize = fontSize,
+                            )
                             actions.onFontSizeChange(fontSize)
                         }
                     },
@@ -107,7 +111,7 @@ fun ReaderScreen(
                 ReaderLoadState.Success -> ReaderContent(
                     passages = uiState.passages.items,
                     fontSize = uiState.fontSize,
-                    listState = readerListState.listState,
+                    readerListState = readerListState,
                     onSentenceClick = actions.onSentenceClick,
                     modifier = Modifier.padding(innerPadding),
                 )
@@ -234,12 +238,12 @@ private fun ReaderLoadError(
 private fun ReaderContent(
     passages: List<PassageUiModel>,
     fontSize: Int,
-    listState: LazyListState,
+    readerListState: ReaderListState,
     onSentenceClick: (SentenceUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        state = listState,
+        state = readerListState.listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             horizontal = 36.dp,
@@ -250,10 +254,16 @@ private fun ReaderContent(
             items = passages,
             key = { passage -> passage.passageId },
         ) { passage ->
+            DisposableEffect(readerListState, passage.passageId) {
+                onDispose { readerListState.removeTextLayout(passage.passageId) }
+            }
             PassageItem(
                 passage = passage,
                 fontSize = fontSize,
                 onSentenceClick = onSentenceClick,
+                onTextLayout = { result ->
+                    readerListState.updateTextLayout(passage.passageId, fontSize, result)
+                },
             )
         }
     }

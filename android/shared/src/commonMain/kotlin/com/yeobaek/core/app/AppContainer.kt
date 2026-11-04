@@ -50,6 +50,7 @@ class AppContainer(
     private val isDebug: Boolean,
     val appVersion: String,
     val appVersionCode: Int,
+    installationId: String,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
@@ -68,7 +69,13 @@ class AppContainer(
         null
     }
 
-    val analyticsTracker = AnalyticsTracker(analyticsClient)
+    val analyticsTracker = AnalyticsTracker(
+        client = analyticsClient,
+        commonProperties = mapOf(
+            ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION,
+            "installation_id" to installationId,
+        ),
+    )
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
@@ -95,7 +102,7 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val notifications = AppNotifications()
+    val notifications = AppNotifications { analyticsTracker.track(it) }
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
         memberId = userPreferences.userId,
@@ -149,9 +156,7 @@ class AppContainer(
             host = BuildKonfig.POSTHOG_HOST,
             isDebug = isDebug,
         )
-        analyticsClient.register(
-            mapOf(ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION),
-        )
+        analyticsTracker.registerCommonProperties()
         userPreferences.getUserId()?.let(analyticsTracker::identify)
     }
 

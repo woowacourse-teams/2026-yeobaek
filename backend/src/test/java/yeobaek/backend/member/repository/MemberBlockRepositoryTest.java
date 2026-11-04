@@ -20,21 +20,21 @@ class MemberBlockRepositoryTest extends IntegrationTest {
     private MemberBlockRepository memberBlockRepository;
 
     @Test
-    @DisplayName("차단 목록은 닉네임과 회원 ID 오름차순으로 조회된다")
+    @DisplayName("차단 목록은 닉네임 오름차순으로 조회된다")
     void findAllOrdered() {
         Member blocker = memberRepository.save(new Member(new Nickname("민서")));
-        Member sameNicknameFirst = memberRepository.save(new Member(new Nickname("가람")));
+        Member firstNickname = memberRepository.save(new Member(new Nickname("가람")));
         Member laterNickname = memberRepository.save(new Member(new Nickname("하늘")));
-        Member sameNicknameSecond = memberRepository.save(new Member(new Nickname("가람")));
+        Member secondNickname = memberRepository.save(new Member(new Nickname("가을")));
         memberBlockRepository.saveAll(List.of(
                 new MemberBlock(blocker, laterNickname),
-                new MemberBlock(blocker, sameNicknameSecond),
-                new MemberBlock(blocker, sameNicknameFirst)));
+                new MemberBlock(blocker, secondNickname),
+                new MemberBlock(blocker, firstNickname)));
 
         List<MemberBlock> blocks = memberBlockRepository.findAllWithBlockedByBlockerId(blocker.getId());
 
         assertThat(blocks).extracting(block -> block.getBlocked().getId())
-                .containsExactly(sameNicknameFirst.getId(), sameNicknameSecond.getId(), laterNickname.getId());
+                .containsExactly(firstNickname.getId(), secondNickname.getId(), laterNickname.getId());
     }
 
     @Test

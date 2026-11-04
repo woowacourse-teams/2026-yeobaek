@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.update.AndroidRequiredUpdateGate
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
@@ -49,6 +50,7 @@ fun AppAndroidPreview() {
             isDebug = false,
             appVersion = BuildConfig.VERSION_NAME,
             appVersionCode = BuildConfig.VERSION_CODE,
+            installationId = UUID.randomUUID().toString(),
         ),
     )
 }

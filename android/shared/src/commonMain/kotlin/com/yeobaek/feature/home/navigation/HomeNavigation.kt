@@ -104,6 +104,7 @@ fun NavGraphBuilder.homeNavGraph(
                             PublicRoomReaderOpened(
                                 publicRoomId = readerTarget.id,
                                 entryPoint = PublicRoomEntryPoint.CONTINUE_READING,
+                                bookId = homeViewModel.uiState.currentlyReadingBookUiModel?.bookId,
                             ),
                         )
                         navigateToPublicRoomReader(readerTarget.id)

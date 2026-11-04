@@ -6,16 +6,21 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
+import com.yeobaek.core.analytics.BookDetailEntryPoint
+import com.yeobaek.core.analytics.BookSearchEnd
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.GroupCreateAbandoned
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.bookDetailScreenProperties
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.TrackBookSearch
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.group.create.CreateScreen
 import com.yeobaek.feature.group.create.CreateStep
 import com.yeobaek.feature.group.create.CreateViewModel
+import com.yeobaek.feature.group.create.SearchState
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -36,11 +41,6 @@ fun NavGraphBuilder.createNavGraph(
     navigateToHome: () -> Unit,
 ) {
     composable<Create> {
-        TrackScreen(
-            crashReporter = appContainer.crashReporter,
-            analyticsTracker = appContainer.analyticsTracker,
-            screen = TrackedScreen.GROUP_CREATE,
-        )
         val createViewModel: CreateViewModel = viewModel(
             factory = CreateViewModel.createViewModelFactory(
                 groupRepository = appContainer.groupRepository,
@@ -48,6 +48,29 @@ fun NavGraphBuilder.createNavGraph(
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
             ),
+        )
+
+        val uiState = createViewModel.uiState
+        val detailBookId = uiState.selectedBook?.id
+        val isBookDetailVisible = uiState.step == CreateStep.BookDetail && detailBookId != null
+        TrackScreen(
+            crashReporter = appContainer.crashReporter,
+            analyticsTracker = appContainer.analyticsTracker,
+            screen = if (isBookDetailVisible) TrackedScreen.BOOK_DETAIL else TrackedScreen.GROUP_CREATE,
+            properties = if (isBookDetailVisible) {
+                bookDetailScreenProperties(
+                    bookId = requireNotNull(detailBookId),
+                    entryPoint = BookDetailEntryPoint.GROUP_CREATE.value,
+                )
+            } else {
+                emptyMap()
+            },
+        )
+        TrackBookSearch(
+            tracker = createViewModel.bookSearchTracker,
+            isVisible = uiState.step == CreateStep.BookSelection,
+            resultVersion = uiState.searchResultVersion,
+            resultCount = uiState.bookList.size.takeIf { uiState.searchState is SearchState.Success },
         )
 
         CreateScreen(
@@ -66,6 +89,7 @@ fun NavGraphBuilder.createNavGraph(
                     CreateStep.BookDetail -> createViewModel.moveToBookSelection()
 
                     CreateStep.BookSelection -> {
+                        createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
                         appContainer.analyticsTracker.track(
                             GroupCreateAbandoned(
                                 hasName = createViewModel.uiState.groupNameValue.isNotBlank(),

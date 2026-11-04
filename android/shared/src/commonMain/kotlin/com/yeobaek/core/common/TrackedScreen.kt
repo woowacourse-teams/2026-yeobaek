@@ -16,4 +16,5 @@ enum class TrackedScreen(
     PUBLIC_ROOM_READER("public_room_reader"),
     COMMENT_COLLECTION("comment_collection"),
     MY_PAGE("my_page"),
+    NOTIFICATION_SETTINGS("notification_settings"),
 }
