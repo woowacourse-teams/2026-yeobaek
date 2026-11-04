@@ -21,7 +21,7 @@ import com.yeobaek.feature.home.navigation.Home
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
-internal fun rememberInvitations(invitations: AppInvitations): AppInvitations = rememberSaveable(
+fun rememberInvitations(invitations: AppInvitations): AppInvitations = rememberSaveable(
     saver = Saver(
         save = { it.snapshot() },
         restore = { saved -> invitations.apply { restore(saved) } },
@@ -29,7 +29,7 @@ internal fun rememberInvitations(invitations: AppInvitations): AppInvitations = 
 ) { invitations }
 
 @Composable
-internal fun InvitationEffects(
+fun InvitationEffects(
     navController: NavHostController,
     invitations: AppInvitations,
     userId: StateFlow<Int?>,
