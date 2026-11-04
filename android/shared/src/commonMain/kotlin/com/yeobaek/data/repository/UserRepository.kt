@@ -13,3 +13,5 @@ interface UserRepository {
     suspend fun blockUser(userId: Int)
     suspend fun unBlockUser(userId: Int)
 }
+
+class InvalidNicknameException : IllegalArgumentException()

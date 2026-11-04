@@ -6,9 +6,15 @@ import com.yeobaek.data.dto.toModel
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.model.RecentReadingModel
 import com.yeobaek.data.model.UserModel
+import com.yeobaek.data.repository.InvalidNicknameException
 import com.yeobaek.data.repository.UserRepository
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode.Companion.BadRequest
 import io.ktor.http.HttpStatusCode.Companion.NoContent
 import io.ktor.http.HttpStatusCode.Companion.OK
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 class UserRepositoryImpl(
     private val userApi: UserApi,
@@ -34,6 +40,13 @@ class UserRepositoryImpl(
         val response = userApi.updateNickname(UserRequest(nickname = nickname))
 
         if (!response.isSuccessful) {
+            if (response.status == BadRequest) {
+                val errorBody = response.raw().bodyAsText()
+                val error = runCatching { Json.parseToJsonElement(errorBody) }.getOrNull() as? JsonObject
+                if ((error?.get("code") as? JsonPrimitive)?.content == "INVALID_REQUEST") {
+                    throw InvalidNicknameException()
+                }
+            }
             throw IllegalArgumentException("닉네임 변경 실패 ${response.status}")
         }
 

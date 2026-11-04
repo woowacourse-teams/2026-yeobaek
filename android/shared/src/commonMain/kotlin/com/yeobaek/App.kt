@@ -31,11 +31,14 @@ import com.yeobaek.feature.guide.navigation.navigateToGuide
 import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.home.navigation.homeNavGraph
 import com.yeobaek.feature.home.navigation.navigateToHome
+import com.yeobaek.feature.mypage.navigation.MY_PAGE_NICKNAME_CHANGED_KEY
 import com.yeobaek.feature.mypage.navigation.MyPage
 import com.yeobaek.feature.mypage.navigation.myPageNavGraph
 import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.nickname.navigation.Nickname
 import com.yeobaek.feature.nickname.navigation.navigateToNickname
+import com.yeobaek.feature.nickname.navigation.navigateToNicknameChange
+import com.yeobaek.feature.nickname.navigation.nicknameChangeNavGraph
 import com.yeobaek.feature.nickname.navigation.nicknameNavGraph
 import com.yeobaek.feature.notifications.navigation.navigateToNotificationSettings
 import com.yeobaek.feature.notifications.navigation.notificationSettingsNavGraph
@@ -276,6 +279,7 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
+                navigateToNicknameChange = { navController.navigateToNicknameChange() },
                 navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
                     navController.navigateToNickname(
@@ -298,6 +302,14 @@ fun App(
                 },
             )
             notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
+            nicknameChangeNavGraph(
+                appContainer = appContainer,
+                navigateBack = { navController.popBackStack() },
+                onNicknameChanged = { nickname ->
+                    navController.getBackStackEntry<MyPage>().savedStateHandle[MY_PAGE_NICKNAME_CHANGED_KEY] = nickname
+                    navController.popBackStack()
+                },
+            )
         }
 
         NotificationEffects(

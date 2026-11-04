@@ -6,6 +6,7 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.RecentReadingModel
 import com.yeobaek.data.model.UserModel
+import com.yeobaek.data.repository.InvalidNicknameException
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.feature.nickname.NicknameUpdateState
 import com.yeobaek.feature.nickname.NicknameViewModel
@@ -122,7 +123,64 @@ class NicknameViewModelTest {
         }
     }
 
-    private suspend fun TestScope.withViewModel(block: suspend (NicknameViewModel, FakeUserRepository) -> Unit) {
+    @Test
+    fun nicknameRejectedByServerRequiresCorrectingInput() = runTest {
+        withViewModel(initialNickname = "조밀") { vm, repository ->
+            repository.failure = InvalidNicknameException()
+            vm.onNicknameValueChange("엘리")
+            vm.updateNickname()
+            runCurrent()
+
+            assertFalse(vm.uiState.nicknameState)
+            assertFalse(vm.uiState.isEnabled)
+            assertEquals("엘리", vm.uiState.nicknameValue)
+
+            vm.onNicknameValueChange("다른이름")
+            assertTrue(vm.uiState.nicknameState)
+            assertTrue(vm.uiState.isEnabled)
+            assertIs<NicknameUpdateState.Idle>(vm.uiState.nicknameUpdateState)
+        }
+    }
+
+    @Test
+    fun currentNicknameStartsDisabledAndRestoringItDisablesSubmission() = runTest {
+        withViewModel(initialNickname = "조밀") { vm, repository ->
+            assertEquals("조밀", vm.uiState.nicknameValue)
+            assertFalse(vm.uiState.isEnabled)
+            vm.updateNickname()
+            runCurrent()
+            assertTrue(repository.requests.isEmpty())
+
+            vm.onNicknameValueChange("엘리")
+            assertTrue(vm.uiState.isEnabled)
+            vm.onNicknameValueChange("조밀")
+            assertFalse(vm.uiState.isEnabled)
+        }
+    }
+
+    @Test
+    fun tooLongNicknameIsRejectedAndCanBeCorrected() = runTest {
+        withViewModel(initialNickname = "조밀") { vm, repository ->
+            vm.onNicknameValueChange("가".repeat(21))
+            vm.updateNickname()
+            runCurrent()
+            assertFalse(vm.uiState.nicknameState)
+            assertFalse(vm.uiState.isEnabled)
+            assertTrue(repository.requests.isEmpty())
+
+            vm.onNicknameValueChange("엘리")
+            assertTrue(vm.uiState.nicknameState)
+            assertTrue(vm.uiState.isEnabled)
+            vm.updateNickname()
+            runCurrent()
+            assertEquals(listOf("엘리"), repository.requests)
+        }
+    }
+
+    private suspend fun TestScope.withViewModel(
+        initialNickname: String? = null,
+        block: suspend (NicknameViewModel, FakeUserRepository) -> Unit,
+    ) {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
         try {
@@ -131,6 +189,7 @@ class NicknameViewModelTest {
                 userRepository = repository,
                 crashReporter = CrashReporter(isDebug = true),
                 analyticsTracker = AnalyticsTracker(NoOpAnalyticsClient),
+                initialNickname = initialNickname,
             )
             store.put("nickname", vm)
             block(vm, repository)

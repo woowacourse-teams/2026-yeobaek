@@ -17,6 +17,7 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.repository.InvalidNicknameException
 import com.yeobaek.data.repository.UserRepository
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
@@ -25,8 +26,14 @@ class NicknameViewModel(
     private val userRepository: UserRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
+    private val initialNickname: String? = null,
 ) : ViewModel() {
-    var uiState by mutableStateOf(NicknameUiState())
+    var uiState by mutableStateOf(
+        NicknameUiState(
+            nicknameValue = initialNickname.orEmpty(),
+            isEnabled = initialNickname == null,
+        ),
+    )
         private set
 
     fun onNicknameValueChange(inputValue: String) {
@@ -38,8 +45,9 @@ class NicknameViewModel(
 
         uiState = uiState.copy(
             nicknameValue = inputValue,
-            nicknameState = true,
-            isEnabled = true,
+            nicknameState = initialNickname == null || inputValue.length <= MAX_NICKNAME_LENGTH,
+            isEnabled = initialNickname == null ||
+                (inputValue.isNotBlank() && inputValue.length <= MAX_NICKNAME_LENGTH && inputValue != initialNickname),
             nicknameUpdateState = NicknameUpdateState.Idle,
         )
     }
@@ -107,7 +115,10 @@ class NicknameViewModel(
         }
 
         checkNickname()
-        if (!uiState.nicknameState) return
+        if (uiState.nicknameValue.length > MAX_NICKNAME_LENGTH) {
+            uiState = uiState.copy(nicknameState = false, isEnabled = false)
+        }
+        if (!uiState.nicknameState || uiState.nicknameValue == initialNickname) return
 
         val nickname = uiState.nicknameValue
         uiState = uiState.copy(
@@ -126,7 +137,8 @@ class NicknameViewModel(
                 throw exception
             } catch (exception: Exception) {
                 uiState = uiState.copy(
-                    isEnabled = true,
+                    isEnabled = exception !is InvalidNicknameException,
+                    nicknameState = exception !is InvalidNicknameException,
                     nicknameUpdateState = NicknameUpdateState.Failure(
                         exception.message ?: "닉네임을 변경하지 못했습니다.",
                     ),
@@ -140,15 +152,19 @@ class NicknameViewModel(
             userRepository: UserRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
+            initialNickname: String? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 NicknameViewModel(
                     userRepository = userRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
+                    initialNickname = initialNickname,
                 )
             }
         }
+
+        private const val MAX_NICKNAME_LENGTH = 20
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(
