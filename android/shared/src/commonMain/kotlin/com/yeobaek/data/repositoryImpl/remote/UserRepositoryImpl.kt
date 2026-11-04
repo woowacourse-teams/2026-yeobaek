@@ -30,6 +30,23 @@ class UserRepositoryImpl(
         }
     }
 
+    override suspend fun updateNickname(nickname: String): UserModel {
+        val response = userApi.updateNickname(UserRequest(nickname = nickname))
+
+        if (!response.isSuccessful) {
+            throw IllegalArgumentException("닉네임 변경 실패 ${response.status}")
+        }
+
+        val updatedUser = response.body()?.toModel()
+            ?: throw IllegalArgumentException("닉네임 변경 응답에 유저 정보가 없습니다.")
+
+        userPreferences.saveUser(
+            updatedUser.id,
+            updatedUser.name,
+        )
+        return updatedUser
+    }
+
     override suspend fun getRecentReading(): RecentReadingModel? {
         val response = userApi.getRecentReading()
 

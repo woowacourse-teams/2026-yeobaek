@@ -224,6 +224,7 @@ class AccountDeletionAnalyticsTest {
         }
 
         override suspend fun setUserData(nickname: String): UserModel = error("unused")
+        override suspend fun updateNickname(nickname: String): UserModel = error("unused")
         override suspend fun getRecentReading(): RecentReadingModel? = null
         override suspend fun blockUser(userId: Int) = Unit
         override suspend fun unBlockUser(userId: Int) = Unit
