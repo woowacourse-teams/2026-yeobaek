@@ -137,13 +137,17 @@
         const summary = document.createElement('summary');
         summary.textContent = label + ' 보기·수정';
         const input = document.createElement('textarea');
-        input.value = (book[field] ?? []).join('\n');
+        input.value = JSON.stringify(book[field] ?? [], null, 2);
         input.setAttribute('aria-label', book.title + ' ' + label);
         input.disabled = book.status === 'DELETED';
         const help = document.createElement('p');
         help.textContent = isHashtags
-            ? '한 줄에 하나씩 입력하세요. 최대 5개, 문구당 10자입니다. 모두 비우고 저장하면 삭제됩니다.'
-            : '로맨스, 비극 등 장르를 한 줄에 하나씩 입력하세요. 모두 비우고 저장하면 삭제됩니다.';
+            ? 'JSON 문자열 배열로 입력하세요. 예: ["첫사랑", "재회"]. 최대 5개, 문구당 10자입니다. []를 입력하거나 모두 비우고 저장하면 삭제됩니다.'
+            : 'JSON 문자열 배열로 입력하세요. 예: ["로맨스", "비극"]. []를 입력하거나 모두 비우고 저장하면 삭제됩니다.';
+        const error = document.createElement('div');
+        error.className = 'error';
+        error.setAttribute('role', 'alert');
+        error.textContent = '';
         const save = document.createElement('button');
         save.type = 'button';
         save.textContent = label + ' 저장';
@@ -151,17 +155,28 @@
         let pending = false;
         save.addEventListener('click', async () => {
             if (pending || book.status === 'DELETED') return;
+            let value;
+            try {
+                value = input.value === '' ? [] : JSON.parse(input.value);
+            } catch {
+                error.textContent = 'JSON 형식을 확인하세요. 예: ["첫 번째 문구", "두 번째 문구"]';
+                return;
+            }
+            if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
+                error.textContent = '문자열 배열로 입력하세요. 예: ["첫 번째 문구", "두 번째 문구"]';
+                return;
+            }
+            error.textContent = '';
             pending = true;
             save.disabled = input.disabled = true;
             try {
-                const value = input.value === '' ? [] : input.value.split(/\r?\n/);
                 await onSave(value);
             } finally {
                 pending = false;
                 save.disabled = input.disabled = false;
             }
         });
-        editor.append(summary, input, help, save);
+        editor.append(summary, input, help, error, save);
         return editor;
     }
 

@@ -19,8 +19,10 @@ function editorHarness(create, book, onSave) {
         }
     };
     const editor = create(document, book, onSave);
-    const [summary, input, help, save] = editor.children;
-    return { editor, summary, input, help, save };
+    const [summary, input, help] = editor.children;
+    const error = editor.children.find(child => child.tag === 'div');
+    const save = editor.children.find(child => child.tag === 'button');
+    return { editor, summary, input, help, error, save };
 }
 
 test('해시태그는 문구·순서·중복·#를 보정하지 않고 전체 목록을 저장한다', async () => {
@@ -28,8 +30,8 @@ test('해시태그는 문구·순서·중복·#를 보정하지 않고 전체 �
     const h = editorHarness(createHashtagsEditor, {
         title: '책', status: 'ACTIVE', hashtags: ['첫사랑', '</textarea><script>']
     }, async value => values.push(value));
-    assert.equal(h.input.value, '첫사랑\n</textarea><script>');
-    h.input.value = '#재회\r\n 첫사랑 \r\n#재회';
+    assert.equal(h.input.value, JSON.stringify(['첫사랑', '</textarea><script>'], null, 2));
+    h.input.value = JSON.stringify(['#재회', ' 첫사랑 ', '#재회']);
     await h.save.listeners.click();
     h.input.value = '';
     await h.save.listeners.click();
@@ -40,12 +42,56 @@ test('장르는 자유 입력하며 빈 값 저장도 같은 저장 동작을 �
     const values = [];
     const h = editorHarness(createGenresEditor, { title: '책', genres: ['비극', '사실주의'], status: 'ACTIVE' },
         async value => values.push(value));
-    assert.equal(h.input.value, '비극\n사실주의');
-    h.input.value = '로맨스\n비극';
+    assert.equal(h.input.value, JSON.stringify(['비극', '사실주의'], null, 2));
+    h.input.value = '["로맨스", "비극"]';
     await h.save.listeners.click();
     h.input.value = '';
     await h.save.listeners.click();
     assert.deepEqual(values, [['로맨스', '비극'], []]);
+});
+
+test('장르와 해시태그는 원소 안의 개행·공백·중복·이스케이프 문자를 수정 없이 보존한다', async () => {
+    for (const [create, field] of [[createGenresEditor, 'genres'], [createHashtagsEditor, 'hashtags']]) {
+        const original = ['로맨스\n비극', '첫사랑\r\n재회', ' ', ' ', '"\\#'];
+        const saved = [];
+        const h = editorHarness(create, { title: '책', status: 'ACTIVE', [field]: original },
+            async value => saved.push(value));
+        await h.save.listeners.click();
+        assert.deepEqual(saved, [original]);
+    }
+});
+
+test('빈 문자열 원소와 빈 목록을 구분해 저장한다', async () => {
+    for (const [create, field] of [[createGenresEditor, 'genres'], [createHashtagsEditor, 'hashtags']]) {
+        const saved = [];
+        const h = editorHarness(create, { title: '책', status: 'ACTIVE', [field]: [''] },
+            async value => saved.push(value));
+        await h.save.listeners.click();
+        h.input.value = '[]';
+        await h.save.listeners.click();
+        h.input.value = '';
+        await h.save.listeners.click();
+        assert.deepEqual(saved, [[''], [], []]);
+    }
+});
+
+test('잘못된 JSON이나 문자열 배열이 아닌 입력은 오류를 표시하고 수정 후 저장할 수 있다', async () => {
+    for (const create of [createGenresEditor, createHashtagsEditor]) {
+        const saved = [];
+        const h = editorHarness(create, { title: '책', status: 'ACTIVE' }, async value => saved.push(value));
+        for (const invalid of ['["비극"', 'null', '{}', '["비극", 1]', '[null]']) {
+            h.input.value = invalid;
+            await h.save.listeners.click();
+            assert.deepEqual(saved, []);
+            assert.ok(h.error.textContent);
+            assert.equal(h.input.disabled, false);
+            assert.equal(h.save.disabled, false);
+        }
+        h.input.value = '["비극"]';
+        await h.save.listeners.click();
+        assert.deepEqual(saved, [['비극']]);
+        assert.equal(h.error.textContent, '');
+    }
 });
 
 test('중복 저장 요청을 막고 요청 실패 후 재시도할 수 있다', async () => {
