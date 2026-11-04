@@ -143,7 +143,7 @@
         const help = document.createElement('p');
         help.textContent = isHashtags
             ? 'JSON 문자열 배열로 입력하세요. 예: ["첫사랑", "재회"]. 최대 5개, 문구당 10자입니다. []를 입력하거나 모두 비우고 저장하면 삭제됩니다.'
-            : 'JSON 문자열 배열로 입력하세요. 예: ["로맨스", "비극"]. []를 입력하거나 모두 비우고 저장하면 삭제됩니다.';
+            : 'JSON 문자열 배열로 입력하세요. 예: ["로맨스", "비극"]. 장르당 최대 255자입니다. []를 입력하거나 모두 비우고 저장하면 삭제됩니다.';
         const error = document.createElement('div');
         error.className = 'error';
         error.setAttribute('role', 'alert');

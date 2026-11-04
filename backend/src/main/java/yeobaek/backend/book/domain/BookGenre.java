@@ -27,7 +27,7 @@ public class BookGenre {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = Book.MAX_GENRE_LENGTH)
     @Getter
     private String value;
 

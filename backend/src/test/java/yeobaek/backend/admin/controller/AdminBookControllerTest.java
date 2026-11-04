@@ -534,15 +534,15 @@ class AdminBookControllerTest extends ControllerTest {
         mockMvc.perform(post("/api/admin/books").header("X-Admin-Token", "controller-test-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title":"책","authors":[],"chapters":[],"genres":["로맨스","비극"],
-                                 "hashtags":["첫사랑","#파국예감"]}
+                                {"title":"책","authors":[],"chapters":[],"genres":["로맨스","비극","123","","줄\\n바꿈"],
+                                 "hashtags":["첫사랑","#파국예감","true","","줄\\n바꿈"]}
                                 """))
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<BookUploadRequest> captor = ArgumentCaptor.forClass(BookUploadRequest.class);
         verify(bookIngestService, times(1)).upload(captor.capture());
-        assertThat(captor.getValue().genres()).containsExactly("로맨스", "비극");
-        assertThat(captor.getValue().hashtags()).containsExactly("첫사랑", "#파국예감");
+        assertThat(captor.getValue().genres()).containsExactly("로맨스", "비극", "123", "", "줄\n바꿈");
+        assertThat(captor.getValue().hashtags()).containsExactly("첫사랑", "#파국예감", "true", "", "줄\n바꿈");
     }
 
     @Test
@@ -603,6 +603,36 @@ class AdminBookControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(adminBookService, times(1)).replaceHashtags(3L, invalid);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"genres", "hashtags"})
+    @DisplayName("업로드의 장르·해시태그 원소가 JSON 문자열이 아니면 서비스 호출 전에 거절한다")
+    void rejectsNonStringGenresAndHashtagsOnUpload(String field) throws Exception {
+        for (String value : List.of("123", "true", "{}", "[]")) {
+            String json = "{\"title\":\"책\",\"authors\":[],\"chapters\":[],\"%s\":[%s]}".formatted(field, value);
+            mockMvc.perform(post("/api/admin/books").header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(json))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+
+        verifyNoInteractions(bookIngestService, adminBookService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"genres", "hashtags"})
+    @DisplayName("교체할 장르·해시태그 원소가 JSON 문자열이 아니면 서비스 호출 전에 거절한다")
+    void rejectsNonStringGenresAndHashtagsOnUpdate(String field) throws Exception {
+        for (String value : List.of("123", "true", "{}", "[]")) {
+            String json = "{\"%s\":[%s]}".formatted(field, value);
+            mockMvc.perform(put("/api/admin/books/3/" + field).header("X-Admin-Token", "controller-test-token")
+                            .contentType(MediaType.APPLICATION_JSON).content(json))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+
+        verifyNoInteractions(bookIngestService, adminBookService);
     }
 
     @ParameterizedTest

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createGenresEditor, createHashtagsEditor } =
+const { createDescriptionEditor, createGenresEditor, createHashtagsEditor } =
     require('../../main/resources/static/admin-book-inventory.js');
 
 function editorHarness(create, book, onSave) {
@@ -122,7 +122,7 @@ test('삭제 도서는 두 메타데이터 편집기에서 수정할 수 없다'
     }
 });
 
-function requestHarness(response) {
+function requestHarness(response, onLoad = () => {}) {
     const page = fs.readFileSync(path.join(__dirname, '../../main/resources/templates/admin.html'), 'utf8');
     const source = page.slice(page.indexOf('    async function saveBookMetadata('),
         page.indexOf('    function escapeHtml('));
@@ -136,7 +136,7 @@ function requestHarness(response) {
         downloadBooksCsvButton: { disabled: false },
         adminToken: () => 'test-token',
         fetch: async (url, options) => { requests.push({ url, options }); return response; },
-        loadBooks: async () => { loads++; return true; },
+        loadBooks: async () => { loads++; onLoad(); return true; },
         show: (element, message, error) => messages.push({ message, error })
     };
     vm.createContext(sandbox);
@@ -144,7 +144,7 @@ function requestHarness(response) {
     return { sandbox, requests, messages, loads: () => loads, invalidations: () => invalidations };
 }
 
-test('메타데이터 비우기는 DELETE 없이 독립 PUT 요청을 보내고 저장 후 목록을 다시 조회한다', async () => {
+test('메타데이터 비우기는 독립 PUT 요청을 보내고 저장한 목록만 갱신한다', async () => {
     const h = requestHarness({ ok: true });
     const book = { bookId: 42, title: '책' };
     await h.sandbox.saveBookMetadata(book, 'genres', [], '장르');
@@ -156,14 +156,54 @@ test('메타데이터 비우기는 DELETE 없이 독립 PUT 요청을 보내고 
         { url: '/api/admin/books/42/hashtags', method: 'PUT', body: { hashtags: [] } }
     ]);
     assert.equal(h.requests[0].options.headers['X-Admin-Token'], 'test-token');
-    assert.equal(h.loads(), 2);
-    assert.equal(h.invalidations(), 2);
+    assert.deepEqual(book.genres, []);
+    assert.deepEqual(book.hashtags, []);
+    assert.equal(h.loads(), 0);
+    assert.equal(h.invalidations(), 0);
+    assert.equal(h.sandbox.downloadBooksCsvButton.disabled, false);
+});
+
+test('장르·해시태그를 저장해도 다른 필드와 다른 책의 미저장 초안을 보존한다', async () => {
+    const book = { bookId: 42, title: '책', status: 'ACTIVE', genres: ['비극'], hashtags: ['첫사랑'], description: '소개' };
+    const otherBook = { bookId: 43, title: '다른 책', status: 'ACTIVE', genres: ['풍자'] };
+    let editors;
+    const h = requestHarness({ ok: true }, renderEditors);
+    function renderEditors() {
+        editors = {
+            genres: editorHarness(createGenresEditor, book,
+                value => h.sandbox.saveBookMetadata(book, 'genres', value, '장르')),
+            hashtags: editorHarness(createHashtagsEditor, book,
+                value => h.sandbox.saveBookMetadata(book, 'hashtags', value, '해시태그')),
+            description: editorHarness(createDescriptionEditor, book, async () => {}),
+            otherGenres: editorHarness(createGenresEditor, otherBook, async () => {})
+        };
+    }
+    renderEditors();
+    editors.genres.input.value = '["로맨스"]';
+    editors.hashtags.input.value = '["재회"]';
+    editors.description.input.value = '아직 저장하지 않은 소개';
+    editors.otherGenres.input.value = '["성장"]';
+
+    await editors.genres.save.listeners.click();
+    assert.equal(editors.hashtags.input.value, '["재회"]');
+    assert.deepEqual(book.genres, ['로맨스']);
+    editors.genres.input.value = '["다음 장르 초안"]';
+    await editors.hashtags.save.listeners.click();
+    assert.deepEqual(book.hashtags, ['재회']);
+    assert.equal(editors.genres.input.value, '["다음 장르 초안"]');
+    assert.equal(editors.description.input.value, '아직 저장하지 않은 소개');
+    assert.equal(editors.otherGenres.input.value, '["성장"]');
+    assert.deepEqual(book.genres, ['로맨스']);
+    assert.equal(book.description, '소개');
+    assert.deepEqual(otherBook.genres, ['풍자']);
 });
 
 test('서버의 제한 초과 응답을 표시하고 실패한 저장을 성공으로 안내하지 않는다', async () => {
     const h = requestHarness({ ok: false, json: async () => ({ code: 'INVALID_REQUEST', message: '최대 5개' }) });
-    const result = await h.sandbox.saveBookMetadata({ bookId: 42 }, 'hashtags', ['a'], '해시태그');
+    const book = { bookId: 42, hashtags: ['기존 태그'] };
+    const result = await h.sandbox.saveBookMetadata(book, 'hashtags', ['a'], '해시태그');
     assert.equal(result, false);
+    assert.deepEqual(book.hashtags, ['기존 태그']);
     assert.equal(h.loads(), 0);
     assert.deepEqual(h.messages, [{ message: 'INVALID_REQUEST: 최대 5개', error: true }]);
 });

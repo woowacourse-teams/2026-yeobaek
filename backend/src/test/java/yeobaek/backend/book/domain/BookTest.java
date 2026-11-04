@@ -180,9 +180,9 @@ class BookTest {
 
 
     @Test
-    @DisplayName("자유 장르와 다섯 개·열 문자 경계의 태그를 보존하고 외부 변경을 막는다")
+    @DisplayName("255자 장르와 다섯 개·열 문자 경계의 태그를 보존하고 외부 변경을 막는다")
     void preservesGenresAndHashtagsAndProtectsCollections() {
-        List<String> expectedGenres = List.of("로맨스", "비극", "로맨스", " 자유 장르 ", "긴 장르".repeat(20), "성장");
+        List<String> expectedGenres = List.of("로맨스", "비극", "로맨스", " 자유 장르 ", "😀".repeat(255), "성장");
         List<String> expectedTags = List.of("첫사랑", "#반전", "첫사랑", "가나다라마바사아자차", "😀".repeat(10));
         List<String> genres = new ArrayList<>(expectedGenres);
         List<String> tags = new ArrayList<>(expectedTags);
@@ -251,10 +251,10 @@ class BookTest {
                 .containsExactly(List.of("비극"), List.of("첫사랑"));
     }
 
-    @Test
-    @DisplayName("null 장르 원소는 생성과 교체에서 거절하며 기존 장르를 지우지 않는다")
-    void rejectsNullGenreWithoutChangingBook() {
-        List<String> invalid = Arrays.asList("로맨스", null);
+    @ParameterizedTest
+    @MethodSource("invalidGenres")
+    @DisplayName("255자를 넘거나 null인 장르는 생성과 교체에서 거절하며 기존 장르를 지우지 않는다")
+    void rejectsInvalidGenreWithoutChangingBook(List<String> invalid) {
         Book book = book(List.of("비극"), List.of("첫사랑"));
 
         assertThatThrownBy(() -> book(invalid, List.of())).isInstanceOf(IllegalArgumentException.class);
@@ -279,5 +279,9 @@ class BookTest {
     private static Stream<List<String>> invalidHashtags() {
         return Stream.of(List.of("가", "나", "다", "라", "마", "바"), List.of("가나다라마바사아자차카"),
                 List.of("😀".repeat(11)), Arrays.asList("첫사랑", null));
+    }
+
+    private static Stream<List<String>> invalidGenres() {
+        return Stream.of(List.of("가".repeat(256)), List.of("😀".repeat(256)), Arrays.asList("로맨스", null));
     }
 }

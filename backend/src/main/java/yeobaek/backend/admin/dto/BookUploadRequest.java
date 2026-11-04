@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import tools.jackson.databind.annotation.JsonDeserialize;
+import yeobaek.backend.admin.controller.StrictStringDeserializer;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookDescription;
 import yeobaek.backend.book.domain.vo.Publisher;
@@ -26,8 +28,10 @@ public record BookUploadRequest(
         @Schema(description = "작가 목록") @Valid @NotNull List<@NotNull AuthorEntryRequest> authors,
         @Schema(description = "목차 목록") @Valid @NotNull List<@NotNull ChapterUploadRequest> chapters,
         @Schema(type = "string", description = "검수한 책 소개 (선택)", nullable = true) BookDescription description,
-        @Schema(description = "자유 입력 장르 목록. 생략하거나 null 또는 []를 보내면 장르 없이 등록한다.", types = {"array", "null"},
+        @JsonDeserialize(contentUsing = StrictStringDeserializer.class)
+        @Schema(description = "자유 입력 장르 목록. 장르당 최대 255자(Unicode 코드 포인트 기준). 생략하거나 null 또는 []를 보내면 장르 없이 등록한다.", types = {"array", "null"},
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED) List<String> genres,
+        @JsonDeserialize(contentUsing = StrictStringDeserializer.class)
         @Schema(description = "해시태그 목록(최대 5개, 각 10자). 생략하거나 null 또는 []를 보내면 해시태그 없이 등록한다.", types = {"array", "null"},
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED) List<String> hashtags
 ) {

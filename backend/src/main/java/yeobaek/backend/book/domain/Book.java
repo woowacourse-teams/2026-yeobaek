@@ -39,6 +39,7 @@ import yeobaek.backend.support.ErrorCode;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Book {
 
+    public static final int MAX_GENRE_LENGTH = 255;
     public static final int MAX_HASHTAG_COUNT = 5;
     public static final int MAX_HASHTAG_LENGTH = 10;
     private static final int GENRE_AND_HASHTAG_BATCH_SIZE = 100;
@@ -145,6 +146,9 @@ public class Book {
         List<String> snapshot = values == null ? List.of() : new ArrayList<>(values);
         if (snapshot.stream().anyMatch(Objects::isNull)) {
             throw new IllegalArgumentException("장르는 null일 수 없습니다.");
+        }
+        if (snapshot.stream().anyMatch(value -> value.codePointCount(0, value.length()) > MAX_GENRE_LENGTH)) {
+            throw new IllegalArgumentException("장르는 각각 최대 255자까지 등록할 수 있습니다.");
         }
         List<BookGenre> result = new ArrayList<>();
         for (String value : snapshot) {

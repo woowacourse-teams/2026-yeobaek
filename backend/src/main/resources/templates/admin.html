@@ -598,8 +598,6 @@
 
     async function saveBookMetadata(book, field, value, label) {
         const result = document.getElementById('books-result');
-        inventoryState.invalidate();
-        downloadBooksCsvButton.disabled = true;
         try {
             const response = await fetch('/api/admin/books/' + book.bookId + '/' + field, {
                 method: 'PUT',
@@ -611,9 +609,8 @@
                 show(result, body.code + ': ' + body.message, true);
                 return false;
             }
-            if (await loadBooks()) {
-                show(result, label + ' 저장 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
-            }
+            book[field] = value;
+            show(result, label + ' 저장 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
             return true;
         } catch (error) {
             show(result, label + ' 저장 실패: ' + error, true);

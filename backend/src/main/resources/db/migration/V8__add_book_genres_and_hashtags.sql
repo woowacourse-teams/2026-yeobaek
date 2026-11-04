@@ -1,7 +1,7 @@
 CREATE TABLE book_genres (
     id BIGINT NOT NULL AUTO_INCREMENT,
     book_id BIGINT NOT NULL,
-    value TEXT NOT NULL,
+    value VARCHAR(255) NOT NULL,
     PRIMARY KEY (id),
     INDEX idx_book_genres_book (book_id),
     CONSTRAINT fk_book_genres_book FOREIGN KEY (book_id) REFERENCES books (id)

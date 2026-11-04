@@ -83,6 +83,20 @@ class BookMappingTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("255자 장르를 저장한 뒤 그대로 조회한다")
+    void reloadsGenreAtMaximumLength() {
+        String genre = "😀".repeat(255);
+        Book book = bookRepository.save(new Book(new BookTitle("장르 경계 도서"), null, null, 1, null, null, null,
+                List.of(genre), List.of()));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            Book found = bookRepository.findById(book.getId()).orElseThrow();
+
+            assertThat(found.genreValues()).containsExactly(genre);
+        });
+    }
+
+    @Test
     @DisplayName("본문 범위 조회는 문단과 문장을 순서대로 fetch join한다")
     void fetchesOrderedSentencesWithPassages() {
         Book book = bookRepository.save(new Book(new BookTitle("범위 조회 도서"), null, null, 2, null, null, null, null, null));

@@ -929,6 +929,8 @@ def validate_discovery_metadata(book, required=False):
                 continue
             if required and not value.strip():
                 errors.append(f"{field}의 {index}번째 문구가 비어 있습니다.")
+            if field == "genres" and len(value) > 255:
+                errors.append(f"{index}번째 장르는 최대 255자입니다.")
             if field == "hashtags":
                 if len(value) > 10:
                     errors.append(f"{index}번째 해시태그는 최대 10자입니다.")

@@ -1223,8 +1223,11 @@ class DiscoveryMetadataTests(unittest.TestCase):
                     {"genres": genres, "hashtags": tags}, required=True), [])
 
     def test_count_and_unicode_codepoint_length_boundaries(self):
-        self.assertEqual(validate_discovery_metadata({"hashtags": ["😀" * 10] * 5}), [])
-        for values, expected in (({"hashtags": ["태그"] * 6}, "최대 5개"),
+        self.assertEqual(validate_discovery_metadata(
+            {"genres": ["가" * 255, "😀" * 255], "hashtags": ["😀" * 10] * 5}), [])
+        for values, expected in (({"genres": ["가" * 256]}, "최대 255자"),
+                                 ({"genres": ["😀" * 256]}, "최대 255자"),
+                                 ({"hashtags": ["태그"] * 6}, "최대 5개"),
                                  ({"hashtags": ["😀" * 11]}, "최대 10자")):
             with self.subTest(values=values):
                 self.assertTrue(any(expected in error for error in validate_discovery_metadata(values)))
