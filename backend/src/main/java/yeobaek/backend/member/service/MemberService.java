@@ -21,8 +21,8 @@ import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
+import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.InvalidRequestException;
 import yeobaek.backend.support.NotFoundException;
 
 @Service
@@ -82,8 +82,9 @@ public class MemberService {
             if (cause instanceof ConstraintViolationException violation
                     && ("uk_members_nickname".equals(violation.getConstraintName())
                     || "members.uk_members_nickname".equals(violation.getConstraintName()))) {
-                return new InvalidRequestException(
-                        "이미 사용 중인 닉네임입니다.", exception, Map.of(REASON, "duplicate_nickname"));
+                return new BadRequestException(
+                        ErrorCode.DUPLICATE_NICKNAME, "이미 사용 중인 닉네임입니다.",
+                        exception, Map.of(REASON, "duplicate_nickname"));
             }
             cause = cause.getCause();
         }
