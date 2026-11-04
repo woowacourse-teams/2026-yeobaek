@@ -33,6 +33,8 @@ import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.invitation.InviteLink
+import com.yeobaek.core.invitation.rememberInviteShareSheet
 import com.yeobaek.feature.group.detail.component.BlockDialog
 import com.yeobaek.feature.group.detail.component.DeleteGroupDialog
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
@@ -56,6 +58,7 @@ fun DetailScreen(
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shareSheet = rememberInviteShareSheet()
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -203,6 +206,18 @@ fun DetailScreen(
                             snackbarHostState.showSnackbar(
                                 message = "초대 코드를 복사했습니다.",
                                 duration = SnackbarDuration.Short,
+                            )
+                        }
+                    }
+                },
+                onShareClick = {
+                    val code = uiState.groupUiModel.groupCode
+                    val name = uiState.groupUiModel.name.ifBlank { uiState.bookUiModel.title }
+                    val opened = InviteLink.isValidCode(code) && shareSheet.share(InviteLink.shareText(name, code))
+                    if (!opened) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "공유창을 열 수 없어요. 초대코드를 복사해 전달해주세요.",
                             )
                         }
                     }
