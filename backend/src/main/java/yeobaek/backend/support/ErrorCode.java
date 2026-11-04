@@ -7,6 +7,7 @@ package yeobaek.backend.support;
 public enum ErrorCode {
 
     INVALID_REQUEST,
+    ROUTE_NOT_FOUND,
     MEMBER_NOT_FOUND,
     BOOK_NOT_FOUND,
     BOOK_NOT_AVAILABLE,
