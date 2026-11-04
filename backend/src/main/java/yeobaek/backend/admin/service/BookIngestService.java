@@ -76,7 +76,8 @@ public class BookIngestService {
                 .addKeyValue("chapterCount", chapterCount).log("도서 업로드를 시작합니다.");
         validateStructure(request);
         Book book = new Book(request.title(), request.publisher(), request.publishedYear(), countPassages(request),
-                request.coverImageKey(), request.description(), BodyCharacterCount.fromParagraphs(bodyParagraphs(request)));
+                request.coverImageKey(), request.description(), BodyCharacterCount.fromParagraphs(bodyParagraphs(request)),
+                request.genres(), request.hashtags());
         Authors authors = resolveAuthors(request.authors());
         rejectDuplicateBook(book, authors);
 
