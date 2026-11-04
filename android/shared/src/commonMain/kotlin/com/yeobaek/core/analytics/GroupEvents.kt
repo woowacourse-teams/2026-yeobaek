@@ -49,6 +49,7 @@ data class GroupCreateSubmitted(
 }
 
 enum class GroupJoinEntryPoint(val value: String) {
+    DEEPLINK("deeplink"),
     ONBOARDING("onboarding"),
     HOME("home"),
 }

@@ -22,6 +22,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Join(
     val fromOnboarding: Boolean = false,
+    val initialCode: String? = null,
+    val invitationRequestId: String? = null,
 )
 
 fun NavController.navigateToJoin(
@@ -42,10 +44,11 @@ fun NavGraphBuilder.joinNavGraph(
     navigateToBack: () -> Unit,
 ) {
     composable<Join> { backStackEntry ->
-        val entryPoint = if (backStackEntry.toRoute<Join>().fromOnboarding) {
-            GroupJoinEntryPoint.ONBOARDING
-        } else {
-            GroupJoinEntryPoint.HOME
+        val route = backStackEntry.toRoute<Join>()
+        val entryPoint = when {
+            route.invitationRequestId != null -> GroupJoinEntryPoint.DEEPLINK
+            route.fromOnboarding -> GroupJoinEntryPoint.ONBOARDING
+            else -> GroupJoinEntryPoint.HOME
         }
         TrackScreen(
             crashReporter = appContainer.crashReporter,
@@ -61,8 +64,8 @@ fun NavGraphBuilder.joinNavGraph(
             ),
         )
 
-        LaunchedEffect(Unit) {
-            joinViewModel.initInputValue()
+        LaunchedEffect(route.initialCode, route.invitationRequestId) {
+            joinViewModel.initializeInput(route.initialCode, route.invitationRequestId)
         }
 
         LaunchedEffect(joinViewModel.uiState.successJoin) {
