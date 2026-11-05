@@ -194,6 +194,28 @@ class NicknameChangeUiTest {
         assertEquals(listOf("엘리"), repository.requests)
     }
 
+    @Test
+    fun systemBackChecksLatestStateBeforeLoadingRecomposition() {
+        val gate = CompletableDeferred<Unit>()
+        val repository = TestUserRepository().apply { beforeUpdate = { gate.await() } }
+        val vm = viewModel(repository)
+        var backCount = 0
+        showEditor(vm) { backCount++ }
+        rule.waitForIdle()
+
+        rule.runOnUiThread {
+            vm.onNicknameValueChange("엘리")
+            vm.updateNickname()
+            rule.activity.onBackPressedDispatcher.onBackPressed()
+            assertEquals(0, backCount)
+            assertEquals(NicknameUpdateState.Loading, vm.uiState.nicknameUpdateState)
+            gate.complete(Unit)
+        }
+        rule.waitUntil(5_000) { vm.uiState.nicknameUpdateState is NicknameUpdateState.Success }
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.runOnIdle { assertEquals(0, backCount) }
+    }
+
     private fun viewModel(repository: TestUserRepository): NicknameViewModel {
         lateinit var vm: NicknameViewModel
         rule.runOnUiThread {
@@ -211,7 +233,18 @@ class NicknameChangeUiTest {
                     Modifier.requiredSize(390.dp, 844.dp)
                         .consumeWindowInsets(WindowInsets.safeDrawing).testTag("nickname-screen"),
                 ) {
-                    NicknameChangeScreen(vm.uiState, "조밀", vm::onNicknameValueChange, vm::updateNickname, onBack)
+                    NicknameChangeScreen(
+                        vm.uiState,
+                        "조밀",
+                        vm::onNicknameValueChange,
+                        vm::updateNickname,
+                        onBackClick = {
+                            val updateState = vm.uiState.nicknameUpdateState
+                            if (updateState !is NicknameUpdateState.Loading && updateState !is NicknameUpdateState.Success) {
+                                onBack()
+                            }
+                        },
+                    )
                 }
             }
         }

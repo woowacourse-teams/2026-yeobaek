@@ -73,7 +73,7 @@ fun NicknameChangeScreen(
     val isSuccess = uiState.nicknameUpdateState is NicknameUpdateState.Success
     val isBackBlocked = isUpdating || isSuccess
     val isError = !uiState.nicknameState || uiState.nicknameUpdateState is NicknameUpdateState.Failure
-    PlatformBackHandler(enabled = isBackBlocked, onBack = {})
+    PlatformBackHandler(onBack = onBackClick)
     val focusManager = LocalFocusManager.current
     LaunchedEffect(uiState.nicknameUpdateState) {
         if (uiState.nicknameUpdateState is NicknameUpdateState.Failure) focusManager.clearFocus()
