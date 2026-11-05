@@ -48,3 +48,8 @@ out/
 
 # Local static FCM client; no alternate Spring server or settings.
 /src/main/resources/static/fcm-test/
+
+# 운영 배포의 실제 설정과 서비스 계정 파일
+/infra/prod/.env
+/infra/prod/otel.env
+/infra/prod/secrets/
