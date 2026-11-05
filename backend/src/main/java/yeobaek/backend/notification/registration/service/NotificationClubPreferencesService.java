@@ -34,10 +34,10 @@ public class NotificationClubPreferencesService {
                        NotificationClubPreferenceUpdateRequest request) {
         NotificationRegistration registration = registrationService.find(memberId, fid);
         ensureJoined(memberId, clubId);
-        NotificationClubPreference preference =
-                new NotificationClubPreference(registration.getId(), clubId, request.enabled());
-        preferenceRepository.upsert(preference.getRegistrationId(), preference.getClubId(),
-                preference.isEnabled(), preference.getUpdatedAt());
+        preferenceRepository.findByRegistrationIdAndClubId(registration.getId(), clubId)
+                .ifPresentOrElse(preference -> preference.changeEnabled(request.enabled()),
+                        () -> preferenceRepository.save(
+                                new NotificationClubPreference(registration.getId(), clubId, request.enabled())));
     }
 
     private void ensureJoined(Long memberId, Long clubId) {

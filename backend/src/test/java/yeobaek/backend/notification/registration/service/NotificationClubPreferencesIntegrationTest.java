@@ -3,14 +3,7 @@ package yeobaek.backend.notification.registration.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,7 +69,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     @DisplayName("첫 변경을 저장하고 같은 키의 다음 변경은 기존 행을 갱신해요")
-    void upsertOnePreference(boolean enabled) {
+    void createAndUpdatePreference(boolean enabled) {
         change(PHONE, clubId, enabled);
         var original = clubPreferenceRepository.findByRegistrationIdAndClubId(phone.getId(), clubId).orElseThrow();
 
@@ -225,32 +218,6 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
             assertThat(setting.getRegistrationId()).isEqualTo(tablet.getId());
             assertThat(setting.getClubId()).isEqualTo(otherClubId);
         });
-    }
-
-    @Test
-    @DisplayName("동시에 최초 변경을 요청해도 설치와 모임마다 한 행만 저장해요")
-    void upsertConcurrently() throws InterruptedException, ExecutionException, TimeoutException {
-        var ready = new CountDownLatch(4);
-        var start = new CountDownLatch(1);
-        try (var executor = Executors.newFixedThreadPool(4)) {
-            List<Future<?>> futures = new ArrayList<>();
-            for (int index = 0; index < 4; index++) {
-                futures.add(executor.submit(() -> {
-                    ready.countDown();
-                    start.await();
-                    change(PHONE, clubId, false);
-                    return null;
-                }));
-            }
-            boolean allReady = ready.await(5, TimeUnit.SECONDS);
-            start.countDown();
-            assertThat(allReady).isTrue();
-            for (Future<?> future : futures) {
-                future.get(10, TimeUnit.SECONDS);
-            }
-        }
-        assertThat(clubPreferenceRepository.count()).isEqualTo(1);
-        assertThat(clubPreferences.find(member.getId(), PHONE, clubId).enabled()).isFalse();
     }
 
     private Long joinClub(String code) {

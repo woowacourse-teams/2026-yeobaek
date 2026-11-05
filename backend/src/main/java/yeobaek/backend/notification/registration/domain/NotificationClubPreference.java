@@ -41,4 +41,11 @@ public class NotificationClubPreference {
         this.enabled = enabled;
         this.updatedAt = Instant.now();
     }
+
+    public void changeEnabled(boolean enabled) {
+        if (this.enabled != enabled) {
+            this.enabled = enabled;
+            this.updatedAt = Instant.now();
+        }
+    }
 }
