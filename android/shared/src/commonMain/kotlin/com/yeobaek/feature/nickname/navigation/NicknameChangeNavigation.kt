@@ -50,7 +50,13 @@ fun NavGraphBuilder.nicknameChangeNavGraph(
             onNicknameValueChange = nicknameViewModel::onNicknameValueChange,
             onNicknameChange = nicknameViewModel::updateNickname,
             onBackClick = {
-                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) navigateBack()
+                val updateState = nicknameViewModel.uiState.nicknameUpdateState
+                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED &&
+                    updateState !is NicknameUpdateState.Loading &&
+                    updateState !is NicknameUpdateState.Success
+                ) {
+                    navigateBack()
+                }
             },
         )
     }

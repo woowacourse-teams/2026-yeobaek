@@ -56,6 +56,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekOnNeutralContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.platform.PlatformBackHandler
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -70,7 +71,9 @@ fun NicknameChangeScreen(
 ) {
     val isUpdating = uiState.nicknameUpdateState is NicknameUpdateState.Loading
     val isSuccess = uiState.nicknameUpdateState is NicknameUpdateState.Success
+    val isBackBlocked = isUpdating || isSuccess
     val isError = !uiState.nicknameState || uiState.nicknameUpdateState is NicknameUpdateState.Failure
+    PlatformBackHandler(enabled = isBackBlocked, onBack = {})
     val focusManager = LocalFocusManager.current
     LaunchedEffect(uiState.nicknameUpdateState) {
         if (uiState.nicknameUpdateState is NicknameUpdateState.Failure) focusManager.clearFocus()
@@ -94,7 +97,11 @@ fun NicknameChangeScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick, modifier = Modifier.size(40.dp)) {
+                    IconButton(
+                        onClick = onBackClick,
+                        enabled = !isBackBlocked,
+                        modifier = Modifier.size(40.dp),
+                    ) {
                         Icon(
                             painterResource(Res.drawable.ic_back_arrow),
                             contentDescription = stringResource(Res.string.nickname_change_back),

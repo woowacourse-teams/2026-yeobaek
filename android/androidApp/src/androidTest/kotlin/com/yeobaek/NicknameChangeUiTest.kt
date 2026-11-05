@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -164,6 +165,35 @@ class NicknameChangeUiTest {
         assertEquals(listOf("엘리", "엘리"), repository.requests)
     }
 
+    @Test
+    fun pendingUpdateBlocksToolbarAndSystemBackUntilFailure() {
+        val gate = CompletableDeferred<Unit>()
+        val repository = TestUserRepository().apply {
+            beforeUpdate = { gate.await() }
+            failure = IllegalStateException("network unavailable")
+        }
+        val vm = viewModel(repository)
+        var backCount = 0
+        showEditor(vm) { backCount++ }
+        rule.onNode(hasSetTextAction()).performTextReplacement("엘리")
+        rule.onNodeWithText("변경하기").performClick()
+        rule.waitUntil(5_000) { repository.requests.size == 1 }
+
+        rule.onNodeWithContentDescription("뒤로가기").assertIsNotEnabled().performClick()
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.runOnIdle {
+            assertEquals(0, backCount)
+            assertEquals(NicknameUpdateState.Loading, vm.uiState.nicknameUpdateState)
+        }
+
+        rule.runOnUiThread { gate.complete(Unit) }
+        rule.onNodeWithText("닉네임을 변경하지 못했어요. 다시 시도해 주세요.").assertIsDisplayed()
+        rule.onNodeWithContentDescription("뒤로가기").assertIsEnabled().performClick()
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.runOnIdle { assertEquals(2, backCount) }
+        assertEquals(listOf("엘리"), repository.requests)
+    }
+
     private fun viewModel(repository: TestUserRepository): NicknameViewModel {
         lateinit var vm: NicknameViewModel
         rule.runOnUiThread {
@@ -175,6 +205,7 @@ class NicknameChangeUiTest {
 
     private fun showEditor(vm: NicknameViewModel, onBack: () -> Unit = {}) {
         rule.setContent {
+            BackHandler(onBack = onBack)
             YeobaekTheme {
                 Box(
                     Modifier.requiredSize(390.dp, 844.dp)
