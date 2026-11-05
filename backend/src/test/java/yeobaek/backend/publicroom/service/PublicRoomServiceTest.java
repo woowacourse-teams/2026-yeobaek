@@ -1,6 +1,7 @@
 package yeobaek.backend.publicroom.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -95,7 +96,8 @@ class PublicRoomServiceTest extends IntegrationTest {
     @Test
     @DisplayName("공개방 목록은 중복 방문을 제외한 누적 방문 회원 수 내림차순으로 반환한다")
     void findAllByDistinctVisitorCount() {
-        ReadingFixture first = createRoom("첫 번째 책", 2);
+        ReadingFixture first = createRoom("첫 번째 책", 2,
+                List.of("로맨스", "비극"), List.of("재회", "첫사랑", "재회"));
         ReadingFixture second = createRoom("두 번째 책", 1);
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         Member other = memberRepository.save(new Member(new Nickname("다른 독자")));
@@ -106,9 +108,13 @@ class PublicRoomServiceTest extends IntegrationTest {
 
         var response = publicRoomService.findAll(member.getId(), PublicRoomSort.MOST_VISITED, null);
 
-        assertThat(response.publicRooms()).extracting(room -> room.publicRoomId())
-                .containsExactly(second.room().getId(), first.room().getId());
-        assertThat(response.publicRooms()).allSatisfy(room -> assertThat(room.myProgress()).isNull());
+        assertThat(response.publicRooms()).extracting(room -> tuple(room.publicRoomId(), room.myProgress()))
+                .containsExactly(tuple(second.room().getId(), null), tuple(first.room().getId(), null));
+        var bookWithMetadata = response.publicRooms().get(1).book();
+        assertThat(bookWithMetadata.genres()).containsExactlyInAnyOrder("로맨스", "비극");
+        assertThat(bookWithMetadata.hashtags()).containsExactlyInAnyOrder("재회", "첫사랑", "재회");
+        var legacyBook = response.publicRooms().getFirst().book();
+        assertThat(List.of(legacyBook.genres(), legacyBook.hashtags())).containsOnly(List.of());
         assertThat(publicRoomMemberRepository.count()).isEqualTo(3);
     }
 
@@ -201,7 +207,12 @@ class PublicRoomServiceTest extends IntegrationTest {
     }
 
     private ReadingFixture createRoom(String title, int passageCount) {
-        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null, null, null));
+        return createRoom(title, passageCount, null, null);
+    }
+
+    private ReadingFixture createRoom(String title, int passageCount, List<String> genres, List<String> hashtags) {
+        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null, null, null,
+                genres, hashtags));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
         List<Passage> passages = java.util.stream.IntStream.rangeClosed(1, passageCount)
                 .mapToObj(sequence -> passageRepository.save(new Passage(chapter, sequence,

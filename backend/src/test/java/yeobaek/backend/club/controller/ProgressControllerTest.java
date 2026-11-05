@@ -76,7 +76,7 @@ class ProgressControllerTest extends ControllerTest {
         var response = new LastReadingResponse(
                 7L,
                 "교환독서 1기",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.DELETED),
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.DELETED, List.of(), List.of()),
                 42,
                 13,
                 lastReadAt);
