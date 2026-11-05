@@ -99,7 +99,6 @@ private fun InvitationTools() {
         TextButton(onClick = { open(InviteLink.create(code)) }, enabled = InviteLink.isValidCode(code)) {
             Text("초대 링크 실행")
         }
-        TextButton(onClick = { open("yeobaek://invite?code=BAD") }) { Text("잘못된 링크 실행") }
         TextButton(
             enabled = InviteLink.isValidCode(code),
             onClick = {
