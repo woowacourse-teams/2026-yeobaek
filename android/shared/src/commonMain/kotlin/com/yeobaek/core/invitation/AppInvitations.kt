@@ -35,7 +35,6 @@ class AppInvitations {
         joining.value = if (active) joining.value + owner else joining.value - owner
     }
 
-    // Small, transient saved state. Do not persist invitation codes in preferences or analytics.
     fun snapshot(): List<String> = listOf(pending.value?.id.orEmpty(), pending.value?.code.orEmpty()) + handledIds
 
     fun restore(snapshot: List<String>) {

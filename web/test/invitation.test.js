@@ -3,11 +3,8 @@ import { test } from "node:test";
 import { isMobileDevice, openAppOnce, parseInvitation } from "../invitation.js";
 
 test("keeps a valid code unchanged when building the app URI", () => {
-  // Given
   const search = "?code=ABC123";
-  // When
   const invitation = parseInvitation(search);
-  // Then
   assert.deepEqual(invitation, {
     kind: "valid", code: "ABC123", appUri: "yeobaek://invite?code=ABC123",
   });
@@ -52,14 +49,11 @@ class VisibilityDocument extends EventTarget {
 }
 
 test("attempts opening once even after the user returns from the app", () => {
-  // Given
   const document = new VisibilityDocument("visible");
   const calls = [];
-  // When
   openAppOnce("yeobaek://invite?code=ABC123", document, { assign: uri => calls.push(uri) });
   document.change("hidden");
   document.change("visible");
-  // Then
   assert.deepEqual(calls, ["yeobaek://invite?code=ABC123"]);
 });
 

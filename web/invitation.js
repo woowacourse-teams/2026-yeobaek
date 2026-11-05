@@ -17,7 +17,7 @@ export function parseInvitation(search) {
   return { kind: "valid", code, appUri: `yeobaek://invite?code=${code}` };
 }
 
-/** Device hint only: this does not detect whether the app is installed.
+/**
  * @param {Pick<Navigator, "userAgent" | "platform" | "maxTouchPoints">} navigator */
 export function isMobileDevice(navigator) {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -25,8 +25,6 @@ export function isMobileDevice(navigator) {
 }
 
 /**
- * A background tab waits until visible. Returning from the app does not reopen it.
- * The browser can reject automatic navigation; the page keeps its manual link.
  * @param {string} appUri
  * @param {Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener">} document
  * @param {Pick<Location, "assign">} location

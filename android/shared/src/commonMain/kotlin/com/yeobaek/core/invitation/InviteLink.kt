@@ -23,7 +23,6 @@ object InviteLink {
         return SHARE_PREFIX + code
     }
 
-    // The contract has one ASCII code parameter, with no path, fragment or extra parameters.
     fun parse(uri: String?): InviteLinkResult = when {
         uri == null || !uri.startsWith("yeobaek:") -> InviteLinkResult.Unrelated
 
