@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.BookCoverImage
+import com.yeobaek.core.designsystem.component.BookGenres
+import com.yeobaek.core.designsystem.component.BookKeywords
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekHighlight
@@ -72,6 +75,7 @@ fun BookDetailScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             BookSummary(book)
+            BookKeywords(book.hashtags)
             BookLength(book)
             if (!book.description.isNullOrBlank()) {
                 BookDescription(book.description)
@@ -86,7 +90,7 @@ fun BookDetailScreen(
 @Composable
 private fun BookSummary(book: BookDetailUiModel) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(180.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -120,6 +124,7 @@ private fun BookSummary(book: BookDetailUiModel) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            BookGenres(book.genres, modifier = Modifier.padding(top = 16.dp))
         }
     }
 }

@@ -7,6 +7,8 @@ data class OnboardingBookUiModel(
     val title: String = "",
     val authors: String = "",
     val coverUrl: String? = null,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 fun BookModel.toUiModel(): OnboardingBookUiModel = OnboardingBookUiModel(
@@ -14,4 +16,6 @@ fun BookModel.toUiModel(): OnboardingBookUiModel = OnboardingBookUiModel(
     title = title,
     authors = authors,
     coverUrl = coverImageUrl,
+    genres = genres,
+    hashtags = hashtags,
 )

@@ -5,4 +5,6 @@ data class DetailBookUiModel(
     val title: String = "",
     val author: List<String> = emptyList(),
     val currentProgress: Int = 0,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )

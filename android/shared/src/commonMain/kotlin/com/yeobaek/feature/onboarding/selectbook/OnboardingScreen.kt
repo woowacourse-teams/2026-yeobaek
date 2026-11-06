@@ -215,6 +215,8 @@ fun OnboardingScreen(
                                 title = bookUiModel.title,
                                 authors = bookUiModel.authors,
                                 coverUrl = bookUiModel.coverUrl,
+                                genres = bookUiModel.genres,
+                                hashtags = bookUiModel.hashtags,
                                 onClick = { onSelectBook(bookUiModel.id) },
                             )
                         }

@@ -167,6 +167,8 @@ private fun PublicRoomGrid(
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
                     onClick = { onPublicRoomClick(publicRoom, PublicRoomEntryPoint.ROOM_LIST) },
+                    genres = publicRoom.genres,
+                    hashtags = publicRoom.hashtags,
                 )
             }
         }
