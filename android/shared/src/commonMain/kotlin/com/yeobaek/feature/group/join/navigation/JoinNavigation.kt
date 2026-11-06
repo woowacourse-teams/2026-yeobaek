@@ -30,9 +30,18 @@ fun NavController.navigateToJoin(
     fromOnboarding: Boolean,
     navOptions: NavOptions? = null,
 ) {
+    navigate(route = Join(fromOnboarding = fromOnboarding), navOptions = navOptions)
+}
+
+fun NavController.navigateToJoin(
+    initialCode: String,
+    invitationRequestId: String,
+    navOptions: NavOptions? = null,
+) {
     navigate(
         route = Join(
-            fromOnboarding = fromOnboarding,
+            initialCode = initialCode,
+            invitationRequestId = invitationRequestId,
         ),
         navOptions = navOptions,
     )

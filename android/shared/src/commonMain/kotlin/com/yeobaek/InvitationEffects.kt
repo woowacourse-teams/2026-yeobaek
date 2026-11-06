@@ -14,10 +14,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.feature.group.join.navigation.Join
+import com.yeobaek.feature.group.join.navigation.navigateToJoin
 import com.yeobaek.feature.home.navigation.Home
+import com.yeobaek.feature.home.navigation.navigateToHome
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
@@ -74,14 +77,20 @@ fun InvitationEffects(
         }
 
         if (navController.currentBackStack.value.none { it.destination.hasRoute<Home>() }) {
-            navController.navigate(Home) { popUpTo(navController.graph.id) }
+            navController.navigateToHome(
+                navOptions = navOptions { popUpTo(navController.graph.id) },
+            )
         }
-        navController.navigate(Join(initialCode = code, invitationRequestId = target.id)) {
-            if (navController.currentDestination?.hasRoute<Join>() == true) {
-                popUpTo<Join> { inclusive = true }
-            }
-            launchSingleTop = true
-        }
+        navController.navigateToJoin(
+            initialCode = code,
+            invitationRequestId = target.id,
+            navOptions = navOptions {
+                if (navController.currentDestination?.hasRoute<Join>() == true) {
+                    popUpTo<Join> { inclusive = true }
+                }
+                launchSingleTop = true
+            },
+        )
         invitations.consume(target)
     }
 }
