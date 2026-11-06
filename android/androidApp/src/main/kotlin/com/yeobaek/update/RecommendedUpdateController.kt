@@ -34,6 +34,8 @@ class RecommendedUpdateController(
 ) {
     private val mutableState = MutableStateFlow(RecommendedUpdateState())
     val state = mutableState.asStateFlow()
+    private val promptPending = MutableStateFlow(true)
+    val isPromptPending = promptPending.asStateFlow()
     private var closed = false
     private var foreground = false
     private var queryGeneration = 0
@@ -43,6 +45,7 @@ class RecommendedUpdateController(
         if (!closed) {
             queryGeneration++
             updateInstallState(install.installStatus())
+            promptPending.value = flowInFlight
         }
     }
 
@@ -64,6 +67,7 @@ class RecommendedUpdateController(
     fun onResult(resultCode: Int) {
         if (closed) return
         flowInFlight = false
+        promptPending.value = false
         if (resultCode == ActivityResult.RESULT_IN_APP_UPDATE_FAILED) {
             showFailure("업데이트를 시작하지 못했어요.")
         }
@@ -98,11 +102,13 @@ class RecommendedUpdateController(
         closed = true
         queryGeneration++
         manager.unregisterListener(listener)
+        promptPending.value = false
     }
 
     private fun checkUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
         if (closed) return
         val generation = ++queryGeneration
+        promptPending.value = true
         manager.appUpdateInfo.addOnSuccessListener { info ->
             if (closed || !foreground || generation != queryGeneration || !isUpdateAllowed()) return@addOnSuccessListener
             updateInstallState(info.installStatus())
@@ -111,6 +117,7 @@ class RecommendedUpdateController(
                 state.value.stage == RecommendedUpdateStage.READY_TO_INSTALL ||
                 state.value.stage == RecommendedUpdateStage.INSTALLING
             ) {
+                promptPending.value = flowInFlight
                 return@addOnSuccessListener
             }
             val versionCode = info.availableVersionCode()
@@ -120,6 +127,11 @@ class RecommendedUpdateController(
             ) {
                 if (session.canPrompt(versionCode)) startUpdate(info, launcher)
             }
+            promptPending.value = flowInFlight
+        }.addOnFailureListener {
+            if (!closed && foreground && generation == queryGeneration) promptPending.value = false
+        }.addOnCanceledListener {
+            if (!closed && foreground && generation == queryGeneration) promptPending.value = false
         }
     }
 

@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.play.core.appupdate.AppUpdateManager
+import com.yeobaek.core.common.AppPromptBlocker
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.update.UpdatePolicyRepository
 
@@ -80,6 +81,7 @@ internal fun AndroidRecommendedUpdate(
         controller.onResult(result.resultCode)
     }
     val state by controller.state.collectAsState()
+    val promptPending by controller.isPromptPending.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val lifecycleOwner = LocalLifecycleOwner.current
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { controller.pause() }
@@ -118,7 +120,12 @@ internal fun AndroidRecommendedUpdate(
                     if (readyToInstall) Modifier.navigationBarsPadding() else Modifier,
                 ),
             ) {
-                Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    AppPromptBlocker(
+                        blocked = promptPending || snackbarHostState.currentSnackbarData != null,
+                        content = content,
+                    )
+                }
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier.padding(horizontal = RecommendedUpdateBannerTokens.HorizontalInset).then(
