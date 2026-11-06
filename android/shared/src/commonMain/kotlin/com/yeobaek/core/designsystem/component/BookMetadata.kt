@@ -65,6 +65,29 @@ fun BookMetadataRow(
 }
 
 @Composable
+fun BookHashtags(
+    hashtags: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    val labels = hashtags.displayHashtags()
+    if (labels.isEmpty()) return
+
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        labels.forEach { hashtag ->
+            Text(
+                text = hashtag,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = YeobaekTextSecondary,
+            )
+        }
+    }
+}
+
+@Composable
 fun BookGenres(
     genres: List<String>,
     modifier: Modifier = Modifier,

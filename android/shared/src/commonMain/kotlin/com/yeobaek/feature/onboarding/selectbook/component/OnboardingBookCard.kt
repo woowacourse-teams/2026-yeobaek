@@ -15,8 +15,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.yeobaek.core.designsystem.component.BookCoverImage
-import com.yeobaek.core.designsystem.component.BookMetadataRow
+import com.yeobaek.core.designsystem.component.BookHashtags
+import com.yeobaek.core.designsystem.component.BookListCover
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
@@ -37,8 +37,9 @@ fun OnboardingBookCard(
         ),
         onClick = onClick,
     ) {
-        BookCoverImage(
+        BookListCover(
             imageUrl = coverUrl,
+            genres = genres,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -56,8 +57,7 @@ fun OnboardingBookCard(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
-        BookMetadataRow(
-            genres = genres,
+        BookHashtags(
             hashtags = hashtags,
             modifier = Modifier.padding(top = 8.dp),
         )

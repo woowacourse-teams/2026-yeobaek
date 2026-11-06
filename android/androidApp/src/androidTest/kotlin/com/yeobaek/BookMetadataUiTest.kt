@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -48,7 +49,7 @@ class BookMetadataUiTest {
     val rule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun narrowBookCardsShowRepresentativeMetadataAndRemainClickable() {
+    fun narrowBookCardsOverlayGenreAndShowAllHashtagsBelowAuthor() {
         var clicks = 0
         show {
             Column(Modifier.width(112.dp)) {
@@ -58,7 +59,7 @@ class BookMetadataUiTest {
                     coverUrl = null,
                     onClick = { clicks++ },
                     genres = listOf("소설", "추가 장르"),
-                    hashtags = listOf("성장", "추가 키워드"),
+                    hashtags = listOf("성장", "우정", "자아찾기"),
                 )
                 OnboardingBookCard(
                     title = "1984",
@@ -66,16 +67,30 @@ class BookMetadataUiTest {
                     coverUrl = null,
                     onClick = { clicks++ },
                     genres = listOf("고전"),
-                    hashtags = listOf("#사회"),
+                    hashtags = listOf("#사회", "자유"),
                 )
             }
         }
-        listOf("소설", "#성장", "고전", "#사회").forEach {
+        listOf("소설", "#성장", "#우정", "#자아찾기", "고전", "#사회", "#자유").forEach {
             rule.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed()
         }
         rule.onNodeWithText("추가 장르", useUnmergedTree = true).assertDoesNotExist()
-        rule.onNodeWithText("#추가 키워드", useUnmergedTree = true).assertDoesNotExist()
-        capture("compact-book-cards")
+        val covers = rule.onAllNodesWithContentDescription("책 표지 불러오기 실패", useUnmergedTree = true).fetchSemanticsNodes()
+        listOf("소설", "고전").forEachIndexed { index, label ->
+            val genre = rule.onNodeWithText(label, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val cover = covers[index].boundsInRoot
+            assertTrue(genre.left > cover.left && genre.top > cover.top)
+            assertTrue(genre.right <= cover.right && genre.bottom < cover.top + cover.height / 2)
+        }
+        listOf("헤르만 헤세" to "#성장", "조지 오웰" to "#사회").forEach { (authorText, hashtagText) ->
+            val author = rule.onNodeWithText(authorText, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val hashtag = rule.onNodeWithText(hashtagText, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue(hashtag.top > author.bottom)
+        }
+        val first = rule.onNodeWithText("#성장", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val last = rule.onNodeWithText("#자아찾기", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue(last.top > first.top)
+        capture("genre-overlay-book-cards")
         rule.onNodeWithText("데미안").performClick()
         rule.onNodeWithText("1984").performClick()
         assertEquals(2, clicks)
@@ -138,11 +153,17 @@ class BookMetadataUiTest {
                     genres = listOf("", " "),
                     hashtags = listOf(" ", "#"),
                 )
+                BookItem(
+                    "장르만 표시", "작가", null, {}, Modifier.width(112.dp).testTag("genre-only"),
+                    genres = listOf("성장소설"),
+                )
             }
         }
         val original = rule.onNodeWithTag("original").fetchSemanticsNode().boundsInRoot
         val empty = rule.onNodeWithTag("empty").fetchSemanticsNode().boundsInRoot
         assertEquals(original.height, empty.height, 0.1f)
+        val genreOnly = rule.onNodeWithTag("genre-only").fetchSemanticsNode().boundsInRoot
+        assertEquals(original.height, genreOnly.height, 0.1f)
         capture("empty-book-cards")
     }
 
