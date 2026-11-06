@@ -18,7 +18,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -28,11 +32,18 @@ import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.config.ConfigFetchStatus
 import com.yeobaek.core.config.ConfigValueSource
 import com.yeobaek.core.config.RemoteConfigKeys
+import com.yeobaek.core.config.SurveyConfig
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.invitation.InviteLink
 import com.yeobaek.core.invitation.rememberInviteShareSheet
+import com.yeobaek.core.survey.rememberSurveyLinkOpener
 import com.yeobaek.data.repository.AppConfigRepository
+import com.yeobaek.feature.survey.component.SurveyPromptDialog
 import kotlin.time.Instant
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 @Composable
 fun DevToolsScreen(
@@ -155,6 +166,70 @@ private fun RemoteConfigTools(repository: AppConfigRepository) {
             style = MaterialTheme.typography.bodySmall,
         )
     }
+
+    SurveyTools(config.surveyConfig, config.valueSources[RemoteConfigKeys.PMF_SURVEY])
+}
+
+@Composable
+private fun SurveyTools(config: SurveyConfig, source: ConfigValueSource?) {
+    var previewShown by remember { mutableStateOf(false) }
+
+    ToolSection("설문 팝업") {
+        Info("설문 ID", config.id)
+        Info("자동 노출 사용 여부", config.enabled.toString())
+        Info("적용 값의 출처", sourceLabel(source))
+        Text("현재 적용된 문구로 미리 봅니다. 대상 여부와 이전 안내 기록에 관계없이 열 수 있으며, 안내 기록은 변경하지 않습니다.")
+        TextButton(onClick = { previewShown = true }) {
+            Text("설문 팝업 미리보기")
+        }
+    }
+
+    if (previewShown) {
+        key(config.id) {
+            SurveyPreviewDialog(config, onClose = { previewShown = false })
+        }
+    }
+}
+
+@Composable
+private fun SurveyPreviewDialog(config: SurveyConfig, onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val linkOpener = rememberSurveyLinkOpener()
+    val currentOnClose by rememberUpdatedState(onClose)
+    var opening by remember { mutableStateOf(false) }
+    var openFailed by remember { mutableStateOf(false) }
+
+    fun close() {
+        if (!opening) currentOnClose()
+    }
+
+    SurveyPromptDialog(
+        config = config,
+        onShown = {},
+        onDismissRequest = ::close,
+        onDecline = ::close,
+        onParticipate = {
+            if (!opening) {
+                opening = true
+                openFailed = false
+                scope.launch {
+                    try {
+                        val opened = linkOpener.open(config.url)
+                        currentCoroutineContext().ensureActive()
+                        if (opened) currentOnClose() else openFailed = true
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (_: Exception) {
+                        openFailed = true
+                    } finally {
+                        opening = false
+                    }
+                }
+            }
+        },
+        isOpeningLink = opening,
+        openFailed = openFailed,
+    )
 }
 
 @Composable
