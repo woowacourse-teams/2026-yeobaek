@@ -21,4 +21,6 @@ fun Book.toModel(): BookModel = BookModel(
     authors = authors.joinToString(),
     progressRate = 0f,
     description = "",
+    genres = genres,
+    hashtags = hashtags,
 )

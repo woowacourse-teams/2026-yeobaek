@@ -7,4 +7,6 @@ data class BookModel(
     val authors: String = "",
     val description: String = "",
     val progressRate: Float = 0f,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )

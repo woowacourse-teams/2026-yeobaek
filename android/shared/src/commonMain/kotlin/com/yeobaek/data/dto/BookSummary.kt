@@ -21,4 +21,6 @@ fun BookSummary.toModel(): BookSummaryModel =
         passageCount = passageCount,
         title = title,
         coverImageUrl = coverImageUrl,
+        genres = genres,
+        hashtags = hashtags,
     )

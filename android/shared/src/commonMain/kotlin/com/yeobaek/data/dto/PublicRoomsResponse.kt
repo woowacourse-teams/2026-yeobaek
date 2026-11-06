@@ -77,4 +77,6 @@ fun PublicRoomBook.toModel(): PublicRoomBookModel =
             "DELETED" -> PublicRoomBookStatus.DELETED
             else -> PublicRoomBookStatus.UNSUPPORTED
         },
+        genres = genres,
+        hashtags = hashtags,
     )

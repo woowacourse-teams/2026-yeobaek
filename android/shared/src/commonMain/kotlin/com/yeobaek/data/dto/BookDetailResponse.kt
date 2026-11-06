@@ -27,4 +27,6 @@ fun BookDetailResponse.toModel(): BookDetailModel =
         coverImageUrl = coverImageUrl,
         description = description,
         pageCount = pageCount,
+        genres = genres,
+        hashtags = hashtags,
     )
