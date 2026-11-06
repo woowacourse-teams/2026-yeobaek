@@ -60,6 +60,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4.android)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.testExt.junit)
+    androidTestImplementation(libs.multiplatform.settings)
     debugImplementation(libs.ui.test.manifest)
 }
 

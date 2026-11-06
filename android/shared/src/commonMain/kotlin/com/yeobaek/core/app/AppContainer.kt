@@ -22,6 +22,7 @@ import com.yeobaek.core.update.UpdatePolicySource
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.local.SurveyPreferences
 import com.yeobaek.data.local.UpdatePolicyPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.AppConfigRepository
@@ -63,6 +64,7 @@ class AppContainer(
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
     val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
+    val surveyPreferences = SurveyPreferences(settings)
 
     val appStoreUpdateSession = if (updatePolicyPlatform ==
         UpdatePolicyPlatform.IOS
