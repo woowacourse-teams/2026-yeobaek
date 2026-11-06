@@ -31,6 +31,7 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
+import com.yeobaek.data.repository.SurveyRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.remote.AppConfigRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
@@ -39,6 +40,7 @@ import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.NotificationRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.PublicRoomRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.SurveyRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -147,6 +149,9 @@ class AppContainer(
     )
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
         readerApi = apiProvider.readerApi,
+    )
+    val surveyRepository: SurveyRepository = SurveyRepositoryImpl(
+        surveyApi = apiProvider.surveyApi,
     )
 
     val posthogApiKey = if (isDebug) BuildKonfig.POSTHOG_DEBUG_API_KEY else BuildKonfig.POSTHOG_RELEASE_API_KEY
