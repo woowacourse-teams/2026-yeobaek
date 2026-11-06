@@ -1,5 +1,6 @@
 package com.yeobaek
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.graphics.Bitmap
 import android.os.Build
@@ -246,7 +247,25 @@ class BookMetadataUiTest {
             put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/yeobaek-genre-qa")
         }
         val resolver = rule.activity.contentResolver
-        val uri = requireNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
+        val previousName = Regex("${Regex.escape(name)}(?: \\(\\d+\\))?\\.png")
+        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ?",
+            arrayOf("Pictures/yeobaek-genre-qa/", rule.activity.packageName),
+            null,
+        )?.use { cursor ->
+            val previousUris = buildList {
+                while (cursor.moveToNext()) {
+                    if (previousName.matches(cursor.getString(1))) {
+                        add(ContentUris.withAppendedId(collection, cursor.getLong(0)))
+                    }
+                }
+            }
+            previousUris.forEach { resolver.delete(it, null, null) }
+        }
+        val uri = requireNotNull(resolver.insert(collection, values))
         requireNotNull(resolver.openOutputStream(uri)).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
