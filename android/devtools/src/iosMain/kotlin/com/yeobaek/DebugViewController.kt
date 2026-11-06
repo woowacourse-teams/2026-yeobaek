@@ -1,7 +1,11 @@
 package com.yeobaek
 
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.window.ComposeUIViewController
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -19,6 +23,15 @@ fun DebugViewController(
 ) = ComposeUIViewController {
     IOSRequiredUpdateGate(appContainer) {
         val navController = rememberNavController()
+        val invitation by appContainer.invitations.pendingOpen.collectAsState()
+        LaunchedEffect(invitation?.id) {
+            if (invitation != null && navController.currentDestination?.hasRoute<DebugAppRoute>() == false) {
+                navController.navigate(DebugAppRoute) {
+                    popUpTo<DebugAppRoute>()
+                    launchSingleTop = true
+                }
+            }
+        }
         YeobaekTheme {
             NavHost(navController = navController, startDestination = DebugAppRoute) {
                 composable<DebugAppRoute> {

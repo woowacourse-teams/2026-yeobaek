@@ -4,4 +4,5 @@ data class JoinUiState(
     val codeValue: String = "",
     val codeState: Boolean = false,
     val successJoin: Boolean = false,
+    val isJoining: Boolean = false,
 )

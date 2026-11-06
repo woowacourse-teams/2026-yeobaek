@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -58,6 +59,7 @@ fun App(
     appContainer: AppContainer,
 ) {
     YeobaekTheme {
+        val invitations = rememberInvitations(appContainer.invitations)
         val startup = appContainer.appConfigStartup
         val isReady by startup.isReady.collectAsState()
 
@@ -239,6 +241,7 @@ fun App(
             )
             joinNavGraph(
                 appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToHome = {
                     val hasHome = navController.currentBackStack.value.any { entry ->
                         entry.destination.hasRoute<Home>()
@@ -259,10 +262,6 @@ fun App(
                         navOptions = homeNavOptions,
                     )
                 },
-                navigateToBack = {
-                    navController.popBackStack()
-                },
-
             )
             createNavGraph(
                 appContainer = appContainer,
@@ -313,10 +312,23 @@ fun App(
             )
         }
 
+        InvitationEffects(
+            navController = navController,
+            invitations = invitations,
+            userId = appContainer.userPreferences.userId,
+            isGuideFinished = appContainer.guideOnboardingPreferences::getGuideState,
+        )
         NotificationEffects(
             navController = navController,
             notifications = appContainer.notifications,
             userId = appContainer.userPreferences.userId,
         )
     }
+}
+
+fun NavController.popBackStackIfCurrent(entryId: String, beforePop: () -> Unit) {
+    if (currentBackStackEntry?.id != entryId) return
+
+    beforePop()
+    popBackStack()
 }

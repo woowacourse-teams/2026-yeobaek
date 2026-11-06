@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -17,13 +18,19 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.config.ConfigFetchStatus
 import com.yeobaek.core.config.ConfigValueSource
 import com.yeobaek.core.config.RemoteConfigKeys
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.invitation.InviteLink
+import com.yeobaek.core.invitation.rememberInviteShareSheet
 import com.yeobaek.data.repository.AppConfigRepository
 import kotlin.time.Instant
 
@@ -57,9 +64,52 @@ fun DevToolsScreen(
                     Info("빌드 타입", buildType)
                     Info("연결된 서버", appContainer.apiBaseUrl)
                 }
+                InvitationTools()
                 RemoteConfigTools(appContainer.appConfigRepository)
             }
         }
+    }
+}
+
+@Composable
+private fun InvitationTools() {
+    var code by rememberSaveable { mutableStateOf("ABC123") }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    val uriHandler = LocalUriHandler.current
+    val shareSheet = rememberInviteShareSheet()
+
+    fun open(uri: String) {
+        try {
+            uriHandler.openUri(uri)
+            error = null
+        } catch (_: IllegalArgumentException) {
+            error = "링크를 열 수 없습니다. 앱의 URL 등록을 확인해주세요."
+        }
+    }
+
+    ToolSection("모임 초대 테스트") {
+        OutlinedTextField(
+            value = code,
+            onValueChange = { value -> code = value.filter(Char::isLetterOrDigit).uppercase().take(6) },
+            label = { Text("테스트 초대코드") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text("링크 실행은 코드를 자동 입력하며, 참여 버튼을 누르기 전에는 참여하지 않습니다.")
+        TextButton(onClick = { open(InviteLink.create(code)) }, enabled = InviteLink.isValidCode(code)) {
+            Text("초대 링크 실행")
+        }
+        TextButton(
+            enabled = InviteLink.isValidCode(code),
+            onClick = {
+                error = if (shareSheet.share(InviteLink.shareText("테스트", code))) {
+                    null
+                } else {
+                    "공유창을 열 수 없습니다."
+                }
+            },
+        ) { Text("초대 문구 공유") }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }
 

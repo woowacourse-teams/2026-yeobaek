@@ -8,6 +8,7 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.config.AppConfigStartup
 import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
 import com.yeobaek.core.crashlytics.FirebaseCrashSink
+import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
@@ -102,6 +103,8 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
+    val invitations = AppInvitations()
+
     val notifications = AppNotifications { analyticsTracker.track(it) }
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
     private val notificationRegistration = NotificationRegistrationCoordinator(
@@ -184,6 +187,10 @@ class AppContainer(
 
     fun onNotificationOpened(data: Map<String, String>) {
         notifications.onOpened(data)
+    }
+
+    fun onInvitationOpened(uri: String) {
+        invitations.open(uri)
     }
 
     fun close() {

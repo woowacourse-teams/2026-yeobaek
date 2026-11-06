@@ -1,10 +1,9 @@
 package com.yeobaek.feature.group.join
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -26,32 +25,22 @@ class JoinViewModel(
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
+    savedStateHandle: SavedStateHandle,
+    private val onJoiningChanged: (Boolean) -> Unit,
 ) : ViewModel() {
 
-    var uiState by mutableStateOf(JoinUiState())
-        private set
+    private val input = JoinInputState(savedStateHandle)
+    val uiState: JoinUiState get() = input.value
 
-    fun initInputValue() {
-        uiState = uiState.copy(
-            codeValue = "",
-            codeState = false,
-        )
-    }
+    fun initializeInput(initialCode: String?, requestId: String?) = input.initialize(initialCode, requestId)
 
-    fun onCodeValueChange(value: String) {
-        uiState = uiState.copy(
-            codeValue = value.take(CODE_LENGTH),
-            codeState = false,
-        )
-    }
+    fun onCodeValueChange(value: String) = input.edit(value)
 
-    fun checkCodeBlank() {
-        uiState = uiState.copy(
-            codeState = uiState.codeValue.isBlank(),
-        )
-    }
+    fun checkCodeBlank() = input.checkBlank()
 
     fun joinGroup() {
+        val code = input.beginJoin() ?: return
+        onJoiningChanged(true)
         crashReporter.track(
             level = CrashLogLevel.INFO,
             context = crashContext(CrashOperation.GROUP_JOIN_STARTED),
@@ -59,18 +48,17 @@ class JoinViewModel(
         viewModelScope.launch {
             try {
                 groupRepository.joinGroup(
-                    joinCode = uiState.codeValue,
+                    joinCode = code,
                 )
 
-                uiState = uiState.copy(
-                    successJoin = true,
-                )
+                input.finishJoin(success = true)
                 crashReporter.track(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.GROUP_JOIN_SUCCEEDED),
                 )
                 analyticsTracker.track(GroupJoinSubmitted(result = EventResult.SUCCESS, entryPoint = entryPoint))
             } catch (e: CancellationException) {
+                input.cancelJoin()
                 throw e
             } catch (e: Exception) {
                 crashReporter.recordException(
@@ -78,12 +66,15 @@ class JoinViewModel(
                     context = crashContext(CrashOperation.GROUP_JOIN_FAILED),
                 )
                 analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE, entryPoint = entryPoint))
-                uiState = uiState.copy(
-                    successJoin = false,
-                    codeState = true,
-                )
+                input.finishJoin(success = false)
+            } finally {
+                if (!uiState.successJoin) onJoiningChanged(false)
             }
         }
+    }
+
+    override fun onCleared() {
+        onJoiningChanged(false)
     }
 
     companion object {
@@ -92,6 +83,7 @@ class JoinViewModel(
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
+            onJoiningChanged: (Boolean) -> Unit = {},
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
@@ -99,11 +91,11 @@ class JoinViewModel(
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
+                    savedStateHandle = createSavedStateHandle(),
+                    onJoiningChanged = onJoiningChanged,
                 )
             }
         }
-
-        const val CODE_LENGTH = 6
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(
