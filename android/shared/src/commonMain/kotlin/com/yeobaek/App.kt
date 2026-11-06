@@ -237,6 +237,7 @@ fun App(
             )
             joinNavGraph(
                 appContainer = appContainer,
+                navController = navController,
                 navigateToHome = {
                     val hasHome = navController.currentBackStack.value.any { entry ->
                         entry.destination.hasRoute<Home>()
@@ -257,10 +258,6 @@ fun App(
                         navOptions = homeNavOptions,
                     )
                 },
-                navigateToBack = {
-                    navController.popBackStack()
-                },
-
             )
             createNavGraph(
                 appContainer = appContainer,

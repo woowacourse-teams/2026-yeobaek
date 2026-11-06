@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
@@ -28,6 +30,7 @@ import androidx.test.espresso.Espresso
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
+import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.network.CrashReporter
@@ -37,6 +40,7 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import com.yeobaek.feature.group.join.navigation.Join
+import com.yeobaek.feature.group.join.navigation.joinNavGraph
 import com.yeobaek.feature.home.navigation.Home
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +65,41 @@ class InvitationNavigationTest {
         assertEquals(0, repository.codes.size)
         Espresso.pressBack()
         rule.onNodeWithText("테스트 홈").assertIsDisplayed()
+    }
+
+    @Test
+    fun repeatedJoinBackClickLeavesHomeOnTheStack() {
+        val appContainer = AppContainer(
+            isDebug = true,
+            appVersion = "1.0.0",
+            appVersionCode = 1,
+            installationId = "join-back-test",
+        )
+        try {
+            rule.setContent {
+                YeobaekTheme {
+                    val controller = rememberNavController()
+                    NavHost(controller, startDestination = Home) {
+                        composable<Home> {
+                            Button(onClick = { controller.navigate(Join()) }) { Text("테스트 홈") }
+                        }
+                        joinNavGraph(appContainer, controller, navigateToHome = {})
+                    }
+                }
+            }
+            rule.onNodeWithText("테스트 홈").performClick()
+            val backClick = checkNotNull(
+                rule.onNodeWithContentDescription("뒤로가기 아이콘")
+                    .fetchSemanticsNode().config[SemanticsActions.OnClick].action,
+            )
+            rule.runOnIdle {
+                backClick()
+                backClick()
+            }
+            rule.onNodeWithText("테스트 홈").assertIsDisplayed()
+        } finally {
+            appContainer.close()
+        }
     }
 
     @Test
