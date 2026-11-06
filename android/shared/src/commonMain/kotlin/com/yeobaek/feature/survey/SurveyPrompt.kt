@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import com.yeobaek.core.config.SurveyConfig
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.survey.SurveyLinkOpener
 import com.yeobaek.core.survey.rememberSurveyLinkOpener
 import com.yeobaek.data.local.SurveyPreferences
@@ -23,6 +24,7 @@ fun SurveyPrompt(
     userId: Int,
     config: SurveyConfig,
     preferences: SurveyPreferences,
+    linkLauncher: SurveyLinkLauncher,
     onClose: () -> Unit,
     linkOpener: SurveyLinkOpener = rememberSurveyLinkOpener(),
 ) {
@@ -64,12 +66,13 @@ fun SurveyPrompt(
                 if (shown && !opening && !closed) {
                     opening = true
                     openFailed = false
+                    // 팝업이 제거돼도 링크 열기 결과는 앱 범위에서 저장합니다.
+                    val request = linkLauncher.open(userId, config.id, config.url, linkOpener)
                     scope.launch {
                         try {
-                            val opened = linkOpener.open(config.url)
+                            val opened = request.await()
                             currentCoroutineContext().ensureActive()
                             if (opened) {
-                                preferences.markLinkOpened(userId, config.id)
                                 closed = true
                                 currentOnClose()
                             } else {

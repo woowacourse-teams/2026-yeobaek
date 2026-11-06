@@ -15,6 +15,7 @@ import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
 import com.yeobaek.core.update.UpdatePolicyRepository
@@ -87,6 +88,7 @@ class AppContainer(
     val appName = if (isDebug) "조밀" else "여백"
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val surveyLinkLauncher = SurveyLinkLauncher(surveyPreferences, applicationScope)
     private var updatePolicyUpdatesJob: Job? = null
     val updatePolicyRepository = UpdatePolicyRepository(
         preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),

@@ -18,6 +18,7 @@ import com.russhwolf.settings.SharedPreferencesSettings
 import com.yeobaek.core.common.AppPromptBlocker
 import com.yeobaek.core.config.SurveyConfig
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.survey.SurveyLinkOpener
 import com.yeobaek.data.local.SurveyPreferences
 import com.yeobaek.data.model.SurveyPromptState
@@ -26,7 +27,11 @@ import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.survey.HomeSurveyPrompt
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -44,9 +49,11 @@ class HomeSurveyPromptUiTest {
     private val ready = mutableStateOf(true)
     private val blocked = mutableStateOf(false)
     private val repository = TestSurveyRepository()
+    private val linkScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @After
     fun cleanUp() {
+        linkScope.cancel()
         rule.activity.deleteSharedPreferences(storageName)
     }
 
@@ -205,6 +212,7 @@ class HomeSurveyPromptUiTest {
 
     private fun show() {
         val preferences = preferences()
+        val launcher = SurveyLinkLauncher(preferences, linkScope)
         rule.setContent {
             YeobaekTheme {
                 AppPromptBlocker(blocked.value) {
@@ -221,6 +229,7 @@ class HomeSurveyPromptUiTest {
                                     config = config.value,
                                     repository = repository,
                                     preferences = preferences,
+                                    linkLauncher = launcher,
                                     homeReady = ready.value,
                                     linkOpener = SurveyLinkOpener { true },
                                 )

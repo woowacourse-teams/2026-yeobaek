@@ -138,6 +138,7 @@ fun NavGraphBuilder.homeNavGraph(
             config = config.surveyConfig,
             repository = appContainer.surveyRepository,
             preferences = appContainer.surveyPreferences,
+            linkLauncher = appContainer.surveyLinkLauncher,
             homeReady = homeViewModel.uiState.isLoadingComplete,
             otherPromptPending = invitation != null || joiningOwners.isNotEmpty() || notification != null,
         )

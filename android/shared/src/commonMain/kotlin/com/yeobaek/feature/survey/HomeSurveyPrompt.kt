@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.yeobaek.core.common.LocalAppPromptBlocked
 import com.yeobaek.core.config.SurveyConfig
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.survey.SurveyLinkOpener
 import com.yeobaek.core.survey.SurveyPromptPolicy
 import com.yeobaek.core.survey.rememberSurveyLinkOpener
@@ -29,6 +30,7 @@ fun HomeSurveyPrompt(
     config: SurveyConfig,
     repository: SurveyRepository,
     preferences: SurveyPreferences,
+    linkLauncher: SurveyLinkLauncher,
     homeReady: Boolean,
     otherPromptPending: Boolean = false,
     linkOpener: SurveyLinkOpener = rememberSurveyLinkOpener(),
@@ -74,6 +76,7 @@ fun HomeSurveyPrompt(
                 userId = userId,
                 config = config,
                 preferences = preferences,
+                linkLauncher = linkLauncher,
                 onClose = { offered = false },
                 linkOpener = linkOpener,
             )

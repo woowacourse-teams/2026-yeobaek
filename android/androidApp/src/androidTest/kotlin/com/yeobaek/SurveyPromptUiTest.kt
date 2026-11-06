@@ -34,6 +34,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.russhwolf.settings.SharedPreferencesSettings
 import com.yeobaek.core.config.SurveyConfig
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.survey.SurveyLinkOpener
 import com.yeobaek.data.local.SurveyPreferences
 import com.yeobaek.data.model.SurveyPromptState
@@ -41,6 +42,10 @@ import com.yeobaek.feature.survey.SurveyPrompt
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -55,9 +60,11 @@ class SurveyPromptUiTest {
     private val preferencesName = "survey-prompt-ui-test-${UUID.randomUUID()}"
     private val survey = SurveyConfig.DEFAULT.copy(enabled = true)
     private val openFailure = "설문지를 열지 못했어요. 잠시 후 다시 시도해 주세요."
+    private val linkScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @After
     fun removeTestPreferences() {
+        linkScope.cancel()
         rule.activity.deleteSharedPreferences(preferencesName)
     }
 
@@ -162,8 +169,9 @@ class SurveyPromptUiTest {
     }
 
     @Test
-    fun changingAccountIgnoresPreviousOpenResult() {
+    fun changingAccountRecordsOriginalAccountWithoutClosingNewPrompt() {
         val preferences = preferences()
+        val launcher = SurveyLinkLauncher(preferences, linkScope)
         val userId = mutableStateOf(7)
         val gate = CompletableDeferred<Boolean>()
         var closes = 0
@@ -173,6 +181,7 @@ class SurveyPromptUiTest {
                     userId = userId.value,
                     config = survey,
                     preferences = preferences,
+                    linkLauncher = launcher,
                     onClose = { closes++ },
                     linkOpener = SurveyLinkOpener { gate.await() },
                 )
@@ -185,8 +194,70 @@ class SurveyPromptUiTest {
         rule.waitForIdle()
         rule.runOnIdle {
             assertEquals(0, closes)
-            assertFalse(preferences.getState(7, survey.id).linkOpened)
+            assertTrue(preferences.getState(7, survey.id).linkOpened)
             assertEquals(SurveyPromptState(shown = true), preferences.getState(8, survey.id))
+        }
+    }
+
+    @Test
+    fun successfulOpenIsRecordedAfterPromptIsRemoved() {
+        val preferences = preferences()
+        val launcher = SurveyLinkLauncher(preferences, linkScope)
+        val visible = mutableStateOf(true)
+        val gate = CompletableDeferred<Boolean>()
+        var closes = 0
+        rule.setContent {
+            YeobaekTheme {
+                if (visible.value) {
+                    SurveyPrompt(
+                        userId = 7,
+                        config = survey,
+                        preferences = preferences,
+                        linkLauncher = launcher,
+                        onClose = { closes++ },
+                        linkOpener = SurveyLinkOpener { gate.await() },
+                    )
+                }
+            }
+        }
+        rule.onNodeWithText("설문 참여하기").performClick()
+        rule.runOnIdle { visible.value = false }
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+        rule.runOnIdle {
+            assertFalse(preferences.getState(7, survey.id).linkOpened)
+            gate.complete(true)
+        }
+        rule.waitUntil { preferences.getState(7, survey.id).linkOpened }
+        rule.runOnIdle { assertEquals(0, closes) }
+    }
+
+    @Test
+    fun changingSurveyRecordsOriginalIdWithoutClosingNewPrompt() {
+        val preferences = preferences()
+        val launcher = SurveyLinkLauncher(preferences, linkScope)
+        val config = mutableStateOf(survey)
+        val gate = CompletableDeferred<Boolean>()
+        var closes = 0
+        rule.setContent {
+            YeobaekTheme {
+                SurveyPrompt(
+                    userId = 7,
+                    config = config.value,
+                    preferences = preferences,
+                    linkLauncher = launcher,
+                    onClose = { closes++ },
+                    linkOpener = SurveyLinkOpener { gate.await() },
+                )
+            }
+        }
+        rule.onNodeWithText("설문 참여하기").performClick()
+        rule.runOnIdle { config.value = survey.copy(id = "pmf-002") }
+        rule.onNodeWithText("설문 참여하기").assertIsEnabled()
+        rule.runOnIdle { gate.complete(true) }
+        rule.waitUntil { preferences.getState(7, survey.id).linkOpened }
+        rule.runOnIdle {
+            assertEquals(0, closes)
+            assertEquals(SurveyPromptState(shown = true), preferences.getState(7, "pmf-002"))
         }
     }
 
@@ -196,6 +267,7 @@ class SurveyPromptUiTest {
         onClose: () -> Unit = {},
     ): SurveyPreferences {
         val preferences = preferences()
+        val launcher = SurveyLinkLauncher(preferences, linkScope)
         rule.setContent {
             YeobaekTheme {
                 val density = LocalDensity.current
@@ -207,6 +279,7 @@ class SurveyPromptUiTest {
                                 userId = 7,
                                 config = survey,
                                 preferences = preferences,
+                                linkLauncher = launcher,
                                 onClose = { visible = false; onClose() },
                                 linkOpener = linkOpener,
                             )
