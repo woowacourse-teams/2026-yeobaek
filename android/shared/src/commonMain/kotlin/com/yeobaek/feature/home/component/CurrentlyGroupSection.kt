@@ -37,6 +37,8 @@ fun CurrentlyGroupSection(
                     title = groupUiModel.title,
                     groupName = groupUiModel.groupName,
                     groupCount = groupUiModel.groupCount,
+                    genres = groupUiModel.genres,
+                    hashtags = groupUiModel.hashtags,
                     navigateToDetail = {
                         navigateToDetail(groupUiModel.groupId)
                     },

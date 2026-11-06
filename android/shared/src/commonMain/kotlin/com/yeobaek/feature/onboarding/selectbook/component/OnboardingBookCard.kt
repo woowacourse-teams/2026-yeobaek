@@ -3,6 +3,7 @@ package com.yeobaek.feature.onboarding.selectbook.component
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.component.BookCoverImage
+import com.yeobaek.core.designsystem.component.BookMetadataRow
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 
 @Composable
@@ -24,6 +26,8 @@ fun OnboardingBookCard(
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    genres: List<String> = emptyList(),
+    hashtags: List<String> = emptyList(),
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -51,6 +55,11 @@ fun OnboardingBookCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+        )
+        BookMetadataRow(
+            genres = genres,
+            hashtags = hashtags,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }

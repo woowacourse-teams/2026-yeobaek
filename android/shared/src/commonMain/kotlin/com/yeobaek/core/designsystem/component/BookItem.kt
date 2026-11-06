@@ -27,6 +27,8 @@ fun BookItem(
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    genres: List<String> = emptyList(),
+    hashtags: List<String> = emptyList(),
 ) {
     Card(
         onClick = onClick,
@@ -64,6 +66,11 @@ fun BookItem(
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+            BookMetadataRow(
+                genres = genres,
+                hashtags = hashtags,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
             )
         }
     }
