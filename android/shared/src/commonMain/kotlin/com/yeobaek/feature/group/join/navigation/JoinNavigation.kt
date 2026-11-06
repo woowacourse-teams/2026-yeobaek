@@ -49,7 +49,7 @@ fun NavController.navigateToJoin(
 
 fun NavGraphBuilder.joinNavGraph(
     appContainer: AppContainer,
-    navController: NavController,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
     navigateToHome: () -> Unit,
 ) {
     composable<Join> { backStackEntry ->
@@ -90,19 +90,16 @@ fun NavGraphBuilder.joinNavGraph(
         JoinScreen(
             uiState = joinViewModel.uiState,
             onCodeValueChange = joinViewModel::onCodeValueChange,
-            onBackClick = backClick@{
-                if (navController.currentBackStackEntry?.id != backStackEntry.id) {
-                    return@backClick
+            onBackClick = {
+                navigateToBack(backStackEntry.id) {
+                    appContainer.analyticsTracker.track(
+                        GroupJoinAbandoned(
+                            hasCode = joinViewModel.uiState.codeValue.isNotBlank(),
+                            entryPoint = entryPoint,
+                        ),
+                    )
+                    appContainer.invitations.cancelPending()
                 }
-
-                appContainer.analyticsTracker.track(
-                    GroupJoinAbandoned(
-                        hasCode = joinViewModel.uiState.codeValue.isNotBlank(),
-                        entryPoint = entryPoint,
-                    ),
-                )
-                appContainer.invitations.cancelPending()
-                navController.popBackStack()
             },
             onJoinClick = {
                 joinViewModel.checkCodeBlank()

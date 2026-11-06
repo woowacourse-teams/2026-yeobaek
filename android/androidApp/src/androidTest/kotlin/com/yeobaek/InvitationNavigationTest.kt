@@ -83,7 +83,11 @@ class InvitationNavigationTest {
                         composable<Home> {
                             Button(onClick = { controller.navigate(Join()) }) { Text("테스트 홈") }
                         }
-                        joinNavGraph(appContainer, controller, navigateToHome = {})
+                        joinNavGraph(
+                            appContainer = appContainer,
+                            navigateToBack = controller::popBackStackIfCurrent,
+                            navigateToHome = {},
+                        )
                     }
                 }
             }

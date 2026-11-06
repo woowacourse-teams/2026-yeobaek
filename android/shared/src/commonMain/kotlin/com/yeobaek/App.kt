@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -237,7 +238,7 @@ fun App(
             )
             joinNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToHome = {
                     val hasHome = navController.currentBackStack.value.any { entry ->
                         entry.destination.hasRoute<Home>()
@@ -310,4 +311,11 @@ fun App(
             userId = appContainer.userPreferences.userId,
         )
     }
+}
+
+fun NavController.popBackStackIfCurrent(entryId: String, beforePop: () -> Unit) {
+    if (currentBackStackEntry?.id != entryId) return
+
+    beforePop()
+    popBackStack()
 }
