@@ -12,5 +12,5 @@ fun isLandscape(): Boolean {
 @Composable
 fun getGridCount(): Int = if (isLandscape()) LANDSCAPE_GRID_COUNT else PORTRAIT_GRID_COUNT
 
-const val LANDSCAPE_GRID_COUNT = 8
-const val PORTRAIT_GRID_COUNT = 3
+const val LANDSCAPE_GRID_COUNT = 6
+const val PORTRAIT_GRID_COUNT = 2
