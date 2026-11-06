@@ -1,4 +1,8 @@
 <resources>
+    <string name="survey_decline">다시 보지 않기</string>
+    <string name="survey_participate">설문 참여하기</string>
+    <string name="survey_opening">여는 중…</string>
+    <string name="survey_open_failed">설문지를 열지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="book_genre_label">장르</string>
     <string name="book_keywords_title">이 책의 키워드</string>
     <string name="mypage_back">뒤로가기</string>
