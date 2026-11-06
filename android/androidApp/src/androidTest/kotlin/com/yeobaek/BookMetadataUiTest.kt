@@ -35,8 +35,9 @@ import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.book.detail.BookDetailScreen
 import com.yeobaek.feature.book.detail.model.BookDetailUiModel
 import com.yeobaek.feature.home.PublicRoomTabUiState
-import com.yeobaek.feature.home.component.HomeGroupCard
+import com.yeobaek.feature.home.component.CurrentlyGroupSection
 import com.yeobaek.feature.home.component.PublicGroupSection
+import com.yeobaek.feature.home.model.GroupUiModel
 import com.yeobaek.feature.home.model.PublicRoomBookUiModel
 import com.yeobaek.feature.onboarding.selectbook.component.OnboardingBookCard
 import org.junit.Assert.assertEquals
@@ -198,23 +199,27 @@ class BookMetadataUiTest {
     }
 
     @Test
-    fun groupCardPlacesMetadataBelowParticipantCountAndRemainsClickable() {
+    fun joinedGroupHidesMetadataAndRemainsClickable() {
         var clicks = 0
         show {
-            HomeGroupCard(
-                uri = null,
-                title = "데미안",
-                groupName = "심야북클럽",
-                groupCount = 16,
+            CurrentlyGroupSection(
+                groupUiModelList = listOf(
+                    GroupUiModel(
+                        uri = null,
+                        title = "데미안",
+                        groupName = "심야북클럽",
+                        groupCount = 16,
+                        genres = listOf("고전"),
+                        hashtags = listOf("이중성"),
+                    ),
+                ),
+                emptyMessage = "",
                 navigateToDetail = { clicks++ },
-                genres = listOf("고전"),
-                hashtags = listOf("이중성"),
             )
         }
-        val count = rule.onNodeWithText("16명 참여", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-        val genre = rule.onNodeWithText("고전", useUnmergedTree = true).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-        assertTrue(genre.top >= count.bottom)
-        rule.onNodeWithText("#이중성", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("16명 참여", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("고전", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithText("#이중성", useUnmergedTree = true).assertDoesNotExist()
         capture("home-group-card")
         rule.onNodeWithText("심야북클럽").performClick()
         assertEquals(1, clicks)

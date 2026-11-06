@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -29,40 +28,6 @@ import com.yeobaek.core.designsystem.theme.YeobaekTextMuted
 import com.yeobaek.core.designsystem.theme.YeobaekTextPrimary
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import org.jetbrains.compose.resources.stringResource
-
-@Composable
-fun BookMetadataRow(
-    genres: List<String>,
-    hashtags: List<String>,
-    modifier: Modifier = Modifier,
-) {
-    val genre = genres.firstOrNull { it.isNotBlank() }?.trim()
-    val hashtag = hashtags.displayHashtags().firstOrNull()
-    if (genre == null && hashtag == null) return
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (genre != null) {
-            BookGenreBadge(
-                genre = genre,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-        }
-        if (hashtag != null) {
-            Text(
-                text = hashtag,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = YeobaekTextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
 
 @Composable
 fun BookHashtags(

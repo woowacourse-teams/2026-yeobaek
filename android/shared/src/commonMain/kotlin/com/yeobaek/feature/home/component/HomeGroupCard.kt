@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +25,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.component.BookCoverImage
-import com.yeobaek.core.designsystem.component.BookMetadataRow
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import org.jetbrains.compose.resources.painterResource
@@ -39,15 +37,12 @@ fun HomeGroupCard(
     groupCount: Int,
     navigateToDetail: () -> Unit,
     modifier: Modifier = Modifier,
-    genres: List<String> = emptyList(),
-    hashtags: List<String> = emptyList(),
 ) {
-    val hasMetadata = genres.any(String::isNotBlank) || hashtags.any(String::isNotBlank)
     Card(
         modifier = modifier
             .clip(shape = MaterialTheme.shapes.medium)
             .fillMaxWidth()
-            .height(if (hasMetadata) 157.dp else 125.dp)
+            .height(125.dp)
             .clickable {
                 navigateToDetail()
             },
@@ -73,8 +68,6 @@ fun HomeGroupCard(
                     title = title,
                     groupName = groupName,
                     groupCount = groupCount,
-                    genres = genres,
-                    hashtags = hashtags,
                 )
             }
             Icon(
@@ -92,8 +85,6 @@ private fun GroupInfoCard(
     groupName: String,
     groupCount: Int,
     modifier: Modifier = Modifier,
-    genres: List<String> = emptyList(),
-    hashtags: List<String> = emptyList(),
 ) {
     Column(
         modifier = modifier.fillMaxSize(),
@@ -116,8 +107,6 @@ private fun GroupInfoCard(
                 color = MaterialTheme.colorScheme.outline,
             ),
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        BookMetadataRow(genres, hashtags)
     }
 }
 
