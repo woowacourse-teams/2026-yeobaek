@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light">
     <meta name="referrer" content="no-referrer">
+    <meta name="posthog-project-token" content="">
+    <meta name="analytics-environment" content="development">
     <meta name="robots" content="noindex">
     <title>여백 — 모임 초대</title>
     <meta name="description" content="초대코드로 여백 모임에 참여하세요.">
@@ -49,11 +51,11 @@
         <a id="open-app" class="open-app" hidden>여백 앱에서 열기</a>
         <section class="downloads" aria-label="앱 다운로드">
           <div class="store-links">
-            <a class="store-link" href="https://apps.apple.com/app/apple-store/id6807303389" aria-label="App Store에서 여백 다운로드">
+            <a class="store-link" data-store="app_store" href="https://apps.apple.com/app/apple-store/id6807303389" aria-label="App Store에서 여백 다운로드">
               <img src="./assets/app-store.svg" width="36" height="36" alt="">
               <span>App Store</span>
             </a>
-            <a class="store-link" href="https://play.google.com/store/apps/details?id=com.yeobaek" aria-label="Google Play에서 여백 다운로드">
+            <a class="store-link" data-store="google_play" href="https://play.google.com/store/apps/details?id=com.yeobaek" aria-label="Google Play에서 여백 다운로드">
               <img src="./assets/google-play.svg" width="36" height="36" alt="">
               <span>Google Play</span>
             </a>

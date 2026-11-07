@@ -1,4 +1,5 @@
 // @ts-check
+import { createInviteAnalytics } from "./analytics.js";
 import { isMobileDevice, openAppOnce, parseInvitation } from "./invitation.js";
 
 const title = document.getElementById("page-title");
@@ -16,6 +17,23 @@ if (!(title instanceof HTMLHeadingElement) || !(card instanceof HTMLElement) ||
 
 const invitation = parseInvitation(window.location.search);
 const mobile = isMobileDevice(navigator);
+const projectToken = document.querySelector('meta[name="posthog-project-token"]')?.getAttribute("content") ?? "";
+const environment = document.querySelector('meta[name="analytics-environment"]')?.getAttribute("content");
+const analytics = createInviteAnalytics({
+  projectToken: typeof globalThis.crypto?.randomUUID === "function" && typeof navigator.sendBeacon === "function" ? projectToken : "",
+  environment: environment === "production" ? "production" : "development",
+  distinctId: globalThis.crypto?.randomUUID?.() ?? "",
+  origin: window.location.origin,
+  sendBeacon: (url, body) => navigator.sendBeacon(url, body),
+});
+
+analytics.pageViewed(invitation.kind);
+document.querySelectorAll("[data-store]").forEach((link) => {
+  const store = link.getAttribute("data-store");
+  if (store === "app_store" || store === "google_play") {
+    link.addEventListener("click", () => analytics.storeSelected(store));
+  }
+});
 document.documentElement.dataset.mobile = String(mobile);
 
 switch (invitation.kind) {
@@ -31,6 +49,7 @@ switch (invitation.kind) {
     value.textContent = invitation.code;
     open.href = invitation.appUri;
     open.hidden = false;
+    open.addEventListener("click", () => analytics.appOpenSelected());
     const updateHint = () => {
       notice.textContent = !mobile && matchMedia("(min-width: 768px)").matches
         ? "휴대폰에서 초대 링크를 열어주세요."
@@ -49,14 +68,17 @@ switch (invitation.kind) {
     copy.addEventListener("click", async () => {
       if (!navigator.clipboard) {
         selectCode();
+        analytics.codeCopySubmitted(false);
         return;
       }
       try {
         await navigator.clipboard.writeText(invitation.code);
         notice.textContent = "복사했어요.";
+        analytics.codeCopySubmitted(true);
       } catch (error) {
         if (error instanceof DOMException) {
           selectCode();
+          analytics.codeCopySubmitted(false);
           return;
         }
         throw error;
