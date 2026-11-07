@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "",
+  "buildCommand": "node build.mjs",
   "installCommand": "",
-  "outputDirectory": ".",
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/(.*)",
@@ -18,7 +18,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src https://us.i.posthog.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
         }
       ]
     }

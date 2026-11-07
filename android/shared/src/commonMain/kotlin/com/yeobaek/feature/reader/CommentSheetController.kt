@@ -69,7 +69,7 @@ class CommentSheetController(
         )
     }
 
-    fun openFromCollection(sentence: CommentedSentenceUiModel) {
+    fun openFromCollection(sentence: CommentedSentenceUiModel, collectionVisitId: String?) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
@@ -78,6 +78,7 @@ class CommentSheetController(
             targetPassageSequence = sentence.passageSequence,
             hasNewComments = sentence.isNewComment(),
             source = CommentSheetSource.COMMENT_COLLECTION,
+            collectionVisitId = collectionVisitId,
         )
     }
 
@@ -136,6 +137,7 @@ class CommentSheetController(
         hasNewComments: Boolean?,
         scrollToLatest: Boolean = false,
         source: CommentSheetSource,
+        collectionVisitId: String? = null,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -151,6 +153,7 @@ class CommentSheetController(
             commentCount = itemCount,
             source = source,
             hasNewComments = hasNewComments,
+            collectionVisitId = collectionVisitId,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
@@ -163,6 +166,8 @@ class CommentSheetController(
         sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
         savedStateHandle[SHEET_SOURCE_KEY] = source.value
+        savedStateHandle[SHEET_COLLECTION_VISIT_KEY] = collectionVisitId
+        savedStateHandle[SHEET_COMMENTS_SHOWN_KEY] = false
         savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] = scrollToLatest
         if (passageSequence == null) {
             savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
@@ -227,6 +232,15 @@ class CommentSheetController(
         }
     }
 
+    fun markCommentsShown(sentenceId: Long): String? {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId } ?: return null
+        if (sheet.isLoading || sheet.loadErrorMessage != null) return null
+        if (savedStateHandle.get<Boolean>(SHEET_COMMENTS_SHOWN_KEY) == true) return null
+
+        savedStateHandle[SHEET_COMMENTS_SHOWN_KEY] = true
+        return savedStateHandle[SHEET_COLLECTION_VISIT_KEY]
+    }
+
     fun dismiss() {
         cancelLoad()
         refreshPending = false
@@ -238,11 +252,17 @@ class CommentSheetController(
                     .count { comment -> !comment.isMine }
                     .takeUnless { sheet.isLoading || sheet.loadErrorMessage != null },
                 didSubmit = didSubmitInSheet,
+                sentenceId = sheet.sentenceId,
+                source = sheet.source,
+                commentsShown = savedStateHandle.get<Boolean>(SHEET_COMMENTS_SHOWN_KEY) == true,
+                collectionVisitId = savedStateHandle[SHEET_COLLECTION_VISIT_KEY],
             )
         }
         uiState = null
         savedStateHandle.remove<Long>(SHEET_SENTENCE_ID_KEY)
         savedStateHandle.remove<String>(SHEET_SOURCE_KEY)
+        savedStateHandle.remove<String>(SHEET_COLLECTION_VISIT_KEY)
+        savedStateHandle.remove<Boolean>(SHEET_COMMENTS_SHOWN_KEY)
         savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<String>(SHEET_INPUT_KEY)
@@ -693,6 +713,8 @@ class CommentSheetController(
     private companion object {
         const val SHEET_SENTENCE_ID_KEY = "commentSheetSentenceId"
         const val SHEET_SOURCE_KEY = "commentSheetSource"
+        const val SHEET_COLLECTION_VISIT_KEY = "commentSheetCollectionVisitId"
+        const val SHEET_COMMENTS_SHOWN_KEY = "commentSheetCommentsShown"
         const val SHEET_PASSAGE_SEQUENCE_KEY = "commentSheetPassageSequence"
         const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
         const val SHEET_INPUT_KEY = "commentSheetInput"

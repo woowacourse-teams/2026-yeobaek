@@ -173,6 +173,7 @@ fun ReaderScreen(
             onDeleteCancel = commentSheetActions.onDeleteCancel,
             onDeleteConfirm = commentSheetActions.onDeleteConfirm,
             onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
+            onContentsShown = commentSheetActions.onContentsShown,
         )
     }
 }

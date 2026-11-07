@@ -24,6 +24,7 @@ data class CommentSheetOpened(
     val hasNewComments: Boolean?,
     val afterJump: Boolean,
     val commentLikeAvailable: Boolean = true,
+    val collectionVisitId: String? = null,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
     override val properties = buildMap {
@@ -35,6 +36,7 @@ data class CommentSheetOpened(
         hasNewComments?.let { put(KEY_HAS_NEW_COMMENTS, it) }
         put(KEY_AFTER_JUMP, afterJump)
         put("comment_like_available", commentLikeAvailable)
+        collectionVisitId?.let { put("collection_visit_id", it) }
     }
 }
 
@@ -132,12 +134,22 @@ data class CommentSheetClosed(
     val commentCount: Int,
     val othersCommentCount: Int?,
     val didSubmit: Boolean,
+    val bookId: Long?,
+    val sentenceId: Long,
+    val source: CommentSheetSource,
+    val commentsShown: Boolean,
+    val collectionVisitId: String?,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_closed"
     override val properties = buildMap {
         put(KEY_COMMENT_COUNT, commentCount)
         othersCommentCount?.let { put(KEY_OTHERS_COMMENT_COUNT, it) }
         put(KEY_DID_SUBMIT, didSubmit)
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
+        put(KEY_SOURCE, source.value)
+        put("comments_shown", commentsShown)
+        collectionVisitId?.let { put("collection_visit_id", it) }
     }
 }
 

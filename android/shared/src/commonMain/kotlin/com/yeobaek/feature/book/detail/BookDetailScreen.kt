@@ -20,12 +20,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.yeobaek.core.analytics.BookMetadataSection
 import com.yeobaek.core.designsystem.component.BookCoverImage
 import com.yeobaek.core.designsystem.component.BookGenres
 import com.yeobaek.core.designsystem.component.BookKeywords
@@ -45,7 +56,10 @@ fun BookDetailScreen(
     onBackClick: () -> Unit,
     onReadClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onMetadataViewed: (BookMetadataSection) -> Unit = {},
 ) {
+    val genresExposure = rememberMetadataExposure(book.bookId) { onMetadataViewed(BookMetadataSection.GENRES) }
+    val hashtagsExposure = rememberMetadataExposure(book.bookId) { onMetadataViewed(BookMetadataSection.HASHTAGS) }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -74,8 +88,8 @@ fun BookDetailScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            BookSummary(book)
-            BookKeywords(book.hashtags)
+            BookSummary(book, genresExposure)
+            BookKeywords(book.hashtags, modifier = hashtagsExposure)
             BookLength(book)
             if (!book.description.isNullOrBlank()) {
                 BookDescription(book.description)
@@ -88,7 +102,7 @@ fun BookDetailScreen(
 }
 
 @Composable
-private fun BookSummary(book: BookDetailUiModel) {
+private fun BookSummary(book: BookDetailUiModel, genresExposure: Modifier) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -124,8 +138,20 @@ private fun BookSummary(book: BookDetailUiModel) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            BookGenres(book.genres, modifier = Modifier.padding(top = 16.dp))
+            BookGenres(book.genres, modifier = Modifier.padding(top = 16.dp).then(genresExposure))
         }
+    }
+}
+
+@Composable
+private fun rememberMetadataExposure(bookId: Long, onViewed: () -> Unit): Modifier {
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    var visible by remember(bookId) { mutableStateOf(false) }
+    LaunchedEffect(bookId, visible, lifecycleState) {
+        if (visible && lifecycleState == Lifecycle.State.RESUMED) onViewed()
+    }
+    return Modifier.onGloballyPositioned { coordinates ->
+        visible = !coordinates.boundsInWindow().isEmpty
     }
 }
 

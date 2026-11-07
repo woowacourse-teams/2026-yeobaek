@@ -55,6 +55,7 @@ fun NavGraphBuilder.nicknameChangeNavGraph(
                     updateState !is NicknameUpdateState.Loading &&
                     updateState !is NicknameUpdateState.Success
                 ) {
+                    nicknameViewModel.abandonChange()
                     navigateBack()
                 }
             },

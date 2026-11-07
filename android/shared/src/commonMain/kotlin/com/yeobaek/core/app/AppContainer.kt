@@ -4,6 +4,7 @@ import com.russhwolf.settings.Settings
 import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.InviteLinkOpened
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.config.AppConfigStartup
 import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
@@ -80,6 +81,8 @@ class AppContainer(
         commonProperties = mapOf(
             ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION,
             "installation_id" to installationId,
+            "app_version" to appVersion,
+            "app_version_code" to appVersionCode,
         ),
     )
 
@@ -109,7 +112,9 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val invitations = AppInvitations()
+    val invitations = AppInvitations { requestId, valid ->
+        analyticsTracker.track(InviteLinkOpened(requestId, valid))
+    }
 
     val notifications = AppNotifications { analyticsTracker.track(it) }
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)

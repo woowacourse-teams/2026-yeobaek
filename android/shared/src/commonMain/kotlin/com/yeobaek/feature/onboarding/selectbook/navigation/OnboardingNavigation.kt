@@ -9,8 +9,6 @@ import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.BookDetailEntryPoint
 import com.yeobaek.core.analytics.BookSearchEnd
-import com.yeobaek.core.analytics.GroupJoinEntryPoint
-import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.ReadingOnboardingSkipped
 import com.yeobaek.core.analytics.bookDetailScreenProperties
 import com.yeobaek.core.app.AppContainer
@@ -64,6 +62,7 @@ fun NavGraphBuilder.onboardingNavGraph(
                     bookId = requireNotNull(detailBookId),
                     entryPoint = BookDetailEntryPoint.ONBOARDING.value,
                     onboardingAttemptId = onBoardingViewModel.currentAttemptId,
+                    detailVisitId = onBoardingViewModel.detailVisit.id,
                 )
             } else {
                 emptyMap()
@@ -90,13 +89,12 @@ fun NavGraphBuilder.onboardingNavGraph(
             },
             navigateToJoin = {
                 onBoardingViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
-                appContainer.analyticsTracker.track(
-                    GroupJoinInitiated(GroupJoinEntryPoint.ONBOARDING),
-                )
                 navigateToJoin(true)
             },
             onSelectBook = onBoardingViewModel::onSelectBook,
             onReadBook = onBoardingViewModel::showReadingOptions,
+            bookListTracker = onBoardingViewModel.bookListTracker,
+            onMetadataViewed = onBoardingViewModel::onMetadataViewed,
             onBackBookDetail = onBoardingViewModel::closeBookDetail,
             onRetryBookDetail = onBoardingViewModel::retryBookDetail,
             onDismissBottomSheet = onBoardingViewModel::dismissDialog,

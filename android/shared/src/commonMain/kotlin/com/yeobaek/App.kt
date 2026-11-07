@@ -199,13 +199,14 @@ fun App(
                 navigateToPublicRoomReader = { publicRoomId ->
                     navController.navigateToPublicRoomReader(publicRoomId = publicRoomId)
                 },
-                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, listVisitId ->
+                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, card ->
                     navController.navigateToPublicRoomBookDetail(
                         publicRoomId = publicRoomId,
                         bookId = bookId,
                         entryPoint = entryPoint,
-                        listVisitId = listVisitId,
+                        listVisitId = card.listVisitId,
                         navOptions = navOptions { launchSingleTop = true },
+                        card = card,
                     )
                 },
                 navigateToMyPage = {

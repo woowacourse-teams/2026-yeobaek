@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
 
 class AppInvitationsTest {
     @Test
+    fun restoredRequestCanResumeWithoutAnotherOpenEvent() {
+        val received = mutableListOf<Pair<String, Boolean>>()
+        val original = AppInvitations { id, valid -> received.add(id to valid) }
+        original.open("yeobaek://invite?code=ABC123", "original")
+
+        val restored = AppInvitations { id, valid -> received.add(id to valid) }
+        restored.open("yeobaek://invite?code=ABC123", "original", isRestored = true)
+
+        assertEquals(listOf("original" to true), received)
+        assertEquals("original", restored.pendingOpen.value?.id)
+    }
+
+    @Test
     fun holdsRequestUntilConsumptionAndOldCompletionDoesNotClearNewRequest() {
         val invitations = AppInvitations()
         invitations.open("yeobaek://invite?code=ABC123", "first")

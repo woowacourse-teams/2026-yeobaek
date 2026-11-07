@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -57,11 +58,20 @@ fun CommentBottomSheet(
     onDeleteConfirm: () -> Unit,
     onScrollToLatestConsumed: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onContentsShown: (Long) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val commentListState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    val contentsVisible = sheetState.isVisible && !uiState.isLoading && uiState.loadErrorMessage == null
+    LaunchedEffect(uiState.sentenceId, contentsVisible) {
+        if (contentsVisible) {
+            withFrameNanos { }
+            onContentsShown(uiState.sentenceId)
+        }
+    }
 
     LaunchedEffect(uiState.reportState) {
         val message = when (val reportState = uiState.reportState) {

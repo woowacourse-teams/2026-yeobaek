@@ -7,11 +7,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.yeobaek.core.analytics.EventResult
-import com.yeobaek.core.analytics.GroupJoinAbandoned
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
-import com.yeobaek.core.analytics.GroupJoinSubmitted
-import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.GroupJoinVisit
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
@@ -66,7 +63,8 @@ fun NavGraphBuilder.joinNavGraph(
         )
         val joinViewModel: JoinViewModel = viewModel(
             factory = JoinViewModel.joinViewModelFactory(
-                entryPoint = entryPoint,
+                visit = GroupJoinVisit(entryPoint, backStackEntry.id, route.invitationRequestId),
+                initialCode = route.initialCode,
                 groupRepository = appContainer.groupRepository,
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
@@ -75,7 +73,7 @@ fun NavGraphBuilder.joinNavGraph(
         )
 
         LaunchedEffect(route.initialCode, route.invitationRequestId) {
-            joinViewModel.initializeInput(route.initialCode, route.invitationRequestId)
+            joinViewModel.enter()
         }
 
         LaunchedEffect(joinViewModel.uiState.successJoin) {
@@ -92,29 +90,11 @@ fun NavGraphBuilder.joinNavGraph(
             onCodeValueChange = joinViewModel::onCodeValueChange,
             onBackClick = {
                 navigateToBack(backStackEntry.id) {
-                    appContainer.analyticsTracker.track(
-                        GroupJoinAbandoned(
-                            hasCode = joinViewModel.uiState.codeValue.isNotBlank(),
-                            entryPoint = entryPoint,
-                        ),
-                    )
+                    joinViewModel.abandon()
                     appContainer.invitations.cancelPending()
                 }
             },
-            onJoinClick = {
-                joinViewModel.checkCodeBlank()
-                if (joinViewModel.uiState.codeState) {
-                    appContainer.analyticsTracker.track(
-                        GroupJoinSubmitted(
-                            result = EventResult.INVALID,
-                            entryPoint = entryPoint,
-                            reason = InvalidReason.CODE_BLANK,
-                        ),
-                    )
-                } else {
-                    joinViewModel.joinGroup()
-                }
-            },
+            onJoinClick = joinViewModel::joinGroup,
         )
     }
 }
