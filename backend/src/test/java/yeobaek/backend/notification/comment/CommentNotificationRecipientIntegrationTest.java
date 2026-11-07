@@ -54,6 +54,8 @@ import yeobaek.backend.notification.registration.dto.NotificationPreferencesUpda
 import yeobaek.backend.notification.registration.repository.NotificationPreferenceRepository;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
+import yeobaek.backend.notification.registration.service.NotificationClubPreferencesService;
+import yeobaek.backend.notification.registration.dto.NotificationClubPreferenceUpdateRequest;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
@@ -61,6 +63,9 @@ import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
 
 class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
+
+    @Autowired
+    private NotificationClubPreferencesService clubPreferences;
 
     @Autowired
     private CommentNotificationService notificationService;
@@ -134,6 +139,17 @@ class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
         sentence = passage.getSentences().getFirst();
         club = clubRepository.save(new Club(new ClubName("알림 모임"), book, new JoinCode("PUSH01")));
         writer = saveReader("작성자", 'c');
+    }
+
+    @Test
+    @DisplayName("모임 댓글 알림을 끈 설치만 제외하고 같은 회원의 다른 설치는 발송해요")
+    void applyClubPreferencePerInstallation() {
+        Member reader = saveReader("모임 설정 독자", 'd');
+        saveRegistration(reader, 'e');
+        clubPreferences.update(reader.getId(), new FirebaseInstallationId("d" + "a".repeat(21)), club.getId(),
+                new NotificationClubPreferenceUpdateRequest(false));
+
+        assertThat(notifyClubRecipients().firebaseInstallationIds()).containsExactly("e" + "a".repeat(21));
     }
 
     @Test

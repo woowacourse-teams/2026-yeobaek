@@ -95,7 +95,7 @@ public class FcmRetryService {
             }
             var fid = new FirebaseInstallationId(task.fid());
             NotificationRegistrations snapshot = registrationService.snapshotForRetry(
-                    task.registrationIds(), fid, task.notificationType());
+                    task.registrationIds(), fid, task.notificationType(), task.clubId());
             List<Long> remainingIds = snapshot.findRegistrationIdsByFid(fid);
             if (remainingIds.isEmpty()) {
                 logStopped(task, "NO_ELIGIBLE_REGISTRATION");

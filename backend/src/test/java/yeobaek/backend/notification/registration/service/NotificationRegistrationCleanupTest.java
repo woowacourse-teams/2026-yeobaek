@@ -143,7 +143,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         var replacement = save(member, 'c');
 
         var snapshot = registrationService.snapshotForRetry(
-                originalIds, phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT);
+                originalIds, phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT, null);
         int deleted = registrationService.deleteUnregistered(
                 new NotificationRegistrations(List.of(phone)), phone.getFirebaseInstallationId());
 
@@ -162,7 +162,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
                 "d" + "a".repeat(21), phone.getId());
 
         var snapshot = registrationService.snapshotForRetry(
-                List.of(phone.getId()), phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT);
+                List.of(phone.getId()), phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT, null);
 
         assertThat(snapshot.findRegistrationIdsByFid(phone.getFirebaseInstallationId())).isEmpty();
         assertThat(registrationRepository.findById(phone.getId())).isPresent();

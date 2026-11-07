@@ -45,13 +45,20 @@ public class NotificationRegistrationService {
     @Transactional(readOnly = true)
     public NotificationRegistrations findByMemberIds(List<Long> memberIds, NotificationType type) {
         return NotificationRegistrations.fromEnabledPreferences(
-                preferenceRepository.findEnabledWithRegistrationsByMemberIds(memberIds), type);
+                preferenceRepository.findEnabledWithRegistrationsByMemberIds(memberIds, null), type);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationRegistrations findByMemberIdsForClub(List<Long> memberIds, NotificationType type, Long clubId) {
+        return NotificationRegistrations.fromEnabledPreferences(
+                preferenceRepository.findEnabledWithRegistrationsByMemberIds(memberIds, clubId), type);
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid, NotificationType type) {
+    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid,
+                                                      NotificationType type, Long clubId) {
         return NotificationRegistrations.fromEnabledPreferences(
-                preferenceRepository.findEnabledWithRegistrationsByRegistrationIdsAndFid(ids, fid), type);
+                preferenceRepository.findEnabledWithRegistrationsByRegistrationIdsAndFid(ids, fid, clubId), type);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

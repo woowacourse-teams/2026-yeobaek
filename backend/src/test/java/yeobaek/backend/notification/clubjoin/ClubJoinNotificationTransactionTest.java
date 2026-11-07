@@ -84,7 +84,7 @@ class ClubJoinNotificationTransactionTest {
         given(joinConnection.getAutoCommit()).willReturn(true);
         given(recipientConnection.getAutoCommit()).willReturn(true);
         given(recipients.findRecipientMemberIds(5L, 7L)).willReturn(List.of(9L));
-        given(registrations.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(
+        given(registrations.findByMemberIdsForClub(any(), any(), any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId("c" + "a".repeat(21))))));
         given(sender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }

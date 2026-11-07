@@ -26,7 +26,7 @@ public class CommentNotificationService {
         Map<String, String> data = Map.of(
                 "type", "CLUB_COMMENT", "clubId", event.clubId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
-        notificationService.notifyRecipients(NotificationType.CLUB_COMMENT, event.commentId(), event.commentCreatedAt(),
+        notificationService.notifyRecipients(NotificationType.CLUB_COMMENT, event.commentId(), event.clubId(), event.commentCreatedAt(),
                 () -> findReadersInClub(event.clubId(), new ContentSequence(event.passageSequence()), event.writerId()),
                 TITLE, BODY, data);
     }
@@ -35,14 +35,14 @@ public class CommentNotificationService {
         Map<String, String> data = Map.of(
                 "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", event.publicRoomId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
-        notificationService.notifyRecipients(NotificationType.PUBLIC_ROOM_COMMENT, event.commentId(), event.commentCreatedAt(),
+        notificationService.notifyRecipients(NotificationType.PUBLIC_ROOM_COMMENT, event.commentId(), null, event.commentCreatedAt(),
                 () -> findPreviousCommentersInPublicRoom(event.publicRoomId(), event.sentenceId(), event.writerId()),
                 TITLE, BODY, data);
     }
 
     private NotificationRegistrations findReadersInClub(Long clubId, ContentSequence passageSequence, Long writerId) {
         List<Long> recipientIds = recipientQueryRepository.findReaderIdsAheadInClub(clubId, passageSequence.value(), writerId);
-        return registrationService.findByMemberIds(recipientIds, NotificationType.CLUB_COMMENT);
+        return registrationService.findByMemberIdsForClub(recipientIds, NotificationType.CLUB_COMMENT, clubId);
     }
 
     private NotificationRegistrations findPreviousCommentersInPublicRoom(Long publicRoomId, Long sentenceId, Long writerId) {

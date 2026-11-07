@@ -4,6 +4,7 @@ import yeobaek.backend.notification.domain.NotificationType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -50,7 +51,7 @@ class FcmRetryContextTest {
         var finished = new CountDownLatch(1);
         var previousMdc = MDC.getCopyOfContextMap();
         String fid = "c" + "a".repeat(21);
-        given(registrations.snapshotForRetry(anyList(), any(), any())).willReturn(new NotificationRegistrations(List.of(
+        given(registrations.snapshotForRetry(anyList(), any(), any(), nullable(Long.class))).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid)))));
         given(sender.send(anyList(), anyString(), anyString(), any())).willAnswer(invocation -> {
             observed.set(List.of(MDC.get("traceId"), Context.current().get(REQUEST), Thread.currentThread().getName()));
@@ -59,7 +60,7 @@ class FcmRetryContextTest {
         });
         var retryService = new FcmRetryService(scheduler, executor, clock, sender, registrations, handler, new Semaphore(1));
         Instant now = clock.instant();
-        var task = new FcmRetryTask(NotificationType.CLUB_COMMENT, 11L, List.of(1L), "제목", "내용", Map.of(),
+        var task = new FcmRetryTask(NotificationType.CLUB_COMMENT, 11L, 5L, List.of(1L), "제목", "내용", Map.of(),
                 new FcmSendFailure(fid, "INTERNAL", "INTERNAL", 500, null),
                 now.minusSeconds(300), now.minusSeconds(120), 0, false);
         scheduler.initialize();

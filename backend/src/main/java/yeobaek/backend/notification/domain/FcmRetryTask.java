@@ -9,6 +9,7 @@ import java.util.Optional;
 public record FcmRetryTask(
         NotificationType notificationType,
         Long sourceId,
+        Long clubId,
         List<Long> registrationIds,
         String title,
         String body,
@@ -21,16 +22,23 @@ public record FcmRetryTask(
         String targetFid
 ) {
 
-    public FcmRetryTask(NotificationType notificationType, Long sourceId, List<Long> registrationIds, String title, String body,
+    public FcmRetryTask(NotificationType notificationType, Long sourceId, Long clubId, List<Long> registrationIds, String title, String body,
                         Map<String, String> data, FcmSendFailure failure, Instant createdAt, Instant observedAt,
                         int retriesPerformed, boolean uncertainRetryUsed) {
-        this(notificationType, sourceId, registrationIds, title, body, data, failure, createdAt, observedAt,
+        this(notificationType, sourceId, clubId, registrationIds, title, body, data, failure, createdAt, observedAt,
                 retriesPerformed, uncertainRetryUsed, failure.fid());
     }
 
     public FcmRetryTask {
         Objects.requireNonNull(notificationType);
         Objects.requireNonNull(sourceId);
+        if (notificationType == NotificationType.PUBLIC_ROOM_COMMENT) {
+            if (clubId != null) {
+                throw new IllegalArgumentException("공개방 알림에는 모임 ID를 지정할 수 없습니다.");
+            }
+        } else {
+            Objects.requireNonNull(clubId, "모임 알림에는 모임 ID가 필요합니다.");
+        }
         Objects.requireNonNull(title);
         Objects.requireNonNull(body);
         Objects.requireNonNull(failure);
@@ -79,7 +87,7 @@ public record FcmRetryTask(
         if (!nextFailure.isRetryable()) {
             return Optional.empty();
         }
-        return Optional.of(new FcmRetryTask(notificationType, sourceId, remainingRegistrationIds, title, body, data, nextFailure,
+        return Optional.of(new FcmRetryTask(notificationType, sourceId, clubId, remainingRegistrationIds, title, body, data, nextFailure,
                 createdAt, nextObservedAt, retriesPerformed + 1,
                 uncertainRetryUsed || failure.isReceiptUncertain(), targetFid));
     }
