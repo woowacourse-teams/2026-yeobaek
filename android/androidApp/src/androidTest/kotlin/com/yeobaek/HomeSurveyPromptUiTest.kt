@@ -7,13 +7,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.test.espresso.Espresso.pressBack
 import com.russhwolf.settings.SharedPreferencesSettings
 import com.yeobaek.core.common.AppPromptBlocker
 import com.yeobaek.core.config.SurveyConfig
@@ -50,6 +54,105 @@ class HomeSurveyPromptUiTest {
     private val blocked = mutableStateOf(false)
     private val repository = TestSurveyRepository()
     private val linkScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val restorationTester = StateRestorationTester(rule)
+
+    @Test
+    fun unansweredPromptReturnsAfterBackgroundWithoutAnotherQuery() {
+        show()
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+
+        rule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        rule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+        assertCalls(1)
+        rule.runOnIdle { assertEquals(SurveyPromptState(shown = true), preferences().getState(7, survey.id)) }
+    }
+
+    @Test
+    fun unansweredPromptSurvivesSavedStateRestoration() {
+        show()
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+        assertCalls(1)
+    }
+
+    @Test
+    fun unansweredPromptWaitsForOtherPopupAndReturns() {
+        show()
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+        rule.runOnIdle { blocked.value = true }
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+
+        rule.runOnIdle { blocked.value = false }
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+        assertCalls(1)
+    }
+
+    @Test
+    fun declinedPromptDoesNotReturnAfterRestorationOrBackground() {
+        show()
+        rule.onNodeWithText("다시 보지 않기").performClick()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+        rule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        rule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+        assertCalls(1)
+    }
+
+    @Test
+    fun backDismissalDoesNotReturnAfterSavedStateRestoration() {
+        show()
+        rule.onNodeWithText(survey.title).assertIsDisplayed()
+        pressBack()
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+        assertCalls(1)
+    }
+
+    @Test
+    fun linkOpenedWhileBackgroundedDoesNotRestorePrompt() {
+        val gate = CompletableDeferred<Boolean>()
+        show(SurveyLinkOpener { gate.await() })
+        rule.onNodeWithText("설문 참여하기").performClick()
+        rule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        gate.complete(true)
+        rule.waitUntil { preferences().getState(7, survey.id).linkOpened }
+        rule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        rule.onNodeWithTag("survey-dialog").assertDoesNotExist()
+        assertCalls(1)
+    }
+
+    @Test
+    fun restoredPromptObservesExistingLinkRequestAndAllowsRetryAfterFailure() {
+        val gate = CompletableDeferred<Boolean>()
+        var opens = 0
+        show(SurveyLinkOpener { opens++; gate.await() })
+        rule.onNodeWithText("설문 참여하기").performClick()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        rule.onNodeWithText("여는 중…").assertIsNotEnabled()
+        rule.runOnIdle {
+            assertEquals(1, opens)
+            gate.complete(false)
+        }
+        rule.onNodeWithText("설문지를 열지 못했어요. 잠시 후 다시 시도해 주세요.").assertIsDisplayed()
+        rule.onNodeWithText("설문 참여하기").performClick()
+        rule.runOnIdle { assertEquals(2, opens) }
+        assertCalls(1)
+    }
 
     @After
     fun cleanUp() {
@@ -210,10 +313,10 @@ class HomeSurveyPromptUiTest {
         assertCalls(1)
     }
 
-    private fun show() {
+    private fun show(linkOpener: SurveyLinkOpener = SurveyLinkOpener { true }) {
         val preferences = preferences()
         val launcher = SurveyLinkLauncher(preferences, linkScope)
-        rule.setContent {
+        restorationTester.setContent {
             YeobaekTheme {
                 AppPromptBlocker(blocked.value) {
                     AppPromptBlocker(blocked = false) {
@@ -231,7 +334,7 @@ class HomeSurveyPromptUiTest {
                                     preferences = preferences,
                                     linkLauncher = launcher,
                                     homeReady = ready.value,
-                                    linkOpener = SurveyLinkOpener { true },
+                                    linkOpener = linkOpener,
                                 )
                             }
                             composable("survey-test-reader") {
