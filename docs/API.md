@@ -616,8 +616,10 @@
 - 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
   모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
-### 댓글 문장 목록 전체 조회
+### 댓글 문장 목록 전체 조회 (deprecated)
 `GET /api/clubs/{clubId}/commented-sentences?currentPassageId=1042`
+
+구버전 호환 API다. 기존 응답·정렬을 유지하며, 신규 클라이언트는 아래 v2 API를 사용한다.
 
 - `currentPassageId`(필수 쿼리 파라미터): 요청 시점의 일반 뷰어 현재 문단 ID다. 이 문단까지를
   진도 안쪽으로 계산한다. 값이 없거나 숫자가 아니거나 해당 모임 도서의 문단이 아니면 `400`
@@ -679,6 +681,31 @@
 - 결과가 비어 있으면 `commentedSentences`는 빈 배열이다.
 - 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
   모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 댓글 문장 목록 조회 v2
+`GET /api/v2/clubs/{clubId}/commented-sentences?currentPassageId=1042&filter=ALL`
+
+전체 댓글·새 댓글 탭의 문장 목록을 책 순서로 반환한다. 모임과 공개방의 v2 목록에 공통으로 적용한다.
+
+필수 쿼리:
+
+- `currentPassageId`: 현재 읽고 있는 문단 ID. 저장 진도와 별개로 미래 문장과 가림 상태를 판단한다.
+- `filter`: 전체 댓글 탭은 `ALL`, 새 댓글 탭은 `NEW`.
+  `ALL`은 보이는 댓글이 있는 책 전체의 문장, `NEW`는 그중 `unreadCommentCount > 0`인 문장이다.
+  두 필터 모두 현재 문단 뒤의 문장도 포함한다. 필수 값 누락·형식 오류·대소문자를 포함한 잘못된
+  `filter`는 `400 INVALID_REQUEST`다.
+
+응답은 `200 {"commentedSentences": [...]}`이며, 문장 항목의 10개 필드는 위 기존 목록 응답과 같다.
+결과가 없으면 빈 배열이다. 차단·접근 권한·도서 검증과 전체 반환·탐색 중 목록 유지 규칙도 기존과 같다.
+
+- **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순 → `sentenceId` 내림차순.
+- **댓글 수:** `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 그중 미확인 수다.
+- **미래 문장 가림:** `future=true`이고 `unreadCommentCount > 0`이면 `REVEAL_REQUIRED`,
+  그 외에는 `VISIBLE`이다. `content`는 항상 포함하므로 클라이언트가 `contentVisibility`에 따라 가린다.
+- **읽음 처리:** 목록 조회는 댓글 확인 상태·저장 진도·방문 시각을 변경하지 않는다.
+  댓글 상세 조회 후 목록을 다시 요청하면 읽은 댓글이 반영되고, 미확인 댓글이 없어진 문장은 `NEW`에서 빠진다.
+- **상단 배지와의 차이:** 기존 새 댓글 수 API는 현재 문단까지만 센다.
+  미래 문장에만 새 댓글이 남으면 배지는 0이어도 `NEW` 목록에는 문장이 있을 수 있다.
 
 ### 문장의 댓글 상세 조회 + 직접 확인
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
@@ -1333,7 +1360,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | PUT | `/api/public-rooms/{publicRoomId}/progress` | 진도 저장 v1 (구버전 호환·첫 문장 보정) |
 | PUT | `/api/v2/public-rooms/{publicRoomId}/progress` | 정밀 진도 저장 v2 (구현 예정) |
 | GET | `/api/public-rooms/{publicRoomId}/comments/new-count` | 새 댓글 수, 필수 쿼리 `currentPassageId` |
-| GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록, 필수 쿼리 `currentPassageId` |
+| GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록 (deprecated), 필수 쿼리 `currentPassageId` |
+| GET | `/api/v2/public-rooms/{publicRoomId}/commented-sentences` | 탭별 댓글 문장 목록, 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` |
 | POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 댓글 상세·직접 확인 |
 | POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | 댓글 작성 |
 | GET | `/api/members/me/recent-reading` | 공개방·모임 통합 최근 읽기 |
@@ -1559,13 +1587,14 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 
 모든 집계·목록·직접 확인은 해당 공개방의 댓글 중 요청 회원에게 보이는 댓글만 대상으로 한다.
 진도 경계는 저장 진도가 아니라 요청의 `currentPassageId`다. 이 파라미터는 진도와 방문 시각을 변경하지 않는다.
-아래 네 API 모두 없는 공개방에는 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서에는
+아래 API 모두 없는 공개방에는 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서에는
 `400 BOOK_NOT_AVAILABLE`을 반환한다. 모임 소속 조건은 적용하지 않는다.
 
 | 기능과 경로 | 요청 | 성공 응답 및 5절과 공유하는 규칙 |
 |---|---|---|
 | `GET /api/public-rooms/{publicRoomId}/comments/new-count` | 필수 쿼리 `currentPassageId` | `200 {"newCommentCount": 3}`. 현재 문단까지의 보이는 `NEW` 댓글 수. 상태 변경 없음 |
-| `GET /api/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 댓글 문장 목록의 모든 필드·정렬·가림·전체 반환 규칙 적용 |
+| `GET /api/public-rooms/{publicRoomId}/commented-sentences` (deprecated) | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 호환 목록의 모든 필드·정렬·가림·전체 반환 규칙 유지 |
+| `GET /api/v2/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` | 5절 「댓글 문장 목록 조회 v2」의 요청·응답·동작을 그대로 적용 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 본문 없음 | `200 {"comments": [...]}`. 작성일 오름차순의 댓글 객체와 직접 확인 처리 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | `{"content": "이 문장에서 멈칫했어요."}`. `content` 1~1000자 | `201`, 생성한 댓글 객체 하나. 작성자에게 즉시 `VIEWED` |
 
@@ -1589,7 +1618,7 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 - 댓글 문장 항목은 5절과 동일하게 `sentenceId`, `content`, `passageId`, `passageSequence`,
   `sentenceSequence`, `future`, `commentCount`, `unreadCommentCount`, `contentVisibility`,
   `latestCommentCreatedAt`을 모두 포함한다.
-- 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
+- 기존 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
   확인한 문장 순이며, 그룹 안에서는 `passageSequence` 오름차순, `sentenceSequence` 오름차순,
   두 순번이 같으면 `sentenceId` 내림차순이다. `latestCommentCreatedAt`은 정렬에 사용하지 않는다.
   받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
