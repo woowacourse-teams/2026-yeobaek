@@ -188,6 +188,7 @@ private fun ReaderRoute(
             onScrollToLatestConsumed = commentSheet::consumeScrollToLatest,
             onLike = commentSheet::toggleLike,
             onLikeErrorConsumed = commentSheet::consumeLikeError,
+            onContentsShown = readerViewModel::onCommentSheetContentsShown,
         )
     }
 

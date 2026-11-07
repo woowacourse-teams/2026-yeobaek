@@ -10,6 +10,7 @@ import androidx.navigation.toRoute
 import com.yeobaek.core.analytics.GroupDetailOpened
 import com.yeobaek.core.analytics.GroupExitRequested
 import com.yeobaek.core.analytics.InviteCodeCopied
+import com.yeobaek.core.analytics.InviteShareSubmitted
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
@@ -91,6 +92,9 @@ fun NavGraphBuilder.detailNavGraph(
             uiState = detailViewModel.uiState,
             onInviteCodeCopy = {
                 appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
+            },
+            onInviteShareSubmitted = { result ->
+                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result))
             },
             onBlockUser = { otherUserId ->
                 detailViewModel.blockUser(otherUserId)

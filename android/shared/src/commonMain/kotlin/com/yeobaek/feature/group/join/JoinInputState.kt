@@ -22,10 +22,6 @@ internal class JoinInputState(private val savedState: SavedStateHandle) {
         if (!value.isJoining) updateCode(code.take(6))
     }
 
-    fun checkBlank() {
-        value = value.copy(codeState = value.codeValue.isBlank())
-    }
-
     fun beginJoin(): String? {
         if (value.isJoining || value.successJoin) return null
         if (!InviteLink.isValidCode(value.codeValue)) {

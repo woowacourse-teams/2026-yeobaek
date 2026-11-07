@@ -7,9 +7,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.BookDetailEntryPoint
+import com.yeobaek.core.analytics.BookListEnd
 import com.yeobaek.core.analytics.BookSearchEnd
 import com.yeobaek.core.analytics.EventResult
-import com.yeobaek.core.analytics.GroupCreateAbandoned
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.InvalidReason
 import com.yeobaek.core.analytics.bookDetailScreenProperties
@@ -61,6 +61,7 @@ fun NavGraphBuilder.createNavGraph(
                 bookDetailScreenProperties(
                     bookId = requireNotNull(detailBookId),
                     entryPoint = BookDetailEntryPoint.GROUP_CREATE.value,
+                    detailVisitId = createViewModel.detailVisit.id,
                 )
             } else {
                 emptyMap()
@@ -80,6 +81,8 @@ fun NavGraphBuilder.createNavGraph(
             selectBook = createViewModel::selectBook,
             onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,
             onNextStep = createViewModel::moveToGroupName,
+            bookListTracker = createViewModel.bookListTracker,
+            onMetadataViewed = createViewModel::onMetadataViewed,
             onRetryBookDetail = createViewModel::retryBookDetail,
             onSelectOtherBook = createViewModel::moveToBookSelection,
             onBackClick = {
@@ -90,13 +93,8 @@ fun NavGraphBuilder.createNavGraph(
 
                     CreateStep.BookSelection -> {
                         createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
-                        appContainer.analyticsTracker.track(
-                            GroupCreateAbandoned(
-                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
-                                hasBook = createViewModel.uiState.selectedBook != null,
-                                bookList = createViewModel.bookListExposure(),
-                            ),
-                        )
+                        createViewModel.bookListTracker.close(BookListEnd.NAVIGATION)
+                        createViewModel.abandon()
                         navController.popBackStack()
                     }
                 }
@@ -111,6 +109,7 @@ fun NavGraphBuilder.createNavGraph(
                     appContainer.analyticsTracker.track(
                         GroupCreateSubmitted(
                             result = EventResult.INVALID,
+                            attemptId = createViewModel.attemptId,
                             reason = reason,
                             bookList = createViewModel.bookListExposure(),
                         ),

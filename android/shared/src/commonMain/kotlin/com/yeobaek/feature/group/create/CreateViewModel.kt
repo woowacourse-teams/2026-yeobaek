@@ -11,13 +11,19 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.BookCardContext
 import com.yeobaek.core.analytics.BookDetailConfirmed
 import com.yeobaek.core.analytics.BookDetailEntryPoint
+import com.yeobaek.core.analytics.BookDetailVisit
 import com.yeobaek.core.analytics.BookListExposure
+import com.yeobaek.core.analytics.BookListVisitTracker
+import com.yeobaek.core.analytics.BookMetadataSection
 import com.yeobaek.core.analytics.BookSearchEntryPoint
 import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.EventResult
+import com.yeobaek.core.analytics.GroupCreateAbandoned
 import com.yeobaek.core.analytics.GroupCreateBookSelected
+import com.yeobaek.core.analytics.GroupCreateInitiated
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -31,6 +37,7 @@ import com.yeobaek.feature.group.create.model.SelectBookUiModel
 import com.yeobaek.feature.group.create.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -48,6 +55,14 @@ class CreateViewModel(
     var uiState by mutableStateOf(
         CreateUiState(groupNameValue = savedStateHandle.get<String>(GROUP_NAME_KEY).orEmpty().take(20)),
     )
+        private set
+
+    val attemptId = savedStateHandle.get<String>(ATTEMPT_ID_KEY) ?: Uuid.random().toString().also {
+        savedStateHandle[ATTEMPT_ID_KEY] = it
+        analyticsTracker.track(GroupCreateInitiated(it))
+    }
+    val bookListTracker = BookListVisitTracker(BookDetailEntryPoint.GROUP_CREATE, { analyticsTracker.track(it) })
+    var detailVisit = BookDetailVisit()
         private set
 
     private var initJob: Job? = null
@@ -169,7 +184,12 @@ class CreateViewModel(
     }
 
     fun selectBook(book: SelectBookUiModel) {
-        val targetBook = uiState.bookList.firstOrNull { item -> item.id == book.id } ?: return
+        val index = uiState.bookList.indexOfFirst { it.id == book.id }
+        val targetBook = uiState.bookList.getOrNull(index) ?: return
+        val position = index + 1
+        val listVisitId = bookListTracker.selectBook(uiState.bookList.map { it.id }, position)
+        savedStateHandle[BOOK_SELECTED_COUNT_KEY] = (savedStateHandle.get<Int>(BOOK_SELECTED_COUNT_KEY) ?: 0) + 1
+        detailVisit = BookDetailVisit()
         uiState.searchResultVersion?.let { version ->
             if (uiState.searchState is SearchState.Success) {
                 bookSearchTracker.resultsShown(version, uiState.bookList.size)
@@ -185,6 +205,13 @@ class CreateViewModel(
             GroupCreateBookSelected(
                 bookId = targetBook.id,
                 bookTitle = targetBook.title,
+                attemptId = attemptId,
+                card = BookCardContext(
+                    position = position,
+                    genreBadgeShown = targetBook.genres.any(String::isNotBlank),
+                    hashtagsShown = targetBook.hashtags.any { it.trim().trimStart('#').isNotBlank() },
+                    listVisitId = listVisitId,
+                ),
             ),
             bookSearchTracker.bookSelected(),
         )
@@ -220,13 +247,22 @@ class CreateViewModel(
     fun moveToGroupName() {
         if (uiState.step != CreateStep.BookDetail || uiState.bookDetailState !is BookDetailState.Success) return
         val bookId = uiState.selectedBook?.id ?: return
-        analyticsTracker.track(BookDetailConfirmed(bookId, BookDetailEntryPoint.GROUP_CREATE))
+        analyticsTracker.track(
+            BookDetailConfirmed(
+                bookId = bookId,
+                entryPoint = BookDetailEntryPoint.GROUP_CREATE,
+                groupCreateAttemptId = attemptId,
+                visit = detailVisit,
+            ),
+        )
+        savedStateHandle[BOOK_CONFIRMED_KEY] = true
         uiState = uiState.copy(step = CreateStep.GroupName)
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.GroupName.name
     }
 
     fun moveToBookDetail() {
         val selectedBook = uiState.selectedBook ?: return
+        detailVisit = BookDetailVisit()
         uiState = uiState.copy(step = CreateStep.BookDetail)
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookDetail.name
         if (uiState.bookDetailState !is BookDetailState.Success) {
@@ -241,6 +277,32 @@ class CreateViewModel(
             bookDetailState = BookDetailState.Idle,
         )
         savedStateHandle[CREATE_STEP_KEY] = CreateStep.BookSelection.name
+    }
+
+    fun onMetadataViewed(section: BookMetadataSection) {
+        val book = uiState.selectedBook ?: return
+        detailVisit.observe(book.id, BookDetailEntryPoint.GROUP_CREATE.value, section)?.let {
+            analyticsTracker.track(it)
+        }
+    }
+
+    fun abandon() {
+        val selectedCount = savedStateHandle.get<Int>(BOOK_SELECTED_COUNT_KEY) ?: 0
+        val furthestStep = when {
+            savedStateHandle.get<Boolean>(BOOK_CONFIRMED_KEY) == true -> "group_name"
+            selectedCount > 0 -> "book_detail"
+            else -> "book_selection"
+        }
+        analyticsTracker.track(
+            GroupCreateAbandoned(
+                hasName = uiState.groupNameValue.isNotBlank(),
+                hasBook = uiState.selectedBook != null,
+                attemptId = attemptId,
+                step = furthestStep,
+                bookSelectedCount = selectedCount,
+                bookList = bookListExposure(),
+            ),
+        )
     }
 
     fun createGroup() {
@@ -286,6 +348,7 @@ class CreateViewModel(
                 analyticsTracker.track(
                     GroupCreateSubmitted(
                         result = EventResult.SUCCESS,
+                        attemptId = attemptId,
                         bookId = bookId,
                         bookTitle = selectedBook.title,
                         bookList = bookListExposure(),
@@ -305,6 +368,7 @@ class CreateViewModel(
                 analyticsTracker.track(
                     GroupCreateSubmitted(
                         result = EventResult.FAILURE,
+                        attemptId = attemptId,
                         bookId = selectedBookId,
                         bookTitle = selectedBook?.title,
                         bookList = bookListExposure(),
@@ -335,6 +399,9 @@ class CreateViewModel(
         private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
         private const val CREATE_STEP_KEY = "createStep"
         private const val GROUP_NAME_KEY = "groupName"
+        private const val ATTEMPT_ID_KEY = "groupCreate.attemptId"
+        private const val BOOK_SELECTED_COUNT_KEY = "groupCreate.bookSelectedCount"
+        private const val BOOK_CONFIRMED_KEY = "groupCreate.bookConfirmed"
 
         fun createViewModelFactory(
             groupRepository: GroupRepository,

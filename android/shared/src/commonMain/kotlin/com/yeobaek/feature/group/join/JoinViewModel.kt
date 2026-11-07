@@ -9,8 +9,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
-import com.yeobaek.core.analytics.GroupJoinEntryPoint
+import com.yeobaek.core.analytics.GroupJoinAbandoned
+import com.yeobaek.core.analytics.GroupJoinInitiated
 import com.yeobaek.core.analytics.GroupJoinSubmitted
+import com.yeobaek.core.analytics.GroupJoinVisit
+import com.yeobaek.core.analytics.InvalidReason
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
@@ -21,25 +24,52 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 class JoinViewModel(
-    private val entryPoint: GroupJoinEntryPoint,
+    private val visit: GroupJoinVisit,
+    private val initialCode: String?,
     private val groupRepository: GroupRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val onJoiningChanged: (Boolean) -> Unit,
 ) : ViewModel() {
 
     private val input = JoinInputState(savedStateHandle)
     val uiState: JoinUiState get() = input.value
 
-    fun initializeInput(initialCode: String?, requestId: String?) = input.initialize(initialCode, requestId)
+    fun enter() {
+        input.initialize(initialCode, visit.invitationRequestId)
+        if (savedStateHandle.get<Boolean>(VISIT_RECORDED_KEY) != true) {
+            savedStateHandle[VISIT_RECORDED_KEY] = true
+            analyticsTracker.track(GroupJoinInitiated(visit))
+        }
+    }
 
     fun onCodeValueChange(value: String) = input.edit(value)
 
-    fun checkCodeBlank() = input.checkBlank()
+    fun abandon() {
+        analyticsTracker.track(
+            GroupJoinAbandoned(
+                hasCode = uiState.codeValue.isNotBlank(),
+                visit = visit,
+                codeChanged = initialCode?.let { uiState.codeValue != it },
+            ),
+        )
+    }
 
     fun joinGroup() {
-        val code = input.beginJoin() ?: return
+        if (uiState.isJoining || uiState.successJoin) return
+
+        val codeChanged = initialCode?.let { uiState.codeValue != it }
+        val code = input.beginJoin()
+        if (code == null) {
+            val reason = if (uiState.codeValue.isBlank()) {
+                InvalidReason.CODE_BLANK
+            } else {
+                InvalidReason.CODE_INVALID_FORMAT
+            }
+            analyticsTracker.track(GroupJoinSubmitted(EventResult.INVALID, visit, reason, codeChanged))
+            return
+        }
         onJoiningChanged(true)
         crashReporter.track(
             level = CrashLogLevel.INFO,
@@ -56,7 +86,7 @@ class JoinViewModel(
                     level = CrashLogLevel.INFO,
                     context = crashContext(CrashOperation.GROUP_JOIN_SUCCEEDED),
                 )
-                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.SUCCESS, entryPoint = entryPoint))
+                analyticsTracker.track(GroupJoinSubmitted(EventResult.SUCCESS, visit, codeChanged = codeChanged))
             } catch (e: CancellationException) {
                 input.cancelJoin()
                 throw e
@@ -65,7 +95,7 @@ class JoinViewModel(
                     throwable = e,
                     context = crashContext(CrashOperation.GROUP_JOIN_FAILED),
                 )
-                analyticsTracker.track(GroupJoinSubmitted(result = EventResult.FAILURE, entryPoint = entryPoint))
+                analyticsTracker.track(GroupJoinSubmitted(EventResult.FAILURE, visit, codeChanged = codeChanged))
                 input.finishJoin(success = false)
             } finally {
                 if (!uiState.successJoin) onJoiningChanged(false)
@@ -78,8 +108,11 @@ class JoinViewModel(
     }
 
     companion object {
+        private const val VISIT_RECORDED_KEY = "join.visitRecorded"
+
         fun joinViewModelFactory(
-            entryPoint: GroupJoinEntryPoint,
+            visit: GroupJoinVisit,
+            initialCode: String?,
             groupRepository: GroupRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
@@ -87,7 +120,8 @@ class JoinViewModel(
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 JoinViewModel(
-                    entryPoint = entryPoint,
+                    visit = visit,
+                    initialCode = initialCode,
                     groupRepository = groupRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
@@ -101,6 +135,6 @@ class JoinViewModel(
     private fun crashContext(operation: CrashOperation) = CrashContext(
         screen = TrackedScreen.GROUP_JOIN,
         operation = operation,
-        entryPoint = entryPoint.value,
+        entryPoint = visit.entryPoint.value,
     )
 }

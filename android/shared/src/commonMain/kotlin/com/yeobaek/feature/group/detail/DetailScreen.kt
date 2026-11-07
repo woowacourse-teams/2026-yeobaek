@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
@@ -57,6 +58,7 @@ fun DetailScreen(
     onUnBlockUser: (otherUserId: Int) -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
+    onInviteShareSubmitted: (EventResult) -> Unit = {},
 ) {
     val shareSheet = rememberInviteShareSheet()
     val clipboard = LocalClipboard.current
@@ -213,8 +215,13 @@ fun DetailScreen(
                 onShareClick = {
                     val code = uiState.groupUiModel.groupCode
                     val name = uiState.groupUiModel.name.ifBlank { uiState.bookUiModel.title }
-                    val opened = InviteLink.isValidCode(code) && shareSheet.share(InviteLink.shareText(name, code))
-                    if (!opened) {
+                    val result = when {
+                        !InviteLink.isValidCode(code) -> EventResult.INVALID
+                        shareSheet.share(InviteLink.shareText(name, code)) -> EventResult.SUCCESS
+                        else -> EventResult.FAILURE
+                    }
+                    onInviteShareSubmitted(result)
+                    if (result != EventResult.SUCCESS) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(
                                 "공유창을 열 수 없어요. 초대코드를 복사해 전달해주세요.",

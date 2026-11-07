@@ -46,4 +46,5 @@ class CommentSheetActions(
     val onScrollToLatestConsumed: (Long) -> Unit,
     val onLike: (commentId: Long) -> Unit,
     val onLikeErrorConsumed: () -> Unit,
+    val onContentsShown: (Long) -> Unit = {},
 )

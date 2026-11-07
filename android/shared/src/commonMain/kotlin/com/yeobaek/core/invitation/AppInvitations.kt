@@ -6,18 +6,25 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class InvitationRequest(val id: String, val code: String?)
 
-class AppInvitations {
+class AppInvitations(
+    private val onOpened: (requestId: String, linkValid: Boolean) -> Unit = { _, _ -> },
+) {
     private val pending = MutableStateFlow<InvitationRequest?>(null)
     val pendingOpen = pending.asStateFlow()
     private val joining = MutableStateFlow<Set<String>>(emptySet())
     val joiningOwners = joining.asStateFlow()
     private val handledIds = linkedSetOf<String>()
 
-    fun open(uri: String?, requestId: String = Random.nextLong().toString()): Boolean {
+    fun open(
+        uri: String?,
+        requestId: String = Random.nextLong().toString(),
+        isRestored: Boolean = false,
+    ): Boolean {
         val parsed = InviteLink.parse(uri)
         if (parsed == InviteLinkResult.Unrelated) return false
         if (requestId in handledIds || pending.value?.id == requestId) return true
         pending.value = InvitationRequest(requestId, (parsed as? InviteLinkResult.Valid)?.code)
+        if (!isRestored) onOpened(requestId, parsed is InviteLinkResult.Valid)
         return true
     }
 

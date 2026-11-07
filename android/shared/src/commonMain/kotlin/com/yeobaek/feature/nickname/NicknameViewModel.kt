@@ -11,6 +11,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.NicknameChangeAbandoned
+import com.yeobaek.core.analytics.NicknameChangeSubmitted
 import com.yeobaek.core.analytics.NicknameSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
@@ -118,9 +120,14 @@ class NicknameViewModel(
         if (uiState.nicknameValue.length > MAX_NICKNAME_LENGTH) {
             uiState = uiState.copy(nicknameState = false, isEnabled = false)
         }
-        if (!uiState.nicknameState || uiState.nicknameValue == initialNickname) return
-
         val nickname = uiState.nicknameValue
+        if (nickname == initialNickname) return
+        if (!uiState.nicknameState) {
+            val reason = if (nickname.isBlank()) InvalidReason.NICKNAME_BLANK else InvalidReason.NICKNAME_TOO_LONG
+            analyticsTracker.track(NicknameChangeSubmitted(EventResult.INVALID, nickname.length, reason))
+            return
+        }
+
         uiState = uiState.copy(
             isEnabled = false,
             nicknameUpdateState = NicknameUpdateState.Loading,
@@ -133,9 +140,11 @@ class NicknameViewModel(
                     nicknameValue = updatedUser.name,
                     nicknameUpdateState = NicknameUpdateState.Success,
                 )
+                analyticsTracker.track(NicknameChangeSubmitted(EventResult.SUCCESS, nickname.length))
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
+                analyticsTracker.track(NicknameChangeSubmitted(EventResult.FAILURE, nickname.length))
                 uiState = uiState.copy(
                     isEnabled = exception !is InvalidNicknameException,
                     nicknameState = exception !is InvalidNicknameException,
@@ -145,6 +154,15 @@ class NicknameViewModel(
                 )
             }
         }
+    }
+
+    fun abandonChange() {
+        analyticsTracker.track(
+            NicknameChangeAbandoned(
+                hasChanges = uiState.nicknameValue != initialNickname,
+                nicknameLength = uiState.nicknameValue.length,
+            ),
+        )
     }
 
     companion object {

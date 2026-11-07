@@ -8,6 +8,7 @@ import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import kotlin.time.Duration
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
+import kotlin.uuid.Uuid
 
 /**
  * 댓글 모아보기를 한 번 열어서 닫을 때까지(방문)를 추적한다.
@@ -20,25 +21,29 @@ class CommentCollectionSessionTracker(
     private val trackEvent: (AnalyticsEvent) -> Unit,
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
-    private var isVisiting = false
+    var visitId: String? = null
+        private set
     private var segmentStartMark: TimeMark? = null
     private var accumulatedDuration = Duration.ZERO
     private var bookId: Long? = null
     private var cardClickCount = 0
     private var revealCount = 0
+    private var commentSheetsShown = 0
     private var sentences: List<CommentedSentenceUiModel>? = null
 
     fun open(
         bookId: Long?,
         hasNewComments: Boolean,
     ) {
-        if (isVisiting) return
+        if (visitId != null) return
 
-        isVisiting = true
+        val id = Uuid.random().toString()
+        visitId = id
         this.bookId = bookId
         accumulatedDuration = Duration.ZERO
         cardClickCount = 0
         revealCount = 0
+        commentSheetsShown = 0
         sentences = null
         segmentStartMark = timeSource.markNow()
 
@@ -46,41 +51,47 @@ class CommentCollectionSessionTracker(
             CommentCollectionOpened(
                 bookId = bookId,
                 hasNewComments = hasNewComments,
+                collectionVisitId = id,
             ),
         )
     }
 
     fun onLoaded(sentences: List<CommentedSentenceUiModel>) {
-        if (isVisiting) this.sentences = sentences
+        if (visitId != null) this.sentences = sentences
     }
 
     fun onCardClicked() {
-        if (isVisiting) cardClickCount++
+        if (visitId != null) cardClickCount++
     }
 
     fun onSentenceRevealed() {
-        if (isVisiting) revealCount++
+        if (visitId != null) revealCount++
+    }
+
+    fun onCommentSheetShown(collectionVisitId: String) {
+        if (visitId == collectionVisitId) commentSheetsShown++
     }
 
     fun pause() {
-        if (!isVisiting || segmentStartMark == null) return
+        val id = visitId ?: return
+        if (segmentStartMark == null) return
 
         stopSegment()
-        trackClosed(CommentCollectionEnd.BACKGROUND)
+        trackClosed(id, CommentCollectionEnd.BACKGROUND)
     }
 
     fun resume() {
-        if (!isVisiting || segmentStartMark != null) return
+        if (visitId == null || segmentStartMark != null) return
 
         segmentStartMark = timeSource.markNow()
     }
 
     fun end(endedBy: CommentCollectionEnd) {
-        if (!isVisiting) return
+        val id = visitId ?: return
 
         stopSegment()
-        isVisiting = false
-        trackClosed(endedBy)
+        visitId = null
+        trackClosed(id, endedBy)
     }
 
     private fun stopSegment() {
@@ -88,7 +99,7 @@ class CommentCollectionSessionTracker(
         segmentStartMark = null
     }
 
-    private fun trackClosed(endedBy: CommentCollectionEnd) {
+    private fun trackClosed(collectionVisitId: String, endedBy: CommentCollectionEnd) {
         val loadedSentences = sentences
         trackEvent(
             CommentCollectionClosed(
@@ -100,6 +111,8 @@ class CommentCollectionSessionTracker(
                 revealRequiredCount = loadedSentences?.count(CommentedSentenceUiModel::requiresReveal),
                 newCommentSentenceCount = loadedSentences?.count(CommentedSentenceUiModel::isNewComment),
                 endedBy = endedBy,
+                collectionVisitId = collectionVisitId,
+                commentSheetsShown = commentSheetsShown,
             ),
         )
     }

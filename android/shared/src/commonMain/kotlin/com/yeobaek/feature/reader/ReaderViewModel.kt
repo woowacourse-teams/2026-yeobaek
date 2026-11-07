@@ -717,7 +717,11 @@ class ReaderViewModel(
         commentCollectionSession.onCardClicked()
         commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
-        commentSheet.openFromCollection(sentence)
+        commentSheet.openFromCollection(sentence, commentCollectionSession.visitId)
+    }
+
+    fun onCommentSheetContentsShown(sentenceId: Long) {
+        commentSheet.markCommentsShown(sentenceId)?.let(commentCollectionSession::onCommentSheetShown)
     }
 
     fun moveToSelectedComment() {

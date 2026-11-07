@@ -27,8 +27,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import androidx.test.espresso.Espresso
+import com.yeobaek.core.analytics.AnalyticsClient
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
+import com.yeobaek.core.analytics.GroupJoinVisit
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -57,6 +59,14 @@ class InvitationNavigationTest {
     private val member = MutableStateFlow<Int?>(7)
     private val guideFinished = mutableStateOf(true)
     private val repository = RecordingGroupRepository()
+    private val events = mutableListOf<Pair<String, Map<String, Any>>>()
+    private val analytics = AnalyticsTracker(
+        object : AnalyticsClient by NoOpAnalyticsClient {
+            override fun capture(eventName: String, properties: Map<String, Any>) {
+                events.add(eventName to properties)
+            }
+        },
+    )
 
     @Test
     fun coldEntryPrefillsWithoutSubmittingAndBackReturnsHome() {
@@ -65,6 +75,25 @@ class InvitationNavigationTest {
         assertEquals(0, repository.codes.size)
         Espresso.pressBack()
         rule.onNodeWithText("테스트 홈").assertIsDisplayed()
+    }
+
+    @Test
+    fun invalidEditedCodeKeepsTheDeepLinkVisitAndDoesNotSubmitToServer() {
+        showFixture()
+        rule.onNode(hasSetTextAction()).performTextReplacement("ABC")
+        rule.onNode(hasText("모임 참여하기") and hasClickAction()).performClick()
+
+        rule.runOnIdle {
+            val started = events.single { it.first == "group_join_initiated" }.second
+            val submitted = events.single { it.first == "group_join_submitted" }.second
+            assertEquals("deeplink", started["entry_point"])
+            assertEquals("initial", submitted["invitation_request_id"])
+            assertEquals(started["join_visit_id"], submitted["join_visit_id"])
+            assertEquals("invalid", submitted["result"])
+            assertEquals("code_invalid_format", submitted["reason"])
+            assertEquals(true, submitted["code_changed"])
+            assertEquals(emptyList<String>(), repository.codes)
+        }
     }
 
     @Test
@@ -211,15 +240,20 @@ class InvitationNavigationTest {
                         val route = entry.toRoute<Join>()
                         val vm: JoinViewModel = viewModel(
                             factory = JoinViewModel.joinViewModelFactory(
-                                GroupJoinEntryPoint.DEEPLINK,
-                                repository,
-                                CrashReporter(isDebug = true),
-                                AnalyticsTracker(NoOpAnalyticsClient),
+                                visit = GroupJoinVisit(
+                                    GroupJoinEntryPoint.DEEPLINK,
+                                    entry.id,
+                                    route.invitationRequestId,
+                                ),
+                                initialCode = route.initialCode,
+                                groupRepository = repository,
+                                crashReporter = CrashReporter(isDebug = true),
+                                analyticsTracker = analytics,
                                 onJoiningChanged = { requests.setJoining(entry.id, it) },
                             ),
                         )
                         LaunchedEffect(route.invitationRequestId) {
-                            vm.initializeInput(route.initialCode, route.invitationRequestId)
+                            vm.enter()
                         }
                         LaunchedEffect(vm.uiState.successJoin) {
                             if (vm.uiState.successJoin) controller.navigate(Home) {
