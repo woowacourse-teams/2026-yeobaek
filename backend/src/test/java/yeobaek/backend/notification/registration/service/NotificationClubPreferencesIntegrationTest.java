@@ -80,7 +80,6 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
         assertThat(updated.getId()).isEqualTo(original.getId());
         assertThat(updated.isEnabled()).isEqualTo(!enabled);
-        assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(original.getUpdatedAt());
         assertThat(clubPreferenceRepository.count()).isEqualTo(1);
     }
 

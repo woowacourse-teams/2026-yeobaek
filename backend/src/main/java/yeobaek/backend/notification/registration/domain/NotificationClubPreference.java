@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,20 +31,13 @@ public class NotificationClubPreference {
     @Column(nullable = false)
     private boolean enabled;
 
-    @Column(nullable = false)
-    private Instant updatedAt;
-
     public NotificationClubPreference(Long registrationId, Long clubId, boolean enabled) {
         this.registrationId = registrationId;
         this.clubId = clubId;
         this.enabled = enabled;
-        this.updatedAt = Instant.now();
     }
 
     public void changeEnabled(boolean enabled) {
-        if (this.enabled != enabled) {
-            this.enabled = enabled;
-            this.updatedAt = Instant.now();
-        }
+        this.enabled = enabled;
     }
 }
