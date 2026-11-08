@@ -45,12 +45,12 @@ import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
+import yeobaek.backend.notification.registration.dto.NotificationClubPreferenceUpdateRequest;
 import yeobaek.backend.notification.registration.dto.NotificationPreferencesUpdateRequest;
 import yeobaek.backend.notification.registration.dto.NotificationRegistrationRequest;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
-import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationClubPreferencesService;
-import yeobaek.backend.notification.registration.dto.NotificationClubPreferenceUpdateRequest;
+import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.support.IntegrationTest;
 
@@ -103,7 +103,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 입장 알림을 끈 설치만 제외하고 같은 회원의 다른 설치는 발송해요")
+    @DisplayName("휴대전화에서 해당 모임 알림을 꺼도 같은 회원의 태블릿에는 가입 알림을 보낸다")
     void applyClubPreferencePerInstallation() throws FirebaseMessagingException {
         register(recipient, TABLET);
         clubPreferences.update(recipient.getId(), new FirebaseInstallationId(PHONE), club.getId(),

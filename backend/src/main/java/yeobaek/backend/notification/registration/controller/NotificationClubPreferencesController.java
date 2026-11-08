@@ -26,16 +26,17 @@ import yeobaek.backend.notification.registration.service.NotificationClubPrefere
 public class NotificationClubPreferencesController {
     private final NotificationClubPreferencesService preferencesService;
 
-    @Operation(summary = "현재 설치의 모임별 알림 설정 조회",
-            description = "설정이 없으면 ON으로 반환해요. 전체·유형별 설정과 독립된 저장값이에요.")
+    @Operation(summary = "현재 기기의 모임별 알림 설정 조회",
+            description = "모임별 알림 설정의 기본값은 ON이에요. 응답은 해당 모임의 설정이며, "
+                    + "실제 수신에는 전체 알림과 해당 유형 알림도 켜져 있어야 해요.")
     @GetMapping("/api/clubs/{clubId}/notifications/preferences")
     public NotificationClubPreferenceResponse find(@AuthMember Long memberId, @PathVariable Long clubId,
                                                    @RequestParam String fid) {
         return preferencesService.find(memberId, new FirebaseInstallationId(fid), clubId);
     }
 
-    @Operation(summary = "현재 설치의 모임별 알림 설정 변경",
-            description = "참여 중인 모임만 변경할 수 있어요. OFF는 해당 설치의 모임 가입·댓글 알림에 적용돼요.")
+    @Operation(summary = "현재 기기의 모임별 알림 설정 변경",
+            description = "참여 중인 모임만 변경할 수 있어요. OFF는 해당 기기의 모임 가입·댓글 알림에 적용돼요.")
     @PatchMapping("/api/clubs/{clubId}/notifications/preferences")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void update(@AuthMember Long memberId, @PathVariable Long clubId, @RequestParam String fid,

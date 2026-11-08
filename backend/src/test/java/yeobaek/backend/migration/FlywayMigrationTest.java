@@ -224,7 +224,7 @@ class FlywayMigrationTest {
     }
 
     @Test
-    @DisplayName("V9는 기존 등록과 설정을 보존하고 모임 설정 행을 미리 생성하지 않아요")
+    @DisplayName("V9는 기존 알림 등록과 유형별 설정을 보존하고 모임별 설정을 미리 생성하지 않는다")
     void upgradeV8WithClubPreferences() {
         Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .target("8").load().migrate();

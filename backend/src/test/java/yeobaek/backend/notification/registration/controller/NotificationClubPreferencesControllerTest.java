@@ -35,7 +35,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
     private NotificationClubPreferencesService preferencesService;
 
     @Test
-    @DisplayName("인증 회원과 FID, 모임 ID로 조회한 설정을 반환해요")
+    @DisplayName("인증 회원과 FID, 모임 ID로 조회한 설정을 반환한다")
     void findPreference() throws Exception {
         givenValidMember(7L);
         given(preferencesService.find(7L, new FirebaseInstallationId(FID), 5L))
@@ -51,7 +51,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("ON과 OFF 변경 요청을 전달하고 빈 204 응답을 반환해요")
+    @DisplayName("ON과 OFF 변경 요청을 전달하고 빈 204 응답을 반환한다")
     void updatePreference(boolean enabled) throws Exception {
         givenValidMember(7L);
 
@@ -66,7 +66,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"{}", "{\"enabled\":null}"})
-    @DisplayName("enabled 누락과 null은 서비스 호출 전에 거부해요")
+    @DisplayName("알림 활성화 여부가 누락되거나 null이면 변경 요청을 거부한다")
     void rejectMissingEnabled(String body) throws Exception {
         givenValidMember(7L);
 
@@ -78,7 +78,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("FID가 없으면 서비스 호출 전에 거부해요")
+    @DisplayName("FID가 없으면 서비스 호출 전에 거부한다")
     void rejectMissingFid() throws Exception {
         givenValidMember(7L);
 
@@ -89,7 +89,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("FID 형식이 잘못되면 서비스 호출 전에 거부해요")
+    @DisplayName("FID 형식이 잘못되면 서비스 호출 전에 거부한다")
     void rejectInvalidFid() throws Exception {
         givenValidMember(7L);
 
@@ -101,7 +101,7 @@ class NotificationClubPreferencesControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("모임 참여 검증의 서비스 예외를 같은 인스턴스로 전달해요")
+    @DisplayName("모임 참여 검증에서 발생한 예외를 그대로 전달한다")
     void propagateServiceException() throws Exception {
         givenValidMember(7L);
         var exception = new ForbiddenException(ErrorCode.NOT_CLUB_MEMBER, "모임에 참여 중인 회원이 아니에요.");

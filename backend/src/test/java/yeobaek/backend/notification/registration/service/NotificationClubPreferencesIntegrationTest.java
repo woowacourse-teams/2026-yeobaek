@@ -62,7 +62,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("설정이 없으면 ON을 반환하고 조회만으로 행을 생성하지 않아요")
+    @DisplayName("처음 조회한 모임 알림 설정은 기본값 ON이며 조회만으로 설정을 저장하지 않는다")
     void defaultWithoutWriting() {
         assertThat(clubPreferences.find(member.getId(), PHONE, clubId).enabled()).isTrue();
         assertThat(clubPreferenceRepository.count()).isZero();
@@ -70,7 +70,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("첫 변경을 저장하고 같은 키의 다음 변경은 기존 행을 갱신해요")
+    @DisplayName("모임별 설정을 처음 변경하면 저장하고 다시 변경하면 기존 설정을 갱신한다")
     void createAndUpdatePreference(boolean enabled) {
         change(PHONE, clubId, enabled);
         var original = clubPreferenceRepository.findByRegistrationIdAndClubId(phone.getId(), clubId).orElseThrow();
@@ -85,7 +85,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @EnumSource(value = NotificationType.class, names = {"CLUB_JOIN", "CLUB_COMMENT"})
-    @DisplayName("같은 회원의 다른 설치와 다른 모임은 유지하고 OFF 설치만 제외해요")
+    @DisplayName("휴대전화의 특정 모임 알림을 꺼도 태블릿과 다른 모임의 설정은 유지한다")
     void isolateInstallationAndClub(NotificationType type) {
         register(TABLET);
         Long otherClubId = joinClub("CLUB02");
@@ -101,7 +101,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @CsvSource({"false,true,true", "true,false,true", "true,true,false"})
-    @DisplayName("모임 설정이 ON이어도 전체 또는 해당 유형이 OFF이면 발송하지 않아요")
+    @DisplayName("모임별 알림이 켜져 있어도 전체 알림이나 해당 알림 유형을 끄면 발송 대상에서 제외한다")
     void retainOverallAndTypeFilters(boolean overall, boolean clubJoin, boolean clubComment) {
         change(PHONE, clubId, true);
         preferences.update(member.getId(), PHONE,
@@ -114,7 +114,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 알림 OFF는 공개방 댓글 알림에 영향을 주지 않아요")
+    @DisplayName("모임 알림 OFF는 공개방 댓글 알림에 영향을 주지 않는다")
     void retainPublicRoomNotification() {
         change(PHONE, clubId, false);
 
@@ -124,7 +124,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("최초 발송 후 모임 설정을 끄거나 탈퇴하면 재시도 대상에서 제외해요")
+    @DisplayName("최초 발송 후 모임 설정을 끄거나 탈퇴하면 재시도 대상에서 제외한다")
     void recheckClubBeforeRetry(boolean disablePreference) {
         var selected = recipients.findClubRecipients(
                 List.of(member.getId()), NotificationType.CLUB_COMMENT, clubId);
@@ -141,7 +141,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("재시도는 새 등록이나 다른 FID를 추가하지 않아요")
+    @DisplayName("재시도는 새 등록이나 다른 FID를 추가하지 않는다")
     void retryOnlyOriginalRegistration() {
         register(TABLET);
         registrationRepository.deleteById(phone.getId());
@@ -154,7 +154,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("다른 회원의 설치는 조회하거나 변경할 수 없어요")
+    @DisplayName("다른 회원이 등록한 기기의 모임 알림 설정은 조회하거나 변경할 수 없다")
     void rejectOtherMembersInstallation(boolean update) {
         var other = members.save(new Member(new Nickname("다른 회원")));
 
@@ -171,7 +171,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("탈퇴한 회원은 설정을 조회하거나 변경할 수 없어요")
+    @DisplayName("탈퇴한 회원은 설정을 조회하거나 변경할 수 없다")
     void rejectLeftMember(boolean update) {
         jdbc.update("update club_members set status = 'LEFT' where member_id = ? and club_id = ?",
                 member.getId(), clubId);
@@ -187,7 +187,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("재등록과 모임 탈퇴 후 재가입은 기존 모임 설정을 유지해요")
+    @DisplayName("재등록과 모임 탈퇴 후 재가입은 기존 모임 설정을 유지한다")
     void retainPreferenceAcrossRejoinAndRegistration() {
         change(PHONE, clubId, false);
         jdbc.update("update club_members set status = 'LEFT' where member_id = ? and club_id = ?",
@@ -202,7 +202,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("설치 또는 모임 삭제 시 해당 설정만 FK로 함께 삭제해요")
+    @DisplayName("기기의 알림 등록이나 모임을 삭제하면 연결된 모임별 알림 설정만 삭제한다")
     void cascadeOnlyRelatedPreferences(boolean deleteRegistration) {
         var tablet = register(TABLET);
         Long otherClubId = joinClub("CLUB02");
