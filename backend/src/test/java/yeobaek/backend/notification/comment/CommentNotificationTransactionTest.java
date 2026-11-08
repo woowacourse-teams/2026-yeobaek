@@ -5,17 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.ErrorCode;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -29,20 +29,20 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
-import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
@@ -50,8 +50,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.Sentence;
 import yeobaek.backend.book.domain.vo.ContentSequence;
@@ -61,11 +61,9 @@ import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.notification.NotificationListener;
-import yeobaek.backend.notification.clubjoin.ClubJoinNotificationService;
-import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.repository.CommentLikeRepository;
 import yeobaek.backend.comment.repository.CommentReportRepository;
 import yeobaek.backend.comment.repository.CommentRepository;
@@ -75,16 +73,19 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmNotificationService;
+import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmRetryService;
+import yeobaek.backend.notification.NotificationListener;
+import yeobaek.backend.notification.clubjoin.ClubJoinNotificationService;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
@@ -137,6 +138,9 @@ class CommentNotificationTransactionTest {
 
     @MockitoBean
     private PublicRoomRepository publicRoomRepository;
+
+    @MockitoBean
+    private NotificationRecipientQueryService recipientQueryService;
 
     @MockitoBean
     private NotificationRegistrationService registrationService;
@@ -197,8 +201,8 @@ class CommentNotificationTransactionTest {
         String fid = "c" + "a".repeat(21);
         var snapshot = new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, reader, new FirebaseInstallationId(fid))));
-        given(registrationService.findByMemberIds(any(), any())).willReturn(snapshot);
-        given(registrationService.findByMemberIdsForClub(any(), any(), eq(5L))).willReturn(snapshot);
+        given(recipientQueryService.findPublicRoomRecipients(any())).willReturn(snapshot);
+        given(recipientQueryService.findClubRecipients(any(), any(), eq(5L))).willReturn(snapshot);
 
         var room = mock(PublicRoom.class);
         given(room.isReading(sentence)).willReturn(true);
@@ -214,7 +218,7 @@ class CommentNotificationTransactionTest {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             commentService.create(7L, 5L, 13L, new CommentContent("댓글"));
 
-            verifyNoInteractions(pushSender, registrationService);
+            verifyNoInteractions(pushSender, recipientQueryService);
         });
 
         executor.runNextOnWorker();
@@ -236,8 +240,8 @@ class CommentNotificationTransactionTest {
                     TransactionSynchronizationManager.isCurrentTransactionReadOnly())).containsExactly(true, true);
             return new NotificationRegistrations(List.of(registration));
         };
-        doAnswer(lookup).when(registrationService).findByMemberIds(any(), any());
-        doAnswer(lookup).when(registrationService).findByMemberIdsForClub(any(), any(), eq(5L));
+        doAnswer(lookup).when(recipientQueryService).findPublicRoomRecipients(any());
+        doAnswer(lookup).when(recipientQueryService).findClubRecipients(any(), any(), eq(5L));
         doAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return new FcmSendResult(1, List.of());
@@ -302,7 +306,7 @@ class CommentNotificationTransactionTest {
         });
 
         verify(commentConnection).rollback();
-        verifyNoInteractions(registrationService, pushSender);
+        verifyNoInteractions(recipientQueryService, pushSender);
         assertThat(executor.tasks).isEmpty();
     }
 
@@ -393,7 +397,7 @@ class CommentNotificationTransactionTest {
     void skipNotificationWithoutTransaction() {
         eventPublisher.publishEvent(new ClubSentenceCommentCreatedEvent(11L, 5L, 13L, 7L, 3, Instant.now()));
 
-        verifyNoInteractions(registrationService, pushSender, dataSource);
+        verifyNoInteractions(recipientQueryService, pushSender, dataSource);
         assertThat(executor.tasks).isEmpty();
     }
 
@@ -413,7 +417,7 @@ class CommentNotificationTransactionTest {
                     .isEqualTo(11L);
         }
         verify(commentConnection).commit();
-        verifyNoInteractions(registrationService, pushSender, recipientQueryRepository);
+        verifyNoInteractions(recipientQueryService, pushSender, recipientQueryRepository);
         assertThat(executor.tasks).isEmpty();
     }
 
@@ -430,8 +434,8 @@ class CommentNotificationTransactionTest {
         });
         String fid = "c" + "a".repeat(21);
         var registration = new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId(fid));
-        given(registrationService.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(registration)));
-        given(registrationService.findByMemberIdsForClub(any(), any(), eq(5L)))
+        given(recipientQueryService.findPublicRoomRecipients(any())).willReturn(new NotificationRegistrations(List.of(registration)));
+        given(recipientQueryService.findClubRecipients(any(), any(), eq(5L)))
                 .willReturn(new NotificationRegistrations(List.of(registration)));
         given(recipientQueryRepository.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L))
                 .willReturn(List.of(9L));

@@ -36,6 +36,8 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     @Autowired
     private NotificationRegistrationService registrations;
     @Autowired
+    private NotificationRecipientQueryService recipients;
+    @Autowired
     private NotificationPreferencesService preferences;
     @Autowired
     private NotificationClubPreferencesService clubPreferences;
@@ -90,9 +92,9 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
         Long otherClubId = joinClub("CLUB02");
         change(PHONE, clubId, false);
 
-        assertThat(registrations.findByMemberIdsForClub(List.of(member.getId()), type, clubId)
+        assertThat(recipients.findClubRecipients(List.of(member.getId()), type, clubId)
                 .firebaseInstallationIds()).containsExactly(TABLET.value());
-        assertThat(registrations.findByMemberIdsForClub(List.of(member.getId()), type, otherClubId)
+        assertThat(recipients.findClubRecipients(List.of(member.getId()), type, otherClubId)
                 .firebaseInstallationIds()).containsExactlyInAnyOrder(PHONE.value(), TABLET.value());
         assertThat(clubPreferences.find(member.getId(), TABLET, clubId).enabled()).isTrue();
         assertThat(clubPreferences.find(member.getId(), PHONE, otherClubId).enabled()).isTrue();
@@ -107,7 +109,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
                 new NotificationPreferencesUpdateRequest(overall, clubJoin, clubComment, null));
         NotificationType type = !clubComment ? NotificationType.CLUB_COMMENT : NotificationType.CLUB_JOIN;
 
-        assertThat(registrations.findByMemberIdsForClub(List.of(member.getId()), type, clubId)
+        assertThat(recipients.findClubRecipients(List.of(member.getId()), type, clubId)
                 .firebaseInstallationIds()).isEmpty();
         assertThat(clubPreferences.find(member.getId(), PHONE, clubId).enabled()).isTrue();
     }
@@ -117,7 +119,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     void retainPublicRoomNotification() {
         change(PHONE, clubId, false);
 
-        assertThat(registrations.findByMemberIds(List.of(member.getId()), NotificationType.PUBLIC_ROOM_COMMENT)
+        assertThat(recipients.findPublicRoomRecipients(List.of(member.getId()))
                 .firebaseInstallationIds()).containsExactly(PHONE.value());
     }
 
@@ -125,7 +127,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
     @ValueSource(booleans = {true, false})
     @DisplayName("최초 발송 후 모임 설정을 끄거나 탈퇴하면 재시도 대상에서 제외해요")
     void recheckClubBeforeRetry(boolean disablePreference) {
-        var selected = registrations.findByMemberIdsForClub(
+        var selected = recipients.findClubRecipients(
                 List.of(member.getId()), NotificationType.CLUB_COMMENT, clubId);
         assertThat(selected.findRegistrationIdsByFid(PHONE)).containsExactly(phone.getId());
         if (disablePreference) {
@@ -135,7 +137,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
                     member.getId(), clubId);
         }
 
-        assertThat(registrations.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE,
+        assertThat(recipients.snapshotForClubRetry(selected.findRegistrationIdsByFid(PHONE), PHONE,
                 NotificationType.CLUB_COMMENT, clubId).firebaseInstallationIds()).isEmpty();
     }
 
@@ -147,7 +149,7 @@ class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
         var replacement = register(PHONE);
 
         assertThat(replacement.getId()).isNotEqualTo(phone.getId());
-        assertThat(registrations.snapshotForRetry(List.of(phone.getId()), PHONE,
+        assertThat(recipients.snapshotForClubRetry(List.of(phone.getId()), PHONE,
                 NotificationType.CLUB_COMMENT, clubId).firebaseInstallationIds()).isEmpty();
     }
 

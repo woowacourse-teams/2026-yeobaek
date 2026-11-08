@@ -14,7 +14,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationPreference;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
@@ -28,6 +27,9 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
 
     @Autowired
     private NotificationRegistrationService registrationService;
+
+    @Autowired
+    private NotificationRecipientQueryService recipients;
 
     @Autowired
     private NotificationRegistrationRepository registrationRepository;
@@ -52,7 +54,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         var tablet = save(member, 'd');
         Member other = memberRepository.save(new Member(new Nickname("다른독자")));
         var otherPhone = save(other, 'c');
-        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
+        var snapshot = recipients.findPublicRoomRecipients(List.of(member.getId()));
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
 
@@ -68,7 +70,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         var phone = save(member, 'c');
         var repeated = registrationService.register(member.getId(),
                 new NotificationRegistrationRequest(phone.getFirebaseInstallationId().value()));
-        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
+        var snapshot = recipients.findPublicRoomRecipients(List.of(member.getId()));
 
         int deletedCount = registrationService.deleteUnregistered(snapshot, phone.getFirebaseInstallationId());
 
@@ -83,7 +85,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void preserveChangedFid() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
+        var snapshot = recipients.findPublicRoomRecipients(List.of(member.getId()));
         String changedFid = "d" + "a".repeat(21);
         jdbcTemplate.update("update notification_registrations set fid = ? where id = ?", changedFid, phone.getId());
 
@@ -99,7 +101,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     void commitCleanupAfterOriginalTransaction() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');
-        var snapshot = registrationService.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
+        var snapshot = recipients.findPublicRoomRecipients(List.of(member.getId()));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -142,8 +144,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         registrationRepository.deleteById(phone.getId());
         var replacement = save(member, 'c');
 
-        var snapshot = registrationService.snapshotForRetry(
-                originalIds, phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT, null);
+        var snapshot = recipients.snapshotForPublicRoomRetry(originalIds, phone.getFirebaseInstallationId());
         int deleted = registrationService.deleteUnregistered(
                 new NotificationRegistrations(List.of(phone)), phone.getFirebaseInstallationId());
 
@@ -161,8 +162,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
         jdbcTemplate.update("update notification_registrations set fid = ? where id = ?",
                 "d" + "a".repeat(21), phone.getId());
 
-        var snapshot = registrationService.snapshotForRetry(
-                List.of(phone.getId()), phone.getFirebaseInstallationId(), NotificationType.CLUB_COMMENT, null);
+        var snapshot = recipients.snapshotForPublicRoomRetry(List.of(phone.getId()), phone.getFirebaseInstallationId());
 
         assertThat(snapshot.findRegistrationIdsByFid(phone.getFirebaseInstallationId())).isEmpty();
         assertThat(registrationRepository.findById(phone.getId())).isPresent();

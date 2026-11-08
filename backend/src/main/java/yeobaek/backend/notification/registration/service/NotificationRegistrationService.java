@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationPreference;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
@@ -40,25 +39,6 @@ public class NotificationRegistrationService {
         return registrationRepository.findByMember_IdAndFirebaseInstallationId(memberId, fid)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.NOTIFICATION_REGISTRATION_NOT_FOUND,
                         "회원의 알림 등록 정보를 찾을 수 없습니다."));
-    }
-
-    @Transactional(readOnly = true)
-    public NotificationRegistrations findByMemberIds(List<Long> memberIds, NotificationType type) {
-        return NotificationRegistrations.fromEnabledPreferences(
-                preferenceRepository.findEnabledWithRegistrationsByMemberIds(memberIds, null), type);
-    }
-
-    @Transactional(readOnly = true)
-    public NotificationRegistrations findByMemberIdsForClub(List<Long> memberIds, NotificationType type, Long clubId) {
-        return NotificationRegistrations.fromEnabledPreferences(
-                preferenceRepository.findEnabledWithRegistrationsByMemberIds(memberIds, clubId), type);
-    }
-
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    public NotificationRegistrations snapshotForRetry(List<Long> ids, FirebaseInstallationId fid,
-                                                      NotificationType type, Long clubId) {
-        return NotificationRegistrations.fromEnabledPreferences(
-                preferenceRepository.findEnabledWithRegistrationsByRegistrationIdsAndFid(ids, fid, clubId), type);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

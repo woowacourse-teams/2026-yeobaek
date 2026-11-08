@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManagerFactory;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -25,7 +26,11 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.member.service.MemberService;
+import yeobaek.backend.notification.domain.ClubCommentNotificationContext;
+import yeobaek.backend.notification.domain.ClubJoinNotificationContext;
+import yeobaek.backend.notification.domain.NotificationContext;
 import yeobaek.backend.notification.domain.NotificationType;
+import yeobaek.backend.notification.domain.PublicRoomCommentNotificationContext;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationPreference;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
@@ -44,6 +49,8 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
 
     @Autowired
     private NotificationRegistrationService registrations;
+    @Autowired
+    private NotificationRecipientQueryService recipients;
     @Autowired
     private NotificationPreferencesService preferences;
     @Autowired
@@ -207,7 +214,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         statistics.setStatisticsEnabled(true);
         statistics.clear();
         try {
-            var snapshot = registrations.findByMemberIds(List.of(member.getId()), NotificationType.CLUB_COMMENT);
+            var snapshot = recipients.findPublicRoomRecipients(List.of(member.getId()));
 
             assertThat(snapshot.firebaseInstallationIds())
                     .containsExactly(PHONE.value());
@@ -229,12 +236,15 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
                                     boolean clubComment, boolean publicRoomComment) {
         Member member = member();
         NotificationRegistration original = register(member, PHONE);
-        var selected = registrations.findByMemberIds(List.of(member.getId()), type);
+        Long clubId = joinClub(member);
+        var selected = type == NotificationType.PUBLIC_ROOM_COMMENT
+                ? recipients.findPublicRoomRecipients(List.of(member.getId()))
+                : recipients.findClubRecipients(List.of(member.getId()), type, clubId);
         assertThat(selected.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
         preferences.update(member.getId(), PHONE,
                 new NotificationPreferencesUpdateRequest(enabled, clubJoin, clubComment, publicRoomComment));
 
-        var snapshot = registrations.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE, type, null);
+        var snapshot = recipients.snapshotForRetry(selected.findRegistrationIdsByFid(PHONE), PHONE, notificationContext(type, clubId));
 
         assertThat(snapshot.firebaseInstallationIds()).isEmpty();
         assertThat(registrationRepository.findById(original.getId())).isPresent();
@@ -249,6 +259,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         NotificationRegistration tablet = register(member, TABLET);
         Member other = members.save(new Member(new Nickname("다른회원")));
         register(other, PHONE);
+        Long clubId = joinClub(member);
         var settings = preferenceRepository.findAllByRegistration_Id(original.getId());
         settings.stream().filter(setting -> !setting.hasNotificationType(type))
                 .forEach(setting -> setting.changeEnabled(false));
@@ -258,7 +269,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         statistics.setStatisticsEnabled(true);
         statistics.clear();
         try {
-            var snapshot = registrations.snapshotForRetry(List.of(original.getId(), tablet.getId()), PHONE, type, null);
+            var snapshot = recipients.snapshotForRetry(List.of(original.getId(), tablet.getId()), PHONE, notificationContext(type, clubId));
 
             assertThat(snapshot.findRegistrationIdsByFid(PHONE)).containsExactly(original.getId());
             assertThat(snapshot.firebaseInstallationIds()).containsExactly(PHONE.value());
@@ -294,6 +305,22 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         }
         assertThat(registrationRepository.count()).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from notification_preferences", Long.class)).isEqualTo(3);
+    }
+
+    private Long joinClub(Member member) {
+        jdbc.update("insert into clubs (name, join_code) values ('알림 모임', 'CLUB01')");
+        Long clubId = jdbc.queryForObject("select id from clubs where join_code = 'CLUB01'", Long.class);
+        jdbc.update("insert into club_members (member_id, club_id, status) values (?, ?, 'JOINED')", member.getId(), clubId);
+        return clubId;
+    }
+
+    private NotificationContext notificationContext(NotificationType type, Long clubId) {
+        Instant createdAt = Instant.now();
+        return switch (type) {
+            case CLUB_JOIN -> new ClubJoinNotificationContext(clubId, createdAt);
+            case CLUB_COMMENT -> new ClubCommentNotificationContext(11L, clubId, createdAt);
+            case PUBLIC_ROOM_COMMENT -> new PublicRoomCommentNotificationContext(11L, createdAt);
+        };
     }
 
     private Member member() {

@@ -1,8 +1,8 @@
 package yeobaek.backend.notification;
 
 import static yeobaek.backend.notification.domain.FcmSendFailure.MAX_JITTER_PERCENT;
-import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.CLUB_ID;
+import static yeobaek.backend.support.LogField.COMMENT_ID;
 import static yeobaek.backend.support.LogField.OPERATION;
 import static yeobaek.backend.support.LogField.RESULT;
 
@@ -26,7 +26,7 @@ import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -36,7 +36,7 @@ public class FcmRetryService {
     private final TaskExecutor executor;
     private final Clock clock;
     private final FcmPushSender sender;
-    private final NotificationRegistrationService registrationService;
+    private final NotificationRecipientQueryService recipientQueryService;
     private final FcmFailureHandler failureHandler;
     private final Semaphore pendingSlots;
 
@@ -94,8 +94,8 @@ public class FcmRetryService {
                 return;
             }
             var fid = new FirebaseInstallationId(task.fid());
-            NotificationRegistrations snapshot = registrationService.snapshotForRetry(
-                    task.registrationIds(), fid, task.notificationType(), task.clubId());
+            NotificationRegistrations snapshot = recipientQueryService.snapshotForRetry(
+                    task.registrationIds(), fid, task.context());
             List<Long> remainingIds = snapshot.findRegistrationIdsByFid(fid);
             if (remainingIds.isEmpty()) {
                 logStopped(task, "NO_ELIGIBLE_REGISTRATION");

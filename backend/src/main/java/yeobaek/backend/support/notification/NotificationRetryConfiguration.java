@@ -13,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmRetryService;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 
 @Configuration(proxyBeanMethods = false)
 public class NotificationRetryConfiguration {
@@ -45,12 +45,12 @@ public class NotificationRetryConfiguration {
             @Qualifier("notificationRetryScheduler") TaskScheduler scheduler,
             @Qualifier("notificationTaskExecutor") TaskExecutor executor,
             @Qualifier("notificationRetryClock") Clock clock,
-            FcmPushSender sender, NotificationRegistrationService registrationService, FcmFailureHandler failureHandler,
+            FcmPushSender sender, NotificationRecipientQueryService recipientQueryService, FcmFailureHandler failureHandler,
             @Value("${notification.retry.pending-capacity:1000}") int pendingCapacity) {
         if (pendingCapacity <= 0) {
             throw new IllegalArgumentException("재시도 예약 대기 용량은 1 이상이어야 합니다.");
         }
-        return new FcmRetryService(scheduler, executor, clock, sender, registrationService, failureHandler,
+        return new FcmRetryService(scheduler, executor, clock, sender, recipientQueryService, failureHandler,
                 new Semaphore(pendingCapacity));
     }
 }
