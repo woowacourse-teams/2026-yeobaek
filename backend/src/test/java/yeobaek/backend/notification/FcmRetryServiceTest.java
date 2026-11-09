@@ -279,7 +279,7 @@ class FcmRetryServiceTest {
 
     @ParameterizedTest
     @EnumSource(NotificationType.class)
-    @DisplayName("재시도 실패 후 설정이 OFF로 확인되면 다음 발송과 재예약을 중단해요")
+    @DisplayName("재시도 실패 후 설정이 OFF로 확인되면 다음 발송과 재예약을 중단한다")
     void stopRetryWhenSettingsDisableTarget(NotificationType type) throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
         var ids = List.of(1L, 2L);
@@ -510,7 +510,7 @@ class FcmRetryServiceTest {
     }
 
     @Test
-    @DisplayName("모임 입장 재시도도 공통 워커로 발송하고 모임 ID로 기록해요")
+    @DisplayName("모임 입장 재시도도 공통 워커로 발송하고 모임 ID로 기록한다")
     void retryClubJoinWithCorrectSource() throws FirebaseMessagingException {
         Map<String, String> data = Map.of("type", "CLUB_JOIN", "clubId", "5", "memberId", "7");
         var task = new FcmRetryTask(new ClubJoinNotificationContext(5L, CREATED_AT),

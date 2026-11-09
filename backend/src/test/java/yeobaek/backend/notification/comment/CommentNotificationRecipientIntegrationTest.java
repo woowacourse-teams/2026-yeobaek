@@ -153,7 +153,7 @@ class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("댓글 문단보다 뒤까지 읽은 참여자만 선택하고 같은 문단·앞 문단·미열람·탈퇴·다른 모임·작성자는 제외해요")
+    @DisplayName("댓글 문단보다 뒤까지 읽은 참여자만 선택하고 같은 문단·앞 문단·미열람·탈퇴·다른 모임·작성자는 제외한다")
     void selectOnlyJoinedReadersAheadOfComment() {
         var earlierPassage = nextPassage;
         nextPassage = passageRepository.save(new Passage(nextPassage.getChapter(), 3,
@@ -315,7 +315,7 @@ class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("공개방은 댓글을 여러 개 남겨도 기기별로 한 번만 선택하고 작성자를 차단한 회원은 제외해요")
+    @DisplayName("공개방은 댓글을 여러 개 남겨도 기기별로 한 번만 선택하고 작성자를 차단한 회원은 제외한다")
     void filterBlockedPublicRoomCommentersWithoutDuplicates() {
         var room = publicRoomRepository.save(new PublicRoom(club.getBook()));
         Member reader = saveReader("댓글 독자", 'd');
@@ -332,7 +332,7 @@ class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 수신자는 문장을 다시 조회한 순서가 아니라 이벤트의 문단 순서로 판단해요")
+    @DisplayName("모임 수신자는 문장을 다시 조회한 순서가 아니라 이벤트의 문단 순서로 판단한다")
     void selectReadersUsingEventPassageSequence() {
         saveReader("진도 독자", 'd');
         assertThat(notifyClubRecipients().firebaseInstallationIds()).containsExactly("d" + "a".repeat(21));

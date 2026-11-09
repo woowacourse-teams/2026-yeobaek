@@ -64,7 +64,7 @@ class NotificationRegistrationCleanupTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("반복 등록은 같은 행을 유지하고 등록 실패 정리는 연결된 설정도 삭제한다")
+    @DisplayName("같은 기기를 재등록해도 기존 등록을 유지하며 알림 등록을 삭제하면 연결된 설정도 삭제한다")
     void deleteRepeatedRegistrationWithPreferences() {
         Member member = memberRepository.save(new Member(new Nickname("독자")));
         var phone = save(member, 'c');

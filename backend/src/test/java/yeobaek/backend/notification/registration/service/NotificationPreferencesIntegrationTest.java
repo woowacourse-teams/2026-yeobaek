@@ -148,7 +148,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("설정이 누락되면 전체 설정과 유형별 설정의 변경을 함께 롤백해요")
+    @DisplayName("설정이 누락되면 전체 설정과 유형별 설정의 변경을 함께 롤백한다")
     void rollbackOverallChangeWhenPreferencesAreMissing(boolean allMissing) {
         Member member = member();
         NotificationRegistration registration = register(member, PHONE);
@@ -169,7 +169,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("설정 조회는 등록을 중복 조회하지 않고 두 SQL로 완료해요")
+    @DisplayName("설정 조회는 등록을 중복 조회하지 않고 두 SQL로 완료한다")
     void findSettingsWithoutReloadingRegistration() {
         Member member = member();
         register(member, PHONE);
@@ -231,7 +231,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
             "CLUB_COMMENT,true,true,false,true",
             "PUBLIC_ROOM_COMMENT,true,true,true,false"
     })
-    @DisplayName("최초 선정 후 전체 또는 해당 유형을 OFF로 바꾸면 재시도 대상에서 제외해요")
+    @DisplayName("최초 선정 후 전체 또는 해당 유형을 OFF로 바꾸면 재시도 대상에서 제외한다")
     void excludeDisabledRetryTarget(NotificationType type, boolean enabled, boolean clubJoin,
                                     boolean clubComment, boolean publicRoomComment) {
         Member member = member();
@@ -252,7 +252,7 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @EnumSource(NotificationType.class)
-    @DisplayName("재시도는 원래 등록과 해당 유형 설정만 한 SQL로 확인해요")
+    @DisplayName("재시도는 원래 등록과 해당 유형 설정만 한 SQL로 확인한다")
     void retryOnlyOriginalRegistrationAndTypeInOneQuery(NotificationType type) {
         Member member = member();
         NotificationRegistration original = register(member, PHONE);
