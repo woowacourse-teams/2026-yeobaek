@@ -6,31 +6,25 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.ContentSequence;
+import yeobaek.backend.book.domain.vo.SentenceContent;
 
 class CommentedSentencesTest {
 
     @Test
-    @DisplayName("ALL 필터는 모든 문장을 원래 순서대로 유지한다")
-    void allKeepsSentencesInOriginalOrder() {
-        CommentedSentence first = sentence(1L, 1, 1, 0);
-        CommentedSentence second = sentence(2L, 1, 2, 1);
-        CommentedSentence last = sentence(3L, 2, 1, 1);
-        CommentedSentences sentences = new CommentedSentences(List.of(last, second, first));
-
-        assertThat(sentences.filteredBy(CommentedSentenceFilter.ALL).values()).containsExactly(last, second, first);
-    }
-
-    @Test
-    @DisplayName("NEW 필터는 원본을 바꾸지 않고 미확인 댓글 문장만 원래 순서대로 선택한다")
-    void newSelectsUnreadSentencesWithoutChangingOriginal() {
+    @DisplayName("현재 문단까지 미확인 댓글이 있는 문장만 원본 순서대로 고른다")
+    void selectsUnreadSentencesThroughCurrentPassage() {
+        Passage currentPassage = new Passage(null, 2, List.of(new SentenceContent("현재 문장")));
         CommentedSentence read = sentence(1L, 1, 1, 0);
-        CommentedSentence unread = sentence(2L, 1, 2, 1);
+        CommentedSentence unread = sentence(2L, 2, 2, 1);
         CommentedSentence future = sentence(3L, 10, 1, 2);
-        CommentedSentences sentences = new CommentedSentences(List.of(future, read, unread));
+        CommentedSentence earlierUnread = sentence(4L, 1, 2, 1);
+        CommentedSentences sentences = new CommentedSentences(List.of(future, read, unread, earlierUnread));
 
-        assertThat(sentences.filteredBy(CommentedSentenceFilter.NEW).values()).containsExactly(future, unread);
-        assertThat(sentences.values()).containsExactly(future, read, unread);
+        assertThat(sentences.unreadThrough(currentPassage).values())
+                .containsExactly(unread, earlierUnread);
+        assertThat(sentences.values()).containsExactly(future, read, unread, earlierUnread);
     }
 
     @Test

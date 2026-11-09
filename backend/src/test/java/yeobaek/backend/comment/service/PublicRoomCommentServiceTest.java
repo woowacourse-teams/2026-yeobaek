@@ -179,8 +179,8 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("공개방 v2 NEW는 미래 댓글을 배지와 별개로 포함하고 상세 확인 후에만 제외한다")
-    void findFutureNewCommentsWithZeroBadgeThenExcludeViewedSentence() {
+    @DisplayName("공개방 v2 NEW는 요청 문단까지의 미확인 댓글 문장만 반환한다")
+    void findNewCommentsThroughRequestedPassage() {
         ReadingFixture fixture = createRoom("v2 미래 댓글 책", 2);
         Member writer = memberRepository.save(new Member(new Nickname("작성자")));
         Member reader = memberRepository.save(new Member(new Nickname("독자")));
@@ -195,16 +195,21 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
         assertThat(commentService.countNewPublicRoomComments(reader.getId(), room.getId(), current.getId())
                 .newCommentCount()).isZero();
         assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.ALL).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(current.getSentences().getFirst().getId(), ContentVisibility.VISIBLE),
+                        tuple(future.getSentences().getFirst().getId(), ContentVisibility.REVEAL_REQUIRED));
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), future.getId(),
                 CommentedSentenceFilter.NEW).commentedSentences())
                 .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
-                .containsExactly(tuple(future.getSentences().getFirst().getId(), ContentVisibility.REVEAL_REQUIRED));
+                .containsExactly(tuple(future.getSentences().getFirst().getId(), ContentVisibility.VISIBLE));
 
         commentService.findPublicRoomComments(reader.getId(), room.getId(), future.getSentences().getFirst().getId());
 
-        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), future.getId(),
                 CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
-        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
-                CommentedSentenceFilter.ALL).commentedSentences()).hasSize(2);
     }
 
     @Test

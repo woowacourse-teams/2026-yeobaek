@@ -361,8 +361,8 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("v2 NEW는 미래 댓글도 포함하고 상세 확인 후 재조회할 때만 제외한다")
-    void findFutureNewCommentsWithZeroBadgeThenExcludeViewedSentence() {
+    @DisplayName("v2 NEW는 요청 문단까지의 미확인 댓글 문장만 반환한다")
+    void findNewCommentsThroughRequestedPassage() {
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("미래 장"), 2));
         Passage future = passageRepository.save(new Passage(chapter, 2,
                 List.of(new SentenceContent("미래 새 댓글 문장"))));
@@ -370,18 +370,21 @@ class CommentServiceTest extends IntegrationTest {
         commentService.create(other.getId(), club.getId(), futureSentenceId, new CommentContent("미래 댓글"));
 
         assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
-                CommentedSentenceFilter.NEW).commentedSentences()).extracting(item -> item.contentVisibility())
-                .containsExactly(ContentVisibility.REVEAL_REQUIRED);
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
         assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount()).isZero();
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.ALL).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(futureSentenceId, ContentVisibility.REVEAL_REQUIRED));
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), future.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(futureSentenceId, ContentVisibility.VISIBLE));
 
         commentService.findComments(writer.getId(), club.getId(), futureSentenceId);
 
-        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), future.getId(),
                 CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
-        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
-                CommentedSentenceFilter.ALL).commentedSentences())
-                .extracting(item -> tuple(item.sentenceId(), item.unreadCommentCount(), item.contentVisibility()))
-                .containsExactly(tuple(futureSentenceId, 0L, ContentVisibility.VISIBLE));
     }
 
     @Test

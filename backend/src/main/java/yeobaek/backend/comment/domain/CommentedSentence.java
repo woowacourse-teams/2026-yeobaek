@@ -25,6 +25,14 @@ public record CommentedSentence(
         return passageSequence.isAfter(currentPassage.getSequence());
     }
 
+    public boolean hasSpoilerFreeNewComments(Passage currentPassage) {
+        return unreadCommentCount > 0 && contentVisibilityFor(currentPassage) == ContentVisibility.VISIBLE;
+    }
+
+    public ContentVisibility contentVisibilityFor(Passage currentPassage) {
+        return ContentVisibility.from(isFutureOf(currentPassage), unreadCommentCount);
+    }
+
     public static CommentedSentence from(Comments comments, Set<Long> viewedCommentIds) {
         Comment representativeComment = comments.representativeComment();
         Sentence sentence = representativeComment.getSentence();

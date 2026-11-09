@@ -634,23 +634,22 @@
 
 필수 쿼리:
 
-- `currentPassageId`: 현재 읽고 있는 문단 ID. 저장 진도와 별개로 미래 문장과 가림 상태를 판단한다.
-- `filter`: 전체 댓글 탭은 `ALL`, 새 댓글 탭은 `NEW`.
-  `ALL`은 보이는 댓글이 있는 책 전체의 문장, `NEW`는 그중 `unreadCommentCount > 0`인 문장이다.
-  두 필터 모두 현재 문단 뒤의 문장도 포함한다. 필수 값 누락·형식 오류·대소문자를 포함한 잘못된
-  `filter`는 `400 INVALID_REQUEST`다.
+- `currentPassageId`는 현재 읽고 있는 문단 ID다. 저장 진도와 별개로 목록 범위와 미래 문장 가림을 판단하는 기준이다.
+- `filter=ALL`(전체 댓글)은 보이는 댓글이 있는 책 전체의 문장을 반환한다.
+- `filter=NEW`(새 댓글)는 현재 문단까지 `unreadCommentCount > 0`인 문장만 반환한다.
+
+필수 값 누락, 형식 오류, `ALL`·`NEW` 이외의 `filter` 값은 `400 INVALID_REQUEST`다.
 
 응답은 `200 {"commentedSentences": [...]}`이며, 문장 항목의 10개 필드는 위 기존 목록 응답과 같다.
 결과가 없으면 빈 배열이다. 차단·접근 권한·도서 검증과 전체 반환·탐색 중 목록 유지 규칙도 기존과 같다.
 
 - **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순 → `sentenceId` 내림차순.
 - **댓글 수:** `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 그중 미확인 수다.
-- **미래 문장 가림:** `future=true`이고 `unreadCommentCount > 0`이면 `REVEAL_REQUIRED`,
+- `ALL`에서 `future=true`이고 `unreadCommentCount > 0`이면 `contentVisibility=REVEAL_REQUIRED`다.
   그 외에는 `VISIBLE`이다. `content`는 항상 포함하므로 클라이언트가 `contentVisibility`에 따라 가린다.
 - **읽음 처리:** 목록 조회는 댓글 확인 상태·저장 진도·방문 시각을 변경하지 않는다.
   댓글 상세 조회 후 목록을 다시 요청하면 읽은 댓글이 반영되고, 미확인 댓글이 없어진 문장은 `NEW`에서 빠진다.
-- **상단 배지와의 차이:** 기존 새 댓글 수 API는 현재 문단까지만 센다.
-  미래 문장에만 새 댓글이 남으면 배지는 0이어도 `NEW` 목록에는 문장이 있을 수 있다.
+- 상단 배지와 `NEW`는 둘 다 현재 문단까지를 대상으로 한다. 배지는 미확인 댓글 수를 표시하고, `NEW`는 해당 댓글이 달린 문장 목록을 반환한다.
 
 ### 문장의 댓글 상세 조회 + 직접 확인
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
@@ -1189,7 +1188,8 @@
 | PUT | /api/v2/clubs/{clubId}/progress | 정밀 진도 갱신 v2 (구현 예정) |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
 | GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
-| GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 |
+| GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 (deprecated 호환) |
+| GET | /api/v2/clubs/{clubId}/commented-sentences?currentPassageId={passageId}&filter={ALL 또는 NEW} | 댓글 문장 목록 탭별 조회 |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views | 댓글 상세 조회 + 직접 확인 |
 | GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 상세 조회 + 직접 확인 (deprecated 호환) |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |

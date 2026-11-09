@@ -239,8 +239,8 @@ class PublicRoomControllerTest extends ControllerTest {
     void findCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
         givenValidMember(1L);
         var response = new CommentedSentencesResponse(List.of(new CommentedSentenceResponse(
-                8L, "미래 문장", 9L, 3, 2, true,
-                3, 1, ContentVisibility.REVEAL_REQUIRED, LocalDateTime.of(2026, 10, 1, 9, 0))));
+                8L, "현재 문장", 7L, 3, 2, false,
+                3, 1, ContentVisibility.VISIBLE, LocalDateTime.of(2026, 10, 1, 9, 0))));
         given(commentService.findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter)).willReturn(response);
 
         mockMvc.perform(get("/api/v2/public-rooms/2/commented-sentences").header("X-Member-Id", "1")
@@ -249,14 +249,14 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.commentedSentences.length()").value(1))
                 .andExpect(jsonPath("$.commentedSentences[0].sentenceId").value(8))
-                .andExpect(jsonPath("$.commentedSentences[0].content").value("미래 문장"))
-                .andExpect(jsonPath("$.commentedSentences[0].passageId").value(9))
+                .andExpect(jsonPath("$.commentedSentences[0].content").value("현재 문장"))
+                .andExpect(jsonPath("$.commentedSentences[0].passageId").value(7))
                 .andExpect(jsonPath("$.commentedSentences[0].passageSequence").value(3))
                 .andExpect(jsonPath("$.commentedSentences[0].sentenceSequence").value(2))
-                .andExpect(jsonPath("$.commentedSentences[0].future").value(true))
+                .andExpect(jsonPath("$.commentedSentences[0].future").value(false))
                 .andExpect(jsonPath("$.commentedSentences[0].commentCount").value(3))
                 .andExpect(jsonPath("$.commentedSentences[0].unreadCommentCount").value(1))
-                .andExpect(jsonPath("$.commentedSentences[0].contentVisibility").value("REVEAL_REQUIRED"))
+                .andExpect(jsonPath("$.commentedSentences[0].contentVisibility").value("VISIBLE"))
                 .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-10-01T09:00:00"));
 
         verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);

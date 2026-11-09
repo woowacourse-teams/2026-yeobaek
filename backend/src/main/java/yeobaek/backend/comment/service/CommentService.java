@@ -36,7 +36,6 @@ import yeobaek.backend.comment.domain.CommentedSentence;
 import yeobaek.backend.comment.domain.CommentedSentenceFilter;
 import yeobaek.backend.comment.domain.CommentedSentences;
 import yeobaek.backend.comment.domain.Comments;
-import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentResponse;
@@ -178,10 +177,12 @@ public class CommentService {
 
         room.ensureCanRead(currentPassage);
 
-        List<CommentedSentence> sentences = loadPublicRoomCommentedSentences(memberId, publicRoomId)
-                .filteredBy(filter)
-                .sortedInBookOrder();
-        CommentedSentencesResponse response = toResponse(sentences, currentPassage);
+        CommentedSentences sentences = loadPublicRoomCommentedSentences(memberId, publicRoomId);
+        CommentedSentences selected = switch (filter) {
+            case ALL -> sentences;
+            case NEW -> sentences.unreadThrough(currentPassage);
+        };
+        CommentedSentencesResponse response = toResponse(selected.sortedInBookOrder(), currentPassage);
 
         log.atInfo().addKeyValue(OPERATION, "comment.findPublicRoomCommentedSentencesV2")
                 .addKeyValue(RESULT, SUCCESS).addKeyValue("publicRoomId", publicRoomId)
@@ -260,10 +261,12 @@ public class CommentService {
 
         clubMember.ensureCanRead(currentPassage);
 
-        List<CommentedSentence> sentences = loadClubCommentedSentences(memberId, clubId)
-                .filteredBy(filter)
-                .sortedInBookOrder();
-        CommentedSentencesResponse response = toResponse(sentences, currentPassage);
+        CommentedSentences sentences = loadClubCommentedSentences(memberId, clubId);
+        CommentedSentences selected = switch (filter) {
+            case ALL -> sentences;
+            case NEW -> sentences.unreadThrough(currentPassage);
+        };
+        CommentedSentencesResponse response = toResponse(selected.sortedInBookOrder(), currentPassage);
 
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
                 .addKeyValue(RESULT, SUCCESS).addKeyValue(CLUB_ID, clubId)
@@ -482,17 +485,16 @@ public class CommentService {
     }
 
     private CommentedSentenceResponse toResponse(CommentedSentence commentedSentence, Passage currentPassage) {
-        boolean future = commentedSentence.isFutureOf(currentPassage);
         return new CommentedSentenceResponse(
                 commentedSentence.sentenceId(),
                 commentedSentence.content(),
                 commentedSentence.passageId(),
                 commentedSentence.passageSequence().value(),
                 commentedSentence.sentenceSequence().value(),
-                future,
+                commentedSentence.isFutureOf(currentPassage),
                 commentedSentence.commentCount(),
                 commentedSentence.unreadCommentCount(),
-                ContentVisibility.from(future, commentedSentence.unreadCommentCount()),
+                commentedSentence.contentVisibilityFor(currentPassage),
                 commentedSentence.latestCommentCreatedAt());
     }
 

@@ -2,6 +2,7 @@ package yeobaek.backend.comment.domain;
 
 import java.util.Comparator;
 import java.util.List;
+import yeobaek.backend.book.domain.Passage;
 
 public record CommentedSentences(List<CommentedSentence> values) {
 
@@ -9,9 +10,9 @@ public record CommentedSentences(List<CommentedSentence> values) {
         values = List.copyOf(values);
     }
 
-    public CommentedSentences filteredBy(CommentedSentenceFilter filter) {
+    public CommentedSentences unreadThrough(Passage currentPassage) {
         return new CommentedSentences(values.stream()
-                .filter(filter::matches)
+                .filter(sentence -> sentence.hasSpoilerFreeNewComments(currentPassage))
                 .toList());
     }
 
