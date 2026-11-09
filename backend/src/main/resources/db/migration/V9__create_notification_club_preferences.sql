@@ -3,7 +3,6 @@ CREATE TABLE notification_club_preferences (
     registration_id BIGINT NOT NULL,
     club_id BIGINT NOT NULL,
     enabled BOOLEAN NOT NULL,
-    updated_at TIMESTAMP(6) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_notification_club_preferences_registration_club UNIQUE (registration_id, club_id),
     CONSTRAINT fk_notification_club_preferences_registration

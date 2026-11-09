@@ -53,7 +53,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -86,7 +86,7 @@ class FlywayMigrationTest {
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
@@ -180,7 +180,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(7);
+        assertThat(result.migrationsExecuted).isEqualTo(6);
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
                 .containsExactly(1L, 3L);
         assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))
@@ -261,7 +261,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(4);
+        assertThat(result.migrationsExecuted).isEqualTo(3);
         assertThat(jdbc.queryForMap("SELECT title, passage_count, description FROM books WHERE id = 1"))
                 .containsEntry("title", "기존 책")
                 .containsEntry("passage_count", 3)
