@@ -13,7 +13,13 @@ data class HomeUiState(
     val publicRoomTab: PublicRoomTabUiState = PublicRoomTabUiState(),
     val screenState: ScreenState = ScreenState.Loading(""),
     val currentlyBookState: CurrentlyBookState = CurrentlyBookState.Idle,
-)
+) {
+    val isLoadingComplete: Boolean
+        get() = screenState !is ScreenState.Loading &&
+            publicRoomTab.screenState !is ScreenState.Loading &&
+            currentlyBookState !is CurrentlyBookState.Idle &&
+            currentlyBookState !is CurrentlyBookState.Loading
+}
 
 sealed class CurrentlyBookState {
     object Idle : CurrentlyBookState()

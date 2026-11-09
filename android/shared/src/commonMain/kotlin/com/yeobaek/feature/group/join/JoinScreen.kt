@@ -53,6 +53,7 @@ fun JoinScreen(
             YeobaekButton(
                 text = "모임 참여하기",
                 onClick = onJoinClick,
+                enabled = !uiState.isJoining,
                 modifier = Modifier.navigationBarsPadding().padding(16.dp),
             )
         },

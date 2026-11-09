@@ -60,6 +60,13 @@
         .description-editor { min-width: 200px; }
         .description-editor textarea { min-height: 6rem; font-family: inherit; }
         .description-editor button { margin: .3rem .3rem 0 0; }
+        .metadata-editor { min-width: 180px; }
+        .metadata-editor input, .metadata-editor textarea { box-sizing: border-box; width: 100%; font-family: inherit; }
+        .metadata-editor textarea { min-height: 5rem; }
+        .metadata-editor p { max-width: 240px; color: #555; font-size: .8rem; }
+        .metadata-editor + .metadata-editor { margin-top: .5rem; }
+        .inventory-table-scroll { overflow-x: auto; }
+        .book-title { min-width: 100px; }
     </style>
 </head>
 <body>
@@ -79,20 +86,23 @@
         <button type="button" id="download-books-csv" disabled>조회 결과 CSV 저장</button>
     </div>
     <div id="books-result" class="result" aria-live="polite"></div>
+    <div class="inventory-table-scroll">
     <table id="books-table" hidden>
         <thead>
         <tr>
-            <th>bookId</th><th>표지</th><th>제목</th><th>책 소개</th><th>작가 (authorId / ISNI)</th>
+            <th>bookId</th><th>표지</th><th>제목</th><th>책 소개</th><th>장르·해시태그</th><th>작가 (authorId / ISNI)</th>
             <th>출판사</th><th>출판 연도</th><th>본문 수</th><th>상태</th><th>관리</th>
         </tr>
         </thead>
         <tbody></tbody>
     </table>
+    </div>
 </section>
 
 <section>
     <h2>도서 업로드 (인제스트 규격 JSON)</h2>
-    <p>규격은 API 문서 6장을 따릅니다. 문단과 문장 순서는 각 배열 순서대로 서버가 부여합니다.</p>
+    <p>규격은 API 문서 6장을 따릅니다. 문단과 문장 순서는 각 배열 순서대로 서버가 부여합니다.
+        장르(genres)와 해시태그(hashtags)도 같은 JSON에 담습니다. 두 필드가 없는 과거 파일도 업로드할 수 있습니다.</p>
     <label for="upload-json-file" id="upload-json-drop-zone" class="json-drop-zone">
         <span>도서 JSON 파일 (선택)</span>
         <span>.json 파일을 여기로 끌어다 놓거나 클릭해서 선택하세요.</span>
@@ -103,6 +113,8 @@
   "title": "운수 좋은 날",
   "publisher": "자체 제작",
   "publishedYear": 1924,
+  "genres": ["비극", "사실주의"],
+  "hashtags": ["도시빈민", "불길한하루"],
   "authors": [{ "name": "현진건", "isni": "0000 0001 2345 964X" }],
   "chapters": [{
     "title": "1장",
@@ -247,8 +259,10 @@
                 + '<td>' + book.bookId + '</td>'
                 + '<td>' + (book.coverImageUrl ? '<img class="cover-preview" src="'
                     + escapeHtml(book.coverImageUrl) + '" alt="">' : '-') + '</td>'
-                + '<td>' + escapeHtml(book.title) + '</td>'
+                + '<td class="book-title">' + escapeHtml(book.title) + '</td>'
                 + '<td class="description-cell" data-book-id="' + book.bookId + '"></td>'
+                + '<td><div class="genres-cell" data-book-id="' + book.bookId + '"></div>'
+                    + '<div class="hashtags-cell" data-book-id="' + book.bookId + '"></div></td>'
                 + '<td>' + book.authors.map(author => '<div class="book-author">'
                     + escapeHtml(author.name) + ' (#' + author.authorId + ')'
                     + (author.isni ? '<span class="author-isni">ISNI ' + escapeHtml(author.isni) + '</span>' : '')
@@ -276,6 +290,16 @@
                 const book = booksById.get(cell.dataset.bookId);
                 cell.append(AdminBookInventory.createDescriptionEditor(document, book,
                     description => saveBookDescription(book, description)));
+            });
+            booksTable.querySelectorAll('.genres-cell').forEach(cell => {
+                const book = booksById.get(cell.dataset.bookId);
+                cell.append(AdminBookInventory.createGenresEditor(document, book,
+                    genres => saveBookMetadata(book, 'genres', genres, '장르')));
+            });
+            booksTable.querySelectorAll('.hashtags-cell').forEach(cell => {
+                const book = booksById.get(cell.dataset.bookId);
+                cell.append(AdminBookInventory.createHashtagsEditor(document, book,
+                    hashtags => saveBookMetadata(book, 'hashtags', hashtags, '해시태그')));
             });
             booksTable.querySelectorAll('.delete-book:not(:disabled)').forEach(button => {
                 button.addEventListener('click', () => deleteBook(booksById.get(button.dataset.bookId)));
@@ -568,6 +592,28 @@
             return true;
         } catch (error) {
             show(result, '소개 저장 실패: ' + error, true);
+            return false;
+        }
+    }
+
+    async function saveBookMetadata(book, field, value, label) {
+        const result = document.getElementById('books-result');
+        try {
+            const response = await fetch('/api/admin/books/' + book.bookId + '/' + field, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken() },
+                body: JSON.stringify({ [field]: value })
+            });
+            if (!response.ok) {
+                const body = await response.json();
+                show(result, body.code + ': ' + body.message, true);
+                return false;
+            }
+            book[field] = value;
+            show(result, label + ' 저장 완료 — ' + book.title + ' (#' + book.bookId + ')', false);
+            return true;
+        } catch (error) {
+            show(result, label + ' 저장 실패: ' + error, true);
             return false;
         }
     }

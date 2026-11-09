@@ -18,4 +18,10 @@ public abstract class LogContextException extends RuntimeException {
         this.code = code;
         this.logContext = Map.copyOf(logContext);
     }
+
+    protected LogContextException(ErrorCode code, String message, Throwable cause, Map<String, String> logContext) {
+        super(message, cause);
+        this.code = code;
+        this.logContext = Map.copyOf(logContext);
+    }
 }

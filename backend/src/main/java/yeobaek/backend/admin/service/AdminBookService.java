@@ -72,6 +72,20 @@ public class AdminBookService {
     }
 
     @Transactional
+    public void replaceGenres(Long bookId, List<String> genres) {
+        logAttempt("admin.book.replaceGenres", bookId);
+        bookManagementRepository.getByIdForUpdate(bookId).replaceGenres(genres);
+        logSuccess("admin.book.replaceGenres", bookId);
+    }
+
+    @Transactional
+    public void replaceHashtags(Long bookId, List<String> hashtags) {
+        logAttempt("admin.book.replaceHashtags", bookId);
+        bookManagementRepository.getByIdForUpdate(bookId).replaceHashtags(hashtags);
+        logSuccess("admin.book.replaceHashtags", bookId);
+    }
+
+    @Transactional
     public void replaceCoverImage(Long bookId, String coverImageKey) {
         logAttempt("admin.book.replaceCoverImage", bookId);
         bookManagementRepository.getByIdForUpdate(bookId).replaceCoverImage(coverImageKey);

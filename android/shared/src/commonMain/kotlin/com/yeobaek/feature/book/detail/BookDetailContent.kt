@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.BookMetadataSection
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 
@@ -24,6 +25,7 @@ fun BookDetailContent(
     onReadClick: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onMetadataViewed: (BookMetadataSection) -> Unit = {},
 ) {
     if (state is BookDetailState.Success) {
         BookDetailScreen(
@@ -31,6 +33,7 @@ fun BookDetailContent(
             onBackClick = onBackClick,
             onReadClick = onReadClick,
             modifier = modifier,
+            onMetadataViewed = onMetadataViewed,
         )
         return
     }

@@ -44,8 +44,8 @@ class BookControllerTest extends ControllerTest {
         givenValidMember(1L);
         var response = new BooksResponse(List.of(
                 new BookSummaryResponse(1L, "운수 좋은 날", List.of("현진건"),
-                        "자체 제작", 1924, "https://covers.example/cover.jpg", 312),
-                new BookSummaryResponse(2L, "작자 미상 작품", List.of(), null, null, null, 20)));
+                        "자체 제작", 1924, "https://covers.example/cover.jpg", 312, List.of(), List.of()),
+                new BookSummaryResponse(2L, "작자 미상 작품", List.of(), null, null, null, 20, List.of(), List.of())));
         given(bookService.findBooks(null)).willReturn(response);
 
         mockMvc.perform(get("/api/books")
@@ -106,7 +106,7 @@ class BookControllerTest extends ControllerTest {
                 null,
                 "https://covers.example/detail.jpg",
                 312,
-                List.of(new ChapterResponse(11L, "1장", 1, 1, 105)), "검수한 소개", 284L);
+                List.of(new ChapterResponse(11L, "1장", 1, 1, 105)), "검수한 소개", 284L, List.of(), List.of());
         given(bookService.findBook(9L)).willReturn(response);
 
         mockMvc.perform(get("/api/books/{bookId}", 9L)
@@ -142,7 +142,7 @@ class BookControllerTest extends ControllerTest {
     void findBookWithoutDescriptionAndPageCount() throws Exception {
         givenValidMember(3L);
         given(bookService.findBook(9L)).willReturn(new BookDetailResponse(9L, "기존 도서", List.of(),
-                null, null, null, 1, List.of(), null, null));
+                null, null, null, 1, List.of(), null, null, List.of(), List.of()));
 
         mockMvc.perform(get("/api/books/{bookId}", 9L).header("X-Member-Id", "3"))
                 .andExpect(status().isOk())

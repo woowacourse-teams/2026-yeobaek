@@ -61,7 +61,7 @@ class ClubControllerTest extends ControllerTest {
                 "교환독서 1기",
                 "A3F9KQ",
                 new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"),
-                        "https://covers.example/cover.jpg", 312, BookStatus.ACTIVE));
+                        "https://covers.example/cover.jpg", 312, BookStatus.ACTIVE, List.of(), List.of()));
         given(clubService.create(1L, new ClubName("교환독서 1기"), 5L)).willReturn(response);
 
         mockMvc.perform(post("/api/clubs")
@@ -97,7 +97,7 @@ class ClubControllerTest extends ControllerTest {
                 10L,
                 "교환독서 1기",
                 new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건", "공동 저자"), null,
-                        312, BookStatus.ACTIVE));
+                        312, BookStatus.ACTIVE, List.of(), List.of()));
         given(clubService.join(2L, new JoinCode("A3F9KQ"))).willReturn(response);
 
         mockMvc.perform(post("/api/clubs/join")
@@ -145,7 +145,7 @@ class ClubControllerTest extends ControllerTest {
         givenValidMember(3L);
         var lastReadAt = LocalDateTime.of(2026, 8, 5, 14, 30);
         var book = new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null,
-                312, BookStatus.ACTIVE);
+                312, BookStatus.ACTIVE, List.of(), List.of());
         var response = new MyClubsResponse(List.of(
                 new MyClubResponse(10L, "교환독서 1기", 4, book,
                         new MyProgressResponse(42, 13, lastReadAt)),
@@ -201,7 +201,7 @@ class ClubControllerTest extends ControllerTest {
                 10L,
                 "교환독서 1기",
                 "A3F9KQ",
-                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.ACTIVE),
+                new ClubBookResponse(5L, "운수 좋은 날", List.of("현진건"), null, 312, BookStatus.ACTIVE, List.of(), List.of()),
                 new MyProgressResponse(42, 13, lastReadAt),
                 List.of(
                         new ClubMemberResponse(4L, "민서", true, false),

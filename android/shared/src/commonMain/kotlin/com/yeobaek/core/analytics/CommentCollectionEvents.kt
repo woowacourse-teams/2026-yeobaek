@@ -18,11 +18,13 @@ enum class ReadingPositionClearedBy(
 data class CommentCollectionOpened(
     val bookId: Long?,
     val hasNewComments: Boolean,
+    val collectionVisitId: String,
 ) : AnalyticsEvent {
     override val name = "comment_collection_opened"
     override val properties = buildMap {
         bookId?.let { put(KEY_BOOK_ID, it) }
         put(KEY_HAS_NEW_COMMENTS, hasNewComments)
+        put("collection_visit_id", collectionVisitId)
     }
 }
 
@@ -35,6 +37,8 @@ data class CommentCollectionClosed(
     val revealRequiredCount: Int?,
     val newCommentSentenceCount: Int?,
     val endedBy: CommentCollectionEnd,
+    val collectionVisitId: String,
+    val commentSheetsShown: Int,
 ) : AnalyticsEvent {
     override val name = "comment_collection_closed"
     override val properties = buildMap {
@@ -42,6 +46,8 @@ data class CommentCollectionClosed(
         put(KEY_DURATION_SECONDS, durationSeconds)
         put(KEY_CARD_CLICK_COUNT, cardClickCount)
         put(KEY_REVEAL_COUNT, revealCount)
+        put("collection_visit_id", collectionVisitId)
+        put("comment_sheets_shown", commentSheetsShown)
         sentenceCount?.let { put(KEY_SENTENCE_COUNT, it) }
         revealRequiredCount?.let { put(KEY_REVEAL_REQUIRED_COUNT, it) }
         newCommentSentenceCount?.let { put(KEY_NEW_COMMENT_SENTENCE_COUNT, it) }

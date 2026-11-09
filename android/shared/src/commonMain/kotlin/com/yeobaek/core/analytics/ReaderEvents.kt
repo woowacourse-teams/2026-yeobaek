@@ -30,6 +30,7 @@ data class ReaderLoaded(
     val bookTitle: String,
     val progress: Float,
     val startedBy: ReaderSessionStart,
+    val readingSessionId: String,
 ) : AnalyticsEvent {
     override val name = "reader_loaded"
     override val properties = buildMap {
@@ -37,6 +38,7 @@ data class ReaderLoaded(
         bookTitle.takeIf(String::isNotBlank)?.let { put(KEY_BOOK_TITLE, it) }
         put(KEY_PROGRESS, progress)
         put(KEY_STARTED_BY, startedBy.value)
+        put(KEY_READING_SESSION_ID, readingSessionId)
     }
 }
 
@@ -51,6 +53,7 @@ data class ReaderClosed(
     val commentCollectionsOpened: Int,
     val newCommentBadgeShown: Boolean,
     val endedBy: ReaderSessionEnd,
+    val readingSessionId: String,
 ) : AnalyticsEvent {
     override val name = "reader_closed"
     override val properties = mapOf(
@@ -64,6 +67,7 @@ data class ReaderClosed(
         KEY_COMMENT_COLLECTIONS_OPENED to commentCollectionsOpened,
         KEY_NEW_COMMENT_BADGE_SHOWN to newCommentBadgeShown,
         KEY_ENDED_BY to endedBy.value,
+        KEY_READING_SESSION_ID to readingSessionId,
     )
 }
 
@@ -116,6 +120,7 @@ data class FontSizeChanged(
     )
 }
 
+private const val KEY_READING_SESSION_ID = "reading_session_id"
 private const val KEY_GROUP_ID = "group_id"
 private const val KEY_BOOK_ID = "book_id"
 private const val KEY_BOOK_TITLE = "book_title"

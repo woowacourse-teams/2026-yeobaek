@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -31,11 +32,14 @@ import com.yeobaek.feature.guide.navigation.navigateToGuide
 import com.yeobaek.feature.home.navigation.Home
 import com.yeobaek.feature.home.navigation.homeNavGraph
 import com.yeobaek.feature.home.navigation.navigateToHome
+import com.yeobaek.feature.mypage.navigation.MY_PAGE_NICKNAME_CHANGED_KEY
 import com.yeobaek.feature.mypage.navigation.MyPage
 import com.yeobaek.feature.mypage.navigation.myPageNavGraph
 import com.yeobaek.feature.mypage.navigation.navigateToMyPage
 import com.yeobaek.feature.nickname.navigation.Nickname
 import com.yeobaek.feature.nickname.navigation.navigateToNickname
+import com.yeobaek.feature.nickname.navigation.navigateToNicknameChange
+import com.yeobaek.feature.nickname.navigation.nicknameChangeNavGraph
 import com.yeobaek.feature.nickname.navigation.nicknameNavGraph
 import com.yeobaek.feature.notifications.navigation.navigateToNotificationSettings
 import com.yeobaek.feature.notifications.navigation.notificationSettingsNavGraph
@@ -55,6 +59,7 @@ fun App(
     appContainer: AppContainer,
 ) {
     YeobaekTheme {
+        val invitations = rememberInvitations(appContainer.invitations)
         val startup = appContainer.appConfigStartup
         val isReady by startup.isReady.collectAsState()
 
@@ -194,13 +199,14 @@ fun App(
                 navigateToPublicRoomReader = { publicRoomId ->
                     navController.navigateToPublicRoomReader(publicRoomId = publicRoomId)
                 },
-                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, listVisitId ->
+                navigateToPublicRoomBookDetail = { publicRoomId, bookId, entryPoint, card ->
                     navController.navigateToPublicRoomBookDetail(
                         publicRoomId = publicRoomId,
                         bookId = bookId,
                         entryPoint = entryPoint,
-                        listVisitId = listVisitId,
+                        listVisitId = card.listVisitId,
                         navOptions = navOptions { launchSingleTop = true },
+                        card = card,
                     )
                 },
                 navigateToMyPage = {
@@ -236,6 +242,7 @@ fun App(
             )
             joinNavGraph(
                 appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToHome = {
                     val hasHome = navController.currentBackStack.value.any { entry ->
                         entry.destination.hasRoute<Home>()
@@ -256,10 +263,6 @@ fun App(
                         navOptions = homeNavOptions,
                     )
                 },
-                navigateToBack = {
-                    navController.popBackStack()
-                },
-
             )
             createNavGraph(
                 appContainer = appContainer,
@@ -276,6 +279,8 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
+                navigateBack = { navController.popBackStack() },
+                navigateToNicknameChange = { navController.navigateToNicknameChange() },
                 navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
                     navController.navigateToNickname(
@@ -298,12 +303,33 @@ fun App(
                 },
             )
             notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
+            nicknameChangeNavGraph(
+                appContainer = appContainer,
+                navigateBack = { navController.popBackStack() },
+                onNicknameChanged = { nickname ->
+                    navController.getBackStackEntry<MyPage>().savedStateHandle[MY_PAGE_NICKNAME_CHANGED_KEY] = nickname
+                    navController.popBackStack()
+                },
+            )
         }
 
+        InvitationEffects(
+            navController = navController,
+            invitations = invitations,
+            userId = appContainer.userPreferences.userId,
+            isGuideFinished = appContainer.guideOnboardingPreferences::getGuideState,
+        )
         NotificationEffects(
             navController = navController,
             notifications = appContainer.notifications,
             userId = appContainer.userPreferences.userId,
         )
     }
+}
+
+fun NavController.popBackStackIfCurrent(entryId: String, beforePop: () -> Unit) {
+    if (currentBackStackEntry?.id != entryId) return
+
+    beforePop()
+    popBackStack()
 }

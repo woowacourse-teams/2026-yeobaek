@@ -1,5 +1,9 @@
 package com.yeobaek.feature.mypage.navigation
 
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -16,6 +20,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object MyPage
 
+const val MY_PAGE_NICKNAME_CHANGED_KEY = "my_page_nickname_changed"
+
 fun NavController.navigateToMyPage(
     navOptions: NavOptions? = null,
 ) {
@@ -30,8 +36,10 @@ fun NavGraphBuilder.myPageNavGraph(
     navigateToNickname: () -> Unit,
     navigateToGuide: (Boolean) -> Unit,
     navigateToNotificationSettings: () -> Unit,
+    navigateToNicknameChange: () -> Unit,
+    navigateBack: () -> Unit,
 ) {
-    composable<MyPage> {
+    composable<MyPage> { entry ->
         TrackScreen(
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
@@ -46,6 +54,10 @@ fun NavGraphBuilder.myPageNavGraph(
             ),
         )
 
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { myPageViewModel.initMyPage() }
+        val changedNickname by entry.savedStateHandle
+            .getStateFlow<String?>(MY_PAGE_NICKNAME_CHANGED_KEY, null).collectAsStateWithLifecycle()
+
         MyPageScreen(
             uiState = myPageViewModel.uiState,
             appVersion = appContainer.appVersion,
@@ -58,6 +70,14 @@ fun NavGraphBuilder.myPageNavGraph(
                 navigateToGuide(true)
             },
             navigateToNotificationSettings = navigateToNotificationSettings,
+            navigateToNicknameChange = navigateToNicknameChange,
+            onBackClick = {
+                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) navigateBack()
+            },
+            nicknameChanged = changedNickname != null,
+            onNicknameChangeMessageShown = {
+                entry.savedStateHandle[MY_PAGE_NICKNAME_CHANGED_KEY] = null
+            },
         )
     }
 }

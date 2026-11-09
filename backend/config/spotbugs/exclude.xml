@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
     <!--
+        DTO는 데이터를 전달하는 경계 객체이므로 가변 참조 공유를 허용한다.
+        dto 패키지와 그 하위 패키지에서 EI_EXPOSE_REP/EI_EXPOSE_REP2만 제외한다.
+        도메인의 소유 상태 보호와 입력 검증은 이 예외의 대상이 아니다.
+    -->
+    <Match>
+        <Package name="~yeobaek\.backend\..*\.dto(\..*)?"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!--
         CT_CONSTRUCTOR_THROW(생성자 예외로 인한 파이널라이저 공격 노출)를 도메인 엔티티 패키지
         (yeobaek.backend.*.domain)에 한정해 제외한다.
         사유는 backend/docs/지침/검증/커밋_전_게이트.md의 "제외한 룰 기록"을 참고한다.

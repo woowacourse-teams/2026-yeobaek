@@ -207,6 +207,7 @@ class NotificationSettingsUiTest {
                             navigateToNickname = {},
                             navigateToGuide = {},
                             navigateToNotificationSettings = { settingsVisible = true },
+                            onBackClick = {},
                         )
                     }
                 }

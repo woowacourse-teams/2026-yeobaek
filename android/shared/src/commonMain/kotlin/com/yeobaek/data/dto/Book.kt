@@ -10,6 +10,8 @@ data class Book(
     val passageCount: Int,
     val title: String,
     val coverImageUrl: String?,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 fun Book.toModel(): BookModel = BookModel(
@@ -19,4 +21,6 @@ fun Book.toModel(): BookModel = BookModel(
     authors = authors.joinToString(),
     progressRate = 0f,
     description = "",
+    genres = genres,
+    hashtags = hashtags,
 )

@@ -8,7 +8,10 @@ import com.yeobaek.core.config.FeatureFlags
 import com.yeobaek.core.config.RemoteConfigDataSource
 import com.yeobaek.core.config.RemoteConfigKeys
 import com.yeobaek.core.config.SessionMessages
+import com.yeobaek.core.config.SurveyConfig
 import com.yeobaek.data.repository.AppConfigRepository
+import io.ktor.http.URLProtocol
+import io.ktor.http.Url
 import kotlin.time.Clock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -17,6 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 
 class AppConfigRepositoryImpl(
     private val dataSource: RemoteConfigDataSource,
@@ -25,6 +30,7 @@ class AppConfigRepositoryImpl(
     private val _state = MutableStateFlow(AppConfigState())
     override val state = _state.asStateFlow()
     private val mutex = Mutex()
+    private val surveyJson = Json { ignoreUnknownKeys = true }
 
     override suspend fun initialize(): Result<Unit> = mutex.withLock {
         initializeIfNeeded()
@@ -38,11 +44,13 @@ class AppConfigRepositoryImpl(
                 mapOf(
                     RemoteConfigKeys.COMMENT_LIKE_ENABLED to FeatureFlags().commentLikeEnabled,
                     RemoteConfigKeys.ONBOARDING_TITLE to SessionMessages().onboardingTitle,
+                    RemoteConfigKeys.PMF_SURVEY to surveyJson.encodeToString(SurveyConfig.DEFAULT),
                 ),
             )
             val activated = dataSource.activate()
             currentCoroutineContext().ensureActive()
             val flags = readFeatureFlags()
+            val survey = readSurveyConfig()
             val title = dataSource.getValue(RemoteConfigKeys.ONBOARDING_TITLE)
             val fetchInfo = dataSource.getFetchInfo()
             val hasTitle = title.value.isNotBlank()
@@ -54,10 +62,14 @@ class AppConfigRepositoryImpl(
             val oldState = _state.value
             _state.value = oldState.copy(
                 featureFlags = flags.featureFlags,
+                surveyConfig = survey.config,
                 sessionMessages = SessionMessages(
                     onboardingTitle = title.value.takeIf { hasTitle } ?: SessionMessages().onboardingTitle,
                 ),
-                valueSources = oldState.valueSources + flags.sources + messageSources,
+                valueSources = oldState.valueSources +
+                    flags.sources +
+                    messageSources +
+                    (RemoteConfigKeys.PMF_SURVEY to survey.source),
                 isInitialized = true,
                 lastSuccessfulFetchAtMillis = fetchInfo.lastSuccessfulFetchAtMillis,
                 lastFetchStatus = fetchInfo.status,
@@ -151,9 +163,13 @@ class AppConfigRepositoryImpl(
             val activated = dataSource.activate()
             currentCoroutineContext().ensureActive()
             val flags = readFeatureFlags()
+            val survey = readSurveyConfig()
             _state.value = _state.value.copy(
                 featureFlags = flags.featureFlags,
-                valueSources = _state.value.valueSources + flags.sources,
+                surveyConfig = survey.config,
+                valueSources = _state.value.valueSources +
+                    flags.sources +
+                    (RemoteConfigKeys.PMF_SURVEY to survey.source),
                 lastActivationAtMillis = if (activated) nowMillis() else _state.value.lastActivationAtMillis,
                 lastError = null,
             )
@@ -174,6 +190,32 @@ class AppConfigRepositoryImpl(
             sources = if (enabled != null) mapOf(RemoteConfigKeys.COMMENT_LIKE_ENABLED to like.source) else emptyMap(),
         )
     }
+
+    private fun readSurveyConfig(): SurveyConfigValue {
+        val parameter = dataSource.getValue(RemoteConfigKeys.PMF_SURVEY)
+        val parsed = try {
+            surveyJson.decodeFromString<SurveyConfig>(parameter.value)
+        } catch (_: SerializationException) {
+            null
+        }
+        val valid = parsed?.takeIf { config ->
+            val url = runCatching { Url(config.url) }.getOrNull()
+            config.id.isNotBlank() &&
+                config.title.isNotBlank() &&
+                config.description.isNotBlank() &&
+                url?.protocol == URLProtocol.HTTPS &&
+                url.host.isNotBlank()
+        }
+        return SurveyConfigValue(
+            config = valid ?: SurveyConfig.DEFAULT,
+            source = if (valid != null) parameter.source else ConfigValueSource.DEFAULT,
+        )
+    }
+
+    private data class SurveyConfigValue(
+        val config: SurveyConfig,
+        val source: ConfigValueSource,
+    )
 
     private data class FeatureFlagValues(
         val featureFlags: FeatureFlags,

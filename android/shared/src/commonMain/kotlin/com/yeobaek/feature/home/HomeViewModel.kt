@@ -90,6 +90,8 @@ class HomeViewModel(
                             title = it.book.title,
                             groupName = it.name,
                             groupCount = it.memberCount,
+                            genres = it.book.genres,
+                            hashtags = it.book.hashtags,
                         )
                     },
                     screenState = ScreenState.Success,
