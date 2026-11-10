@@ -126,7 +126,20 @@ public class CommentController {
             @RequestParam("currentPassageId") Long currentPassageId,
             @Parameter(description = "조회할 댓글 탭: 전체 댓글(ALL), 새 댓글(NEW)")
             @RequestParam("filter") CommentedSentenceFilter filter) {
-        return commentService.findCommentedSentencesV2(memberId, clubId, currentPassageId, filter);
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("passageId", currentPassageId)
+                .addKeyValue("filter", filter).log("댓글 문장 목록 v2 API 처리를 시작합니다.");
+
+        CommentedSentencesResponse response = commentService.findCommentedSentencesV2(
+                memberId, clubId, currentPassageId, filter);
+        int resultCount = response.commentedSentences().size();
+        analyticsTracker.track(memberId, AnalyticsEvent.commentedSentencesView(clubId, currentPassageId, resultCount));
+
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("passageId", currentPassageId)
+                .addKeyValue("filter", filter).addKeyValue("resultCount", resultCount)
+                .log("댓글 문장 목록 v2 API 처리를 완료했습니다.");
+        return response;
     }
 
     @Operation(summary = "댓글 작성")

@@ -248,7 +248,7 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 | `backend_progress_update` | `PUT /api/clubs/{clubId}/progress` | `club_id`, `passage_id`, `last_read_passage_sequence`, `progress_rate` |
 | `backend_last_reading_view` | `GET /api/members/me/last-reading` | `has_last_reading`, 기록이 있을 때 `club_id`, `book_id`, `last_read_passage_sequence`, `progress_rate` |
 | `backend_new_comment_count_view` | `GET /api/clubs/{clubId}/comments/new-count` | `club_id`, `current_passage_id`, `new_comment_count` |
-| `backend_commented_sentences_view` | `GET /api/clubs/{clubId}/commented-sentences` | `club_id`, `current_passage_id`, `commented_sentence_count` |
+| `backend_commented_sentences_view` | `GET /api/clubs/{clubId}/commented-sentences`, `GET /api/v2/clubs/{clubId}/commented-sentences` | `club_id`, `current_passage_id`, `commented_sentence_count` |
 | `backend_comments_view` | 댓글 상세 조회 POST와 deprecated GET | `club_id`, `sentence_id`, `comment_count`, `api_variant` (`explicit_post` 또는 `deprecated_get`) |
 | `backend_comment_create` | `POST /api/clubs/{clubId}/sentences/{sentenceId}/comments` | `club_id`, `sentence_id`, `comment_id` |
 | `backend_comment_update` | `PUT /api/comments/{commentId}` | `comment_id` |
