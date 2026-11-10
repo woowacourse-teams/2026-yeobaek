@@ -8,6 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.method.annotation.ExceptionHandlerMethodResolver;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 class GlobalExceptionHandlerTest {
 
@@ -59,6 +61,34 @@ class GlobalExceptionHandlerTest {
                         "BOOK_NOT_AVAILABLE", body.code(), "이용 불가 도서의 개별 코드를 반환해야 한다"),
                 () -> assertEquals(
                         "더 이상 이용할 수 없는 도서입니다.", body.message(), "이용 불가 안내 메시지를 반환해야 한다"));
+    }
+
+    @Test
+    @DisplayName("없는 경로를 404와 ROUTE_NOT_FOUND로 변환한다")
+    void handleRouteNotFound() {
+        var response = handler.handleRouteNotFound();
+        var body = response.getBody();
+
+        assertNotNull(body, "없는 경로 응답에는 본문이 있어야 한다");
+        assertAll(
+                () -> assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode(), "없는 경로는 404이어야 한다"),
+                () -> assertEquals("ROUTE_NOT_FOUND", body.code(), "없는 경로의 오류 코드를 반환해야 한다"),
+                () -> assertEquals("요청한 경로를 찾을 수 없습니다.", body.message(), "없는 경로 안내를 반환해야 한다"));
+    }
+
+    @Test
+    @DisplayName("없는 핸들러와 리소스 예외는 404 핸들러가 우선 처리한다")
+    void preferRouteNotFoundHandler() {
+        var resolver = new ExceptionHandlerMethodResolver(GlobalExceptionHandler.class);
+
+        var missingHandler = resolver.resolveMethodByExceptionType(NoHandlerFoundException.class);
+        var missingResourceHandler = resolver.resolveMethodByExceptionType(NoResourceFoundException.class);
+
+        assertNotNull(missingHandler, "없는 핸들러 예외의 처리 메서드가 있어야 한다");
+        assertNotNull(missingResourceHandler, "없는 리소스 예외의 처리 메서드가 있어야 한다");
+        assertAll(
+                () -> assertEquals("handleRouteNotFound", missingHandler.getName(), "404 핸들러가 우선해야 한다"),
+                () -> assertEquals("handleRouteNotFound", missingResourceHandler.getName(), "404 핸들러가 우선해야 한다"));
     }
 
     @Test
