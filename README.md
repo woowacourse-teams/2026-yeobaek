@@ -67,7 +67,7 @@
 
 ## 프로젝트 아키텍처
 
-![여백 프로젝트 아키텍처](https://github.com/user-attachments/assets/9378675c-c410-4029-a94b-f1dff9a7ccf6)
+![여백 프로젝트 아키텍처](https://github.com/user-attachments/assets/01853d9a-7a68-427a-aeab-7739bae7f9f2)
 
 ### CI/CD
 
