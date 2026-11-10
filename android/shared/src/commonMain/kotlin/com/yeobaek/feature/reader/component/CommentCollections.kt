@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
+import android.shared.generated.resources.reader_comment_collection_spoiler_notice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +33,7 @@ import com.yeobaek.feature.reader.CommentedSentenceMode
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun CommentCollectionContents(
@@ -102,6 +104,13 @@ fun CommentCollectionContents(
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                         state = listState,
                     ) {
+                        item(key = "spoiler_notice") {
+                            Text(
+                                text = stringResource(Res.string.reader_comment_collection_spoiler_notice),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                         items(
                             items = displayedSentences,
                             key = { it.sentenceId },
