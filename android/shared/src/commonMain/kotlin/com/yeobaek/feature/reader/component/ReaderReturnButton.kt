@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
+import android.shared.generated.resources.reader_return_to_reading_position
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -16,12 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ReaderReturnButton(
-    progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,7 +44,7 @@ fun ReaderReturnButton(
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                text = "${progress.roundToInt()}%로 돌아가기",
+                text = stringResource(Res.string.reader_return_to_reading_position),
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = FontWeight.SemiBold,
                 ),

@@ -1,5 +1,7 @@
 package com.yeobaek.feature.reader.component
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.reader_go_to_sentence
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReportState
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,7 +195,7 @@ fun CommentBottomSheet(
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp, vertical = 8.dp),
                     ) {
-                        Text("본문으로 이동")
+                        Text(stringResource(Res.string.reader_go_to_sentence))
                     }
                 }
                 CommentInput(

@@ -118,19 +118,16 @@ fun ReaderScreen(
             }
         }
 
-        uiState.returnProgress
-            ?.takeIf { uiState.mode == ReaderMode.Idle }
-            ?.let { returnProgress ->
-                ReaderReturnButton(
-                    progress = returnProgress,
-                    onClick = actions.onReturnToPreviousReadingPosition,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .navigationBarsPadding()
-                        .padding(start = 20.dp, bottom = 72.dp)
-                        .zIndex(1f),
-                )
-            }
+        if (uiState.returnPassageSequence != null && uiState.mode == ReaderMode.Idle) {
+            ReaderReturnButton(
+                onClick = actions.onReturnToPreviousReadingPosition,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(start = 20.dp, bottom = 72.dp)
+                    .zIndex(1f),
+            )
+        }
 
         if (uiState.isTableOfContentsVisible) {
             ReaderTableOfContents(
