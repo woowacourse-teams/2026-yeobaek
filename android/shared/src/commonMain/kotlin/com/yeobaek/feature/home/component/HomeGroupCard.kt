@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +56,7 @@ fun HomeGroupCard(
         ) {
             BookCoverImage(
                 imageUrl = uri,
+                modifier = Modifier.height(93.dp),
             )
             Box(
                 modifier = Modifier
@@ -107,7 +107,6 @@ private fun GroupInfoCard(
                 color = MaterialTheme.colorScheme.outline,
             ),
         )
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 

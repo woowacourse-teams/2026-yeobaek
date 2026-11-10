@@ -210,6 +210,8 @@ private fun CreateBookSelectionContent(
                             title = book.title,
                             authors = book.authors,
                             coverUrl = book.coverUrl,
+                            genres = book.genres,
+                            hashtags = book.hashtags,
                             onClick = { onClickBook(book) },
                             modifier = Modifier
                                 .border(

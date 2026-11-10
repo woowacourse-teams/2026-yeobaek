@@ -6,4 +6,6 @@ data class GroupUiModel(
     val title: String = "",
     val groupName: String = "",
     val groupCount: Int = 0,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )

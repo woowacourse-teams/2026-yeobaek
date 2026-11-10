@@ -15,6 +15,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.BookListVisitTracker
+import com.yeobaek.core.analytics.BookMetadataSection
+import com.yeobaek.core.common.TrackBookList
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -36,6 +39,8 @@ fun CreateScreen(
     onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
+    bookListTracker: BookListVisitTracker? = null,
+    onMetadataViewed: (BookMetadataSection) -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val bookGridState = rememberLazyGridState()
@@ -66,8 +71,18 @@ fun CreateScreen(
             onReadClick = onNextStep,
             onRetry = onRetryBookDetail,
             modifier = modifier,
+            onMetadataViewed = onMetadataViewed,
         )
         return
+    }
+
+    if (uiState.step == CreateStep.BookSelection && bookListTracker != null) {
+        val displayedBooks = uiState.bookList.takeIf {
+            uiState.bookState is BookState.Success &&
+                uiState.searchState !is SearchState.Loading &&
+                uiState.searchState !is SearchState.Failure
+        }
+        TrackBookList(bookListTracker, bookGridState, displayedBooks?.map { it.id })
     }
 
     Scaffold(

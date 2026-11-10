@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
+import java.util.List;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +53,7 @@ class FlywayMigrationTest {
             assertThat(context.getBean(Flyway.class).validateWithResult().validationSuccessful).isTrue();
             assertThat(jdbcTemplate.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
             jdbcTemplate.update("INSERT INTO members (nickname) VALUES (?)", "재기동 회원");
             jdbcTemplate.update("INSERT INTO notification_registrations (member_id, fid) "
                     + "SELECT id, ? FROM members WHERE nickname = ?", FID, "재기동 회원");
@@ -85,7 +86,7 @@ class FlywayMigrationTest {
             assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("기존 회원");
             assertThat(jdbc.queryForList(
                     "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank", String.class))
-                    .containsExactly("1", "2", "3", "4", "5", "6", "7");
+                    .containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
             assertThat(context.getBean(Flyway.class).migrate().migrationsExecuted).isZero();
         }
     }
@@ -179,7 +180,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(4);
+        assertThat(result.migrationsExecuted).isEqualTo(5);
         assertThat(jdbc.queryForList("SELECT id FROM notification_registrations ORDER BY id", Long.class))
                 .containsExactly(1L, 3L);
         assertThat(jdbc.queryForList("SELECT enabled FROM notification_registrations", Boolean.class))
@@ -201,7 +202,7 @@ class FlywayMigrationTest {
         var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .load().migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(1);
+        assertThat(result.migrationsExecuted).isEqualTo(2);
         assertThat(jdbc.queryForList("SELECT nickname FROM members", String.class)).containsExactly("Reader");
         assertThatThrownBy(() -> jdbc.update("INSERT INTO members (nickname) VALUES ('reader')"))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -220,6 +221,28 @@ class FlywayMigrationTest {
         assertThatThrownBy(flyway::migrate).isInstanceOf(FlywayException.class);
         assertThat(jdbc.queryForList("SELECT nickname FROM members ORDER BY id", String.class))
                 .containsExactly("Reader", "reader");
+    }
+
+    @Test
+    @DisplayName("V8은 기존 도서를 보존하며 장르와 태그를 미입력 상태로 추가한다")
+    void upgradeV6PreservesBooksWithoutBackfill() {
+        Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .target("6").load().migrate();
+        JdbcTemplate jdbc = jdbcTemplate();
+        jdbc.update("INSERT INTO books (id, title, passage_count, description) VALUES (1, ?, 3, ?)",
+                "기존 책", "보존할 소개");
+
+        var result = Flyway.configure().dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+                .load().migrate();
+
+        assertThat(result.migrationsExecuted).isEqualTo(2);
+        assertThat(jdbc.queryForMap("SELECT title, passage_count, description FROM books WHERE id = 1"))
+                .containsEntry("title", "기존 책")
+                .containsEntry("passage_count", 3)
+                .containsEntry("description", "보존할 소개");
+        assertThat(List.of(jdbc.queryForObject("SELECT COUNT(*) FROM book_genres", Long.class),
+                jdbc.queryForObject("SELECT COUNT(*) FROM book_hashtags", Long.class)))
+                .containsOnly(0L);
     }
 
     private JdbcTemplate migrateWithMember() {

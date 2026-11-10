@@ -1,13 +1,18 @@
 package com.yeobaek.feature.mypage
 
 import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_back_arrow
 import android.shared.generated.resources.ic_guide
 import android.shared.generated.resources.ic_notification
 import android.shared.generated.resources.ic_user_delete
+import android.shared.generated.resources.mypage_back
+import android.shared.generated.resources.nickname_change_profile_button
+import android.shared.generated.resources.nickname_change_success
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,15 +23,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -38,13 +48,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.SettingsTokens
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.mypage.component.MyPageDeleteDialog
 import com.yeobaek.feature.mypage.component.MyPageFeatureCard
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun MyPageScreen(
@@ -55,10 +71,22 @@ fun MyPageScreen(
     navigateToNickname: () -> Unit,
     navigateToGuide: () -> Unit,
     navigateToNotificationSettings: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    navigateToNicknameChange: () -> Unit = {},
+    nicknameChanged: Boolean = false,
+    onNicknameChangeMessageShown: () -> Unit = {},
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val nicknameChangedMessage = stringResource(Res.string.nickname_change_success)
+
+    LaunchedEffect(nicknameChanged) {
+        if (nicknameChanged) {
+            snackbarHostState.showSnackbar(nicknameChangedMessage, duration = SnackbarDuration.Short)
+            onNicknameChangeMessageShown()
+        }
+    }
 
     LaunchedEffect(uiState.deleteState) {
         when (uiState.deleteState) {
@@ -89,6 +117,15 @@ fun MyPageScreen(
                         color = YeobaekTextStrong,
                     )
                 },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_back_arrow),
+                            contentDescription = stringResource(Res.string.mypage_back),
+                            modifier = Modifier.size(SettingsTokens.MenuIconSize),
+                        )
+                    }
+                },
                 expandedHeight = SettingsTokens.ToolbarHeight,
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -98,7 +135,15 @@ fun MyPageScreen(
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
-            )
+                modifier = if (nicknameChanged) Modifier.padding(horizontal = 12.dp, vertical = 52.dp) else Modifier,
+            ) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(10.dp),
+                )
+            }
         },
     ) { innerPadding ->
         Column(
@@ -130,7 +175,26 @@ fun MyPageScreen(
                         Text(uiState.name.take(1), style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.width(SettingsTokens.CardPadding))
-                    Text(uiState.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        uiState.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    TextButton(
+                        onClick = navigateToNicknameChange,
+                        enabled = uiState.name.isNotBlank(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp),
+                    ) {
+                        Text(
+                            stringResource(Res.string.nickname_change_profile_button),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                textDecoration = TextDecoration.Underline,
+                            ),
+                        )
+                    }
                 }
             }
             MyPageFeatureCard(
@@ -193,6 +257,7 @@ private fun MyPageScreenPreview() {
             navigateToNickname = {},
             navigateToGuide = {},
             navigateToNotificationSettings = {},
+            onBackClick = {},
         )
     }
 }

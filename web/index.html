@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light">
+    <meta name="referrer" content="no-referrer">
+    <meta name="posthog-project-token" content="">
+    <meta name="analytics-environment" content="development">
+    <meta name="robots" content="noindex">
+    <title>여백 — 모임 초대</title>
+    <meta name="description" content="초대코드로 여백 모임에 참여하세요.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="여백 모임에 초대받았어요">
+    <meta property="og:description" content="여백 앱에서 초대코드로 모임에 참여하세요.">
+    <meta property="og:image" content="https://yeobaek-invite.vercel.app/assets/invite-preview.png">
+    <meta property="og:image:alt" content="여백 앱 로고">
+    <link rel="icon" href="./assets/app-icon.png" type="image/png">
+    <link rel="preload" href="./assets/noto-sans-kr-bold.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="./assets/noto-sans-kr-regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./page.js"></script>
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true">
+      <picture>
+        <source media="(min-width: 768px)" srcset="./assets/glow-warm-desktop.svg">
+        <img class="glow glow--warm" src="./assets/glow-warm.svg" alt="">
+      </picture>
+      <picture>
+        <source media="(min-width: 768px)" srcset="./assets/glow-green-desktop.svg">
+        <img class="glow glow--green" src="./assets/glow-green.svg" alt="">
+      </picture>
+    </div>
+    <main class="page" aria-labelledby="page-title">
+      <header class="brand" aria-label="여백">
+        <img src="./assets/app-icon.png" width="44" height="44" alt="">
+        <span>여백</span>
+      </header>
+      <div class="invitation">
+        <h1 id="page-title">여백 앱 다운로드</h1>
+        <section id="code-card" class="code-card" aria-label="초대코드" hidden>
+          <div class="code-info">
+            <span class="code-label">초대코드</span>
+            <span id="invite-code" class="code-value"></span>
+          </div>
+          <button id="copy-code" class="copy-button" type="button" aria-label="초대코드 복사" title="초대코드 복사">
+            <img src="./assets/copy.svg" width="24" height="24" alt="">
+          </button>
+        </section>
+        <a id="open-app" class="open-app" hidden>여백 앱에서 열기</a>
+        <section class="downloads" aria-label="앱 다운로드">
+          <div class="store-links">
+            <a class="store-link" data-store="app_store" href="https://apps.apple.com/app/apple-store/id6807303389" aria-label="App Store에서 여백 다운로드">
+              <img src="./assets/app-store.svg" width="36" height="36" alt="">
+              <span>App Store</span>
+            </a>
+            <a class="store-link" data-store="google_play" href="https://play.google.com/store/apps/details?id=com.yeobaek" aria-label="Google Play에서 여백 다운로드">
+              <img src="./assets/google-play.svg" width="36" height="36" alt="">
+              <span>Google Play</span>
+            </a>
+          </div>
+          <p id="notice" class="notice" role="status" aria-live="polite">기기에 맞는 스토어를 선택해주세요.</p>
+        </section>
+        <noscript><p class="notice">여백 앱에서 초대코드를 직접 입력해주세요.</p></noscript>
+      </div>
+    </main>
+  </body>
+</html>

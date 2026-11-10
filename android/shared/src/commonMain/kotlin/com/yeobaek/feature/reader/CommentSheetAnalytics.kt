@@ -34,6 +34,7 @@ class CommentSheetAnalytics(
         commentCount: Int,
         source: CommentSheetSource,
         hasNewComments: Boolean?,
+        collectionVisitId: String? = null,
     ) {
         readingSession.onCommentSheetOpened()
         trackEvent(
@@ -46,6 +47,7 @@ class CommentSheetAnalytics(
                 hasNewComments = hasNewComments,
                 afterJump = isAfterJump(),
                 commentLikeAvailable = isCommentLikeEnabled(),
+                collectionVisitId = collectionVisitId,
             ),
         )
     }
@@ -90,12 +92,21 @@ class CommentSheetAnalytics(
         commentCount: Int,
         othersCommentCount: Int?,
         didSubmit: Boolean,
+        sentenceId: Long,
+        source: CommentSheetSource,
+        commentsShown: Boolean,
+        collectionVisitId: String?,
     ) {
         trackEvent(
             CommentSheetClosed(
                 commentCount = commentCount,
                 othersCommentCount = othersCommentCount,
                 didSubmit = didSubmit,
+                bookId = bookId(),
+                sentenceId = sentenceId,
+                source = source,
+                commentsShown = commentsShown,
+                collectionVisitId = collectionVisitId,
             ),
         )
     }

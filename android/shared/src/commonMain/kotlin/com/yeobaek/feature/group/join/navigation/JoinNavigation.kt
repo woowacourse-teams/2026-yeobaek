@@ -7,11 +7,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.yeobaek.core.analytics.EventResult
-import com.yeobaek.core.analytics.GroupJoinAbandoned
 import com.yeobaek.core.analytics.GroupJoinEntryPoint
-import com.yeobaek.core.analytics.GroupJoinSubmitted
-import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.GroupJoinVisit
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
@@ -22,15 +19,26 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Join(
     val fromOnboarding: Boolean = false,
+    val initialCode: String? = null,
+    val invitationRequestId: String? = null,
 )
 
 fun NavController.navigateToJoin(
     fromOnboarding: Boolean,
     navOptions: NavOptions? = null,
 ) {
+    navigate(route = Join(fromOnboarding = fromOnboarding), navOptions = navOptions)
+}
+
+fun NavController.navigateToJoin(
+    initialCode: String,
+    invitationRequestId: String,
+    navOptions: NavOptions? = null,
+) {
     navigate(
         route = Join(
-            fromOnboarding = fromOnboarding,
+            initialCode = initialCode,
+            invitationRequestId = invitationRequestId,
         ),
         navOptions = navOptions,
     )
@@ -38,14 +46,15 @@ fun NavController.navigateToJoin(
 
 fun NavGraphBuilder.joinNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
     navigateToHome: () -> Unit,
-    navigateToBack: () -> Unit,
 ) {
     composable<Join> { backStackEntry ->
-        val entryPoint = if (backStackEntry.toRoute<Join>().fromOnboarding) {
-            GroupJoinEntryPoint.ONBOARDING
-        } else {
-            GroupJoinEntryPoint.HOME
+        val route = backStackEntry.toRoute<Join>()
+        val entryPoint = when {
+            route.invitationRequestId != null -> GroupJoinEntryPoint.DEEPLINK
+            route.fromOnboarding -> GroupJoinEntryPoint.ONBOARDING
+            else -> GroupJoinEntryPoint.HOME
         }
         TrackScreen(
             crashReporter = appContainer.crashReporter,
@@ -54,15 +63,17 @@ fun NavGraphBuilder.joinNavGraph(
         )
         val joinViewModel: JoinViewModel = viewModel(
             factory = JoinViewModel.joinViewModelFactory(
-                entryPoint = entryPoint,
+                visit = GroupJoinVisit(entryPoint, backStackEntry.id, route.invitationRequestId),
+                initialCode = route.initialCode,
                 groupRepository = appContainer.groupRepository,
                 crashReporter = appContainer.crashReporter,
                 analyticsTracker = appContainer.analyticsTracker,
+                onJoiningChanged = { joining -> appContainer.invitations.setJoining(backStackEntry.id, joining) },
             ),
         )
 
-        LaunchedEffect(Unit) {
-            joinViewModel.initInputValue()
+        LaunchedEffect(route.initialCode, route.invitationRequestId) {
+            joinViewModel.enter()
         }
 
         LaunchedEffect(joinViewModel.uiState.successJoin) {
@@ -78,28 +89,12 @@ fun NavGraphBuilder.joinNavGraph(
             uiState = joinViewModel.uiState,
             onCodeValueChange = joinViewModel::onCodeValueChange,
             onBackClick = {
-                appContainer.analyticsTracker.track(
-                    GroupJoinAbandoned(
-                        hasCode = joinViewModel.uiState.codeValue.isNotBlank(),
-                        entryPoint = entryPoint,
-                    ),
-                )
-                navigateToBack()
-            },
-            onJoinClick = {
-                joinViewModel.checkCodeBlank()
-                if (joinViewModel.uiState.codeState) {
-                    appContainer.analyticsTracker.track(
-                        GroupJoinSubmitted(
-                            result = EventResult.INVALID,
-                            entryPoint = entryPoint,
-                            reason = InvalidReason.CODE_BLANK,
-                        ),
-                    )
-                } else {
-                    joinViewModel.joinGroup()
+                navigateToBack(backStackEntry.id) {
+                    joinViewModel.abandon()
+                    appContainer.invitations.cancelPending()
                 }
             },
+            onJoinClick = joinViewModel::joinGroup,
         )
     }
 }

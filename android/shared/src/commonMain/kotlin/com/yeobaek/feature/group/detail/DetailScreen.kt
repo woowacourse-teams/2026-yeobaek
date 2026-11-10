@@ -28,11 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.invitation.InviteLink
+import com.yeobaek.core.invitation.rememberInviteShareSheet
 import com.yeobaek.feature.group.detail.component.BlockDialog
 import com.yeobaek.feature.group.detail.component.DeleteGroupDialog
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
@@ -55,7 +58,9 @@ fun DetailScreen(
     onUnBlockUser: (otherUserId: Int) -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
+    onInviteShareSubmitted: (EventResult) -> Unit = {},
 ) {
+    val shareSheet = rememberInviteShareSheet()
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -203,6 +208,23 @@ fun DetailScreen(
                             snackbarHostState.showSnackbar(
                                 message = "초대 코드를 복사했습니다.",
                                 duration = SnackbarDuration.Short,
+                            )
+                        }
+                    }
+                },
+                onShareClick = {
+                    val code = uiState.groupUiModel.groupCode
+                    val name = uiState.groupUiModel.name.ifBlank { uiState.bookUiModel.title }
+                    val result = when {
+                        !InviteLink.isValidCode(code) -> EventResult.INVALID
+                        shareSheet.share(InviteLink.shareText(name, code)) -> EventResult.SUCCESS
+                        else -> EventResult.FAILURE
+                    }
+                    onInviteShareSubmitted(result)
+                    if (result != EventResult.SUCCESS) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "공유창을 열 수 없어요. 초대코드를 복사해 전달해주세요.",
                             )
                         }
                     }

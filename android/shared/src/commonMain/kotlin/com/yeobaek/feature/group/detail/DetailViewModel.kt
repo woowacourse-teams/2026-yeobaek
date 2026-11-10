@@ -56,6 +56,8 @@ class DetailViewModel(
                         title = groupDetail.book.title,
                         author = groupDetail.book.authors,
                         currentProgress = groupDetail.myProgress?.progressRate ?: 0,
+                        genres = groupDetail.book.genres,
+                        hashtags = groupDetail.book.hashtags,
                     ),
                     groupUiModel = groupDetail.toGroupUiModel(groupId),
                     screenState = ScreenState.Success,

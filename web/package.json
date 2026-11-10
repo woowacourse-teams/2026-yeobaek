@@ -1,0 +1,15 @@
+{
+  "name": "yeobaek-invitation-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "tsc --allowJs --checkJs --noEmit --strict --target ES2022 --module nodenext --lib ES2022,DOM page.js invitation.js"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

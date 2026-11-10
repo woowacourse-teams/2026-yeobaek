@@ -13,14 +13,17 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.AppPromptBlocker
 import com.yeobaek.core.designsystem.theme.YeobaekSurfaceElevated
 import com.yeobaek.core.designsystem.theme.YeobaekTextStrong
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -47,20 +50,27 @@ internal fun IOSRecommendedUpdate(
     val state by controller.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(true) }
 
     DisposableEffect(source) { onDispose { source.close() } }
     LaunchedEffect(controller, lifecycleOwner, updatesAllowed) {
         if (!updatesAllowed) {
+            checking = false
             controller.clearOffer()
             return@LaunchedEffect
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            controller.checkForUpdate()
+            checking = true
+            try {
+                controller.checkForUpdate()
+            } finally {
+                checking = false
+            }
         }
     }
 
-    content()
     val version = state.offeredVersion
+    AppPromptBlocker(blocked = updatesAllowed && (checking || version != null), content = content)
     if (updatesAllowed && version != null) {
         LaunchedEffect(controller, version) { controller.markPrompted(version) }
         YeobaekTheme {

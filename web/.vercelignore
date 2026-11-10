@@ -1,0 +1,6 @@
+.vercel/
+.env*
+node_modules/
+test/
+pnpm-lock.yaml
+dist/

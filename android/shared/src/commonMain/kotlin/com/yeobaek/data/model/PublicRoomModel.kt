@@ -18,6 +18,8 @@ data class PublicRoomBookModel(
     val coverImageUrl: String?,
     val passageCount: Int,
     val status: PublicRoomBookStatus,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 enum class PublicRoomBookStatus {

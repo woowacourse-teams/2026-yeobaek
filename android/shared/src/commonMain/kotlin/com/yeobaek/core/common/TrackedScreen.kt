@@ -4,6 +4,7 @@ enum class TrackedScreen(
     val value: String,
 ) {
     NICKNAME("nickname"),
+    NICKNAME_CHANGE("nickname_change"),
     GUIDE("guide"),
     ONBOARDING("onboarding"),
     ONBOARDING_CREATE("onboarding_create"),

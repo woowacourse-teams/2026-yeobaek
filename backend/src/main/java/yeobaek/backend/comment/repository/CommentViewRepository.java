@@ -11,6 +11,8 @@ public interface CommentViewRepository extends JpaRepository<CommentView, Long> 
 
     boolean existsByMemberIdAndCommentId(Long memberId, Long commentId);
 
+    boolean existsByMemberId(Long memberId);
+
     @Query("""
             select distinct cv.comment.id from CommentView cv
             where cv.member.id = :memberId and cv.comment.id in :commentIds

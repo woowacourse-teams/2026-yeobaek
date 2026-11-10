@@ -31,8 +31,8 @@ import yeobaek.backend.member.dto.MemberCreateResponse;
 import yeobaek.backend.member.dto.MemberNicknameUpdateResponse;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
+import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.InvalidRequestException;
 import yeobaek.backend.support.NotFoundException;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,7 +74,8 @@ class MemberServiceUnitTest {
         given(memberRepository.saveAndFlush(any(Member.class))).willThrow(failure);
 
         assertThatThrownBy(() -> memberService.create(new Nickname("민서")))
-                .isInstanceOfSatisfying(InvalidRequestException.class, exception -> {
+                .isInstanceOfSatisfying(BadRequestException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(ErrorCode.DUPLICATE_NICKNAME);
                     assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
                     assertThat(exception.getCause()).isSameAs(failure);
                     assertThat(exception.getLogContext()).containsEntry("reason", "duplicate_nickname");
@@ -105,7 +106,8 @@ class MemberServiceUnitTest {
         doThrow(failure).when(memberRepository).flush();
 
         assertThatThrownBy(() -> memberService.updateNickname(7L, new Nickname("중복닉네임")))
-                .isInstanceOfSatisfying(InvalidRequestException.class, exception -> {
+                .isInstanceOfSatisfying(BadRequestException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(ErrorCode.DUPLICATE_NICKNAME);
                     assertThat(exception.getMessage()).isEqualTo("이미 사용 중인 닉네임입니다.");
                     assertThat(exception.getCause()).isSameAs(failure);
                     assertThat(exception.getLogContext()).containsEntry("reason", "duplicate_nickname");

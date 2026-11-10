@@ -3,9 +3,11 @@ package com.yeobaek.core.config
 data class AppConfigState(
     val featureFlags: FeatureFlags = FeatureFlags(),
     val sessionMessages: SessionMessages = SessionMessages(),
+    val surveyConfig: SurveyConfig = SurveyConfig.DEFAULT,
     val valueSources: Map<String, ConfigValueSource> = mapOf(
         RemoteConfigKeys.COMMENT_LIKE_ENABLED to ConfigValueSource.DEFAULT,
         RemoteConfigKeys.ONBOARDING_TITLE to ConfigValueSource.DEFAULT,
+        RemoteConfigKeys.PMF_SURVEY to ConfigValueSource.DEFAULT,
     ),
     val isInitialized: Boolean = false,
     val isFetching: Boolean = false,
