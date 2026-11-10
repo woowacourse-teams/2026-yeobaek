@@ -47,7 +47,7 @@ fun CommentCollectionContent(
         modifier = modifier.fillMaxWidth(),
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors().copy(
-            containerColor = if (isContentHidden) {
+            containerColor = if (commentedSentenceUiModel.requiresReveal) {
                 MaterialTheme.colorScheme.surfaceVariant
             } else {
                 MaterialTheme.colorScheme.surface

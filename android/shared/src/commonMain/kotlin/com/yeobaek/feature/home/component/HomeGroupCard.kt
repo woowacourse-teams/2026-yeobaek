@@ -1,7 +1,7 @@
 package com.yeobaek.feature.home.component
 
 import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_right_arrow
+import android.shared.generated.resources.ic_chevron_right
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,8 +72,9 @@ fun HomeGroupCard(
                 )
             }
             Icon(
-                painter = painterResource(Res.drawable.ic_right_arrow),
-                contentDescription = "오른쪽 화살표 아이콘",
+                painter = painterResource(Res.drawable.ic_chevron_right),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
                 tint = YeobaekTextSecondary,
             )
         }

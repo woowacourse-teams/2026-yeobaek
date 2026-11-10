@@ -3,17 +3,17 @@ package com.yeobaek.feature.reader.component
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_back_arrow
 import android.shared.generated.resources.ic_comment
+import android.shared.generated.resources.ic_settings
 import android.shared.generated.resources.ic_table_of_contents
+import android.shared.generated.resources.reader_text_settings_open
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Icon
@@ -33,6 +33,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekMaruBuri
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.ReaderFontSize
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ReaderTopBar(
@@ -131,29 +132,11 @@ fun ReaderTopBar(
                         onClick = onTextSettingClick,
                         modifier = Modifier.size(40.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "가",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            )
-
-                            Spacer(
-                                modifier = Modifier.width(1.dp),
-                            )
-
-                            Text(
-                                text = "가",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_settings),
+                            contentDescription = stringResource(Res.string.reader_text_settings_open),
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
 
                     ReaderTextSettingMenu(

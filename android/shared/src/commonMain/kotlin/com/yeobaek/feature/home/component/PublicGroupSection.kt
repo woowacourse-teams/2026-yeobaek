@@ -191,11 +191,14 @@ private fun VisitedPublicRoomRow(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val itemWidth = (maxWidth - PUBLIC_ROOM_ITEM_SPACING * (getGridCount() - 1)) /
-            getGridCount()
+        val visibleCardCount = getGridCount()
+        val nextCoverSpace = PUBLIC_ROOM_ITEM_SPACING + NEXT_VISITED_ROOM_COVER_PEEK
+        val cardSpacing = PUBLIC_ROOM_ITEM_SPACING * (visibleCardCount - 1)
+        val itemWidth = (maxWidth - cardSpacing - nextCoverSpace) / visibleCardCount
 
         LazyRow(
             state = listState,
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(PUBLIC_ROOM_ITEM_SPACING),
         ) {
             rowItems(
@@ -252,7 +255,7 @@ private fun PublicGroupSectionPreview() {
     YeobaekTheme {
         PublicGroupSection(
             uiState = PublicRoomTabUiState(
-                visitedPublicRooms = previewPublicRooms.take(2),
+                visitedPublicRooms = previewPublicRooms,
                 publicRooms = previewPublicRooms,
                 screenState = ScreenState.Success,
             ),
@@ -297,3 +300,4 @@ private val previewPublicRooms = listOf(
 )
 
 private val PUBLIC_ROOM_ITEM_SPACING = 12.dp
+private val NEXT_VISITED_ROOM_COVER_PEEK = 24.dp

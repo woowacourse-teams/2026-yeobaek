@@ -1,5 +1,6 @@
 package com.yeobaek.feature.group.create
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -13,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yeobaek.core.analytics.BookListVisitTracker
@@ -44,6 +48,8 @@ fun CreateScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val bookGridState = rememberLazyGridState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     PlatformBackHandler(onBack = onBackClick)
 
@@ -86,7 +92,12 @@ fun CreateScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().pointerInput(focusManager, keyboardController) {
+            detectTapGestures {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        },
         topBar = {
             YeobaekTopAppBar(
                 title = "모임 만들기",

@@ -1,6 +1,7 @@
 package com.yeobaek.core.designsystem.component
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +35,7 @@ fun YeobaekTextField(
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
     shape: Shape = MaterialTheme.shapes.small,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     OutlinedTextField(
         value = value,
@@ -55,6 +57,7 @@ fun YeobaekTextField(
         singleLine = true,
         isError = isError,
         keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
     )
 }
 
