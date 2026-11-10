@@ -19,4 +19,5 @@
     <string name="nickname_change_profile_button">변경</string>
     <string name="nickname_change_success">닉네임이 변경되었어요</string>
     <string name="nickname_change_back">뒤로가기</string>
+    <string name="reader_text_settings_open">글자 크기 설정 열기</string>
 </resources>
