@@ -10,8 +10,6 @@ Kotlin Multiplatform과 Compose Multiplatform으로 화면과 주요 로직을 �
 
 ![여백 모바일 모듈 구성도](https://github.com/user-attachments/assets/298b966b-103d-4122-ab7f-4744ef1f4da9)
 
-그림은 `develop`의 빌드 설정을 기준으로 합니다. `:`가 붙은 이름은 Gradle 모듈 경로입니다.
-
 | 항목 | 역할 |
 | :--- | :--- |
 | [`:androidApp`](androidApp/) | Android 앱을 시작하고 플랫폼 SDK를 연동합니다. |
