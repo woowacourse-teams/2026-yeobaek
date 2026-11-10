@@ -2,6 +2,7 @@ package com.yeobaek.feature.home
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_person_circle
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -108,8 +112,20 @@ fun HomeScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val dismissKeyboardOnTap = if (selectedGroupTab == GroupTab.PublicRooms) {
+        Modifier.pointerInput(focusManager, keyboardController) {
+            detectTapGestures {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        }
+    } else {
+        Modifier
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().then(dismissKeyboardOnTap),
         topBar = {
             AppTitle(
                 title = "$appName | ${uiState.username}",
