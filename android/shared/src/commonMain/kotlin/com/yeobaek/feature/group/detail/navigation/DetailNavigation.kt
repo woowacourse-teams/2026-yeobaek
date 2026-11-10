@@ -1,6 +1,8 @@
 package com.yeobaek.feature.group.detail.navigation
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -19,6 +21,7 @@ import com.yeobaek.core.notification.ClubJoinNotificationEffect
 import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.detail.GroupNotificationViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
 import kotlinx.serialization.Serializable
 
@@ -59,6 +62,15 @@ fun NavGraphBuilder.detailNavGraph(
                 analyticsTracker = appContainer.analyticsTracker,
             ),
         )
+        val groupNotificationViewModel = viewModel(key = "group-notification-${route.groupId}") {
+            GroupNotificationViewModel(
+                groupId = route.groupId,
+                repository = appContainer.notificationRepository,
+                memberId = appContainer.userPreferences.userId,
+                installationId = appContainer.notificationInstallationId,
+            )
+        }
+        val notificationState by groupNotificationViewModel.uiState.collectAsStateWithLifecycle()
         LaunchedEffect(
             route.groupId,
             route.notificationOpenId,
@@ -90,6 +102,9 @@ fun NavGraphBuilder.detailNavGraph(
 
         DetailScreen(
             uiState = detailViewModel.uiState,
+            notificationState = notificationState,
+            onNotificationClick = groupNotificationViewModel::onNotificationClick,
+            onNotificationErrorShown = groupNotificationViewModel::dismissError,
             onInviteCodeCopy = {
                 appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
             },

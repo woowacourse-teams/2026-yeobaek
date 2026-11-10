@@ -362,6 +362,12 @@ class NotificationSettingsViewModelTest {
 
         override suspend fun register(memberId: Int, fid: String) = Unit
 
+        override suspend fun getGroupPreference(memberId: Int, fid: String, groupId: Long): Boolean = error("Not used")
+
+        override suspend fun updateGroupPreference(memberId: Int, fid: String, groupId: Long, enabled: Boolean) {
+            error("Not used")
+        }
+
         override suspend fun getPreferences(memberId: Int, fid: String): NotificationPreferences {
             getCount++
             val response = preferences

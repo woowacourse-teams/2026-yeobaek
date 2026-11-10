@@ -1,5 +1,6 @@
 package com.yeobaek.data.api
 
+import com.yeobaek.data.dto.GroupNotificationPreferenceDto
 import com.yeobaek.data.dto.NotificationPreferencesResponse
 import com.yeobaek.data.dto.NotificationPreferencesUpdateRequest
 import com.yeobaek.data.dto.NotificationRegistrationRequest
@@ -10,6 +11,7 @@ import de.jensklingenberg.ktorfit.http.Header
 import de.jensklingenberg.ktorfit.http.Headers
 import de.jensklingenberg.ktorfit.http.PATCH
 import de.jensklingenberg.ktorfit.http.POST
+import de.jensklingenberg.ktorfit.http.Path
 import de.jensklingenberg.ktorfit.http.Query
 
 interface NotificationApi {
@@ -32,5 +34,21 @@ interface NotificationApi {
         @Header("X-Member-Id") memberId: Int,
         @Query("fid") fid: String,
         @Body request: NotificationPreferencesUpdateRequest,
+    ): Response<Unit>
+
+    @GET("api/clubs/{clubId}/notifications/preferences")
+    suspend fun getGroupPreference(
+        @Path("clubId") groupId: Long,
+        @Header("X-Member-Id") memberId: Int,
+        @Query("fid") fid: String,
+    ): Response<GroupNotificationPreferenceDto>
+
+    @Headers("Content-Type: application/json")
+    @PATCH("api/clubs/{clubId}/notifications/preferences")
+    suspend fun updateGroupPreference(
+        @Path("clubId") groupId: Long,
+        @Header("X-Member-Id") memberId: Int,
+        @Query("fid") fid: String,
+        @Body request: GroupNotificationPreferenceDto,
     ): Response<Unit>
 }
