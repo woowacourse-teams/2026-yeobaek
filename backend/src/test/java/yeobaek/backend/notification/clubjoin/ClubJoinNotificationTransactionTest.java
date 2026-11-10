@@ -45,7 +45,7 @@ import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 import yeobaek.backend.support.LogCapture;
 
 @SpringJUnitConfig(ClubJoinNotificationTransactionTest.TestConfig.class)
@@ -61,7 +61,7 @@ class ClubJoinNotificationTransactionTest {
     @MockitoBean
     private ClubJoinNotificationRecipientQueryRepository recipients;
     @MockitoBean
-    private NotificationRegistrationService registrations;
+    private NotificationRecipientQueryService recipientQueryService;
     @MockitoBean
     private CommentNotificationService commentNotifications;
     @MockitoBean
@@ -84,7 +84,7 @@ class ClubJoinNotificationTransactionTest {
         given(joinConnection.getAutoCommit()).willReturn(true);
         given(recipientConnection.getAutoCommit()).willReturn(true);
         given(recipients.findRecipientMemberIds(5L, 7L)).willReturn(List.of(9L));
-        given(registrations.findByMemberIds(any(), any())).willReturn(new NotificationRegistrations(List.of(
+        given(recipientQueryService.findClubRecipients(any(), any(), any())).willReturn(new NotificationRegistrations(List.of(
                 new NotificationRegistration(1L, mock(Member.class), new FirebaseInstallationId("c" + "a".repeat(21))))));
         given(sender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(1, List.of()));
     }

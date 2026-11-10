@@ -2,15 +2,17 @@ package yeobaek.backend.notification.comment;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
 import yeobaek.backend.notification.FcmNotificationService;
-import yeobaek.backend.notification.domain.NotificationType;
+import yeobaek.backend.notification.domain.ClubCommentNotificationContext;
+import yeobaek.backend.notification.domain.PublicRoomCommentNotificationContext;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 
 @Service
 @RequiredArgsConstructor
@@ -19,35 +21,39 @@ public class CommentNotificationService {
     private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
     private final FcmNotificationService notificationService;
-    private final NotificationRegistrationService registrationService;
+    private final NotificationRecipientQueryService recipientQueryService;
     private final CommentNotificationRecipientQueryRepository recipientQueryRepository;
 
     public void notifyClub(ClubSentenceCommentCreatedEvent event) {
+        var context = new ClubCommentNotificationContext(event.commentId(), event.clubId(), event.commentCreatedAt());
         Map<String, String> data = Map.of(
-                "type", "CLUB_COMMENT", "clubId", event.clubId().toString(),
+                "type", context.notificationType().name(), "clubId", context.clubId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
-        notificationService.notifyRecipients(NotificationType.CLUB_COMMENT, event.commentId(), event.commentCreatedAt(),
-                () -> findReadersInClub(event.clubId(), new ContentSequence(event.passageSequence()), event.writerId()),
-                TITLE, BODY, data);
+        Supplier<NotificationRegistrations> recipients = () -> findReadersInClub(
+                context, new ContentSequence(event.passageSequence()), event.writerId());
+        notificationService.notifyRecipients(context, recipients, TITLE, BODY, data);
     }
 
     public void notifyPublicRoom(PublicRoomSentenceCommentCreatedEvent event) {
+        var context = new PublicRoomCommentNotificationContext(event.commentId(), event.commentCreatedAt());
         Map<String, String> data = Map.of(
-                "type", "PUBLIC_ROOM_COMMENT", "publicRoomId", event.publicRoomId().toString(),
+                "type", context.notificationType().name(), "publicRoomId", event.publicRoomId().toString(),
                 "passageSequence", Integer.toString(event.passageSequence()), "sentenceId", event.sentenceId().toString());
-        notificationService.notifyRecipients(NotificationType.PUBLIC_ROOM_COMMENT, event.commentId(), event.commentCreatedAt(),
-                () -> findPreviousCommentersInPublicRoom(event.publicRoomId(), event.sentenceId(), event.writerId()),
-                TITLE, BODY, data);
+        Supplier<NotificationRegistrations> recipients = () -> findPreviousCommentersInPublicRoom(
+                event.publicRoomId(), event.sentenceId(), event.writerId());
+        notificationService.notifyRecipients(context, recipients, TITLE, BODY, data);
     }
 
-    private NotificationRegistrations findReadersInClub(Long clubId, ContentSequence passageSequence, Long writerId) {
-        List<Long> recipientIds = recipientQueryRepository.findReaderIdsAheadInClub(clubId, passageSequence.value(), writerId);
-        return registrationService.findByMemberIds(recipientIds, NotificationType.CLUB_COMMENT);
+    private NotificationRegistrations findReadersInClub(
+            ClubCommentNotificationContext context, ContentSequence passageSequence, Long writerId) {
+        List<Long> recipientIds = recipientQueryRepository.findReaderIdsAheadInClub(
+                context.clubId(), passageSequence.value(), writerId);
+        return recipientQueryService.findClubRecipients(recipientIds, context.notificationType(), context.clubId());
     }
 
     private NotificationRegistrations findPreviousCommentersInPublicRoom(Long publicRoomId, Long sentenceId, Long writerId) {
         List<Long> recipientIds = recipientQueryRepository
                 .findPreviousCommenterIdsInPublicRoom(publicRoomId, sentenceId, writerId);
-        return registrationService.findByMemberIds(recipientIds, NotificationType.PUBLIC_ROOM_COMMENT);
+        return recipientQueryService.findPublicRoomRecipients(recipientIds);
     }
 }

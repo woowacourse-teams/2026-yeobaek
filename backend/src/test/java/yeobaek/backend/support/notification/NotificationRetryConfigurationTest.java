@@ -15,7 +15,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import yeobaek.backend.notification.FcmFailureHandler;
 import yeobaek.backend.notification.FcmPushSender;
 import yeobaek.backend.notification.FcmRetryService;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 
 class NotificationRetryConfigurationTest {
 
@@ -24,7 +24,7 @@ class NotificationRetryConfigurationTest {
             .withBean("notificationTaskExecutor", TaskExecutor.class, SyncTaskExecutor::new)
             .withBean(FcmPushSender.class, () -> mock(FcmPushSender.class))
             .withBean(FcmFailureHandler.class, () -> mock(FcmFailureHandler.class))
-            .withBean(NotificationRegistrationService.class, () -> mock(NotificationRegistrationService.class));
+            .withBean(NotificationRecipientQueryService.class, () -> mock(NotificationRecipientQueryService.class));
 
     @Test
     @DisplayName("재시도 예약기는 전용 시계와 단일 타이머를 쓰고 종료 시 지연 작업을 폐기한다")
