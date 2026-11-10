@@ -34,24 +34,14 @@ class CommentedSentencesTest {
         CommentedSentence second = sentence(2L, 1, 2, 1);
         CommentedSentence last = sentence(3L, 2, 1, 1);
 
-        assertThat(new CommentedSentences(List.of(last, second, first)).sortedInBookOrder())
+        assertThat(new CommentedSentences(List.of(last, second, first)).sortedByPositionInBook())
                 .containsExactly(first, second, last);
-    }
-
-    @Test
-    @DisplayName("책의 위치가 같은 문장은 문장 ID가 큰 순서로 보여준다")
-    void ordersEqualPositionsByDescendingSentenceId() {
-        CommentedSentence lowerId = sentence(1L, 1, 1, 1);
-        CommentedSentence higherId = sentence(2L, 1, 1, 1);
-
-        assertThat(new CommentedSentences(List.of(lowerId, higherId)).sortedInBookOrder())
-                .containsExactly(higherId, lowerId);
     }
 
     @Test
     @DisplayName("빈 목록을 정렬하면 빈 목록을 반환한다")
     void sortsEmptyList() {
-        assertThat(new CommentedSentences(List.of()).sortedInBookOrder()).isEmpty();
+        assertThat(new CommentedSentences(List.of()).sortedByPositionInBook()).isEmpty();
     }
 
     private CommentedSentence sentence(Long id, int passageSequence, int sentenceSequence, long unreadCount) {

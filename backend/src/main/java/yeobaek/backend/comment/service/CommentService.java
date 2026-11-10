@@ -182,7 +182,7 @@ public class CommentService {
             case ALL -> sentences;
             case NEW -> sentences.unreadThrough(currentPassage);
         };
-        CommentedSentencesResponse response = toResponse(selected.sortedInBookOrder(), currentPassage);
+        CommentedSentencesResponse response = toResponse(selected.sortedByPositionInBook(), currentPassage);
 
         log.atInfo().addKeyValue(OPERATION, "comment.findPublicRoomCommentedSentencesV2")
                 .addKeyValue(RESULT, SUCCESS).addKeyValue("publicRoomId", publicRoomId)
@@ -266,7 +266,7 @@ public class CommentService {
             case ALL -> sentences;
             case NEW -> sentences.unreadThrough(currentPassage);
         };
-        CommentedSentencesResponse response = toResponse(selected.sortedInBookOrder(), currentPassage);
+        CommentedSentencesResponse response = toResponse(selected.sortedByPositionInBook(), currentPassage);
 
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
                 .addKeyValue(RESULT, SUCCESS).addKeyValue(CLUB_ID, clubId)

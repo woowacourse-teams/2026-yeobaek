@@ -16,11 +16,10 @@ public record CommentedSentences(List<CommentedSentence> values) {
                 .toList());
     }
 
-    public List<CommentedSentence> sortedInBookOrder() {
+    public List<CommentedSentence> sortedByPositionInBook() {
         return values.stream()
                 .sorted(Comparator.comparingInt((CommentedSentence sentence) -> sentence.passageSequence().value())
-                        .thenComparingInt(sentence -> sentence.sentenceSequence().value())
-                        .thenComparing(CommentedSentence::sentenceId, Comparator.reverseOrder()))
+                        .thenComparingInt(sentence -> sentence.sentenceSequence().value()))
                 .toList();
     }
 }

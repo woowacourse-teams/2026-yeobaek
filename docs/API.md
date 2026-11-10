@@ -698,7 +698,7 @@
 응답은 `200 {"commentedSentences": [...]}`이며, 문장 항목의 10개 필드는 위 기존 목록 응답과 같다.
 결과가 없으면 빈 배열이다. 차단·접근 권한·도서 검증과 전체 반환·탐색 중 목록 유지 규칙도 기존과 같다.
 
-- **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순 → `sentenceId` 내림차순.
+- **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순.
 - **댓글 수:** `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 그중 미확인 수다.
 - `ALL`에서 `future=true`이고 `unreadCommentCount > 0`이면 `contentVisibility=REVEAL_REQUIRED`다.
   그 외에는 `VISIBLE`이다. `content`는 항상 포함하므로 클라이언트가 `contentVisibility`에 따라 가린다.
