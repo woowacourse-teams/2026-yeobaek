@@ -8,31 +8,30 @@ Kotlin Multiplatform과 Compose Multiplatform으로 화면과 주요 로직을 �
 
 `android/` 폴더에 Android와 iOS 모바일 프로젝트가 함께 있습니다.
 
-![모바일 프로젝트 구조](https://github.com/user-attachments/assets/75e03044-5b62-4d77-ab7d-0a6f452a470f)
+![여백 모바일 모듈 구성도](https://github.com/user-attachments/assets/298b966b-103d-4122-ab7f-4744ef1f4da9)
 
-| 경로 | 역할 |
+그림은 `develop`의 빌드 설정을 기준으로 합니다. `:`가 붙은 이름은 Gradle 모듈 경로입니다.
+
+| 항목 | 역할 |
 | :--- | :--- |
-| [androidApp/](androidApp/) | Android 앱 진입점과 플랫폼 SDK 연동 |
-| [iosApp/](iosApp/) | Xcode 프로젝트와 SwiftUI 진입점 |
-| [shared/](shared/) | 공통 화면, 상태 관리, 데이터 처리와 플랫폼별 Kotlin 구현 |
-| [devtools/](devtools/) | iOS Debug용 개발자 도구와 공통 앱 연결 |
-| [gradle/](gradle/) | 의존성 버전과 Gradle Wrapper 설정 |
+| [`:androidApp`](androidApp/) | Android 앱을 시작하고 플랫폼 SDK를 연동합니다. |
+| [`iosApp`](iosApp/) | Xcode로 빌드하는 iOS 앱 프로젝트입니다. Swift에서 공통 Compose 화면을 띄웁니다. |
+| [`:shared`](shared/) | Android와 iOS가 공유하는 화면과 로직을 담습니다. |
+| [`:devtools`](devtools/) | 두 플랫폼의 Debug 빌드에 개발자 도구를 제공합니다. |
+| [`gradle/`](gradle/) | 의존성 버전과 Gradle Wrapper 설정을 관리합니다. |
 
 ### 공통 코드 구성
 
-`shared/src/commonMain/kotlin/com/yeobaek/`의 주요 폴더입니다.
-
-| 폴더 | 역할 |
+| 항목 | 역할 |
 | :--- | :--- |
-| `feature/` | 기능별 화면과 ViewModel |
-| `data/` | API 연동과 Repository |
-| `core/` | 의존성 조립과 공통 기반 코드 |
+| [`commonMain`](shared/src/commonMain/) | Android와 iOS에서 함께 실행하는 코드입니다. |
+| [`feature`](shared/src/commonMain/kotlin/com/yeobaek/feature/) | 기능별 Compose 화면과 ViewModel을 담습니다. |
+| [`data`](shared/src/commonMain/kotlin/com/yeobaek/data/) | API, Repository, 로컬 설정을 관리합니다. |
+| [`core`](shared/src/commonMain/kotlin/com/yeobaek/core/) | `AppContainer`, 네트워크, 디자인 시스템 등 여러 기능에서 쓰는 코드를 담습니다. |
+| [`androidMain`](shared/src/androidMain/) | Android 전용 Kotlin 구현을 담습니다. |
+| [`iosMain`](shared/src/iosMain/) | iOS 전용 Kotlin 구현을 담습니다. |
 
-리소스와 플랫폼별 Kotlin 구현은 아래 경로에서 관리합니다.
-
-- 공통 리소스: `shared/src/commonMain/composeResources/`
-- Android 구현: `shared/src/androidMain/`
-- iOS 구현: `shared/src/iosMain/`
+공통 리소스는 [`composeResources/`](shared/src/commonMain/composeResources/)에서 관리합니다.
 
 ## 실행 준비
 
