@@ -128,7 +128,7 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize().then(dismissKeyboardOnTap),
         topBar = {
             AppTitle(
-                title = "$appName | ${uiState.username}",
+                title = appName,
                 navigateToMyPage = {
                     searchTracker.close(BookSearchEnd.NAVIGATION)
                     listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
@@ -299,9 +299,7 @@ private fun HomeScreenPreview() {
     YeobaekTheme {
         HomeScreen(
             appName = "여백",
-            uiState = HomeUiState(
-                username = "하로하로하로",
-            ),
+            uiState = HomeUiState(),
             navigateToJoin = {},
             navigateToDetail = {},
             navigateToCreate = {},

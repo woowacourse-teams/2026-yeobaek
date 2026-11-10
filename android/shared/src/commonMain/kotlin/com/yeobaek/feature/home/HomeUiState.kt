@@ -6,7 +6,6 @@ import com.yeobaek.feature.home.model.GroupUiModel
 import com.yeobaek.feature.home.model.PublicRoomBookUiModel
 
 data class HomeUiState(
-    val username: String = "",
     val currentlyReadingBookUiModel: CurrentlyReadingBookUiModel? = null,
     val groups: List<GroupUiModel> = emptyList(),
     val isMovePublicRoom: Boolean = false,
