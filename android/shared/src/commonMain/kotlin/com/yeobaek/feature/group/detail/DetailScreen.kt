@@ -59,6 +59,9 @@ fun DetailScreen(
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
     onInviteShareSubmitted: (EventResult) -> Unit = {},
+    notificationState: GroupNotificationUiState? = null,
+    onNotificationClick: () -> Unit = {},
+    onNotificationErrorShown: () -> Unit = {},
 ) {
     val shareSheet = rememberInviteShareSheet()
     val clipboard = LocalClipboard.current
@@ -67,6 +70,14 @@ fun DetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
     var chooseOtherInfo by remember { mutableStateOf(UserUiModel()) }
+
+    val notificationError = notificationState?.error.takeIf { uiState.screenState == ScreenState.Success }
+    LaunchedEffect(notificationError) {
+        notificationError?.let {
+            snackbarHostState.showSnackbar(it)
+            onNotificationErrorShown()
+        }
+    }
 
     LaunchedEffect(uiState.exitState) {
         when (uiState.exitState) {
@@ -129,17 +140,17 @@ fun DetailScreen(
         modifier = modifier
             .fillMaxSize(),
         topBar = {
+            val showGroupActions = uiState.screenState == ScreenState.Success
+            val requestExit = {
+                onExitRequest()
+                showDeleteDialog = true
+            }
             DetailTopAppBar(
-                title = when (uiState.screenState) {
-                    is ScreenState.Success -> uiState.groupUiModel.name
-                    is ScreenState.Loading -> uiState.screenState.message
-                    is ScreenState.Error -> uiState.screenState.message
-                },
+                title = uiState.groupUiModel.name.ifBlank { "모임 상세" },
                 onBackClick = onBackClick,
-                onExitClick = {
-                    onExitRequest()
-                    showDeleteDialog = true
-                },
+                notificationState = notificationState.takeIf { showGroupActions },
+                onNotificationClick = onNotificationClick,
+                onExitClick = requestExit.takeIf { showGroupActions },
             )
         },
         bottomBar = {

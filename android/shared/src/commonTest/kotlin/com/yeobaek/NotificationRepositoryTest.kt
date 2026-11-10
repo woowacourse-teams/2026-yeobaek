@@ -122,6 +122,50 @@ class NotificationRepositoryTest {
     }
 
     @Test
+    fun loadsAndUpdatesTheSelectedGroupPreference() = runTest {
+        val methods = mutableListOf<HttpMethod>()
+        withRepository({ request ->
+            methods.add(request.method)
+            assertEquals("/api/clubs/42/notifications/preferences", request.url.encodedPath)
+            assertEquals("fid-10", request.url.parameters["fid"])
+            assertEquals("7", request.headers["X-Member-Id"])
+            if (request.method == HttpMethod.Get) {
+                respond("""{"enabled":false}""", HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
+            } else {
+                assertEquals("""{"enabled":true}""", (request.body as TextContent).text)
+                respond("", HttpStatusCode.NoContent)
+            }
+        }) { repository ->
+            assertFalse(repository.getGroupPreference(7, "fid-10", 42))
+            repository.updateGroupPreference(7, "fid-10", 42, true)
+        }
+        assertEquals(listOf(HttpMethod.Get, HttpMethod.Patch), methods)
+    }
+
+    @Test
+    fun retriesGroupUpdateAfterRegisteringMissingDevice() = runTest {
+        val calls = mutableListOf<Pair<HttpMethod, String>>()
+        withRepository({ request ->
+            calls.add(request.method to request.url.encodedPath)
+            when (calls.size) {
+                1 -> respondError("NOTIFICATION_REGISTRATION_NOT_FOUND")
+                2 -> respond("", HttpStatusCode.OK)
+                else -> respond("", HttpStatusCode.NoContent)
+            }
+        }) { repository ->
+            repository.updateGroupPreference(7, "fid-10", 42, false)
+        }
+        assertEquals(
+            listOf(
+                HttpMethod.Patch to "/api/clubs/42/notifications/preferences",
+                HttpMethod.Post to "/api/notifications/registrations",
+                HttpMethod.Patch to "/api/clubs/42/notifications/preferences",
+            ),
+            calls,
+        )
+    }
+
+    @Test
     fun globalTogglePreservesTypeSelections() {
         val original = NotificationPreferences(true, true, false, true)
         val disabled = original.updated(NotificationSetting.ALL, false)
