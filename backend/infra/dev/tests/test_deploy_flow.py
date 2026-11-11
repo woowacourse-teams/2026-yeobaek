@@ -139,10 +139,11 @@ class DeployFlowTest(unittest.TestCase):
         (self.root / "state.json").write_text(json.dumps({
             "containers": {"yeobaek-app-blue": "running"}, "reloads": 0,
         }))
+        self.summary = self.root / "actions-summary.md"
         self.env = {**os.environ, "PATH": f"{binary}:{os.environ['PATH']}",
                     "TEST_ROOT": str(self.root), "DEPLOY_DIR": str(self.root),
                     "NGINX_CONFIG": str(self.config), "WORKER_WAIT_SECONDS": "1",
-                    "GITHUB_ACTIONS": "false", "GITHUB_STEP_SUMMARY": ""}
+                    "GITHUB_ACTIONS": "true", "GITHUB_STEP_SUMMARY": str(self.summary)}
 
     def deploy(self, scenario="success"):
         self.env["TEST_SCENARIO"] = scenario
@@ -158,6 +159,10 @@ class DeployFlowTest(unittest.TestCase):
 
     def test_success_drains_before_stopping_old_app(self):
         self.assertEqual(0, self.deploy(), self.output)
+        summary = self.summary.read_text()
+        self.assertIn("## 🟢 개발 배포 완료", summary)
+        self.assertNotIn("🟠", summary)
+        self.assertIn(NEW_SHA, summary)
         self.assertEqual({"yeobaek-app-green": "running"}, self.state["containers"])
         self.assertIn("8081", self.config.read_text())
         drain = next(i for i, c in enumerate(self.calls) if c[0] == "python3" and c[2] == "wait-workers")
@@ -216,6 +221,9 @@ class DeployFlowTest(unittest.TestCase):
 
     def test_drain_timeout_keeps_green_route_and_blue_container(self):
         self.assertEqual(1, self.deploy("drain-fail"), self.output)
+        self.assertIn("## 🔴 개발 배포 실패", self.summary.read_text())
+        self.assertIn("**실패 이유:**", self.summary.read_text())
+        self.assertIn("::error::", self.output)
         self.assertEqual([], self.stopped())
         self.assertEqual(2, len(self.state["containers"]))
         self.assertEqual(1, self.state["reloads"])
@@ -224,9 +232,15 @@ class DeployFlowTest(unittest.TestCase):
     def test_forced_but_confirmed_stop_is_success_with_warning(self):
         self.assertEqual(0, self.deploy("forced-stop"), self.output)
         self.assertIn("강제 종료 가능성", self.output)
+        self.assertIn("## 🟠 개발 배포 완료", self.summary.read_text())
+        self.assertIn("강제 종료 가능성", self.summary.read_text())
+        self.assertIn("::warning::", self.output)
+        self.assertNotIn("::error::", self.output)
 
     def test_unconfirmed_stop_fails_without_rollback(self):
         self.assertEqual(1, self.deploy("stop-fail"), self.output)
+        self.assertIn("## 🔴 개발 배포 실패", self.summary.read_text())
+        self.assertIn("### 🟠 경고", self.summary.read_text())
         self.assertEqual(2, len(self.state["containers"]))
         self.assertEqual(1, self.state["reloads"])
 
@@ -260,6 +274,8 @@ class DeployFlowTest(unittest.TestCase):
     def test_retention_failure_does_not_change_successful_deployment(self):
         self.assertEqual(0, self.deploy("prune-fail"), self.output)
         self.assertIn("오래된 배포 기록 정리 실패", self.output)
+        self.assertIn("## 🟠 개발 배포 완료", self.summary.read_text())
+        self.assertIn("오래된 배포 기록 정리 실패", self.summary.read_text())
         result = next((self.root / "deployment" / "records").glob("*/deployment.json"))
         self.assertEqual(0, json.loads(result.read_text())["result"]["exit_code"])
 

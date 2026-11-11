@@ -31,6 +31,8 @@ new_owned=0
 rollback_result=not-needed
 cleanup_result=not-started
 failure_reason=
+warning_count=0
+warning_messages=
 
 kst_now() {
   TZ=Asia/Seoul date '+%Y-%m-%dT%H:%M:%S+09:00'
@@ -52,8 +54,39 @@ log() {
 }
 
 warn() {
+  warning_count=$((warning_count + 1))
+  warning_messages+="- $*"$'\n'
   log "경고: $*"
   if [[ ${GITHUB_ACTIONS:-false} == true ]]; then printf '::warning::%s\n' "$*"; fi
+}
+
+write_actions_summary() {
+  local code=$1 title switch_status="미확인"
+  [[ -n ${GITHUB_STEP_SUMMARY:-} ]] || return 0
+  if [[ "$code" != 0 ]]; then
+    title="🔴 개발 배포 실패 — 확인 필요"
+  elif [[ "$warning_count" -gt 0 ]]; then
+    title="🟠 개발 배포 완료 — 경고 확인 필요"
+  else
+    title="🟢 개발 배포 완료"
+  fi
+  [[ "$switch_verified" == 1 ]] && switch_status="확인 완료"
+  {
+    printf '\n## %s\n\n' "$title"
+    printf '| 항목 | 결과 |\n| --- | --- |\n'
+    printf '| 배포 대상 커밋 | `%s` |\n' "$deploy_sha"
+    printf '| 새 앱으로 전환 | %s |\n' "$switch_status"
+    printf '| 마지막 단계 | `%s` |\n| 복구 결과 | `%s` |\n| 앱 정리 결과 | `%s` |\n' \
+      "$phase" "$rollback_result" "$cleanup_result"
+    if [[ "$code" != 0 ]]; then
+      printf '\n**실패 이유:** %s\n' "${failure_reason:-명령 실행 실패 또는 실행 중단. 배포 단계 로그를 확인하세요.}"
+    fi
+    if [[ "$warning_count" -gt 0 ]]; then
+      printf '\n### 🟠 경고 %s건\n\n%s' "$warning_count" "$warning_messages"
+    fi
+    printf '\n서버 기록: `%s`\n' "$record_dir"
+    printf '\n무중단 여부는 외부 요청 측정 결과로 별도 확인합니다.\n'
+  } >> "$GITHUB_STEP_SUMMARY"
 }
 
 fail() {
@@ -267,10 +300,6 @@ finish() {
     warn "배포 결과 JSON 저장 실패. deployment.log를 확인하세요."
   log "배포 종료: exit=$code, 전환확인=$switch_verified, 복구=$rollback_result, 정리=$cleanup_result"
   log "기록 위치: $record_dir"
-  if [[ -n ${GITHUB_STEP_SUMMARY:-} ]]; then
-    printf '\n개발 배포 결과: exit=%s, 전환확인=%s, 복구=%s, 정리=%s\n\n기록: `%s`\n' \
-      "$code" "$switch_verified" "$rollback_result" "$cleanup_result" "$record_dir" >> "$GITHUB_STEP_SUMMARY"
-  fi
   if ! python3 "$helper" cleanup-temporary "$deployment_root" "$nginx_config"; then
     warn "임시 파일 정리 실패. 다음 배포에서 다시 정리합니다."
   fi
@@ -280,6 +309,8 @@ finish() {
   else
     warn "오래된 배포 기록 정리 실패. 배포 결과는 유지합니다. $retention_message"
   fi
+  # 기록 정리 과정에서 발생한 경고까지 포함한다. 요약 저장 실패로 배포 결과를 바꾸지 않는다.
+  write_actions_summary "$code" || warn "Actions 요약 저장 실패. 배포 단계 로그를 확인하세요."
   exit "$code"
 }
 
