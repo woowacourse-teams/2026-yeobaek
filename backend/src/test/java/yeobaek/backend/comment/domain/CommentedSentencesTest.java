@@ -22,7 +22,7 @@ class CommentedSentencesTest {
         CommentedSentence earlierUnread = sentence(4L, 1, 2, 1);
         CommentedSentences sentences = new CommentedSentences(List.of(future, read, unread, earlierUnread));
 
-        assertThat(sentences.unreadThrough(currentPassage).values())
+        assertThat(sentences.withUnreadCommentsUpTo(currentPassage).values())
                 .containsExactly(unread, earlierUnread);
         assertThat(sentences.values()).containsExactly(future, read, unread, earlierUnread);
     }

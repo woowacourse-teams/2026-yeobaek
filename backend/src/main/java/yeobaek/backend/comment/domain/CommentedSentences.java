@@ -10,7 +10,7 @@ public record CommentedSentences(List<CommentedSentence> values) {
         values = List.copyOf(values);
     }
 
-    public CommentedSentences unreadThrough(Passage currentPassage) {
+    public CommentedSentences withUnreadCommentsUpTo(Passage currentPassage) {
         return new CommentedSentences(values.stream()
                 .filter(sentence -> sentence.hasSpoilerFreeNewComments(currentPassage))
                 .toList());

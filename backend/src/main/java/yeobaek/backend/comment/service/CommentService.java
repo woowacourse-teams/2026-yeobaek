@@ -180,7 +180,7 @@ public class CommentService {
         CommentedSentences sentences = loadPublicRoomCommentedSentences(memberId, publicRoomId);
         CommentedSentences selected = switch (filter) {
             case ALL -> sentences;
-            case NEW -> sentences.unreadThrough(currentPassage);
+            case NEW -> sentences.withUnreadCommentsUpTo(currentPassage);
         };
         CommentedSentencesResponse response = toResponse(selected.sortedByPositionInBook(), currentPassage);
 
@@ -264,7 +264,7 @@ public class CommentService {
         CommentedSentences sentences = loadClubCommentedSentences(memberId, clubId);
         CommentedSentences selected = switch (filter) {
             case ALL -> sentences;
-            case NEW -> sentences.unreadThrough(currentPassage);
+            case NEW -> sentences.withUnreadCommentsUpTo(currentPassage);
         };
         CommentedSentencesResponse response = toResponse(selected.sortedByPositionInBook(), currentPassage);
 
