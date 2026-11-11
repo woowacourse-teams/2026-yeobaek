@@ -1,5 +1,7 @@
 package com.yeobaek.core.analytics
 
+import com.yeobaek.core.invitation.InviteAttribution
+
 data class GroupDetailOpened(
     val groupId: Long,
 ) : AnalyticsEvent {
@@ -60,11 +62,13 @@ data class GroupJoinVisit(
     val entryPoint: GroupJoinEntryPoint,
     val id: String,
     val invitationRequestId: String? = null,
+    val inviteAttribution: InviteAttribution? = null,
 ) {
     val properties = buildMap {
         put(KEY_ENTRY_POINT, entryPoint.value)
         put("join_visit_id", id)
         invitationRequestId?.let { put("invitation_request_id", it) }
+        inviteAttribution?.let { putAll(it.properties) }
     }
 }
 

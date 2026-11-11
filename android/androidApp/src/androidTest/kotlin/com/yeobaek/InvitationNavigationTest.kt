@@ -35,6 +35,8 @@ import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.invitation.AppInvitations
+import com.yeobaek.core.invitation.InviteAttribution
+import com.yeobaek.core.invitation.InviteLink
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.data.model.GroupDetailModel
 import com.yeobaek.data.model.GroupModel
@@ -187,9 +189,19 @@ class InvitationNavigationTest {
 
     @Test
     fun successfulParticipationReturnsHomeAndDoesNotResubmit() {
-        showFixture()
+        val attribution = InviteAttribution(
+            shareId = "79e37893-cd98-4db9-83db-ff90c3b80595",
+            webVisitId = "24a97a25-77e2-4b65-8432-d73ded1d5b47",
+        )
+        showFixture(initialUri = InviteLink.create("ABC123", attribution))
         rule.onNode(hasText("모임 참여하기") and hasClickAction()).performClick()
         rule.onNodeWithText("테스트 홈").assertIsDisplayed()
+        rule.runOnIdle {
+            val submitted = events.single { it.first == "group_join_submitted" }.second
+            assertEquals("success", submitted["result"])
+            assertEquals(attribution.shareId, submitted["invite_share_id"])
+            assertEquals(attribution.webVisitId, submitted["invite_web_visit_id"])
+        }
         assertEquals(listOf("ABC123"), repository.codes)
         open("ABC123", "fresh")
         rule.onNodeWithText("ABC123").assertIsDisplayed()
@@ -244,6 +256,7 @@ class InvitationNavigationTest {
                                     GroupJoinEntryPoint.DEEPLINK,
                                     entry.id,
                                     route.invitationRequestId,
+                                    route.inviteShareId?.let { InviteAttribution(it, route.inviteWebVisitId) },
                                 ),
                                 initialCode = route.initialCode,
                                 groupRepository = repository,

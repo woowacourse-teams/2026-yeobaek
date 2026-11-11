@@ -112,8 +112,8 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val invitations = AppInvitations { requestId, valid ->
-        analyticsTracker.track(InviteLinkOpened(requestId, valid))
+    val invitations = AppInvitations { request ->
+        analyticsTracker.track(InviteLinkOpened(request.id, request.code != null, request.attribution))
     }
 
     val notifications = AppNotifications { analyticsTracker.track(it) }

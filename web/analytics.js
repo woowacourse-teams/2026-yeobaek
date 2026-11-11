@@ -5,6 +5,7 @@ const CAPTURE_URL = "https://us.i.posthog.com/i/v0/e/";
 /**
  * @param {{ readonly projectToken: string, readonly environment: "development" | "production",
  * readonly distinctId: string, readonly origin: string,
+ * readonly shareId?: string,
  * readonly sendBeacon: (url: string, body: string) => boolean }} options
  */
 export function createInviteAnalytics(options) {
@@ -21,6 +22,10 @@ export function createInviteAnalytics(options) {
       event,
       properties: {
         ...properties,
+        ...(options.shareId ? {
+          invite_share_id: options.shareId,
+          invite_web_visit_id: options.distinctId,
+        } : {}),
         environment: options.environment,
         $current_url: options.origin + "/",
         $process_person_profile: false,
@@ -38,8 +43,9 @@ export function createInviteAnalytics(options) {
     pageViewed(linkState) {
       capture("$pageview", { link_state: linkState });
     },
-    appOpenSelected() {
-      capture("invite_app_open_selected", {});
+    /** @param {"tracked" | "legacy"} [entryMode] */
+    appOpenSelected(entryMode) {
+      capture("invite_app_open_selected", entryMode ? { entry_mode: entryMode } : {});
     },
     /** @param {boolean} copied */
     codeCopySubmitted(copied) {

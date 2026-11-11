@@ -109,8 +109,8 @@ fun NavGraphBuilder.detailNavGraph(
             onInviteCodeCopy = {
                 appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
             },
-            onInviteShareSubmitted = { result ->
-                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result))
+            onInviteShareSubmitted = { result, shareId ->
+                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result, shareId))
             },
             onBlockUser = { otherUserId ->
                 detailViewModel.blockUser(otherUserId)

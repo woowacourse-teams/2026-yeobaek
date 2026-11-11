@@ -2,19 +2,36 @@
 
 /**
  * @typedef {{ kind: "empty" } | { kind: "invalid" } |
- *   { kind: "valid", code: string, appUri: string }} Invitation
+ *   { kind: "valid", code: string, appUri: string, shareId?: string }} Invitation
  */
 
 /** @param {string} search
+ * @param {string} [webVisitId]
  * @returns {Invitation} */
-export function parseInvitation(search) {
-  const values = new URLSearchParams(search).getAll("code");
+export function parseInvitation(search, webVisitId) {
+  const params = new URLSearchParams(search);
+  const values = params.getAll("code");
   if (values.length === 0) return { kind: "empty" };
   const code = values[0];
   if (values.length !== 1 || !/^[A-Z0-9]{6}$/.test(code)) {
     return { kind: "invalid" };
   }
-  return { kind: "valid", code, appUri: `yeobaek://invite?code=${code}` };
+  const legacyAppUri = `yeobaek://invite?code=${code}`;
+  const shareIds = params.getAll("share_id");
+  const shareId = shareIds.length === 1 ? shareIds[0] : undefined;
+  if (!isAttributionId(shareId)) return { kind: "valid", code, appUri: legacyAppUri };
+
+  const visit = isAttributionId(webVisitId) ? `&web_visit_id=${webVisitId}` : "";
+  return { kind: "valid", code, appUri: `${legacyAppUri}&share_id=${shareId}${visit}`, shareId };
+}
+
+/**
+ * @param {string | undefined} value
+ * @returns {value is string}
+ */
+function isAttributionId(value) {
+  return value !== undefined && value.length === 36 &&
+    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value);
 }
 
 /**

@@ -10,6 +10,29 @@ test("keeps a valid code unchanged when building the app URI", () => {
   });
 });
 
+test("passes the share and web visit IDs to the app", () => {
+  const shareId = "79e37893-cd98-4db9-83db-ff90c3b80595";
+  const webVisitId = "24a97a25-77e2-4b65-8432-d73ded1d5b47";
+
+  const invitation = parseInvitation(`?code=ABC123&share_id=${shareId}`, webVisitId);
+
+  assert.deepEqual(invitation, {
+    kind: "valid", code: "ABC123", shareId,
+    appUri: `yeobaek://invite?code=ABC123&share_id=${shareId}&web_visit_id=${webVisitId}`,
+  });
+});
+
+test("ignores duplicated or malformed share IDs while retaining a valid invitation", () => {
+  for (const search of [
+    "?code=ABC123&share_id=foo",
+    "?code=ABC123&share_id=79e37893-cd98-4db9-83db-ff90c3b80595&share_id=bar",
+  ]) {
+    assert.deepEqual(parseInvitation(search), {
+      kind: "valid", code: "ABC123", appUri: "yeobaek://invite?code=ABC123",
+    });
+  }
+});
+
 test("shows the download state when no invitation code was provided", () => {
   assert.deepEqual(parseInvitation(""), { kind: "empty" });
 });

@@ -7,22 +7,26 @@ const card = document.getElementById("code-card");
 const value = document.getElementById("invite-code");
 const copy = document.getElementById("copy-code");
 const open = document.getElementById("open-app");
+const openLegacy = document.getElementById("open-legacy-app");
 const notice = document.getElementById("notice");
 
 if (!(title instanceof HTMLHeadingElement) || !(card instanceof HTMLElement) ||
     !(value instanceof HTMLElement) || !(copy instanceof HTMLButtonElement) ||
-    !(open instanceof HTMLAnchorElement) || !(notice instanceof HTMLParagraphElement)) {
+    !(open instanceof HTMLAnchorElement) || !(openLegacy instanceof HTMLAnchorElement) ||
+    !(notice instanceof HTMLParagraphElement)) {
   throw new TypeError("Invitation page markup is incomplete");
 }
 
-const invitation = parseInvitation(window.location.search);
+const visitId = globalThis.crypto?.randomUUID?.() ?? "";
+const invitation = parseInvitation(window.location.search, visitId);
 const mobile = isMobileDevice(navigator);
 const projectToken = document.querySelector('meta[name="posthog-project-token"]')?.getAttribute("content") ?? "";
 const environment = document.querySelector('meta[name="analytics-environment"]')?.getAttribute("content");
 const analytics = createInviteAnalytics({
   projectToken: typeof globalThis.crypto?.randomUUID === "function" && typeof navigator.sendBeacon === "function" ? projectToken : "",
   environment: environment === "production" ? "production" : "development",
-  distinctId: globalThis.crypto?.randomUUID?.() ?? "",
+  distinctId: visitId,
+  ...(invitation.kind === "valid" && invitation.shareId ? { shareId: invitation.shareId } : {}),
   origin: window.location.origin,
   sendBeacon: (url, body) => navigator.sendBeacon(url, body),
 });
@@ -49,7 +53,13 @@ switch (invitation.kind) {
     value.textContent = invitation.code;
     open.href = invitation.appUri;
     open.hidden = false;
-    open.addEventListener("click", () => analytics.appOpenSelected());
+    const hasTracking = invitation.shareId !== undefined;
+    open.addEventListener("click", () => analytics.appOpenSelected(hasTracking ? "tracked" : "legacy"));
+    if (hasTracking) {
+      openLegacy.href = `yeobaek://invite?code=${invitation.code}`;
+      openLegacy.hidden = false;
+      openLegacy.addEventListener("click", () => analytics.appOpenSelected("legacy"));
+    }
     const updateHint = () => {
       notice.textContent = !mobile && matchMedia("(min-width: 768px)").matches
         ? "휴대폰에서 초대 링크를 열어주세요."

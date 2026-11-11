@@ -84,6 +84,7 @@ fun InvitationEffects(
         navController.navigateToJoin(
             initialCode = code,
             invitationRequestId = target.id,
+            attribution = target.attribution,
             navOptions = navOptions {
                 if (navController.currentDestination?.hasRoute<Join>() == true) {
                     popUpTo<Join> { inclusive = true }
