@@ -175,7 +175,7 @@ private fun ReaderRoute(
     }
     val commentSheetActions = remember(commentSheet) {
         CommentSheetActions(
-            onDismiss = commentSheet::dismiss,
+            onDismiss = readerViewModel::dismissCommentSheet,
             onRetry = commentSheet::retryLoad,
             onInputChange = commentSheet::updateInput,
             onSubmit = commentSheet::submit,
