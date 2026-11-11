@@ -1,45 +1,57 @@
 # 개발 EC2 배포용 구성. 서버의 ~/yeobaek-dev/docker-compose.yml에 필요한 설정을 반영한다.
 # 같은 디렉터리의 .env에서 실행 설정을 읽는다. 기존 서버의 컨테이너·볼륨 이름은 유지한다.
+
+# Blue와 Green이 함께 사용하는 앱 설정
+x-app-common: &app-common
+  image: ${DOCKERHUB_USERNAME}/yeobaek-backend:develop
+  restart: unless-stopped
+  environment:
+    # 운영 DB/S3 설정을 재사용하되 개발 서버 전용 기능은 dev로 활성화한다.
+    SPRING_PROFILES_ACTIVE: "prod,dev"
+    SPRING_APPLICATION_NAME: yeobaek-api
+    OBSERVABILITY_ENABLED: "true"
+    OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
+    DEPLOYMENT_ENVIRONMENT: dev
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+    TZ: Asia/Seoul
+    DB_URL: ${YEOBAEK_DATABASE_URL:-jdbc:mysql://mysql:3306/yeobaek}
+    DB_USERNAME: root
+    DB_PASSWORD: ${DB_PASSWORD}
+    ADMIN_TOKEN: ${ADMIN_TOKEN}
+    POSTHOG_ENABLED: ${POSTHOG_ENABLED:-false}
+    POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+    POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+    BOOK_COVER_S3_BUCKET: ${BOOK_COVER_S3_BUCKET}
+    BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
+    BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
+    BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
+    FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID is required}
+    GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+  volumes:
+    - type: bind
+      source: ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE must point to the service account JSON}
+      target: /run/secrets/firebase-admin.json
+      read_only: true
+      bind:
+        create_host_path: false
+  depends_on:
+    mysql:
+      condition: service_healthy
+
 services:
+  # 기존 app을 Blue로 사용한다.
   app:
-    image: ${DOCKERHUB_USERNAME}/yeobaek-backend:develop
+    <<: *app-common
     container_name: yeobaek-app
-    restart: unless-stopped
-    # nginx가 호스트에서 프록시하므로 로컬호스트에만 바인딩한다
+    # nginx가 호스트에서 프록시하므로 로컬호스트에만 바인딩한다.
     ports:
       - "127.0.0.1:8080:8080"
-    environment:
-      # 운영 DB/S3 설정을 재사용하되 개발 서버 전용 기능은 dev로 활성화한다.
-      SPRING_PROFILES_ACTIVE: "prod,dev"
-      SPRING_APPLICATION_NAME: yeobaek-api
-      OBSERVABILITY_ENABLED: "true"
-      OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
-      DEPLOYMENT_ENVIRONMENT: dev
-      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-      TZ: Asia/Seoul
-      DB_URL: ${YEOBAEK_DATABASE_URL:-jdbc:mysql://mysql:3306/yeobaek}
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD}
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
-      POSTHOG_ENABLED: ${POSTHOG_ENABLED:-false}
-      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
-      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
-      BOOK_COVER_S3_BUCKET: ${BOOK_COVER_S3_BUCKET}
-      BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
-      BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
-      BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID is required}
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
-    volumes:
-      - type: bind
-        source: ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE must point to the service account JSON}
-        target: /run/secrets/firebase-admin.json
-        read_only: true
-        bind:
-          create_host_path: false
-    depends_on:
-      mysql:
-        condition: service_healthy
+
+  app-green:
+    <<: *app-common
+    container_name: yeobaek-app-green
+    ports:
+      - "127.0.0.1:8081:8080"
 
   mysql:
     image: mysql:8.4
