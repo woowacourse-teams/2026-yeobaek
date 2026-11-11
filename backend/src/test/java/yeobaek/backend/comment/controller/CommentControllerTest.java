@@ -221,7 +221,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-08-07T09:10:00"));
 
         verify(commentService, times(1)).findCommentedSentencesV2(4L, 10L, 1042L, filter);
-        verify(analyticsTracker).track(4L, AnalyticsEvent.commentedSentencesView(10L, 1042L, 1));
+        verify(analyticsTracker).track(4L, AnalyticsEvent.clubCommentedSentencesViewV2(10L, 1042L, 1, filter.name()));
     }
 
     @Test
@@ -240,7 +240,7 @@ class CommentControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences").isEmpty());
 
         verify(commentService, times(1)).findCommentedSentencesV2(4L, 10L, 1042L, filter);
-        verify(analyticsTracker).track(4L, AnalyticsEvent.commentedSentencesView(10L, 1042L, 0));
+        verify(analyticsTracker).track(4L, AnalyticsEvent.clubCommentedSentencesViewV2(10L, 1042L, 0, filter.name()));
     }
 
     @ParameterizedTest

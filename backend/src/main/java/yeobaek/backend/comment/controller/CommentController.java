@@ -133,7 +133,8 @@ public class CommentController {
         CommentedSentencesResponse response = commentService.findCommentedSentencesV2(
                 memberId, clubId, currentPassageId, filter);
         int resultCount = response.commentedSentences().size();
-        analyticsTracker.track(memberId, AnalyticsEvent.commentedSentencesView(clubId, currentPassageId, resultCount));
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.clubCommentedSentencesViewV2(clubId, currentPassageId, resultCount, filter.name()));
 
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId).addKeyValue("passageId", currentPassageId)
