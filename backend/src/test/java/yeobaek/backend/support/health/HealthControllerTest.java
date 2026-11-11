@@ -6,6 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.DisplayName;
@@ -15,17 +16,19 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import yeobaek.backend.support.ControllerTest;
 
-@WebMvcTest(HealthController.class)
+@WebMvcTest(value = HealthController.class,
+        properties = "deployment.commit-sha=9728d096b540d8ad13d856e91c44795b21ab4113")
 class HealthControllerTest extends ControllerTest {
 
     @MockitoBean
     private HealthCheckService healthCheckService;
 
     @Test
-    @DisplayName("인증 헤더 없이 서버와 데이터베이스가 정상이면 빈 200 응답을 반환한다")
+    @DisplayName("인증 헤더 없이 서버와 데이터베이스가 정상이면 커밋 SHA 헤더와 빈 200 응답을 반환한다")
     void healthCheckSucceedsWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Deployed-Commit-SHA", "9728d096b540d8ad13d856e91c44795b21ab4113"))
                 .andExpect(content().string(""));
 
         verify(healthCheckService, times(1)).checkDatabase();

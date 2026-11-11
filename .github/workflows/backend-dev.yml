@@ -64,6 +64,8 @@ jobs:
           file: backend/infra/prod/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            DEPLOYED_COMMIT_SHA=${{ github.sha }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:develop
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:${{ github.sha }}
