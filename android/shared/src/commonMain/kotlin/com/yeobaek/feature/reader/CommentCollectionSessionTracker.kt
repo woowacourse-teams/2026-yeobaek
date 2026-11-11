@@ -1,9 +1,12 @@
 package com.yeobaek.feature.reader
 
 import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.CommentCollectionAction
 import com.yeobaek.core.analytics.CommentCollectionClosed
 import com.yeobaek.core.analytics.CommentCollectionEnd
+import com.yeobaek.core.analytics.CommentCollectionInteraction
 import com.yeobaek.core.analytics.CommentCollectionOpened
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import kotlin.time.Duration
 import kotlin.time.TimeMark
@@ -30,6 +33,11 @@ class CommentCollectionSessionTracker(
     private var revealCount = 0
     private var commentSheetsShown = 0
     private var sentences: List<CommentedSentenceUiModel>? = null
+    private var filter = CommentedSentenceFilter.ALL
+    private var newFilterSelectedCount = 0
+    private var newFilterCardClickCount = 0
+    private var newFilterSheetsShown = 0
+    private val spoilerExposures = mutableSetOf<CommentCollectionAction>()
 
     fun open(
         bookId: Long?,
@@ -45,6 +53,11 @@ class CommentCollectionSessionTracker(
         revealCount = 0
         commentSheetsShown = 0
         sentences = null
+        filter = CommentedSentenceFilter.ALL
+        newFilterSelectedCount = 0
+        newFilterCardClickCount = 0
+        newFilterSheetsShown = 0
+        spoilerExposures.clear()
         segmentStartMark = timeSource.markNow()
 
         trackEvent(
@@ -61,15 +74,37 @@ class CommentCollectionSessionTracker(
     }
 
     fun onCardClicked() {
-        if (visitId != null) cardClickCount++
+        if (visitId == null) return
+        cardClickCount++
+        if (filter == CommentedSentenceFilter.NEW) newFilterCardClickCount++
     }
 
-    fun onSentenceRevealed() {
-        if (visitId != null) revealCount++
+    fun onFilterSelected(filter: CommentedSentenceFilter) {
+        if (visitId == null) return
+        this.filter = filter
+        if (filter == CommentedSentenceFilter.NEW) newFilterSelectedCount++
     }
 
-    fun onCommentSheetShown(collectionVisitId: String) {
-        if (visitId == collectionVisitId) commentSheetsShown++
+    fun onSentenceRevealed(details: Map<String, Any>) {
+        if (visitId == null) return
+        revealCount++
+        trackInteraction(CommentCollectionAction.SENTENCE_REVEALED, details)
+    }
+
+    fun onCommentSheetShown(collectionVisitId: String, sheetFilter: String? = null) {
+        if (visitId != collectionVisitId) return
+        commentSheetsShown++
+        if (sheetFilter == CommentedSentenceFilter.NEW.name.lowercase()) newFilterSheetsShown++
+    }
+
+    fun trackInteraction(action: CommentCollectionAction, details: Map<String, Any> = emptyMap()) {
+        val id = visitId ?: return
+        trackEvent(CommentCollectionInteraction(action, id, bookId, filter, details))
+    }
+
+    fun onSpoilerExposure(action: CommentCollectionAction) {
+        if (visitId == null || filter != CommentedSentenceFilter.ALL || !spoilerExposures.add(action)) return
+        trackInteraction(action)
     }
 
     fun pause() {
@@ -113,6 +148,10 @@ class CommentCollectionSessionTracker(
                 endedBy = endedBy,
                 collectionVisitId = collectionVisitId,
                 commentSheetsShown = commentSheetsShown,
+                lastFilter = filter,
+                newFilterSelectedCount = newFilterSelectedCount,
+                newFilterCardClickCount = newFilterCardClickCount,
+                newFilterSheetsShown = newFilterSheetsShown,
             ),
         )
     }

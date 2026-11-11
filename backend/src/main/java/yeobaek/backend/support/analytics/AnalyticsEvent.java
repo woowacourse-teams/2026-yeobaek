@@ -1,6 +1,7 @@
 package yeobaek.backend.support.analytics;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public record AnalyticsEvent(
@@ -157,10 +158,28 @@ public record AnalyticsEvent(
 
     public static AnalyticsEvent commentedSentencesView(Long clubId, Long currentPassageId,
                                                         int commentedSentenceCount) {
+        return commentedSentencesView(CLUB_ID, clubId, currentPassageId, commentedSentenceCount, "ALL", 1);
+    }
+
+    public static AnalyticsEvent clubCommentedSentencesViewV2(Long clubId, Long currentPassageId,
+                                                              int commentedSentenceCount, String filter) {
+        return commentedSentencesView(CLUB_ID, clubId, currentPassageId, commentedSentenceCount, filter, 2);
+    }
+
+    public static AnalyticsEvent publicRoomCommentedSentencesViewV2(Long publicRoomId, Long currentPassageId,
+                                                                    int commentedSentenceCount, String filter) {
+        return commentedSentencesView("public_room_id", publicRoomId, currentPassageId, commentedSentenceCount, filter, 2);
+    }
+
+    private static AnalyticsEvent commentedSentencesView(String spaceIdKey, Long spaceId, Long currentPassageId,
+                                                         int commentedSentenceCount, String filter, int apiVersion) {
         return event(COMMENTED_SENTENCES_VIEW, Map.of(
-                CLUB_ID, clubId,
+                spaceIdKey, spaceId,
                 CURRENT_PASSAGE_ID, currentPassageId,
-                "commented_sentence_count", commentedSentenceCount
+                "commented_sentence_count", commentedSentenceCount,
+                "reading_space", CLUB_ID.equals(spaceIdKey) ? "group" : "public_room",
+                "api_version", apiVersion,
+                "filter", filter.toLowerCase(Locale.ROOT)
         ));
     }
 

@@ -44,6 +44,8 @@ import yeobaek.backend.publicroom.service.PublicRoomService;
 import yeobaek.backend.support.ControllerTest;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.NotFoundException;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @WebMvcTest(PublicRoomController.class)
 class PublicRoomControllerTest extends ControllerTest {
@@ -53,6 +55,9 @@ class PublicRoomControllerTest extends ControllerTest {
 
     @MockitoBean
     private CommentService commentService;
+
+    @MockitoBean
+    private AnalyticsTracker analyticsTracker;
 
     @Test
     @DisplayName("공개방 목록의 생략 정렬을 기본값으로 서비스에 전달한다")
@@ -260,6 +265,7 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-10-01T09:00:00"));
 
         verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.publicRoomCommentedSentencesViewV2(2L, 7L, 1, filter.name()));
     }
 
     @Test
@@ -277,6 +283,7 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.commentedSentences").isEmpty());
 
         verify(commentService, times(1)).findPublicRoomCommentedSentencesV2(1L, 2L, 7L, filter);
+        verify(analyticsTracker).track(1L, AnalyticsEvent.publicRoomCommentedSentencesViewV2(2L, 7L, 0, filter.name()));
     }
 
     @ParameterizedTest
@@ -290,7 +297,7 @@ class PublicRoomControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 
-        verifyNoInteractions(commentService, publicRoomService);
+        verifyNoInteractions(commentService, publicRoomService, analyticsTracker);
     }
 
     @Test

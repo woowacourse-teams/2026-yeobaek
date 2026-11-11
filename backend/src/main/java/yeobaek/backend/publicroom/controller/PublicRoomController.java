@@ -32,6 +32,8 @@ import yeobaek.backend.publicroom.dto.PublicRoomSort;
 import yeobaek.backend.publicroom.dto.PublicRoomsResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomsResponse;
 import yeobaek.backend.publicroom.service.PublicRoomService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @Tag(name = "공개방")
 @SecurityRequirement(name = "memberId")
@@ -43,6 +45,7 @@ public class PublicRoomController {
 
     private final PublicRoomService publicRoomService;
     private final CommentService commentService;
+    private final AnalyticsTracker analyticsTracker;
 
     @Operation(summary = "전체 공개방 목록 조회 · 검색",
             description = "이용 가능한 책의 공개방을 전체 반환한다. keyword를 주면 제목 또는 작가 이름 부분 일치로 검색한다. 현재 기본 정렬과 MOST_VISITED는 중복을 제외한 누적 방문 회원 수 내림차순이며 동률 순서는 보장하지 않는다. 삭제 도서의 공개방은 제외한다.")
@@ -131,7 +134,11 @@ public class PublicRoomController {
             @RequestParam("currentPassageId") Long currentPassageId,
             @Parameter(description = "조회할 댓글 탭: 전체 댓글(ALL), 새 댓글(NEW)")
             @RequestParam("filter") CommentedSentenceFilter filter) {
-        return commentService.findPublicRoomCommentedSentencesV2(memberId, publicRoomId, currentPassageId, filter);
+        CommentedSentencesResponse response = commentService.findPublicRoomCommentedSentencesV2(
+                memberId, publicRoomId, currentPassageId, filter);
+        analyticsTracker.track(memberId, AnalyticsEvent.publicRoomCommentedSentencesViewV2(
+                publicRoomId, currentPassageId, response.commentedSentences().size(), filter.name()));
+        return response;
     }
 
     @Operation(summary = "공개방 문장의 댓글 상세 조회와 직접 확인",

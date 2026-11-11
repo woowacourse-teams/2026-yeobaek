@@ -42,10 +42,13 @@ import com.yeobaek.core.analytics.BookSearchEntryPoint
 import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.HomeReadingSpace
 import com.yeobaek.core.analytics.HomeReadingTabSelected
+import com.yeobaek.core.analytics.KeyboardDismissTrigger
+import com.yeobaek.core.analytics.KeyboardField
 import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.analytics.PublicRoomListEnd
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.TrackBookSearch
+import com.yeobaek.core.common.rememberKeyboardDismissal
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
@@ -81,6 +84,7 @@ fun HomeScreen(
         mutableStateOf(GroupTab.MyGroups)
     }
     val listVisitTracker = remember { PublicRoomListVisitTracker(onAnalyticsEvent) }
+    val recentListVisit = remember { RecentPublicRoomListVisit(onAnalyticsEvent) }
     val searchTracker = remember {
         BookSearchTracker(BookSearchEntryPoint.PUBLIC_ROOM, onAnalyticsEvent).apply {
             queryChanged(uiState.publicRoomTab.searchTextValue.isNotBlank())
@@ -104,6 +108,7 @@ fun HomeScreen(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         listVisitTracker.close(PublicRoomListEnd.BACKGROUND)
+        recentListVisit.close()
     }
 
     LaunchedEffect(uiState.isMovePublicRoom) {
@@ -114,9 +119,14 @@ fun HomeScreen(
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardDismissed = rememberKeyboardDismissal(
+        KeyboardField.PUBLIC_ROOM_SEARCH.takeIf { selectedGroupTab == GroupTab.PublicRooms },
+        onAnalyticsEvent,
+    )
     val dismissKeyboardOnTap = if (selectedGroupTab == GroupTab.PublicRooms) {
-        Modifier.pointerInput(focusManager, keyboardController) {
+        Modifier.pointerInput(focusManager, keyboardController, keyboardDismissed) {
             detectTapGestures {
+                keyboardDismissed(KeyboardDismissTrigger.OUTSIDE_TAP)
                 focusManager.clearFocus()
                 keyboardController?.hide()
             }
@@ -177,6 +187,7 @@ fun HomeScreen(
                         if (selectedGroupTab == GroupTab.PublicRooms) {
                             searchTracker.close(BookSearchEnd.TAB_SWITCH)
                             listVisitTracker.close(PublicRoomListEnd.TAB_SWITCH)
+                            recentListVisit.close()
                         }
                         selectedGroupTab = tab
                         onAnalyticsEvent(
@@ -227,13 +238,14 @@ fun HomeScreen(
                             listVisitTracker.selectRoom()
                         } else {
                             listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
-                            null
+                            recentListVisit.id
                         }
                         onPublicRoomClick(publicRoom, entryPoint, listVisitId)
                     },
                     onListObserved = listVisitTracker::observe,
                     onListUserScrolled = listVisitTracker::onUserScrolled,
                     observationEpoch = observationEpoch,
+                    recentListVisit = recentListVisit,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }

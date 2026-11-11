@@ -12,9 +12,12 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.CommentCollectionFilterTrigger
+import com.yeobaek.core.analytics.ReaderSessionEnd
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderCommentTarget
@@ -146,7 +149,7 @@ private fun ReaderRoute(
         ReaderActions(
             onBackClick = {
                 readerViewModel.finishReadingSession()
-                readerViewModel.saveReadingProgress(onComplete = onBackClick)
+                readerViewModel.saveReadingProgress(ReaderSessionEnd.BACK, onComplete = onBackClick)
             },
             onSentenceClick = readerViewModel::openSentenceComments,
             onTableOfContentsClick = readerViewModel::openTableOfContents,
@@ -165,11 +168,20 @@ private fun ReaderRoute(
             onCommentCollectionsClick = readerViewModel::openCommentCollections,
             onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
             onCommentCollectionsRetry = readerViewModel::getCommentCollections,
-            onCommentCollectionFilterSelected = readerViewModel::selectCommentCollectionFilter,
+            onCommentCollectionFilterSelected = { readerViewModel.selectCommentCollectionFilter(it) },
+            onShowAllComments = {
+                readerViewModel.selectCommentCollectionFilter(
+                    CommentedSentenceFilter.ALL,
+                    CommentCollectionFilterTrigger.EMPTY_STATE_CTA,
+                )
+            },
             onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
             onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
+            onSpoilerExposure = readerViewModel::onSpoilerExposure,
+            onReturnButtonShown = readerViewModel::onReturnButtonShown,
             onMoveToComment = readerViewModel::moveToSelectedComment,
             onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
+            onInitialPositionApplied = readerViewModel::onInitialPositionApplied,
         )
     }
     val commentSheetActions = remember(commentSheet) {

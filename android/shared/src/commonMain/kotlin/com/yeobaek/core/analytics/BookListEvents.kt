@@ -13,6 +13,20 @@ data class BookListViewed(
     )
 }
 
+data class BookListMetadataViewed(
+    val groupCreateAttemptId: String,
+    val bookId: Long,
+    val section: BookMetadataSection,
+) : AnalyticsEvent {
+    override val name = "book_list_metadata_viewed"
+    override val properties = mapOf(
+        "group_create_attempt_id" to groupCreateAttemptId,
+        "entry_point" to BookDetailEntryPoint.GROUP_CREATE.value,
+        "book_id" to bookId,
+        "section" to section.value,
+    )
+}
+
 enum class BookListEnd(val value: String) {
     BOOK_SELECTED("book_selected"),
     NAVIGATION("navigation"),
@@ -49,11 +63,16 @@ data class BookCardContext(
     val genreBadgeShown: Boolean,
     val hashtagsShown: Boolean,
     val listVisitId: String? = null,
+    val recentListVisitId: String? = null,
 ) {
     val properties = buildMap {
         position?.let { put("book_position", it) }
         put("genre_badge_shown", genreBadgeShown)
         put("hashtags_shown", hashtagsShown)
         listVisitId?.let { put("list_visit_id", it) }
+        recentListVisitId?.let {
+            put("recent_list_visit_id", it)
+            position?.let { index -> put("card_position", index) }
+        }
     }
 }

@@ -47,8 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.CommentCollectionAction
+import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
 import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.CommentedSentenceMode
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
@@ -63,10 +67,12 @@ fun CommentCollectionContents(
     selectedFilter: CommentedSentenceFilter,
     onFilterSelected: (CommentedSentenceFilter) -> Unit,
     onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
-    onSentenceReveal: () -> Unit,
+    onSentenceReveal: (CommentedSentenceUiModel, CommentSentenceRevealTrigger) -> Unit,
     onRetry: () -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    onShowAll: () -> Unit = { onFilterSelected(CommentedSentenceFilter.ALL) },
+    onSpoilerExposure: (CommentCollectionAction) -> Unit = {},
 ) {
     val listState = key(selectedFilter) { rememberLazyListState() }
     var revealedSentenceIds by remember { mutableStateOf(emptySet<Long>()) }
@@ -112,7 +118,7 @@ fun CommentCollectionContents(
 
                 CommentedSentenceMode.None -> if (isNewCommentsTab) {
                     NewCommentsEmptyContent(
-                        onShowAll = { onFilterSelected(CommentedSentenceFilter.ALL) },
+                        onShowAll = onShowAll,
                         modifier = Modifier.padding(innerPadding),
                     )
                 } else {
@@ -144,7 +150,11 @@ fun CommentCollectionContents(
                                         Res.string.reader_comment_collection_spoiler_notice
                                     },
                                 ),
-                                modifier = Modifier.padding(bottom = 15.dp),
+                                modifier = Modifier.padding(bottom = 15.dp).onGloballyPositioned {
+                                    if (!isNewCommentsTab && !it.boundsInWindow().isEmpty) {
+                                        onSpoilerExposure(CommentCollectionAction.SPOILER_NOTICE_VIEWED)
+                                    }
+                                },
                                 color = MaterialTheme.colorScheme.tertiary,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -153,13 +163,25 @@ fun CommentCollectionContents(
                             items = displayedSentences,
                             key = { it.sentenceId },
                         ) { sentence ->
+                            val revealed = sentence.sentenceId in revealedSentenceIds
                             CommentCollectionContent(
                                 commentedSentenceUiModel = sentence,
-                                isRevealed = sentence.sentenceId in revealedSentenceIds,
+                                isRevealed = revealed,
                                 onCommentCardClick = onCommentCardClick,
-                                onReveal = {
-                                    revealedSentenceIds += sentence.sentenceId
-                                    onSentenceReveal()
+                                onReveal = { trigger ->
+                                    if (sentence.sentenceId !in revealedSentenceIds) {
+                                        revealedSentenceIds += sentence.sentenceId
+                                        onSentenceReveal(sentence, trigger)
+                                    }
+                                },
+                                modifier = Modifier.onGloballyPositioned {
+                                    if (!isNewCommentsTab &&
+                                        sentence.requiresReveal &&
+                                        !revealed &&
+                                        !it.boundsInWindow().isEmpty
+                                    ) {
+                                        onSpoilerExposure(CommentCollectionAction.HIDDEN_CARD_VIEWED)
+                                    }
                                 },
                             )
                         }

@@ -44,3 +44,30 @@ test("an unconfigured site leaves invitation actions usable without sending a be
 
   analytics.appOpenSelected();
 });
+
+test("includes attribution IDs in the tracked pageview and app open events", () => {
+  const shareId = "79e37893-cd98-4db9-83db-ff90c3b80595";
+  const webVisitId = "24a97a25-77e2-4b65-8432-d73ded1d5b47";
+  const payloads = [];
+  const analytics = createInviteAnalytics({
+    projectToken: "phc_test",
+    environment: "production",
+    distinctId: webVisitId,
+    shareId,
+    origin: "https://yeobaek-invite.vercel.app",
+    sendBeacon: (_url, body) => {
+      payloads.push(JSON.parse(body));
+      return true;
+    },
+  });
+
+  analytics.pageViewed("valid");
+  analytics.appOpenSelected("tracked");
+
+  assert.deepEqual(payloads.map(({ event, properties }) => [
+    event, properties.invite_share_id, properties.invite_web_visit_id, properties.$current_url,
+  ]), [
+    ["$pageview", shareId, webVisitId, "https://yeobaek-invite.vercel.app/"],
+    ["invite_app_open_selected", shareId, webVisitId, "https://yeobaek-invite.vercel.app/"],
+  ]);
+});

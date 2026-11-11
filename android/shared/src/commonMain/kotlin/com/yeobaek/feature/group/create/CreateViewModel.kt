@@ -16,6 +16,7 @@ import com.yeobaek.core.analytics.BookDetailConfirmed
 import com.yeobaek.core.analytics.BookDetailEntryPoint
 import com.yeobaek.core.analytics.BookDetailVisit
 import com.yeobaek.core.analytics.BookListExposure
+import com.yeobaek.core.analytics.BookListMetadataViewed
 import com.yeobaek.core.analytics.BookListVisitTracker
 import com.yeobaek.core.analytics.BookMetadataSection
 import com.yeobaek.core.analytics.BookSearchEntryPoint
@@ -61,7 +62,10 @@ class CreateViewModel(
         savedStateHandle[ATTEMPT_ID_KEY] = it
         analyticsTracker.track(GroupCreateInitiated(it))
     }
-    val bookListTracker = BookListVisitTracker(BookDetailEntryPoint.GROUP_CREATE, { analyticsTracker.track(it) })
+    val bookListTracker = BookListVisitTracker(
+        BookDetailEntryPoint.GROUP_CREATE,
+        { analyticsTracker.track(it, mapOf("group_create_attempt_id" to attemptId)) },
+    )
     var detailVisit = BookDetailVisit()
         private set
 
@@ -286,6 +290,26 @@ class CreateViewModel(
         }
     }
 
+    fun onFullyVisibleBooks(bookIds: List<Long>) {
+        if (uiState.step != CreateStep.BookSelection) return
+        val viewedSections = savedStateHandle.get<List<String>>(BOOK_LIST_METADATA_VIEWED_KEY).orEmpty().toMutableSet()
+        if (viewedSections.size == BookMetadataSection.entries.size) return
+
+        val visibleBooks = uiState.bookList.filter { it.id in bookIds }
+        BookMetadataSection.entries.forEach { section ->
+            if (section.value in viewedSections) return@forEach
+            val firstBook = visibleBooks.firstOrNull { book ->
+                when (section) {
+                    BookMetadataSection.GENRES -> book.genres.any(String::isNotBlank)
+                    BookMetadataSection.HASHTAGS -> book.hashtags.any { it.trim().trimStart('#').isNotBlank() }
+                }
+            } ?: return@forEach
+            viewedSections += section.value
+            analyticsTracker.track(BookListMetadataViewed(attemptId, firstBook.id, section))
+        }
+        savedStateHandle[BOOK_LIST_METADATA_VIEWED_KEY] = ArrayList(viewedSections)
+    }
+
     fun abandon() {
         val selectedCount = savedStateHandle.get<Int>(BOOK_SELECTED_COUNT_KEY) ?: 0
         val furthestStep = when {
@@ -400,6 +424,7 @@ class CreateViewModel(
         private const val CREATE_STEP_KEY = "createStep"
         private const val GROUP_NAME_KEY = "groupName"
         private const val ATTEMPT_ID_KEY = "groupCreate.attemptId"
+        private const val BOOK_LIST_METADATA_VIEWED_KEY = "groupCreate.bookListMetadataViewed"
         private const val BOOK_SELECTED_COUNT_KEY = "groupCreate.bookSelectedCount"
         private const val BOOK_CONFIRMED_KEY = "groupCreate.bookConfirmed"
 

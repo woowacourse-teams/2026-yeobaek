@@ -19,9 +19,13 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.BookListVisitTracker
 import com.yeobaek.core.analytics.BookMetadataSection
+import com.yeobaek.core.analytics.KeyboardDismissTrigger
+import com.yeobaek.core.analytics.KeyboardField
 import com.yeobaek.core.common.TrackBookList
+import com.yeobaek.core.common.rememberKeyboardDismissal
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -45,11 +49,21 @@ fun CreateScreen(
     modifier: Modifier = Modifier,
     bookListTracker: BookListVisitTracker? = null,
     onMetadataViewed: (BookMetadataSection) -> Unit = {},
+    onFullyVisibleBooks: ((List<Long>) -> Unit)? = null,
+    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val bookGridState = rememberLazyGridState()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardDismissed = rememberKeyboardDismissal(
+        when (uiState.step) {
+            CreateStep.BookSelection -> KeyboardField.GROUP_CREATE_BOOK_SEARCH
+            CreateStep.GroupName -> KeyboardField.GROUP_NAME
+            CreateStep.BookDetail -> null
+        },
+        onAnalyticsEvent,
+    )
 
     PlatformBackHandler(onBack = onBackClick)
 
@@ -88,12 +102,13 @@ fun CreateScreen(
                 uiState.searchState !is SearchState.Loading &&
                 uiState.searchState !is SearchState.Failure
         }
-        TrackBookList(bookListTracker, bookGridState, displayedBooks?.map { it.id })
+        TrackBookList(bookListTracker, bookGridState, displayedBooks?.map { it.id }, onFullyVisibleBooks)
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize().pointerInput(focusManager, keyboardController) {
+        modifier = modifier.fillMaxSize().pointerInput(focusManager, keyboardController, keyboardDismissed) {
             detectTapGestures {
+                keyboardDismissed(KeyboardDismissTrigger.OUTSIDE_TAP)
                 focusManager.clearFocus()
                 keyboardController?.hide()
             }
@@ -133,6 +148,7 @@ fun CreateScreen(
                     gridState = bookGridState,
                     onClickBook = selectBook,
                     onLastVisibleBookChanged = onLastVisibleBookChanged,
+                    onImeSearch = { keyboardDismissed(KeyboardDismissTrigger.IME_SEARCH) },
                 )
 
                 CreateStep.GroupName -> CreateGroupContent(
@@ -141,6 +157,7 @@ fun CreateScreen(
                     isGroupNameValid = uiState.isGroupNameValid,
                     selectOtherBook = onSelectOtherBook,
                     onValueChangeGroupName = updateGroupNameValue,
+                    onImeDone = { keyboardDismissed(KeyboardDismissTrigger.IME_DONE) },
                 )
 
                 CreateStep.BookDetail -> Unit

@@ -44,6 +44,7 @@ import com.yeobaek.feature.group.detail.component.GroupBookInfoCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
 import com.yeobaek.feature.group.detail.model.UserUiModel
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,7 +59,7 @@ fun DetailScreen(
     onUnBlockUser: (otherUserId: Int) -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
-    onInviteShareSubmitted: (EventResult) -> Unit = {},
+    onInviteShareSubmitted: (EventResult, String?) -> Unit = { _, _ -> },
     notificationState: GroupNotificationUiState? = null,
     onNotificationClick: () -> Unit = {},
     onNotificationErrorShown: () -> Unit = {},
@@ -226,12 +227,13 @@ fun DetailScreen(
                 onShareClick = {
                     val code = uiState.groupUiModel.groupCode
                     val name = uiState.groupUiModel.name.ifBlank { uiState.bookUiModel.title }
+                    val shareId = if (InviteLink.isValidCode(code)) Uuid.random().toString() else null
                     val result = when {
-                        !InviteLink.isValidCode(code) -> EventResult.INVALID
-                        shareSheet.share(InviteLink.shareText(name, code)) -> EventResult.SUCCESS
+                        shareId == null -> EventResult.INVALID
+                        shareSheet.share(InviteLink.shareText(name, code, shareId)) -> EventResult.SUCCESS
                         else -> EventResult.FAILURE
                     }
-                    onInviteShareSubmitted(result)
+                    onInviteShareSubmitted(result, shareId)
                     if (result != EventResult.SUCCESS) {
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(

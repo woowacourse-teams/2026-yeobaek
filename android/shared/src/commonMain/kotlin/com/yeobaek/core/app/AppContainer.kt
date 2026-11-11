@@ -3,6 +3,7 @@ package com.yeobaek.core.app
 import com.russhwolf.settings.Settings
 import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.InviteLinkOpened
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
@@ -88,6 +89,10 @@ class AppContainer(
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
+    fun trackDebugEvent(event: AnalyticsEvent) {
+        if (isDebug) analyticsTracker.track(event)
+    }
+
     val appName = if (isDebug) "조밀" else "여백"
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -112,8 +117,8 @@ class AppContainer(
         ktorfit = networkProvider.ktorfit,
     )
 
-    val invitations = AppInvitations { requestId, valid ->
-        analyticsTracker.track(InviteLinkOpened(requestId, valid))
+    val invitations = AppInvitations { request ->
+        analyticsTracker.track(InviteLinkOpened(request.id, request.code != null, request.attribution))
     }
 
     val notifications = AppNotifications { analyticsTracker.track(it) }

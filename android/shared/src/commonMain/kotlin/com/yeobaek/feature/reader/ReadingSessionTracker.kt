@@ -35,6 +35,9 @@ class ReadingSessionTracker(
     val isActive: Boolean
         get() = startMark != null
 
+    val sessionId: String?
+        get() = readingSessionId.takeIf(String::isNotEmpty)
+
     fun start(
         bookId: Long,
         bookTitle: String,

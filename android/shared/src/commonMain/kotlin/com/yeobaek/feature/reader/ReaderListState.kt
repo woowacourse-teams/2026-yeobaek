@@ -117,6 +117,7 @@ fun rememberReaderListState(
     ScrollToInitialPassageEffect(
         state = readerListState,
         uiState = uiState,
+        onPositionApplied = actions.onInitialPositionApplied,
     )
     ScrollToTargetPassageEffect(
         state = readerListState,
@@ -152,7 +153,9 @@ fun rememberReaderListState(
 private fun ScrollToInitialPassageEffect(
     state: ReaderListState,
     uiState: ReaderUiState,
+    onPositionApplied: (Int?) -> Unit,
 ) {
+    val currentOnPositionApplied by rememberUpdatedState(onPositionApplied)
     LaunchedEffect(
         uiState.passages,
         uiState.readingSequence,
@@ -164,6 +167,7 @@ private fun ScrollToInitialPassageEffect(
                 state.listState.scrollToItem(readingPassageIndex)
             }
             state.hasPositionedInitialPassage = true
+            currentOnPositionApplied(uiState.readingSequence.takeIf { readingPassageIndex >= 0 })
         }
     }
 }

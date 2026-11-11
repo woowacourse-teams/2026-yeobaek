@@ -2,6 +2,7 @@ package com.yeobaek.feature.group.detail.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -15,6 +16,7 @@ import com.yeobaek.core.analytics.InviteCodeCopied
 import com.yeobaek.core.analytics.InviteShareSubmitted
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.notification.ClubJoinNotificationEffect
@@ -68,9 +70,17 @@ fun NavGraphBuilder.detailNavGraph(
                 repository = appContainer.notificationRepository,
                 memberId = appContainer.userPreferences.userId,
                 installationId = appContainer.notificationInstallationId,
+                trackEvent = { appContainer.analyticsTracker.track(it) },
             )
         }
         val notificationState by groupNotificationViewModel.uiState.collectAsStateWithLifecycle()
+        val lifecycleState by backStackEntry.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+        val notificationVisible = detailViewModel.uiState.screenState == ScreenState.Success &&
+            notificationState.enabled != null &&
+            lifecycleState == Lifecycle.State.RESUMED
+        LaunchedEffect(notificationVisible) {
+            if (notificationVisible) groupNotificationViewModel.onSettingVisible()
+        }
         LaunchedEffect(
             route.groupId,
             route.notificationOpenId,
@@ -78,7 +88,7 @@ fun NavGraphBuilder.detailNavGraph(
             route.notificationOpenId?.let { openId ->
                 appContainer.analyticsTracker.track(
                     GroupDetailOpened(route.groupId),
-                    mapOf("notification_open_id" to openId),
+                    mapOf("notification_open_id" to openId, "entry_point" to "notification"),
                 )
             }
             detailViewModel.initGroupData(groupId = route.groupId)
@@ -109,8 +119,8 @@ fun NavGraphBuilder.detailNavGraph(
             onInviteCodeCopy = {
                 appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
             },
-            onInviteShareSubmitted = { result ->
-                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result))
+            onInviteShareSubmitted = { result, shareId ->
+                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result, shareId))
             },
             onBlockUser = { otherUserId ->
                 detailViewModel.blockUser(otherUserId)

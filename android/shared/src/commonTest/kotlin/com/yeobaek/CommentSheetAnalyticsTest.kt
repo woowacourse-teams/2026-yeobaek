@@ -2,12 +2,14 @@ package com.yeobaek
 
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.CommentLikeSubmitted
+import com.yeobaek.core.analytics.CommentSheetContentsShown
 import com.yeobaek.core.analytics.CommentSheetOpened
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.ReaderClosed
 import com.yeobaek.core.analytics.ReaderSessionEnd
 import com.yeobaek.feature.reader.CommentSheetAnalytics
+import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReadingSessionTracker
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,5 +62,30 @@ class CommentSheetAnalyticsTest {
         val sheets = events.filterIsInstance<CommentSheetOpened>()
         assertEquals(listOf(false, true), sheets.map { it.properties["comment_like_available"] })
         assertEquals(listOf("notification", "reader"), sheets.map { it.properties["source"] })
+    }
+
+    @Test
+    fun displayedCollectionSheetKeepsTheOriginatingVisitAndFilter() {
+        val events = mutableListOf<AnalyticsEvent>()
+        val analytics = CommentSheetAnalytics(
+            trackEvent = { events.add(it) },
+            readingSession = ReadingSessionTracker({ events.add(it) }),
+            bookId = { 12L },
+            passageSequenceOf = { 3 },
+            isAfterJump = { false },
+        )
+        val sheet = CommentSheetUiState(
+            sentenceId = 42,
+            sentenceContent = "sentence",
+            source = CommentSheetSource.COMMENT_COLLECTION,
+        )
+
+        analytics.contentsShown(sheet, collectionVisitId = "visit", collectionFilter = "new")
+
+        val event = assertIs<CommentSheetContentsShown>(events.single())
+        assertEquals("visit", event.properties["collection_visit_id"])
+        assertEquals("new", event.properties["collection_filter"])
+        assertEquals(42L, event.properties["sentence_id"])
+        assertFalse("content" in event.properties)
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
@@ -19,7 +20,9 @@ fun TrackBookList(
     tracker: BookListVisitTracker,
     gridState: LazyGridState,
     bookIds: List<Long>?,
+    onFullyVisibleBooks: ((List<Long>) -> Unit)? = null,
 ) {
+    val onBooksVisible by rememberUpdatedState(onFullyVisibleBooks)
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     val isResumed = lifecycleState == Lifecycle.State.RESUMED
     val isDragged = gridState.interactionSource.collectIsDraggedAsState()
@@ -40,9 +43,24 @@ fun TrackBookList(
 
         val positions = bookIds.withIndex().associate { (index, id) -> id to index + 1 }
         snapshotFlow {
-            gridState.layoutInfo.visibleItemsInfo.mapNotNull { positions[it.key] }.maxOrNull()
-        }.collect { position ->
+            val layout = gridState.layoutInfo
+            val position = layout.visibleItemsInfo.mapNotNull { positions[it.key] }.maxOrNull()
+            val fullyVisible = if (onBooksVisible == null) {
+                emptyList()
+            } else {
+                layout.visibleItemsInfo.mapNotNull { item ->
+                    val id = item.key as? Long
+                    id?.takeIf {
+                        it in positions &&
+                            item.offset.y >= layout.viewportStartOffset &&
+                            item.offset.y + item.size.height <= layout.viewportEndOffset
+                    }
+                }
+            }
+            position to fullyVisible
+        }.collect { (position, fullyVisible) ->
             if (position != null) tracker.observe(bookIds, position)
+            if (fullyVisible.isNotEmpty()) onBooksVisible?.invoke(fullyVisible)
         }
     }
     LaunchedEffect(tracker, gridState, isResumed) {

@@ -2,6 +2,8 @@ package com.yeobaek
 
 import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.invitation.InvitationRequest
+import com.yeobaek.core.invitation.InviteAttribution
+import com.yeobaek.core.invitation.InviteLink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,14 +14,34 @@ class AppInvitationsTest {
     @Test
     fun restoredRequestCanResumeWithoutAnotherOpenEvent() {
         val received = mutableListOf<Pair<String, Boolean>>()
-        val original = AppInvitations { id, valid -> received.add(id to valid) }
+        val original = AppInvitations { received.add(it.id to (it.code != null)) }
         original.open("yeobaek://invite?code=ABC123", "original")
 
-        val restored = AppInvitations { id, valid -> received.add(id to valid) }
+        val restored = AppInvitations { received.add(it.id to (it.code != null)) }
         restored.open("yeobaek://invite?code=ABC123", "original", isRestored = true)
 
         assertEquals(listOf("original" to true), received)
         assertEquals("original", restored.pendingOpen.value?.id)
+    }
+
+    @Test
+    fun trackedLinkRetainsAttributionAcrossRecreation() {
+        val attribution = InviteAttribution(
+            shareId = "79e37893-cd98-4db9-83db-ff90c3b80595",
+            webVisitId = "24a97a25-77e2-4b65-8432-d73ded1d5b47",
+        )
+        val invitations = AppInvitations().apply { open(InviteLink.create("ABC123", attribution), "request") }
+
+        val restored = AppInvitations().apply { restore(invitations.snapshot()) }
+
+        assertEquals(InvitationRequest("request", "ABC123", attribution), restored.pendingOpen.value)
+    }
+
+    @Test
+    fun restoresPendingRequestFromLegacySnapshot() {
+        val restored = AppInvitations().apply { restore(listOf("request", "ABC123", "handled")) }
+
+        assertEquals(InvitationRequest("request", "ABC123"), restored.pendingOpen.value)
     }
 
     @Test

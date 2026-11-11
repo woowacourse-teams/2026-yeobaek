@@ -12,6 +12,7 @@ import com.yeobaek.core.analytics.GroupJoinVisit
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.invitation.InviteAttribution
 import com.yeobaek.feature.group.join.JoinScreen
 import com.yeobaek.feature.group.join.JoinViewModel
 import kotlinx.serialization.Serializable
@@ -21,6 +22,8 @@ data class Join(
     val fromOnboarding: Boolean = false,
     val initialCode: String? = null,
     val invitationRequestId: String? = null,
+    val inviteShareId: String? = null,
+    val inviteWebVisitId: String? = null,
 )
 
 fun NavController.navigateToJoin(
@@ -34,11 +37,14 @@ fun NavController.navigateToJoin(
     initialCode: String,
     invitationRequestId: String,
     navOptions: NavOptions? = null,
+    attribution: InviteAttribution? = null,
 ) {
     navigate(
         route = Join(
             initialCode = initialCode,
             invitationRequestId = invitationRequestId,
+            inviteShareId = attribution?.shareId,
+            inviteWebVisitId = attribution?.webVisitId,
         ),
         navOptions = navOptions,
     )
@@ -63,7 +69,12 @@ fun NavGraphBuilder.joinNavGraph(
         )
         val joinViewModel: JoinViewModel = viewModel(
             factory = JoinViewModel.joinViewModelFactory(
-                visit = GroupJoinVisit(entryPoint, backStackEntry.id, route.invitationRequestId),
+                visit = GroupJoinVisit(
+                    entryPoint,
+                    backStackEntry.id,
+                    route.invitationRequestId,
+                    route.inviteShareId?.let { InviteAttribution(it, route.inviteWebVisitId) },
+                ),
                 initialCode = route.initialCode,
                 groupRepository = appContainer.groupRepository,
                 crashReporter = appContainer.crashReporter,
