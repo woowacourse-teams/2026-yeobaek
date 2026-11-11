@@ -60,10 +60,10 @@ class DebugMainActivity : ComponentActivity() {
                             },
                         )
                     }
-                    composable<DevTools> {
+                    composable<DevTools> { entry ->
                         DevTools(
                             appContainer = appContainer,
-                            navigateBack = { navController.popBackStack() },
+                            navigateBack = { navController.popBackStackIfCurrent(entry.id) },
                         )
                     }
                 }

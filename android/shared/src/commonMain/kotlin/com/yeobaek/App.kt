@@ -167,15 +167,13 @@ fun App(
             )
             onboardingCreateNavGraph(
                 appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToHome = {
                     navController.navigate(Home) {
                         popUpTo<Onboarding> {
                             inclusive = true
                         }
                     }
-                },
-                navigateToBack = {
-                    navController.popBackStack()
                 },
             )
             homeNavGraph(
@@ -215,30 +213,28 @@ fun App(
             )
             publicRoomBookDetailNavGraph(
                 appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToPublicRoomReader = { publicRoomId ->
                     navController.navigateToPublicRoomReader(
                         publicRoomId = publicRoomId,
                         navOptions = navOptions { launchSingleTop = true },
                     )
                 },
-                navigateToBack = { navController.popBackStack() },
             )
             detailNavGraph(
                 appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToReader = { groupId ->
                     navController.navigate(Reader(groupId = groupId))
-                },
-                navigateToBack = {
-                    navController.popBackStack()
                 },
             )
             readerNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToBack = navController::popBackStackIfCurrent,
             )
             publicRoomReaderNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToBack = navController::popBackStackIfCurrent,
             )
             joinNavGraph(
                 appContainer = appContainer,
@@ -266,7 +262,7 @@ fun App(
             )
             createNavGraph(
                 appContainer = appContainer,
-                navController = navController,
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToHome = {
                     navController.navigateToHome(
                         navOptions = navOptions {
@@ -279,7 +275,7 @@ fun App(
             )
             myPageNavGraph(
                 appContainer = appContainer,
-                navigateBack = { navController.popBackStack() },
+                navigateToBack = navController::popBackStackIfCurrent,
                 navigateToNicknameChange = { navController.navigateToNicknameChange() },
                 navigateToNotificationSettings = { navController.navigateToNotificationSettings() },
                 navigateToNickname = {
@@ -302,13 +298,18 @@ fun App(
                     )
                 },
             )
-            notificationSettingsNavGraph(appContainer = appContainer, navigateBack = { navController.popBackStack() })
+            notificationSettingsNavGraph(
+                appContainer = appContainer,
+                navigateToBack = navController::popBackStackIfCurrent,
+            )
             nicknameChangeNavGraph(
                 appContainer = appContainer,
-                navigateBack = { navController.popBackStack() },
-                onNicknameChanged = { nickname ->
-                    navController.getBackStackEntry<MyPage>().savedStateHandle[MY_PAGE_NICKNAME_CHANGED_KEY] = nickname
-                    navController.popBackStack()
+                navigateToBack = navController::popBackStackIfCurrent,
+                onNicknameChanged = { entryId, nickname ->
+                    navController.popBackStackIfCurrent(entryId) {
+                        val myPageState = navController.getBackStackEntry<MyPage>().savedStateHandle
+                        myPageState[MY_PAGE_NICKNAME_CHANGED_KEY] = nickname
+                    }
                 },
             )
         }
@@ -327,7 +328,7 @@ fun App(
     }
 }
 
-fun NavController.popBackStackIfCurrent(entryId: String, beforePop: () -> Unit) {
+fun NavController.popBackStackIfCurrent(entryId: String, beforePop: () -> Unit = {}) {
     if (currentBackStackEntry?.id != entryId) return
 
     beforePop()

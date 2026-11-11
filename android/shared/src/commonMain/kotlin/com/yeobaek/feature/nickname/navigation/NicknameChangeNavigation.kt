@@ -24,8 +24,8 @@ fun NavController.navigateToNicknameChange() {
 
 fun NavGraphBuilder.nicknameChangeNavGraph(
     appContainer: AppContainer,
-    navigateBack: () -> Unit,
-    onNicknameChanged: (String) -> Unit,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
+    onNicknameChanged: (entryId: String, nickname: String) -> Unit,
 ) {
     composable<NicknameChange> { entry ->
         TrackScreen(appContainer.crashReporter, appContainer.analyticsTracker, TrackedScreen.NICKNAME_CHANGE)
@@ -41,7 +41,7 @@ fun NavGraphBuilder.nicknameChangeNavGraph(
         val state = nicknameViewModel.uiState
         LaunchedEffect(state.nicknameUpdateState) {
             if (state.nicknameUpdateState is NicknameUpdateState.Success) {
-                onNicknameChanged(state.nicknameValue)
+                onNicknameChanged(entry.id, state.nicknameValue)
             }
         }
         NicknameChangeScreen(
@@ -55,8 +55,7 @@ fun NavGraphBuilder.nicknameChangeNavGraph(
                     updateState !is NicknameUpdateState.Loading &&
                     updateState !is NicknameUpdateState.Success
                 ) {
-                    nicknameViewModel.abandonChange()
-                    navigateBack()
+                    navigateToBack(entry.id, nicknameViewModel::abandonChange)
                 }
             },
         )
