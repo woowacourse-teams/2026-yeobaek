@@ -12,7 +12,7 @@ public record CommentedSentences(List<CommentedSentence> values) {
 
     public CommentedSentences withUnreadCommentsUpTo(Passage currentPassage) {
         return new CommentedSentences(values.stream()
-                .filter(sentence -> sentence.hasSpoilerFreeNewComments(currentPassage))
+                .filter(sentence -> sentence.hasNewVisibleComments(currentPassage))
                 .toList());
     }
 

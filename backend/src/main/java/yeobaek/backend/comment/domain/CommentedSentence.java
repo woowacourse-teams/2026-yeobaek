@@ -25,7 +25,7 @@ public record CommentedSentence(
         return passageSequence.isAfter(currentPassage.getSequence());
     }
 
-    public boolean hasSpoilerFreeNewComments(Passage currentPassage) {
+    public boolean hasNewVisibleComments(Passage currentPassage) {
         return unreadCommentCount > 0 && contentVisibilityFor(currentPassage) == ContentVisibility.VISIBLE;
     }
 
