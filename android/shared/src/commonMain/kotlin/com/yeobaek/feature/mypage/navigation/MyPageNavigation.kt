@@ -33,11 +33,11 @@ fun NavController.navigateToMyPage(
 
 fun NavGraphBuilder.myPageNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String) -> Unit,
     navigateToNickname: () -> Unit,
     navigateToGuide: (Boolean) -> Unit,
     navigateToNotificationSettings: () -> Unit,
     navigateToNicknameChange: () -> Unit,
-    navigateBack: () -> Unit,
 ) {
     composable<MyPage> { entry ->
         TrackScreen(
@@ -72,7 +72,9 @@ fun NavGraphBuilder.myPageNavGraph(
             navigateToNotificationSettings = navigateToNotificationSettings,
             navigateToNicknameChange = navigateToNicknameChange,
             onBackClick = {
-                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) navigateBack()
+                if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                    navigateToBack(entry.id)
+                }
             },
             nicknameChanged = changedNickname != null,
             onNicknameChangeMessageShown = {

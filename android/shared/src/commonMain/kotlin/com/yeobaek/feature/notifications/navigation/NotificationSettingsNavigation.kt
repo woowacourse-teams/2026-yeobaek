@@ -25,8 +25,11 @@ fun NavController.navigateToNotificationSettings() {
     navigate(NotificationSettings) { launchSingleTop = true }
 }
 
-fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, navigateBack: () -> Unit) {
-    composable<NotificationSettings> {
+fun NavGraphBuilder.notificationSettingsNavGraph(
+    appContainer: AppContainer,
+    navigateToBack: (entryId: String) -> Unit,
+) {
+    composable<NotificationSettings> { entry ->
         TrackScreen(
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
@@ -49,7 +52,7 @@ fun NavGraphBuilder.notificationSettingsNavGraph(appContainer: AppContainer, nav
         LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onScreenResumed() }
         NotificationSettingsScreen(
             uiState = state,
-            onBackClick = navigateBack,
+            onBackClick = { navigateToBack(entry.id) },
             onRetry = viewModel::refresh,
             onToggle = viewModel::update,
             onSaveErrorShown = viewModel::dismissSaveError,

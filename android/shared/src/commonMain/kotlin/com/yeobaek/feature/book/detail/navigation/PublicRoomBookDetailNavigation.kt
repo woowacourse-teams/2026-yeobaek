@@ -54,8 +54,8 @@ fun NavController.navigateToPublicRoomBookDetail(
 
 fun NavGraphBuilder.publicRoomBookDetailNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String) -> Unit,
     navigateToPublicRoomReader: (Long) -> Unit,
-    navigateToBack: () -> Unit,
 ) {
     composable<PublicRoomBookDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<PublicRoomBookDetail>()
@@ -85,7 +85,9 @@ fun NavGraphBuilder.publicRoomBookDetailNavGraph(
         BookDetailContent(
             state = bookDetailViewModel.state,
             onBackClick = {
-                if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) navigateToBack()
+                if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                    navigateToBack(backStackEntry.id)
+                }
             },
             onReadClick = {
                 if (bookDetailViewModel.state is BookDetailState.Success &&

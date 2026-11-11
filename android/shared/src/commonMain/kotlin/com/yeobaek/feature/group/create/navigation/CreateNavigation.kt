@@ -3,7 +3,6 @@ package com.yeobaek.feature.group.create.navigation
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.BookDetailEntryPoint
@@ -37,10 +36,10 @@ fun NavController.navigateToCreate(
 
 fun NavGraphBuilder.createNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
     navigateToHome: () -> Unit,
 ) {
-    composable<Create> {
+    composable<Create> { entry ->
         val createViewModel: CreateViewModel = viewModel(
             factory = CreateViewModel.createViewModelFactory(
                 groupRepository = appContainer.groupRepository,
@@ -85,17 +84,19 @@ fun NavGraphBuilder.createNavGraph(
             onMetadataViewed = createViewModel::onMetadataViewed,
             onRetryBookDetail = createViewModel::retryBookDetail,
             onSelectOtherBook = createViewModel::moveToBookSelection,
-            onBackClick = {
-                when (createViewModel.uiState.step) {
+            onBackClick = back@{
+                if (uiState.step != createViewModel.uiState.step) return@back
+                when (uiState.step) {
                     CreateStep.GroupName -> createViewModel.moveToBookDetail()
 
                     CreateStep.BookDetail -> createViewModel.moveToBookSelection()
 
                     CreateStep.BookSelection -> {
-                        createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
-                        createViewModel.bookListTracker.close(BookListEnd.NAVIGATION)
-                        createViewModel.abandon()
-                        navController.popBackStack()
+                        navigateToBack(entry.id) {
+                            createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
+                            createViewModel.bookListTracker.close(BookListEnd.NAVIGATION)
+                            createViewModel.abandon()
+                        }
                     }
                 }
             },

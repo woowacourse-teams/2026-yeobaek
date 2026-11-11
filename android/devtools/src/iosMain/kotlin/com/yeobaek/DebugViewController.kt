@@ -40,13 +40,13 @@ fun DebugViewController(
                         navigateToDevTools = { navController.navigate(DevToolsRoute) },
                     )
                 }
-                composable<DevToolsRoute> {
+                composable<DevToolsRoute> { entry ->
                     Surface {
                         DevToolsScreen(
                             appContainer = appContainer,
                             appBuild = appBuild,
                             buildType = "debug",
-                            navigateBack = { navController.popBackStack() },
+                            navigateBack = { navController.popBackStackIfCurrent(entry.id) },
                         )
                     }
                 }

@@ -689,6 +689,8 @@ class ReaderViewModel(
     }
 
     fun dismissCommentCollections() {
+        if (!uiState.isCommentCollectionsVisible) return
+
         commentCollectionSession.end(CommentCollectionEnd.CLOSE)
         commentCollectionsJob?.cancel()
         commentCollectionsJob = null

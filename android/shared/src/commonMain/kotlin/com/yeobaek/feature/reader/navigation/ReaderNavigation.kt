@@ -9,7 +9,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -66,7 +65,7 @@ fun NavController.navigateToPublicRoomReader(
 
 fun NavGraphBuilder.readerNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String) -> Unit,
 ) {
     composable<Reader> { backStackEntry ->
         val route = backStackEntry.toRoute<Reader>()
@@ -76,14 +75,14 @@ fun NavGraphBuilder.readerNavGraph(
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.READER,
             appContainer = appContainer,
-            onBackClick = navController::popBackStack,
+            onBackClick = { navigateToBack(backStackEntry.id) },
         )
     }
 }
 
 fun NavGraphBuilder.publicRoomReaderNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String) -> Unit,
 ) {
     composable<PublicRoomReader> { backStackEntry ->
         val route = backStackEntry.toRoute<PublicRoomReader>()
@@ -93,7 +92,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
             appContainer = appContainer,
-            onBackClick = navController::popBackStack,
+            onBackClick = { navigateToBack(backStackEntry.id) },
         )
     }
 }

@@ -43,8 +43,8 @@ fun NavController.navigateToDetail(
 
 fun NavGraphBuilder.detailNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String) -> Unit,
     navigateToReader: (Long) -> Unit,
-    navigateToBack: () -> Unit,
 ) {
     composable<Detail> { backStackEntry ->
         val route = backStackEntry.toRoute<Detail>()
@@ -100,6 +100,7 @@ fun NavGraphBuilder.detailNavGraph(
             }
         }
 
+        val navigateBack = { navigateToBack(backStackEntry.id) }
         DetailScreen(
             uiState = detailViewModel.uiState,
             notificationState = notificationState,
@@ -120,7 +121,7 @@ fun NavGraphBuilder.detailNavGraph(
             onExitRequest = {
                 appContainer.analyticsTracker.track(GroupExitRequested(groupId = route.groupId))
             },
-            onBackClick = navigateToBack,
+            onBackClick = navigateBack,
             onReadClick = {
                 appContainer.analyticsTracker.track(
                     ReaderOpened(
@@ -133,7 +134,7 @@ fun NavGraphBuilder.detailNavGraph(
             onExitClick = {
                 detailViewModel.exitGroup(route.groupId)
             },
-            navigateToHome = navigateToBack,
+            navigateToHome = navigateBack,
         )
     }
 }
