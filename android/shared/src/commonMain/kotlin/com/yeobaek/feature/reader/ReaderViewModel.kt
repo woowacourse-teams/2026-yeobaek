@@ -873,7 +873,7 @@ class ReaderViewModel(
                 uiState.commentedSentenceMode == CommentedSentenceMode.Exists &&
                 updatedSentences.sentences.isEmpty()
             ) {
-                CommentedSentenceMode.None
+                CommentedSentenceMode.Loading
             } else {
                 uiState.commentedSentenceMode
             },
