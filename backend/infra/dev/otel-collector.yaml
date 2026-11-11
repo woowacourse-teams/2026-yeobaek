@@ -105,13 +105,13 @@ processors:
   batch: {}
 exporters:
   otlphttp/betterstack:
-    endpoint: ${env:BETTER_STACK_OTLP_ENDPOINT}
+    endpoint: ${env:BETTER_STACK_INFRA_OTLP_ENDPOINT}
     headers:
-      Authorization: "Bearer ${env:BETTER_STACK_SOURCE_TOKEN}"
+      Authorization: "Bearer ${env:BETTER_STACK_INFRA_SOURCE_TOKEN}"
   otlphttp/yeobaek_dev:
-    endpoint: ${env:YEOBAEK_DEV_OTLP_ENDPOINT}
+    endpoint: ${env:BETTER_STACK_APP_OTLP_ENDPOINT}
     headers:
-      Authorization: "Bearer ${env:YEOBAEK_DEV_SOURCE_TOKEN}"
+      Authorization: "Bearer ${env:BETTER_STACK_APP_SOURCE_TOKEN}"
 service:
   pipelines:
     metrics/infra:

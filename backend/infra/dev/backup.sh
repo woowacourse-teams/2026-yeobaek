@@ -2,7 +2,7 @@
 # 개발 서버에서 실행한다. 비밀값이 포함된 백업은 본인만 읽을 수 있다.
 set -euo pipefail
 umask 077
-cd "${DEPLOY_DIR:-$HOME/yeobaek}"
+cd "${DEPLOY_DIR:-$HOME/yeobaek-dev}"
 deploy_dir=$(pwd -P)
 app_container=${APP_CONTAINER:-yeobaek-app}
 collector_container=${COLLECTOR_CONTAINER:-yeobaek-otel-collector}

@@ -1,5 +1,5 @@
 # EC2 배포용 구성. 서버의 ~/yeobaek/docker-compose.yml로 복사해 사용한다 (docs/배포_가이드.md).
-# 같은 디렉터리의 .env에서 Docker Hub, DB, 관리자, S3 설정을 읽는다.
+# 같은 디렉터리의 .env는 Compose 치환용, otel.env는 Collector 전용이다.
 services:
   app:
     image: ${DOCKERHUB_USERNAME}/yeobaek-backend:latest
@@ -10,6 +10,14 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SPRING_APPLICATION_NAME: yeobaek-api
+      OBSERVABILITY_ENABLED: "true"
+      OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
+      DEPLOYMENT_ENVIRONMENT: prod
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID is required}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+      TZ: Asia/Seoul
       DB_URL: jdbc:mysql://mysql:3306/yeobaek
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}
@@ -21,6 +29,13 @@ services:
       BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
       BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
       BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
+    volumes:
+      - type: bind
+        source: ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE is required}
+        target: /run/secrets/firebase-admin.json
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       mysql:
         condition: service_healthy
@@ -28,6 +43,9 @@ services:
   mysql:
     image: mysql:8.4
     container_name: yeobaek-mysql
+    # 재시작 후에도 SQL digest의 쿼리별 CPU 시간 계측을 활성화한다.
+    command:
+      - --performance-schema-consumer-events-statements-cpu=ON
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: yeobaek
@@ -39,6 +57,24 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    container_name: yeobaek-otel-collector
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    cpus: "0.5"
+    mem_limit: 512m
+    env_file:
+      - ./otel.env
+    volumes:
+      - /:/hostfs:ro
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    environment:
+      TZ: Asia/Seoul
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
 
 volumes:
   mysql-data:

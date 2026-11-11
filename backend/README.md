@@ -262,7 +262,7 @@ unset POSTHOG_ENABLED POSTHOG_API_KEY POSTHOG_HOST
 ## 관측 구성
 
 - [Spring Boot와 Better Stack 관측 구성](docs/Better_Stack_연동.md)
-- [개발 서버 전환·검증·원복 명령](docs/개발_관측_전환.md)
+- [개발 서버 설정 적용·백업·복구](docs/배포_가이드.md#6-개발-서버-설정-적용과-복구)
 
 ## 더 알아보기
 
