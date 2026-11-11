@@ -5,6 +5,8 @@
 x-app-common: &app-common
   image: ${DOCKERHUB_USERNAME}/yeobaek-backend:develop
   restart: unless-stopped
+  # Spring의 요청 처리와 자원 정리가 끝나도록 종료 신호 후 최대 90초 기다린다.
+  stop_grace_period: 90s
   environment:
     # 운영 DB/S3 설정을 재사용하되 개발 서버 전용 기능은 dev로 활성화한다.
     SPRING_PROFILES_ACTIVE: "prod,dev"
