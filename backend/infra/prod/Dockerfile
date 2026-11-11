@@ -2,6 +2,9 @@
 # backend/에서 빌드: ./gradlew bootJar && docker build -f infra/prod/Dockerfile -t <계정>/yeobaek-backend .
 FROM eclipse-temurin:21-jre
 
+ARG DEPLOYED_COMMIT_SHA=unknown
+ENV DEPLOYED_COMMIT_SHA=${DEPLOYED_COMMIT_SHA}
+
 COPY build/libs/backend-0.0.1-SNAPSHOT.jar /app.jar
 
 EXPOSE 8080

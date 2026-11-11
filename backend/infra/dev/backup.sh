@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 cd "${DEPLOY_DIR:-$HOME/yeobaek-dev}"
 deploy_dir=$(pwd -P)
-app_container=${APP_CONTAINER:-yeobaek-app}
+app_container=${APP_CONTAINER:-yeobaek-app-blue}
 collector_container=${COLLECTOR_CONTAINER:-yeobaek-otel-collector}
 actual_dir=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$app_container")
 actual_dir=$(cd "$actual_dir" && pwd -P)
@@ -13,6 +13,12 @@ if [[ "$actual_dir" != "$deploy_dir" ]]; then
   exit 1
 fi
 project=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$app_container")
+# 전환 전 app과 전환 후 app-blue/app-green 모두 실제 서비스 이름으로 백업한다.
+app_service=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$app_container")
+case "$app_service" in
+  app|app-blue|app-green) ;;
+  *) echo "중단: 지원하지 않는 앱 서비스입니다: $app_service" >&2; exit 1 ;;
+esac
 stamp=$(date +%Y%m%d-%H%M%S)
 backup="$deploy_dir/backups/observability-$stamp"
 mkdir -p "$backup"
@@ -31,8 +37,8 @@ docker image tag "$collector_image" "$collector_tag"
 docker image save "$app_tag" "$collector_tag" | gzip > "$backup/images.tar.gz"
 printf '%s\n' "$project" > "$backup/project"
 printf '%s\n' "$deploy_dir" > "$backup/deploy-dir"
-printf 'services:\n  app:\n    image: "%s"\n  otel-collector:\n    image: "%s"\n' \
-  "$app_tag" "$collector_tag" > "$backup/rollback-images.yml"
+printf 'services:\n  %s:\n    image: "%s"\n  otel-collector:\n    image: "%s"\n' \
+  "$app_service" "$app_tag" "$collector_tag" > "$backup/rollback-images.yml"
 # Compose 프로젝트명이 달라져 MySQL 볼륨이 바뀌는 일을 방지할 기준을 저장한다.
 docker compose -p "$project" -f docker-compose.yml ps -q mysql > "$backup/mysql-container-id"
 test -s "$backup/images.tar.gz"
