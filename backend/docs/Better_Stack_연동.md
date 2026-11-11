@@ -2,7 +2,6 @@
 
 앱은 Spring Actuator·Micrometer Tracing·OpenTelemetry로 관측한다. 로그·메트릭·트레이스는
 OTLP/HTTP로 `otel-collector:4318`에 전송하고, Better Stack 인증과 외부 전송은 Collector가 맡는다.
-Java Agent·Logtail 직접 전송·자체 UUID trace ID는 제거했다.
 
 ## 코드와 설정
 
@@ -12,7 +11,7 @@ Java Agent·Logtail 직접 전송·자체 UUID trace ID는 제거했다.
   공식 Logback appender 2.28.0-alpha는 OTel API 1.62.0을 요구한다.
   이 appender 모듈의 배포 버전에는 `-alpha`가 붙는다.
 - Datasource Micrometer 2.2.1은 Boot 4 계열이다. `jdbc.includes=QUERY`로 SQL 실행 span만
-  생성한다. Agent의 Hibernate·Repository span은 재현하지 않는다.
+  생성한다. Hibernate·Repository 메서드 단위 span은 수집 범위에 포함하지 않는다.
 - `RequestLoggingFilter`는 Boot의 HTTP 관측 필터(`HIGHEST_PRECEDENCE + 1`)보다 안쪽
   (`+ 2`)에서 시작·완료 로그를 기록한다. traceId/spanId를 직접 설정하지 않는다.
   인증의 memberId 설정은 유지하며 요청 진입 시 정리하고 finally에서 이전 값을 복원한다.
@@ -22,13 +21,13 @@ Java Agent·Logtail 직접 전송·자체 UUID trace ID는 제거했다.
 - 로그의 trace/span은 MDC 문자열을 복사하지 않고 발생 당시 활성 OTel Context에서 얻는다.
   SLF4J key/value의 숫자·불리언, `operation`, `result`, 예외 타입·메시지·스택을 보존한다.
   MDC의 memberId는 OTLP에서 문자열이며 Collector의 `transform/app_logs`가 정수로 바꿔
-  기존 최종 로그의 타입을 유지한다. 추적 ID를 사후 복사하는 변환은 없다.
+  Better Stack에 정수 타입으로 전송한다.
 - 전송은 SDK batch processor와 Micrometer registry의 비동기 전송을 사용한다. Collector
   장애가 요청 처리에 결합되지 않는다. 메모리 버퍼와 재시도는 영속 보관을 보장하지 않는다.
 - [공통 설정](../src/main/resources/observability.properties)은 기본 외부 전송을 끈다.
   [개발 Compose](../infra/dev/docker-compose.dev.yml)가 외부 전송을 켜며 `prod,dev` 프로필을 사용한다.
 - Actuator는 컨테이너 내부 `127.0.0.1:8081`의 health·metrics만 노출한다. 8081을 publish하거나
-  nginx로 프록시하지 않는다. 기존 `/health`는 DB 확인용 공개 헬스체크로 유지한다.
+  nginx로 프록시하지 않는다. `/health`는 DB 확인용 공개 헬스체크다.
 
 ## 신호별 경로
 
@@ -58,7 +57,7 @@ Java Agent, eBPF 자동 계측, Prometheus 재수집을 이 앱에 별도로 겹
 `acquire`에는 풀 대기가 포함되고 SQL 실행 시간은 포함되지 않는다. `connections.usage`가
 있다면 커넥션을 빌린 전체 시간이며 SQL 실행 시간과 같지 않다. traceId·spanId·memberId를
 메트릭 태그에 추가하지 않는다. OTLP backend의 정규화에 따라 지표명이 달라질 수 있다.
-기존 MySQL digest의 누적 gauge는 같은 DB/digest의 두 시점 차이로 해석한다.
+MySQL digest의 누적 gauge는 같은 DB/digest의 두 시점 차이로 해석한다.
 
 ## 환경별 설정
 
@@ -77,8 +76,6 @@ Java Agent, eBPF 자동 계측, Prometheus 재수집을 이 앱에 별도로 겹
   endpoint는 `/v1/*`를 붙이지 않은 OTLP base URL이다. 앱에는 Better Stack 토큰을 전달하지 않는다.
 - `MYSQL_MONITOR_PASSWORD`는 `otel_monitor` 계정의 비밀번호다. 계정·권한은 별도 준비하고,
   MySQL CPU 계측 활성화는 배포 가이드의 SQL과 시작 옵션으로 관리한다.
-- Java Agent와 Logtail 직접 전송은 사용하지 않는다. 이전 `LOGGING_CONFIG`,
-  `BETTER_STACK_INGEST_URL`이나 Agent 전용 환경변수를 앱에 다시 추가하지 않는다.
 
 ## 배포 후 수신 확인
 
