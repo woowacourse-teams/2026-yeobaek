@@ -1,6 +1,7 @@
 package yeobaek.backend.comment.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import java.sql.Timestamp;
@@ -25,6 +26,8 @@ import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.comment.domain.Comment;
 import yeobaek.backend.comment.domain.CommentLike;
 import yeobaek.backend.comment.domain.CommentView;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
+import yeobaek.backend.comment.domain.ContentVisibility;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.repository.CommentLikeRepository;
@@ -37,8 +40,12 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.domain.PublicRoomMember;
+import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
 
 class PublicRoomCommentServiceTest extends IntegrationTest {
 
@@ -53,6 +60,9 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
 
     @Autowired
     private PublicRoomRepository publicRoomRepository;
+
+    @Autowired
+    private PublicRoomMemberRepository publicRoomMemberRepository;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -132,6 +142,94 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("공개방 v2는 조회 기록을 집계하되 댓글 확인 여부와 독서 상태를 변경하지 않는다")
+    void findCommentedSentencesV2WithoutChangingReadingState() {
+        Book book = bookRepository.save(new Book(
+                new BookTitle("v2 공개방"), null, null, 2, null, null, null, List.of(), List.of()));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        Passage current = passageRepository.save(new Passage(chapter, 1,
+                List.of(new SentenceContent("확인한 앞 문장"), new SentenceContent("현재 새 댓글 문장"))));
+        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
+        Member writer = memberRepository.save(new Member(new Nickname("v2 작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("v2 독자")));
+        Comment read = commentRepository.save(new Comment(room, writer, current.getSentences().getFirst(),
+                new CommentContent("확인한 댓글")));
+        commentViewRepository.save(new CommentView(reader, read));
+        commentRepository.save(new Comment(room, writer, current.getSentences().getLast(), new CommentContent("현재 새 댓글")));
+        LocalDateTime savedAt = LocalDateTime.of(2026, 10, 1, 10, 0);
+        PublicRoomMember membership = new PublicRoomMember(reader, room);
+        membership.visit(savedAt);
+        membership.updateProgress(current, savedAt);
+        publicRoomMemberRepository.save(membership);
+        long viewCountBefore = commentViewRepository.count();
+
+        var all = commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.ALL);
+        var unread = commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.NEW);
+
+        assertThat(all.commentedSentences()).extracting(item -> item.content())
+                .containsExactly("확인한 앞 문장", "현재 새 댓글 문장");
+        assertThat(unread.commentedSentences()).extracting(item -> tuple(item.content(), item.contentVisibility()))
+                .containsExactly(tuple("현재 새 댓글 문장", ContentVisibility.VISIBLE));
+        assertThat(commentViewRepository.count()).isEqualTo(viewCountBefore);
+        PublicRoomMember after = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(reader.getId(), room.getId())
+                .orElseThrow();
+        assertThat(after).extracting(PublicRoomMember::getLastVisitedAt, PublicRoomMember::getLastReadAt,
+                member -> member.getLastReadPassage().getId()).containsExactly(savedAt, savedAt, current.getId());
+    }
+
+    @Test
+    @DisplayName("공개방 v2 NEW는 요청 문단까지의 미확인 댓글 문장만 반환한다")
+    void findNewCommentsThroughRequestedPassage() {
+        ReadingFixture fixture = createRoom("v2 미래 댓글 책", 2);
+        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
+        Member reader = memberRepository.save(new Member(new Nickname("독자")));
+        Passage current = fixture.passages().getFirst();
+        Passage future = fixture.passages().getLast();
+        PublicRoom room = fixture.room();
+        commentRepository.save(new Comment(room, writer, current.getSentences().getFirst(), new CommentContent("현재 댓글")));
+        commentRepository.save(new Comment(room, writer, future.getSentences().getFirst(), new CommentContent("미래 댓글")));
+
+        commentService.findPublicRoomComments(reader.getId(), room.getId(), current.getSentences().getFirst().getId());
+
+        assertThat(commentService.countNewPublicRoomComments(reader.getId(), room.getId(), current.getId())
+                .newCommentCount()).isZero();
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), current.getId(),
+                CommentedSentenceFilter.ALL).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(current.getSentences().getFirst().getId(), ContentVisibility.VISIBLE),
+                        tuple(future.getSentences().getFirst().getId(), ContentVisibility.REVEAL_REQUIRED));
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), future.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(future.getSentences().getFirst().getId(), ContentVisibility.VISIBLE));
+
+        commentService.findPublicRoomComments(reader.getId(), room.getId(), future.getSentences().getFirst().getId());
+
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), future.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("공개방 v2는 다른 책의 현재 문단과 삭제된 도서를 거부한다")
+    void rejectInvalidCommentedSentencesV2Context() {
+        ReadingFixture fixture = createRoom("v2 유효한 책", 1);
+        ReadingFixture foreign = createRoom("v2 다른 책", 1);
+        Member reader = memberRepository.save(new Member(new Nickname("독자")));
+        assertThatThrownBy(() -> commentService.findPublicRoomCommentedSentencesV2(reader.getId(),
+                fixture.room().getId(), foreign.passages().getFirst().getId(), CommentedSentenceFilter.NEW))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
+        fixture.book().delete();
+        bookRepository.save(fixture.book());
+        assertThatThrownBy(() -> commentService.findPublicRoomCommentedSentencesV2(reader.getId(),
+                fixture.room().getId(), fixture.passages().getFirst().getId(), CommentedSentenceFilter.NEW))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    @Test
     @DisplayName("공개방 댓글 문장 조회는 차단 댓글을 제외하고 확인 여부와 최신 시각을 도메인에서 집계한다")
     void commentedSentencesExcludeBlockedWritersAndAggregateVisibleComments() {
         Book book = bookRepository.save(new Book(new BookTitle("공개방 댓글 집계 책"), null, null, 1, null, null, null, null, null));
@@ -164,12 +262,13 @@ class PublicRoomCommentServiceTest extends IntegrationTest {
         var response = commentService.findPublicRoomCommentedSentences(
                 reader.getId(), room.getId(), passage.getId());
 
-        assertThat(response.commentedSentences()).singleElement().satisfies(summary -> {
-            assertThat(summary.sentenceId()).isEqualTo(passage.getSentences().getFirst().getId());
-            assertThat(summary.commentCount()).isEqualTo(1);
-            assertThat(summary.unreadCommentCount()).isZero();
-            assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
-        });
+        assertThat(response.commentedSentences()).extracting(summary -> tuple(summary.sentenceId(),
+                summary.commentCount(), summary.unreadCommentCount(), summary.latestCommentCreatedAt()))
+                .containsExactly(tuple(passage.getSentences().getFirst().getId(), 1L, 0L, visibleCreatedAt));
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), passage.getId(),
+                CommentedSentenceFilter.ALL).commentedSentences()).isEqualTo(response.commentedSentences());
+        assertThat(commentService.findPublicRoomCommentedSentencesV2(reader.getId(), room.getId(), passage.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
         assertThat(commentViewRepository.count()).isEqualTo(viewCountBeforeQuery);
     }
 

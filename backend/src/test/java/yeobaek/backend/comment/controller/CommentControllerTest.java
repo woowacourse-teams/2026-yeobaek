@@ -19,6 +19,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -26,6 +27,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import yeobaek.backend.comment.domain.ContentVisibility;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentResponse;
 import yeobaek.backend.comment.dto.CommentLikeResponse;
@@ -189,6 +191,70 @@ class CommentControllerTest extends ControllerTest {
         verify(commentService, times(1)).findCommentedSentences(5L, 10L, 1042L);
         verify(analyticsTracker).track(5L,
                 AnalyticsEvent.commentedSentencesView(10L, 1042L, 0));
+    }
+
+    @ParameterizedTest
+    @EnumSource(CommentedSentenceFilter.class)
+    @DisplayName("v2는 탭 필터를 전달하고 기존 댓글 문장 응답 계약을 유지한다")
+    void findCommentedSentencesV2(CommentedSentenceFilter filter) throws Exception {
+        givenValidMember(4L);
+        var response = new CommentedSentencesResponse(List.of(new CommentedSentenceResponse(
+                5012L, "현재 문장", 1042L, 42, 2, false,
+                3, 2, ContentVisibility.VISIBLE, LocalDateTime.of(2026, 8, 7, 9, 10))));
+        given(commentService.findCommentedSentencesV2(4L, 10L, 1042L, filter)).willReturn(response);
+
+        mockMvc.perform(get("/api/v2/clubs/10/commented-sentences")
+                        .header("X-Member-Id", "4")
+                        .queryParam("currentPassageId", "1042").queryParam("filter", filter.name()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentedSentences.length()").value(1))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceId").value(5012))
+                .andExpect(jsonPath("$.commentedSentences[0].content").value("현재 문장"))
+                .andExpect(jsonPath("$.commentedSentences[0].passageId").value(1042))
+                .andExpect(jsonPath("$.commentedSentences[0].passageSequence").value(42))
+                .andExpect(jsonPath("$.commentedSentences[0].sentenceSequence").value(2))
+                .andExpect(jsonPath("$.commentedSentences[0].future").value(false))
+                .andExpect(jsonPath("$.commentedSentences[0].commentCount").value(3))
+                .andExpect(jsonPath("$.commentedSentences[0].unreadCommentCount").value(2))
+                .andExpect(jsonPath("$.commentedSentences[0].contentVisibility").value("VISIBLE"))
+                .andExpect(jsonPath("$.commentedSentences[0].latestCommentCreatedAt").value("2026-08-07T09:10:00"));
+
+        verify(commentService, times(1)).findCommentedSentencesV2(4L, 10L, 1042L, filter);
+        verify(analyticsTracker).track(4L, AnalyticsEvent.commentedSentencesView(10L, 1042L, 1));
+    }
+
+    @Test
+    @DisplayName("v2의 비어 있는 탭은 빈 배열을 반환한다")
+    void findEmptyCommentedSentencesV2() throws Exception {
+        CommentedSentenceFilter filter = CommentedSentenceFilter.NEW;
+        givenValidMember(4L);
+        given(commentService.findCommentedSentencesV2(4L, 10L, 1042L, filter))
+                .willReturn(new CommentedSentencesResponse(List.of()));
+
+        mockMvc.perform(get("/api/v2/clubs/10/commented-sentences")
+                        .header("X-Member-Id", "4")
+                        .queryParam("currentPassageId", "1042").queryParam("filter", filter.name()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.commentedSentences").isEmpty());
+
+        verify(commentService, times(1)).findCommentedSentencesV2(4L, 10L, 1042L, filter);
+        verify(analyticsTracker).track(4L, AnalyticsEvent.commentedSentencesView(10L, 1042L, 0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"?currentPassageId=1042", "?filter=ALL", "?currentPassageId=1042&filter=INVALID",
+            "?currentPassageId=1042&filter=", "?currentPassageId=invalid&filter=NEW"})
+    @DisplayName("v2 필수 파라미터가 없거나 잘못되면 400이며 서비스를 호출하지 않는다")
+    void rejectInvalidCommentedSentencesV2Parameters(String query) throws Exception {
+        givenValidMember(4L);
+
+        mockMvc.perform(get("/api/v2/clubs/10/commented-sentences" + query).header("X-Member-Id", "4"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(commentService, analyticsTracker);
     }
 
     @Test
