@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.yeobaek.core.common.AppPromptBlocker
 import com.yeobaek.core.designsystem.theme.YeobaekShadow
 import com.yeobaek.core.designsystem.theme.YeobaekSurfaceElevated
 import com.yeobaek.core.designsystem.theme.YeobaekTextSecondary
@@ -66,7 +67,9 @@ fun RequiredUpdateGate(
     LaunchedEffect(isRequired) {
         if (isRequired) focusManager.clearFocus(force = true)
     }
-    Box(Modifier.fillMaxSize()) { content() }
+    Box(Modifier.fillMaxSize()) {
+        AppPromptBlocker(blocked = isRequired, content = content)
+    }
     if (isRequired) {
         Dialog(
             onDismissRequest = {},

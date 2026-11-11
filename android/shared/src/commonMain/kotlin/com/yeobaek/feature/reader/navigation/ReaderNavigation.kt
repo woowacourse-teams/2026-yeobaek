@@ -9,13 +9,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
+import com.yeobaek.core.analytics.CommentCollectionFilterTrigger
+import com.yeobaek.core.analytics.ReaderSessionEnd
 import com.yeobaek.core.app.AppContainer
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderCommentTarget
@@ -66,7 +68,7 @@ fun NavController.navigateToPublicRoomReader(
 
 fun NavGraphBuilder.readerNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String) -> Unit,
 ) {
     composable<Reader> { backStackEntry ->
         val route = backStackEntry.toRoute<Reader>()
@@ -76,14 +78,14 @@ fun NavGraphBuilder.readerNavGraph(
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.READER,
             appContainer = appContainer,
-            onBackClick = navController::popBackStack,
+            onBackClick = { navigateToBack(backStackEntry.id) },
         )
     }
 }
 
 fun NavGraphBuilder.publicRoomReaderNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String) -> Unit,
 ) {
     composable<PublicRoomReader> { backStackEntry ->
         val route = backStackEntry.toRoute<PublicRoomReader>()
@@ -93,7 +95,7 @@ fun NavGraphBuilder.publicRoomReaderNavGraph(
             commentTarget = ReaderCommentTarget.from(route.passageSequence, route.sentenceId),
             trackedScreen = TrackedScreen.PUBLIC_ROOM_READER,
             appContainer = appContainer,
-            onBackClick = navController::popBackStack,
+            onBackClick = { navigateToBack(backStackEntry.id) },
         )
     }
 }
@@ -147,7 +149,7 @@ private fun ReaderRoute(
         ReaderActions(
             onBackClick = {
                 readerViewModel.finishReadingSession()
-                readerViewModel.saveReadingProgress(onComplete = onBackClick)
+                readerViewModel.saveReadingProgress(ReaderSessionEnd.BACK, onComplete = onBackClick)
             },
             onSentenceClick = readerViewModel::openSentenceComments,
             onTableOfContentsClick = readerViewModel::openTableOfContents,
@@ -166,15 +168,25 @@ private fun ReaderRoute(
             onCommentCollectionsClick = readerViewModel::openCommentCollections,
             onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
             onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+            onCommentCollectionFilterSelected = { readerViewModel.selectCommentCollectionFilter(it) },
+            onShowAllComments = {
+                readerViewModel.selectCommentCollectionFilter(
+                    CommentedSentenceFilter.ALL,
+                    CommentCollectionFilterTrigger.EMPTY_STATE_CTA,
+                )
+            },
             onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
             onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
+            onSpoilerExposure = readerViewModel::onSpoilerExposure,
+            onReturnButtonShown = readerViewModel::onReturnButtonShown,
             onMoveToComment = readerViewModel::moveToSelectedComment,
             onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
+            onInitialPositionApplied = readerViewModel::onInitialPositionApplied,
         )
     }
     val commentSheetActions = remember(commentSheet) {
         CommentSheetActions(
-            onDismiss = commentSheet::dismiss,
+            onDismiss = readerViewModel::dismissCommentSheet,
             onRetry = commentSheet::retryLoad,
             onInputChange = commentSheet::updateInput,
             onSubmit = commentSheet::submit,
@@ -188,6 +200,7 @@ private fun ReaderRoute(
             onScrollToLatestConsumed = commentSheet::consumeScrollToLatest,
             onLike = commentSheet::toggleLike,
             onLikeErrorConsumed = commentSheet::consumeLikeError,
+            onContentsShown = readerViewModel::onCommentSheetContentsShown,
         )
     }
 

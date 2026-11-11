@@ -8,6 +8,8 @@ data class PublicRoomBookUiModel(
     val title: String,
     val authors: String,
     val coverImageUrl: String?,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 fun PublicRoomModel.toUiModel(): PublicRoomBookUiModel =
@@ -17,4 +19,6 @@ fun PublicRoomModel.toUiModel(): PublicRoomBookUiModel =
         title = book.title,
         authors = book.authors.joinToString(", "),
         coverImageUrl = book.coverImageUrl,
+        genres = book.genres,
+        hashtags = book.hashtags,
     )

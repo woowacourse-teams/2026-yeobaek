@@ -33,6 +33,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
+import com.yeobaek.core.analytics.AnalyticsEvent
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.messaging.RemoteMessage
@@ -53,7 +54,11 @@ import com.yeobaek.data.model.NotificationSetting
 import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.feature.group.detail.DetailScreen
+import com.yeobaek.feature.group.detail.DetailUiState
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.detail.GroupNotificationViewModel
+import com.yeobaek.feature.group.detail.model.DetailBookUiModel
+import com.yeobaek.feature.group.detail.model.GroupUiModel
 import com.yeobaek.feature.mypage.MyPageScreen
 import com.yeobaek.feature.mypage.MyPageUiState
 import com.yeobaek.feature.notifications.NotificationSettingsScreen
@@ -62,6 +67,7 @@ import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.FixMethodOrder
 import org.junit.Rule
@@ -207,6 +213,7 @@ class NotificationSettingsUiTest {
                             navigateToNickname = {},
                             navigateToGuide = {},
                             navigateToNotificationSettings = { settingsVisible = true },
+                            onBackClick = {},
                         )
                     }
                 }
@@ -294,6 +301,111 @@ class NotificationSettingsUiTest {
         rule.waitUntil(5_000) { vm.uiState.groupUiModel.users.size == 2 }
         rule.onNodeWithText("새 모임원").assertIsDisplayed()
         capture("14-group-members-refreshed")
+    }
+
+    @Test
+    fun groupBellShowsStoredStateAndRestoresItWhenSaveFails() {
+        val repository = TestNotificationRepository().apply { failLoad = true }
+        val events = mutableListOf<AnalyticsEvent>()
+        var groupName by mutableStateOf("심야북클럽")
+        lateinit var vm: GroupNotificationViewModel
+        rule.runOnUiThread {
+            vm = ViewModelProvider(
+                rule.activity,
+                viewModelFactory {
+                    initializer {
+                        GroupNotificationViewModel(
+                            groupId = 5,
+                            repository = repository,
+                            memberId = MutableStateFlow(7),
+                            installationId = MutableStateFlow("fid-test"),
+                            trackEvent = { events.add(it) },
+                        )
+                    }
+                },
+            )[GroupNotificationViewModel::class.java]
+        }
+        rule.setContent {
+            val state by vm.uiState.collectAsState()
+            YeobaekTheme {
+                Box(Modifier.requiredSize(390.dp, 844.dp).testTag("qa-screen")) {
+                    DetailScreen(
+                        uiState = DetailUiState(
+                            screenState = ScreenState.Success,
+                            groupUiModel = GroupUiModel(id = 5, name = groupName, groupCode = "BOOK42"),
+                            bookUiModel = DetailBookUiModel(
+                                title = "지킬 박사와 하이드 씨",
+                                author = listOf("로버트 루이스 스티븐슨"),
+                                currentProgress = 38,
+                            ),
+                        ),
+                        onInviteCodeCopy = {}, onExitRequest = {}, onBackClick = {}, onReadClick = {},
+                        onExitClick = {}, onBlockUser = {}, onUnBlockUser = {}, navigateToHome = {},
+                        notificationState = state,
+                        onNotificationClick = vm::onNotificationClick,
+                        onNotificationErrorShown = vm::dismissError,
+                    )
+                }
+            }
+        }
+
+        rule.runOnIdle { repository.failLoad = false }
+        rule.onNodeWithText("심야북클럽").assertIsDisplayed()
+        rule.onNodeWithText("모임 상세").assertDoesNotExist()
+        rule.onNodeWithContentDescription("모임 알림 설정 다시 불러오기").performClick()
+        val bell = rule.onNodeWithContentDescription("모임 알림")
+        bell.assertIsOn()
+        rule.runOnIdle {
+            vm.onSettingVisible()
+            vm.onSettingVisible()
+        }
+        capture("16-group-notifications-on")
+        val gate = CompletableDeferred<Unit>()
+        rule.runOnIdle { repository.beforeUpdate = { gate.await() } }
+        bell.performClick()
+        bell.assertIsOff().assertIsNotEnabled()
+        gate.complete(Unit)
+        bell.assertIsOff().assertIsEnabled()
+        rule.runOnIdle { assertEquals(false, repository.groupPreference) }
+        capture("17-group-notifications-off")
+
+        rule.runOnIdle { repository.failUpdate = true }
+        bell.performClick()
+        bell.assertIsOff()
+        rule.onNodeWithText("모임 알림 설정을 저장하지 못했어요. 다시 시도해 주세요.").assertIsDisplayed()
+        rule.runOnIdle { repository.failUpdate = false }
+        bell.performClick()
+        bell.assertIsOn()
+        rule.runOnIdle {
+            assertEquals(true, repository.groupPreference)
+            val loads = events.filter { it.name == "group_notification_setting_loaded" }
+            val clicks = events.filter { it.name == "group_notification_setting_toggle_clicked" }
+            val results = events.filter { it.name == "group_notification_setting_submitted" }
+            val retry = events.single { it.name == "group_notification_setting_load_retried" }
+            val viewed = events.single { it.name == "group_notification_setting_viewed" }
+            assertEquals(listOf("initial", "retry"), loads.map { it.properties["trigger"] })
+            assertEquals(listOf("failure", "success"), loads.map { it.properties["result"] })
+            assertEquals("request_failed", retry.properties["previous_failure_reason"])
+            assertEquals(true, viewed.properties["enabled"])
+            assertEquals(listOf("success", "failure", "success"), results.map { it.properties["result"] })
+            assertEquals(clicks.map { it.properties["setting_attempt_id"] }, results.map { it.properties["setting_attempt_id"] })
+            assertEquals(1, events.map { it.properties["group_detail_visit_id"] }.toSet().size)
+        }
+
+        val longName = "매주 목요일 밤 함께 책을 읽고 이야기하는 심야북클럽"
+        rule.runOnIdle { groupName = longName }
+        val titleBounds = rule.onNodeWithText(longName).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val bellBounds = bell.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val exitButton = rule.onNodeWithContentDescription("모임 나가기 아이콘").assertIsDisplayed()
+        val exitBounds = exitButton.fetchSemanticsNode().boundsInRoot
+        val screenCenter = rule.onNodeWithTag("qa-screen").fetchSemanticsNode().boundsInRoot.center.x
+        assertEquals(screenCenter, titleBounds.center.x, 1f)
+        assertTrue(titleBounds.right <= bellBounds.left)
+        assertEquals(bellBounds.right, exitBounds.left)
+        assertEquals(bellBounds.center.y, exitBounds.center.y)
+        capture("18-group-notifications-long-name")
+        exitButton.performClick()
+        rule.onNodeWithText("나가기", substring = true).assertExists()
     }
 
     @Test
@@ -408,11 +520,25 @@ class NotificationSettingsUiTest {
 
     private class TestNotificationRepository : NotificationRepository {
         var preferences = NotificationPreferences(true, true, true, true)
+        var groupPreference = true
         var failLoad = false
         var failUpdate = false
         var beforeLoad: suspend () -> Unit = {}
         var beforeUpdate: suspend () -> Unit = {}
         override suspend fun register(memberId: Int, fid: String) = Unit
+
+        override suspend fun getGroupPreference(memberId: Int, fid: String, groupId: Long): Boolean {
+            beforeLoad()
+            check(!failLoad) { "Test group load failure" }
+            return groupPreference
+        }
+
+        override suspend fun updateGroupPreference(memberId: Int, fid: String, groupId: Long, enabled: Boolean) {
+            beforeUpdate()
+            check(!failUpdate) { "Test group save failure" }
+            groupPreference = enabled
+        }
+
         override suspend fun getPreferences(memberId: Int, fid: String): NotificationPreferences {
             beforeLoad()
             check(!failLoad) { "Test load failure" }

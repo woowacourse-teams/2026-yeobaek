@@ -64,10 +64,11 @@ interface CommentApi {
         @Query("currentPassageId") currentPassageId: Long,
     ): Response<NewCommentCountResponse>
 
-    @GET("api/clubs/{clubId}/commented-sentences")
+    @GET("api/v2/clubs/{clubId}/commented-sentences")
     suspend fun getGroupCommentedSentences(
         @Path("clubId") clubId: Long,
         @Query("currentPassageId") currentPassageId: Long,
+        @Query("filter") filter: String,
     ): Response<CommentedSentencesResponse>
 
     @POST("api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views")
@@ -90,9 +91,10 @@ interface CommentApi {
         @Query("currentPassageId") currentPassageId: Long,
     ): Response<NewCommentCountResponse>
 
-    @GET("api/public-rooms/{publicRoomId}/commented-sentences")
+    @GET("api/v2/public-rooms/{publicRoomId}/commented-sentences")
     suspend fun getPublicRoomCommentedSentences(
         @Path("publicRoomId") publicRoomId: Long,
         @Query("currentPassageId") currentPassageId: Long,
+        @Query("filter") filter: String,
     ): Response<CommentedSentencesResponse>
 }

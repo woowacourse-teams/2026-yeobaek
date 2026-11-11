@@ -1,13 +1,11 @@
 package yeobaek.backend.notification;
 
-import yeobaek.backend.notification.domain.NotificationType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -40,18 +38,24 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.scheduling.TaskScheduler;
-import yeobaek.backend.member.domain.Member;
+import org.springframework.transaction.PlatformTransactionManager;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
-import org.springframework.transaction.PlatformTransactionManager;
+import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.notification.comment.CommentNotificationRecipientQueryRepository;
 import yeobaek.backend.notification.comment.CommentNotificationService;
+import yeobaek.backend.notification.domain.ClubCommentNotificationContext;
+import yeobaek.backend.notification.domain.ClubJoinNotificationContext;
 import yeobaek.backend.notification.domain.FcmRetryTask;
 import yeobaek.backend.notification.domain.FcmSendFailure;
 import yeobaek.backend.notification.domain.FcmSendResult;
+import yeobaek.backend.notification.domain.NotificationContext;
+import yeobaek.backend.notification.domain.NotificationType;
+import yeobaek.backend.notification.domain.PublicRoomCommentNotificationContext;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.support.LogCapture;
 
@@ -66,7 +70,8 @@ class FcmRetryServiceTest {
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final Clock clock = mock(Clock.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
-    private final NotificationRegistrationService registrations = mock(NotificationRegistrationService.class);
+    private final NotificationRecipientQueryService recipientQueryService = mock(NotificationRecipientQueryService.class);
+    private final NotificationRegistrationService registrationService = mock(NotificationRegistrationService.class);
     private final FcmFailureHandler handler = mock(FcmFailureHandler.class);
     private final AtomicReference<Instant> now = new AtomicReference<>(CREATED_AT);
     private final Deque<Runnable> timers = new ArrayDeque<>();
@@ -78,7 +83,7 @@ class FcmRetryServiceTest {
     void setUp() throws FirebaseMessagingException {
         given(clock.instant()).willAnswer(invocation -> now.get());
         captureSchedules();
-        given(registrations.snapshotForRetry(anyList(), any(FirebaseInstallationId.class), any(NotificationType.class)))
+        given(recipientQueryService.snapshotForRetry(anyList(), any(FirebaseInstallationId.class), any(NotificationContext.class)))
                 .willAnswer(invocation -> snapshot(invocation.getArgument(0), invocation.getArgument(1)));
         given(sender.send(anyList(), anyString(), anyString(), any())).willReturn(new FcmSendResult(1, List.of()));
         retryService = newRetryService(workers::addLast, handler, 10);
@@ -88,11 +93,11 @@ class FcmRetryServiceTest {
     @DisplayName("예약기는 발송하지 않고 실행기에 넘기며 성공하면 해당 실패 FID의 작업을 끝낸다")
     void dispatchOnlyFailedTargetAndStopOnSuccess() throws FirebaseMessagingException {
         retryService.schedule(task(internal(null), 0, false));
-        verifyNoInteractions(sender, registrations);
+        verifyNoInteractions(sender, recipientQueryService);
 
         fireTimer();
         assertThat(workers).hasSize(1);
-        verifyNoInteractions(sender, registrations);
+        verifyNoInteractions(sender, recipientQueryService);
         workers.removeFirst().run();
 
         verify(sender).send(List.of(FID), TITLE, BODY, DATA);
@@ -128,7 +133,7 @@ class FcmRetryServiceTest {
     @DisplayName("중복 등록 중 남은 원래 등록 ID만 후속 작업에 이어서 확인한다")
     void shrinkRegistrationSnapshotForNextAttempt() throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
-        given(registrations.snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT))
+        given(recipientQueryService.snapshotForRetry(List.of(1L, 2L), fid, new ClubCommentNotificationContext(11L, 5L, CREATED_AT)))
                 .willReturn(snapshot(List.of(2L), fid));
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(
                 new FcmSendResult(0, List.of(internal(null))), new FcmSendResult(1, List.of()));
@@ -137,8 +142,8 @@ class FcmRetryServiceTest {
         completeNext();
         completeNext();
 
-        verify(registrations).snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT);
-        verify(registrations).snapshotForRetry(List.of(2L), fid, NotificationType.CLUB_COMMENT);
+        verify(recipientQueryService).snapshotForRetry(List.of(1L, 2L), fid, new ClubCommentNotificationContext(11L, 5L, CREATED_AT));
+        verify(recipientQueryService).snapshotForRetry(List.of(2L), fid, new ClubCommentNotificationContext(11L, 5L, CREATED_AT));
         assertThat(timers).isEmpty();
     }
 
@@ -246,15 +251,15 @@ class FcmRetryServiceTest {
     void removeUnregisteredWithoutSchedulingAgain() throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
         var remaining = snapshot(List.of(1L), fid);
-        given(registrations.snapshotForRetry(List.of(1L, 2L), fid, NotificationType.CLUB_COMMENT)).willReturn(remaining);
+        given(recipientQueryService.snapshotForRetry(List.of(1L, 2L), fid, new ClubCommentNotificationContext(11L, 5L, CREATED_AT))).willReturn(remaining);
         given(sender.send(List.of(FID), TITLE, BODY, DATA)).willReturn(new FcmSendResult(0,
                 List.of(new FcmSendFailure(FID, "UNREGISTERED", "NOT_FOUND", 404, null))));
-        retryService = newRetryService(workers::addLast, new FcmFailureHandler(registrations), 10);
+        retryService = newRetryService(workers::addLast, new FcmFailureHandler(registrationService), 10);
         retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
-        verify(registrations).deleteUnregistered(remaining, fid);
+        verify(registrationService).deleteUnregistered(remaining, fid);
         assertThat(timers).isEmpty();
         verify(sender).send(List.of(FID), TITLE, BODY, DATA);
     }
@@ -262,30 +267,30 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("원래 등록이 삭제되거나 FID가 바뀌었다면 새 등록으로 대체하지 않고 종료한다")
     void stopWhenOriginalRegistrationDisappears() {
-        given(registrations.snapshotForRetry(anyList(), any(), any())).willReturn(new NotificationRegistrations(List.of()));
+        given(recipientQueryService.snapshotForRetry(anyList(), any(), any(NotificationContext.class))).willReturn(new NotificationRegistrations(List.of()));
         retryService.schedule(task(internal(null), 0, false));
 
         completeNext();
 
-        verify(registrations).snapshotForRetry(
-                List.of(1L, 2L), new FirebaseInstallationId(FID), NotificationType.CLUB_COMMENT);
+        verify(recipientQueryService).snapshotForRetry(List.of(1L, 2L), new FirebaseInstallationId(FID), new ClubCommentNotificationContext(11L, 5L, CREATED_AT));
         verifyNoInteractions(sender);
         assertThat(timers).isEmpty();
     }
 
     @ParameterizedTest
     @EnumSource(NotificationType.class)
-    @DisplayName("재시도 실패 후 설정이 OFF로 확인되면 다음 발송과 재예약을 중단해요")
+    @DisplayName("재시도 실패 후 설정이 OFF로 확인되면 다음 발송과 재예약을 중단한다")
     void stopRetryWhenSettingsDisableTarget(NotificationType type) throws FirebaseMessagingException {
         var fid = new FirebaseInstallationId(FID);
         var ids = List.of(1L, 2L);
         var data = Map.of("type", type.name());
-        given(registrations.snapshotForRetry(ids, fid, type))
+        given(recipientQueryService.snapshotForRetry(ids, fid, notificationContext(type, CREATED_AT)))
                 .willReturn(snapshot(ids, fid), new NotificationRegistrations(List.of()));
         given(sender.send(List.of(FID), TITLE, BODY, data))
                 .willReturn(new FcmSendResult(0, List.of(internal(null))));
-        var task = new FcmRetryTask(type, 11L, ids, TITLE, BODY, data,
-                internal(null), CREATED_AT, CREATED_AT, 0, false);
+        var task = new FcmRetryTask(notificationContext(type, CREATED_AT),
+                ids, TITLE, BODY, data, internal(null),
+                CREATED_AT, 0, false);
 
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task);
@@ -295,7 +300,7 @@ class FcmRetryServiceTest {
             completeNext();
 
             verify(sender, times(1)).send(List.of(FID), TITLE, BODY, data);
-            verify(registrations, times(2)).snapshotForRetry(ids, fid, type);
+            verify(recipientQueryService, times(2)).snapshotForRetry(ids, fid, notificationContext(type, CREATED_AT));
             assertThat(timers).isEmpty();
             assertThat(logs.field(logs.event("notification.retry.logStopped", "rejected"), "stopReason"))
                     .isEqualTo("NO_ELIGIBLE_REGISTRATION");
@@ -311,14 +316,14 @@ class FcmRetryServiceTest {
 
         workers.removeFirst().run();
 
-        verifyNoInteractions(registrations, sender);
+        verifyNoInteractions(recipientQueryService, sender);
         assertThat(timers).isEmpty();
     }
 
     @Test
     @DisplayName("등록 조회가 지연돼 30분이 지났다면 FCM을 호출하기 전에 다시 만료를 확인한다")
     void recheckExpiryAfterDatabaseQuery() {
-        given(registrations.snapshotForRetry(anyList(), any(), any())).willAnswer(invocation -> {
+        given(recipientQueryService.snapshotForRetry(anyList(), any(), any(NotificationContext.class))).willAnswer(invocation -> {
             now.set(CREATED_AT.plusSeconds(1800));
             return snapshot(List.of(1L), new FirebaseInstallationId(FID));
         });
@@ -340,7 +345,7 @@ class FcmRetryServiceTest {
             assertThat(logs.field(logs.event("notification.retry.logStopped", "rejected"), "stopReason"))
                     .isEqualTo("NEXT_RETRY_AT_OR_AFTER_EXPIRY");
         }
-        verifyNoInteractions(sender, registrations);
+        verifyNoInteractions(sender, recipientQueryService);
     }
 
     @Test
@@ -388,13 +393,13 @@ class FcmRetryServiceTest {
                     .isEqualTo("executorRejected");
             assertThat(timers).hasSize(1);
         }
-        verifyNoInteractions(sender, registrations);
+        verifyNoInteractions(sender, recipientQueryService);
     }
 
     @Test
     @DisplayName("등록 조회 실패는 민감 정보를 기록하지 않고 종료한다")
     void stopOnDatabaseFailure() {
-        given(registrations.snapshotForRetry(anyList(), any(), any()))
+        given(recipientQueryService.snapshotForRetry(anyList(), any(), any(NotificationContext.class)))
                 .willThrow(new DataAccessResourceFailureException("민감한 SQL " + FID));
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task(internal(null), 0, false));
@@ -411,7 +416,7 @@ class FcmRetryServiceTest {
     @Test
     @DisplayName("예상하지 못한 오류를 관찰하고 후속 작업을 계속 처리한다")
     void observeUnexpectedFailureAndContinue() throws FirebaseMessagingException {
-        given(registrations.snapshotForRetry(anyList(), any(), any())).willThrow(new IllegalStateException(FID));
+        given(recipientQueryService.snapshotForRetry(anyList(), any(), any(NotificationContext.class))).willThrow(new IllegalStateException(FID));
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task(internal(null), 0, false));
             completeNext();
@@ -421,7 +426,7 @@ class FcmRetryServiceTest {
             assertThat(logs.structuredText()).doesNotContain(FID);
         }
         doReturn(snapshot(List.of(1L), new FirebaseInstallationId(FID)))
-                .when(registrations).snapshotForRetry(anyList(), any(), any());
+                .when(recipientQueryService).snapshotForRetry(anyList(), any(), any(NotificationContext.class));
         retryService.schedule(task(internal(null), 0, false));
         completeNext();
         verify(sender).send(List.of(FID), TITLE, BODY, DATA);
@@ -505,11 +510,12 @@ class FcmRetryServiceTest {
     }
 
     @Test
-    @DisplayName("모임 입장 재시도도 공통 워커로 발송하고 모임 ID로 기록해요")
+    @DisplayName("모임 입장 재시도도 공통 워커로 발송하고 모임 ID로 기록한다")
     void retryClubJoinWithCorrectSource() throws FirebaseMessagingException {
         Map<String, String> data = Map.of("type", "CLUB_JOIN", "clubId", "5", "memberId", "7");
-        var task = new FcmRetryTask(NotificationType.CLUB_JOIN, 5L, List.of(1L, 2L), TITLE, BODY, data,
-                internal(null), CREATED_AT, CREATED_AT, 0, false);
+        var task = new FcmRetryTask(new ClubJoinNotificationContext(5L, CREATED_AT),
+                List.of(1L, 2L), TITLE, BODY, data, internal(null),
+                CREATED_AT, 0, false);
 
         try (var logs = new LogCapture(FcmRetryService.class.getName())) {
             retryService.schedule(task);
@@ -526,14 +532,14 @@ class FcmRetryServiceTest {
         var query = mock(CommentNotificationRecipientQueryRepository.class);
         if (club) {
             given(query.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L))).willReturn(List.of());
-            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
+            given(recipientQueryService.findClubRecipients(any(), any(), eq(5L))).willReturn(snapshot);
         } else {
             given(query.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L)).willReturn(List.of());
-            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
+            given(recipientQueryService.findPublicRoomRecipients(any())).willReturn(snapshot);
         }
         return new CommentNotificationService(
                 new FcmNotificationService(sender, handler, retryService, mock(PlatformTransactionManager.class)),
-                registrations, query);
+                recipientQueryService, query);
     }
 
     private NotificationRegistration registration(Long id, String fid) {
@@ -562,12 +568,21 @@ class FcmRetryServiceTest {
     }
 
     private FcmRetryService newRetryService(TaskExecutor executor, FcmFailureHandler failureHandler, int capacity) {
-        return new FcmRetryService(scheduler, executor, clock, sender, registrations, failureHandler, new Semaphore(capacity));
+        return new FcmRetryService(scheduler, executor, clock, sender, recipientQueryService, failureHandler, new Semaphore(capacity));
     }
 
     private FcmRetryTask task(FcmSendFailure failure, int retriesPerformed, boolean uncertainRetryUsed) {
-        return new FcmRetryTask(NotificationType.CLUB_COMMENT, 11L, List.of(1L, 2L), TITLE, BODY, DATA, failure,
-                CREATED_AT, now.get(), retriesPerformed, uncertainRetryUsed);
+        return new FcmRetryTask(new ClubCommentNotificationContext(11L, 5L, CREATED_AT),
+                List.of(1L, 2L), TITLE, BODY, DATA, failure,
+                now.get(), retriesPerformed, uncertainRetryUsed);
+    }
+
+    private NotificationContext notificationContext(NotificationType type, Instant createdAt) {
+        return switch (type) {
+            case CLUB_JOIN -> new ClubJoinNotificationContext(5L, createdAt);
+            case CLUB_COMMENT -> new ClubCommentNotificationContext(11L, 5L, createdAt);
+            case PUBLIC_ROOM_COMMENT -> new PublicRoomCommentNotificationContext(11L, createdAt);
+        };
     }
 
     private FcmSendFailure internal(String retryAfter) {

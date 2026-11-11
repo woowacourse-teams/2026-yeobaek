@@ -2,6 +2,7 @@ package com.yeobaek.feature.home
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_person_circle
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +27,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,10 +42,13 @@ import com.yeobaek.core.analytics.BookSearchEntryPoint
 import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.HomeReadingSpace
 import com.yeobaek.core.analytics.HomeReadingTabSelected
+import com.yeobaek.core.analytics.KeyboardDismissTrigger
+import com.yeobaek.core.analytics.KeyboardField
 import com.yeobaek.core.analytics.PublicRoomEntryPoint
 import com.yeobaek.core.analytics.PublicRoomListEnd
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.TrackBookSearch
+import com.yeobaek.core.common.rememberKeyboardDismissal
 import com.yeobaek.core.designsystem.theme.YeobaekSerif
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.component.CurrentlyGroupSection
@@ -77,6 +84,7 @@ fun HomeScreen(
         mutableStateOf(GroupTab.MyGroups)
     }
     val listVisitTracker = remember { PublicRoomListVisitTracker(onAnalyticsEvent) }
+    val recentListVisit = remember { RecentPublicRoomListVisit(onAnalyticsEvent) }
     val searchTracker = remember {
         BookSearchTracker(BookSearchEntryPoint.PUBLIC_ROOM, onAnalyticsEvent).apply {
             queryChanged(uiState.publicRoomTab.searchTextValue.isNotBlank())
@@ -100,6 +108,7 @@ fun HomeScreen(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         listVisitTracker.close(PublicRoomListEnd.BACKGROUND)
+        recentListVisit.close()
     }
 
     LaunchedEffect(uiState.isMovePublicRoom) {
@@ -108,11 +117,28 @@ fun HomeScreen(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardDismissed = rememberKeyboardDismissal(
+        KeyboardField.PUBLIC_ROOM_SEARCH.takeIf { selectedGroupTab == GroupTab.PublicRooms },
+        onAnalyticsEvent,
+    )
+    val dismissKeyboardOnTap = if (selectedGroupTab == GroupTab.PublicRooms) {
+        Modifier.pointerInput(focusManager, keyboardController, keyboardDismissed) {
+            detectTapGestures {
+                keyboardDismissed(KeyboardDismissTrigger.OUTSIDE_TAP)
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        }
+    } else {
+        Modifier
+    }
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().then(dismissKeyboardOnTap),
         topBar = {
             AppTitle(
-                title = "$appName | ${uiState.username}",
+                title = appName,
                 navigateToMyPage = {
                     searchTracker.close(BookSearchEnd.NAVIGATION)
                     listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
@@ -161,6 +187,7 @@ fun HomeScreen(
                         if (selectedGroupTab == GroupTab.PublicRooms) {
                             searchTracker.close(BookSearchEnd.TAB_SWITCH)
                             listVisitTracker.close(PublicRoomListEnd.TAB_SWITCH)
+                            recentListVisit.close()
                         }
                         selectedGroupTab = tab
                         onAnalyticsEvent(
@@ -211,13 +238,14 @@ fun HomeScreen(
                             listVisitTracker.selectRoom()
                         } else {
                             listVisitTracker.close(PublicRoomListEnd.NAVIGATION)
-                            null
+                            recentListVisit.id
                         }
                         onPublicRoomClick(publicRoom, entryPoint, listVisitId)
                     },
                     onListObserved = listVisitTracker::observe,
                     onListUserScrolled = listVisitTracker::onUserScrolled,
                     observationEpoch = observationEpoch,
+                    recentListVisit = recentListVisit,
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
@@ -283,9 +311,7 @@ private fun HomeScreenPreview() {
     YeobaekTheme {
         HomeScreen(
             appName = "여백",
-            uiState = HomeUiState(
-                username = "하로하로하로",
-            ),
+            uiState = HomeUiState(),
             navigateToJoin = {},
             navigateToDetail = {},
             navigateToCreate = {},

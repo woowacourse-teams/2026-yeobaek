@@ -27,6 +27,8 @@ fun BookItem(
     coverUrl: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    genres: List<String> = emptyList(),
+    hashtags: List<String> = emptyList(),
 ) {
     Card(
         onClick = onClick,
@@ -42,8 +44,9 @@ fun BookItem(
                 .padding(bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            BookCoverImage(
+            BookListCover(
                 imageUrl = coverUrl,
+                genres = genres,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -64,6 +67,10 @@ fun BookItem(
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+            BookHashtags(
+                hashtags = hashtags,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
             )
         }
     }

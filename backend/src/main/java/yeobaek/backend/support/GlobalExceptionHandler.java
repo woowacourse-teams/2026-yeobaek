@@ -14,6 +14,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -91,6 +93,13 @@ public class GlobalExceptionHandler {
         logExpected("exception.handleUnauthorized", e.getCode(), e.getLogContext());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(e.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<ErrorResponse> handleRouteNotFound() {
+        logExpected("exception.handleRouteNotFound", ErrorCode.ROUTE_NOT_FOUND, Map.of());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(ErrorCode.ROUTE_NOT_FOUND, "요청한 경로를 찾을 수 없습니다."));
     }
 
     @ExceptionHandler(Exception.class)

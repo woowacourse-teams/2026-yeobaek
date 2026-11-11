@@ -78,11 +78,9 @@ class HomeViewModel(
         )
         viewModelScope.launch {
             try {
-                val username = userRepository.getUsername()
                 val groups = groupRepository.getGroups()
 
                 uiState = uiState.copy(
-                    username = username,
                     groups = groups.map {
                         GroupUiModel(
                             groupId = it.clubId,
@@ -90,6 +88,8 @@ class HomeViewModel(
                             title = it.book.title,
                             groupName = it.name,
                             groupCount = it.memberCount,
+                            genres = it.book.genres,
+                            hashtags = it.book.hashtags,
                         )
                     },
                     screenState = ScreenState.Success,

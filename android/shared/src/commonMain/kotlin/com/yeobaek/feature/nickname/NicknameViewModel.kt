@@ -11,12 +11,15 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.InvalidReason
+import com.yeobaek.core.analytics.NicknameChangeAbandoned
+import com.yeobaek.core.analytics.NicknameChangeSubmitted
 import com.yeobaek.core.analytics.NicknameSubmitted
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.repository.InvalidNicknameException
 import com.yeobaek.data.repository.UserRepository
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
@@ -25,15 +28,29 @@ class NicknameViewModel(
     private val userRepository: UserRepository,
     private val crashReporter: CrashReporter,
     private val analyticsTracker: AnalyticsTracker,
+    private val initialNickname: String? = null,
 ) : ViewModel() {
-    var uiState by mutableStateOf(NicknameUiState())
+    var uiState by mutableStateOf(
+        NicknameUiState(
+            nicknameValue = initialNickname.orEmpty(),
+            isEnabled = initialNickname == null,
+        ),
+    )
         private set
 
     fun onNicknameValueChange(inputValue: String) {
+        if (uiState.nicknameUpdateState is NicknameUpdateState.Loading ||
+            uiState.nicknameUpdateState is NicknameUpdateState.Success
+        ) {
+            return
+        }
+
         uiState = uiState.copy(
             nicknameValue = inputValue,
-            nicknameState = true,
-            isEnabled = true,
+            nicknameState = initialNickname == null || inputValue.length <= MAX_NICKNAME_LENGTH,
+            isEnabled = initialNickname == null ||
+                (inputValue.isNotBlank() && inputValue.length <= MAX_NICKNAME_LENGTH && inputValue != initialNickname),
+            nicknameUpdateState = NicknameUpdateState.Idle,
         )
     }
 
@@ -92,20 +109,80 @@ class NicknameViewModel(
         }
     }
 
+    fun updateNickname() {
+        if (uiState.nicknameUpdateState is NicknameUpdateState.Loading ||
+            uiState.nicknameUpdateState is NicknameUpdateState.Success
+        ) {
+            return
+        }
+
+        checkNickname()
+        if (uiState.nicknameValue.length > MAX_NICKNAME_LENGTH) {
+            uiState = uiState.copy(nicknameState = false, isEnabled = false)
+        }
+        val nickname = uiState.nicknameValue
+        if (nickname == initialNickname) return
+        if (!uiState.nicknameState) {
+            val reason = if (nickname.isBlank()) InvalidReason.NICKNAME_BLANK else InvalidReason.NICKNAME_TOO_LONG
+            analyticsTracker.track(NicknameChangeSubmitted(EventResult.INVALID, nickname.length, reason))
+            return
+        }
+
+        uiState = uiState.copy(
+            isEnabled = false,
+            nicknameUpdateState = NicknameUpdateState.Loading,
+        )
+
+        viewModelScope.launch {
+            try {
+                val updatedUser = userRepository.updateNickname(nickname)
+                uiState = uiState.copy(
+                    nicknameValue = updatedUser.name,
+                    nicknameUpdateState = NicknameUpdateState.Success,
+                )
+                analyticsTracker.track(NicknameChangeSubmitted(EventResult.SUCCESS, nickname.length))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                analyticsTracker.track(NicknameChangeSubmitted(EventResult.FAILURE, nickname.length))
+                uiState = uiState.copy(
+                    isEnabled = exception !is InvalidNicknameException,
+                    nicknameState = exception !is InvalidNicknameException,
+                    nicknameUpdateState = NicknameUpdateState.Failure(
+                        exception.message ?: "닉네임을 변경하지 못했습니다.",
+                    ),
+                )
+            }
+        }
+    }
+
+    fun abandonChange() {
+        analyticsTracker.track(
+            NicknameChangeAbandoned(
+                hasChanges = uiState.nicknameValue != initialNickname,
+                nicknameLength = uiState.nicknameValue.length,
+            ),
+        )
+    }
+
     companion object {
         fun nicknameViewModelFactory(
             userRepository: UserRepository,
             crashReporter: CrashReporter,
             analyticsTracker: AnalyticsTracker,
+            initialNickname: String? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 NicknameViewModel(
                     userRepository = userRepository,
                     crashReporter = crashReporter,
                     analyticsTracker = analyticsTracker,
+                    initialNickname = initialNickname,
                 )
             }
         }
+
+        private const val MAX_NICKNAME_LENGTH = 20
     }
 
     private fun crashContext(operation: CrashOperation) = CrashContext(

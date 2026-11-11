@@ -14,6 +14,7 @@
   - API는 다음 상태 코드를 사용한다:
     - `401` 인증 실패 (관리자 토큰 누락·불일치)
     - `403` 권한 없음 (모임 미소속, 남의 댓글 등)
+    - `404` 요청 경로에 해당하는 엔드포인트나 정적 리소스 없음
     - `400` 그 외 모든 클라이언트 오류. 상세 원인은 바디의 `code`로 구분한다
     - `500` 서버 내부 처리 오류
   - `X-Member-Id` 누락 또는 존재하지 않는 회원: `400`
@@ -25,6 +26,7 @@
 | code | 상태 | 의미 |
 |---|---|---|
 | `INVALID_REQUEST` | 400 | 본문·파라미터·헤더 형식 오류, 필드 검증 실패 전반 |
+| `ROUTE_NOT_FOUND` | 404 | 요청 경로에 해당하는 엔드포인트나 정적 리소스 없음 |
 | `DUPLICATE_NICKNAME` | 400 | 회원 생성·닉네임 변경 시 다른 회원이 사용 중인 닉네임이에요. |
 | `MEMBER_NOT_FOUND` | 400 | `X-Member-Id` 또는 경로의 `memberId`가 가리키는 회원 없음 |
 | `BOOK_NOT_FOUND` | 400 | 대상 도서 없음 |
@@ -126,6 +128,22 @@
 ```
 
 클라이언트는 메시지 문구 대신 `code`로 닉네임 중복을 구분할 수 있어요. 회원 생성에서도 같은 코드를 반환해요.
+
+### 설문 필요 여부 조회
+
+`GET /api/members/me/survey-requirement` — `X-Member-Id` 헤더가 필요하다.
+
+요청 본문은 없다.
+
+응답 `200`:
+```json
+{ "surveyRequired": true }
+```
+
+- 기간 제한 없이 모임 또는 공개방의 댓글 조회 기록이 하나라도 있으면 `true`를 반환한다.
+- 댓글 작성 시 자동 생성되는 본인 조회 기록도 포함하므로, 댓글 작성 경험만 있어도 대상이 된다. 조회 기록이 없으면 `false`를 반환한다.
+- 현재 남아 있는 댓글 조회 기록을 기준으로 판단한다. 댓글 삭제 시 연결된 조회 기록도 삭제되므로 대상 여부가 바뀔 수 있다.
+- 이 API는 조회 기록을 변경하지 않으며, 설문 응답 완료 여부는 판단하지 않는다.
 
 ### 계정 삭제
 `DELETE /api/members/me`
@@ -600,8 +618,10 @@
 - 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
   모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
 
-### 댓글 문장 목록 전체 조회
+### 댓글 문장 목록 전체 조회 (deprecated)
 `GET /api/clubs/{clubId}/commented-sentences?currentPassageId=1042`
+
+구버전 호환 API다. 기존 응답·정렬을 유지하며, 신규 클라이언트는 아래 v2 API를 사용한다.
 
 - `currentPassageId`(필수 쿼리 파라미터): 요청 시점의 일반 뷰어 현재 문단 ID다. 이 문단까지를
   진도 안쪽으로 계산한다. 값이 없거나 숫자가 아니거나 해당 모임 도서의 문단이 아니면 `400`
@@ -663,6 +683,30 @@
 - 결과가 비어 있으면 `commentedSentences`는 빈 배열이다.
 - 모임이 존재하지 않거나 참여 중인 회원이 아니면 `403` (`NOT_CLUB_MEMBER`)을 반환한다.
   모임 도서가 삭제된 경우 `400` (`BOOK_NOT_AVAILABLE`)을 반환한다.
+
+### 댓글 문장 목록 조회 v2
+`GET /api/v2/clubs/{clubId}/commented-sentences?currentPassageId=1042&filter=ALL`
+
+전체 댓글·새 댓글 탭의 문장 목록을 책 순서로 반환한다. 모임과 공개방의 v2 목록에 공통으로 적용한다.
+
+필수 쿼리:
+
+- `currentPassageId`는 현재 읽고 있는 문단 ID다. 저장 진도와 별개로 목록 범위와 미래 문장 가림을 판단하는 기준이다.
+- `filter=ALL`(전체 댓글)은 보이는 댓글이 있는 책 전체의 문장을 반환한다.
+- `filter=NEW`(새 댓글)는 현재 문단까지 `unreadCommentCount > 0`인 문장만 반환한다.
+
+필수 값 누락, 형식 오류, `ALL`·`NEW` 이외의 `filter` 값은 `400 INVALID_REQUEST`다.
+
+응답은 `200 {"commentedSentences": [...]}`이며, 문장 항목의 10개 필드는 위 기존 목록 응답과 같다.
+결과가 없으면 빈 배열이다. 차단·접근 권한·도서 검증과 전체 반환·탐색 중 목록 유지 규칙도 기존과 같다.
+
+- **정렬:** `passageSequence` 오름차순 → `sentenceSequence` 오름차순.
+- **댓글 수:** `commentCount`는 보이는 전체 댓글 수, `unreadCommentCount`는 그중 미확인 수다.
+- `ALL`에서 `future=true`이고 `unreadCommentCount > 0`이면 `contentVisibility=REVEAL_REQUIRED`다.
+  그 외에는 `VISIBLE`이다. `content`는 항상 포함하므로 클라이언트가 `contentVisibility`에 따라 가린다.
+- **읽음 처리:** 목록 조회는 댓글 확인 상태·저장 진도·방문 시각을 변경하지 않는다.
+  댓글 상세 조회 후 목록을 다시 요청하면 읽은 댓글이 반영되고, 미확인 댓글이 없어진 문장은 `NEW`에서 빠진다.
+- 상단 배지와 `NEW`는 둘 다 현재 문단까지를 대상으로 한다. 배지는 미확인 댓글 수를 표시하고, `NEW`는 해당 댓글이 달린 문장 목록을 반환한다.
 
 ### 문장의 댓글 상세 조회 + 직접 확인
 `POST /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views`
@@ -1235,7 +1279,8 @@
 | PUT | /api/v2/clubs/{clubId}/progress | 정밀 진도 갱신 v2 (구현 예정) |
 | GET | /api/members/me/last-reading | 홈: 마지막 읽던 책 |
 | GET | /api/clubs/{clubId}/comments/new-count?currentPassageId={passageId} | 탑바 새 댓글 개수 |
-| GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 |
+| GET | /api/clubs/{clubId}/commented-sentences?currentPassageId={passageId} | 댓글 문장 목록 전체 조회 (deprecated 호환) |
+| GET | /api/v2/clubs/{clubId}/commented-sentences?currentPassageId={passageId}&filter={ALL 또는 NEW} | 댓글 문장 목록 탭별 조회 |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comment-detail-views | 댓글 상세 조회 + 직접 확인 |
 | GET | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 상세 조회 + 직접 확인 (deprecated 호환) |
 | POST | /api/clubs/{clubId}/sentences/{sentenceId}/comments | 댓글 작성 |
@@ -1317,7 +1362,8 @@ API 계약에서 확정하지 않으며 App Store 배포 전에 별도 정책과
 | PUT | `/api/public-rooms/{publicRoomId}/progress` | 진도 저장 v1 (구버전 호환·첫 문장 보정) |
 | PUT | `/api/v2/public-rooms/{publicRoomId}/progress` | 정밀 진도 저장 v2 (구현 예정) |
 | GET | `/api/public-rooms/{publicRoomId}/comments/new-count` | 새 댓글 수, 필수 쿼리 `currentPassageId` |
-| GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록, 필수 쿼리 `currentPassageId` |
+| GET | `/api/public-rooms/{publicRoomId}/commented-sentences` | 댓글 문장 목록 (deprecated), 필수 쿼리 `currentPassageId` |
+| GET | `/api/v2/public-rooms/{publicRoomId}/commented-sentences` | 탭별 댓글 문장 목록, 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` |
 | POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 댓글 상세·직접 확인 |
 | POST | `/api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | 댓글 작성 |
 | GET | `/api/members/me/recent-reading` | 공개방·모임 통합 최근 읽기 |
@@ -1543,13 +1589,14 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 
 모든 집계·목록·직접 확인은 해당 공개방의 댓글 중 요청 회원에게 보이는 댓글만 대상으로 한다.
 진도 경계는 저장 진도가 아니라 요청의 `currentPassageId`다. 이 파라미터는 진도와 방문 시각을 변경하지 않는다.
-아래 네 API 모두 없는 공개방에는 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서에는
+아래 API 모두 없는 공개방에는 `400 PUBLIC_ROOM_NOT_FOUND`, 삭제 도서에는
 `400 BOOK_NOT_AVAILABLE`을 반환한다. 모임 소속 조건은 적용하지 않는다.
 
 | 기능과 경로 | 요청 | 성공 응답 및 5절과 공유하는 규칙 |
 |---|---|---|
 | `GET /api/public-rooms/{publicRoomId}/comments/new-count` | 필수 쿼리 `currentPassageId` | `200 {"newCommentCount": 3}`. 현재 문단까지의 보이는 `NEW` 댓글 수. 상태 변경 없음 |
-| `GET /api/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 댓글 문장 목록의 모든 필드·정렬·가림·전체 반환 규칙 적용 |
+| `GET /api/public-rooms/{publicRoomId}/commented-sentences` (deprecated) | 필수 쿼리 `currentPassageId` | `200 {"commentedSentences": [...]}`. 5절 호환 목록의 모든 필드·정렬·가림·전체 반환 규칙 유지 |
+| `GET /api/v2/public-rooms/{publicRoomId}/commented-sentences` | 필수 쿼리 `currentPassageId`, `filter=ALL\|NEW` | 5절 「댓글 문장 목록 조회 v2」의 요청·응답·동작을 그대로 적용 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comment-detail-views` | 본문 없음 | `200 {"comments": [...]}`. 작성일 오름차순의 댓글 객체와 직접 확인 처리 |
 | `POST /api/public-rooms/{publicRoomId}/sentences/{sentenceId}/comments` | `{"content": "이 문장에서 멈칫했어요."}`. `content` 1~1000자 | `201`, 생성한 댓글 객체 하나. 작성자에게 즉시 `VIEWED` |
 
@@ -1573,7 +1620,7 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 - 댓글 문장 항목은 5절과 동일하게 `sentenceId`, `content`, `passageId`, `passageSequence`,
   `sentenceSequence`, `future`, `commentCount`, `unreadCommentCount`, `contentVisibility`,
   `latestCommentCreatedAt`을 모두 포함한다.
-- 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
+- 기존 댓글 문장 목록은 보이는 댓글이 있는 책 전체의 문장을 반환한다. 새 댓글 문장 → 미래 문장 →
   확인한 문장 순이며, 그룹 안에서는 `passageSequence` 오름차순, `sentenceSequence` 오름차순,
   두 순번이 같으면 `sentenceId` 내림차순이다. `latestCommentCreatedAt`은 정렬에 사용하지 않는다.
   받은 목록을 탐색 동안 유지하고 새 조회에서 이후 변경을 반영한다.
@@ -1712,13 +1759,15 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 이미 성공한 방문 기록은 유지된다. 방문 요청의 응답을 받지 못하면 기록 반영 여부가 불확실할 수
 있으며, 재요청은 같은 회원을 중복 방문자로 집계하지 않는다.
 
-## 11. 설치별 알림 설정
+## 11. 기기별 알림 설정
+
+이 절에서 기기는 FID로 구분하는 앱 설치 단위를 뜻해요. 앱을 재설치해 FID가 바뀌면 별도 등록으로 취급해요.
 
 ### 알림 등록
 
 `POST /api/notifications/registrations`
 
-요청은 `{ "fid": "설치의 FID" }`이며, 기존과 같이 `200`과 빈 본문을 반환해요.
+요청은 `{ "fid": "기기의 FID" }`이며, 기존과 같이 `200`과 빈 본문을 반환해요.
 최초 등록 시 전체 설정과 세 유형의 설정을 모두 ON으로 생성해요.
 동일한 회원·FID의 재등록은 같은 등록 정보와 기존 설정을 유지해요.
 
@@ -1726,7 +1775,7 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 
 `GET /api/notifications/preferences?fid={FID}`
 
-현재 회원의 해당 설치 설정을 조회해요. 응답은 `200`이에요.
+현재 회원에게 등록된 기기의 알림 설정을 조회해요. 응답은 `200`이에요.
 
 ```json
 {
@@ -1758,10 +1807,44 @@ v1 요청·응답 및 보정 규칙은 4번 「읽기 · 진도」의 ‘진도 
 - 설정은 최초 발송 대상 선정과 각 재시도 직전에 확인해요. 재시도 조회에서 전체 또는 해당 유형이 OFF이면 발송하지 않고 종료해요. 조회 후 설정이 바뀌거나 이미 FCM에 접수된 메시지까지 취소하는 것은 보장하지 않아요.
 - `clubJoin`은 모임 최초 가입·재가입 시 구성원에게 보내는 알림에 적용해요. 이미 가입 중인 상태로 조회된 입장 요청에는 발송하지 않아요. 동시 재가입 요청에 대한 알림 중복 방지는 보장하지 않아요.
 
+### 기기별 모임 알림 설정
+
+`GET /api/clubs/{clubId}/notifications/preferences?fid={FID}`
+
+현재 회원이 등록한 기기의 해당 모임 알림 설정을 조회하고 `200`을 반환해요.
+
+```json
+{ "enabled": true }
+```
+
+모임별 알림 설정의 기본값은 ON이에요.
+응답은 해당 모임의 알림 설정이에요. 실제 알림 수신에는 전체 알림과 해당 유형의 알림도 켜져 있어야 해요.
+
+`PATCH /api/clubs/{clubId}/notifications/preferences?fid={FID}`
+
+```json
+{ "enabled": false }
+```
+
+- `enabled`는 필수예요. 누락·null은 `400 INVALID_REQUEST`로 거부해요.
+- 변경 성공 시 `204 No Content`와 빈 본문을 반환해요.
+- 두 API 모두 `X-Member-Id`로 회원을 식별해요. 회원·FID에 맞는 등록이 없으면
+  `400 NOTIFICATION_REGISTRATION_NOT_FOUND`를 반환해요.
+- FID 누락·형식 오류는 `400 INVALID_REQUEST`로 거부해요.
+- 해당 회원이 참여 중인 모임만 조회·변경할 수 있어요. 참여 중이 아니거나 모임이 없으면
+  `403 NOT_CLUB_MEMBER`를 반환해요.
+- OFF는 해당 기기에서 해당 모임의 `CLUB_JOIN`·`CLUB_COMMENT`를 모두 제외해요.
+  다른 기기·다른 모임·공개방 댓글 알림에는 영향을 주지 않아요.
+- 실제 발송에는 전체 설정, 해당 유형 설정, 해당 모임 설정이 모두 ON이어야 해요.
+- 같은 회원·FID의 재등록과 모임 탈퇴 후 재가입은 저장된 모임 설정을 유지해요.
+  기기의 알림 등록 또는 모임이 삭제되면 관련 설정도 삭제해요. 새 알림 등록의 기본값은 ON이에요.
+- 최초 발송과 각 재시도 직전에 모임 설정과 참여 상태를 확인해요.
+  조회 이후 설정 변경이나 이미 FCM에 접수된 메시지의 취소는 보장하지 않아요.
+
 ### 모임 입장 푸시 데이터
 
 가입 트랜잭션 커밋 후 비동기로 발송해요. 입장자 본인·탈퇴자·입장자를 차단한 수신자는 제외하고,
-전체 설정과 `clubJoin`이 모두 ON인 기기를 선택해요.
+전체 설정·`clubJoin`·해당 모임 설정이 모두 ON인 기기를 선택해요.
 
 ```json
 { "type": "CLUB_JOIN", "clubId": "5", "memberId": "7" }

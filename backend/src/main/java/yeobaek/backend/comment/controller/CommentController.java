@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
 import yeobaek.backend.comment.dto.CommentCreateRequest;
 import yeobaek.backend.comment.dto.CommentLikeResponse;
 import yeobaek.backend.comment.dto.CommentedSentencesResponse;
@@ -94,7 +95,9 @@ public class CommentController {
         return response;
     }
 
-    @Operation(summary = "댓글 문장 전체 목록 조회")
+    @Operation(summary = "댓글 문장 전체 목록 조회 (deprecated)",
+            description = "기존 응답과 정렬을 유지한다. 신규 클라이언트는 GET /api/v2/clubs/{clubId}/commented-sentences를 사용한다.",
+            deprecated = true)
     @GetMapping("/api/clubs/{clubId}/commented-sentences")
     public CommentedSentencesResponse findCommentedSentences(
             @AuthMember Long memberId,
@@ -110,6 +113,33 @@ public class CommentController {
         log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentences").addKeyValue(RESULT, SUCCESS)
                 .addKeyValue(CLUB_ID, clubId)
                 .addKeyValue("resultCount", response.commentedSentences().size()).log("댓글 문장 목록 API 처리를 완료했습니다.");
+        return response;
+    }
+
+    @Operation(summary = "댓글 문장 목록 탭별 조회",
+            description = "ALL은 보이는 댓글이 있는 책 전체의 문장, NEW는 현재 문단까지 미확인 댓글이 있는 문장을 반환한다. 두 탭 모두 책 순서로 정렬한다. ALL의 미래 문장은 contentVisibility가 REVEAL_REQUIRED일 때 응답의 content를 화면에서 가린다. 목록 조회는 읽음 처리·진도·방문 시각을 변경하지 않는다.")
+    @GetMapping("/api/v2/clubs/{clubId}/commented-sentences")
+    public CommentedSentencesResponse findCommentedSentencesV2(
+            @AuthMember Long memberId,
+            @Parameter(description = CLUB_ID_DESCRIPTION) @PathVariable Long clubId,
+            @Parameter(description = "이 책에서 현재 읽고 있는 문단 ID. NEW의 조회 범위와 ALL의 미래 문장 가림 기준이다. 없거나 다른 책의 문단이면 400(INVALID_REQUEST).")
+            @RequestParam("currentPassageId") Long currentPassageId,
+            @Parameter(description = "조회할 댓글 탭: 전체 댓글(ALL), 새 댓글(NEW)")
+            @RequestParam("filter") CommentedSentenceFilter filter) {
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2")
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("passageId", currentPassageId)
+                .addKeyValue("filter", filter).log("댓글 문장 목록 v2 API 처리를 시작합니다.");
+
+        CommentedSentencesResponse response = commentService.findCommentedSentencesV2(
+                memberId, clubId, currentPassageId, filter);
+        int resultCount = response.commentedSentences().size();
+        analyticsTracker.track(memberId,
+                AnalyticsEvent.clubCommentedSentencesViewV2(clubId, currentPassageId, resultCount, filter.name()));
+
+        log.atInfo().addKeyValue(OPERATION, "comment.findCommentedSentencesV2").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue(CLUB_ID, clubId).addKeyValue("passageId", currentPassageId)
+                .addKeyValue("filter", filter).addKeyValue("resultCount", resultCount)
+                .log("댓글 문장 목록 v2 API 처리를 완료했습니다.");
         return response;
     }
 

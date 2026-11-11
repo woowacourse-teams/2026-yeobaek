@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +30,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -52,6 +57,7 @@ fun CreateBookSelectionContent(
     onClickBook: (SelectBookUiModel) -> Unit,
     onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
+    onImeSearch: () -> Unit = {},
 ) {
     val currentOnLastVisibleBookChanged by rememberUpdatedState(onLastVisibleBookChanged)
 
@@ -75,6 +81,7 @@ fun CreateBookSelectionContent(
             searchTextValue = searchTextValue,
             updateSearchTextValue = updateSearchTextValue,
             enabled = bookState is BookState.Success,
+            onImeSearch = onImeSearch,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -113,8 +120,11 @@ private fun CreateBookSearchTextField(
     searchTextValue: String,
     updateSearchTextValue: (String) -> Unit,
     enabled: Boolean,
+    onImeSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     YeobaekTextField(
         value = searchTextValue,
         onValueChange = { value ->
@@ -123,6 +133,12 @@ private fun CreateBookSearchTextField(
         placeholder = "책 제목을 검색해 주세요",
         modifier = modifier,
         enabled = enabled,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = {
+            onImeSearch()
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }),
         leadingIcon = {
             Icon(
                 painter = painterResource(Res.drawable.ic_search),
@@ -210,6 +226,8 @@ private fun CreateBookSelectionContent(
                             title = book.title,
                             authors = book.authors,
                             coverUrl = book.coverUrl,
+                            genres = book.genres,
+                            hashtags = book.hashtags,
                             onClick = { onClickBook(book) },
                             modifier = Modifier
                                 .border(

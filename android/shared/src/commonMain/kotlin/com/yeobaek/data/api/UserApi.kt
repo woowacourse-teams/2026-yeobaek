@@ -34,4 +34,10 @@ interface UserApi {
     suspend fun unBlockUser(
         @Path("memberId") memberId: Int,
     ): Response<Unit>
+
+    @Headers("Content-Type: application/json")
+    @PUT("api/members/me/nickname")
+    suspend fun updateNickname(
+        @Body request: UserRequest,
+    ): Response<UserResponse>
 }

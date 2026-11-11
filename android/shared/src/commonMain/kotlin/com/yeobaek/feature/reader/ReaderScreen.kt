@@ -14,14 +14,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.yeobaek.core.analytics.CommentCollectionAction
+import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.component.CommentBottomSheet
 import com.yeobaek.feature.reader.component.CommentCollectionContents
 import com.yeobaek.feature.reader.component.PassageItem
@@ -118,19 +122,19 @@ fun ReaderScreen(
             }
         }
 
-        uiState.returnProgress
-            ?.takeIf { uiState.mode == ReaderMode.Idle }
-            ?.let { returnProgress ->
-                ReaderReturnButton(
-                    progress = returnProgress,
-                    onClick = actions.onReturnToPreviousReadingPosition,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .navigationBarsPadding()
-                        .padding(start = 20.dp, bottom = 72.dp)
-                        .zIndex(1f),
-                )
+        if (uiState.returnPassageSequence != null && uiState.mode == ReaderMode.Idle) {
+            if (commentSheet == null && !uiState.isCommentCollectionsVisible && !uiState.isTableOfContentsVisible) {
+                LaunchedEffect(uiState.returnPassageSequence) { actions.onReturnButtonShown() }
             }
+            ReaderReturnButton(
+                onClick = actions.onReturnToPreviousReadingPosition,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .navigationBarsPadding()
+                    .padding(start = 20.dp, bottom = 72.dp)
+                    .zIndex(1f),
+            )
+        }
 
         if (uiState.isTableOfContentsVisible) {
             ReaderTableOfContents(
@@ -145,6 +149,10 @@ fun ReaderScreen(
             CommentCollectionContents(
                 commentedSentences = uiState.commentedSentences,
                 mode = uiState.commentedSentenceMode,
+                selectedFilter = uiState.commentCollectionFilter,
+                onFilterSelected = actions.onCommentCollectionFilterSelected,
+                onShowAll = actions.onShowAllComments,
+                onSpoilerExposure = actions.onSpoilerExposure,
                 onCommentCardClick = actions.onCommentCardClick,
                 onSentenceReveal = actions.onCommentSentenceReveal,
                 onRetry = actions.onCommentCollectionsRetry,
@@ -173,6 +181,7 @@ fun ReaderScreen(
             onDeleteCancel = commentSheetActions.onDeleteCancel,
             onDeleteConfirm = commentSheetActions.onDeleteConfirm,
             onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
+            onContentsShown = commentSheetActions.onContentsShown,
         )
     }
 }
@@ -196,10 +205,15 @@ class ReaderActions(
     val onCommentCollectionsClick: () -> Unit,
     val onCommentCollectionsDismiss: () -> Unit,
     val onCommentCollectionsRetry: () -> Unit,
+    val onCommentCollectionFilterSelected: (CommentedSentenceFilter) -> Unit,
     val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
-    val onCommentSentenceReveal: () -> Unit,
+    val onCommentSentenceReveal: (CommentedSentenceUiModel, CommentSentenceRevealTrigger) -> Unit,
     val onMoveToComment: () -> Unit,
     val onReturnToPreviousReadingPosition: () -> Unit,
+    val onInitialPositionApplied: (Int?) -> Unit = {},
+    val onShowAllComments: () -> Unit = { onCommentCollectionFilterSelected(CommentedSentenceFilter.ALL) },
+    val onSpoilerExposure: (CommentCollectionAction) -> Unit = {},
+    val onReturnButtonShown: () -> Unit = {},
 )
 
 @Composable
@@ -385,8 +399,9 @@ private fun ReaderScreenPreview() {
                 onCommentCollectionsClick = {},
                 onCommentCollectionsDismiss = {},
                 onCommentCollectionsRetry = {},
+                onCommentCollectionFilterSelected = {},
                 onCommentCardClick = {},
-                onCommentSentenceReveal = {},
+                onCommentSentenceReveal = { _, _ -> },
                 onMoveToComment = {},
                 onReturnToPreviousReadingPosition = {},
             ),

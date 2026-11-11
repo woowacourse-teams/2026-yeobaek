@@ -1,6 +1,7 @@
 package com.yeobaek.feature.reader
 
 import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.CommentCollectionCardContext
 import com.yeobaek.core.analytics.CommentDeleteCanceled
 import com.yeobaek.core.analytics.CommentDeleteRequested
 import com.yeobaek.core.analytics.CommentDeleted
@@ -10,6 +11,7 @@ import com.yeobaek.core.analytics.CommentLikeSubmitted
 import com.yeobaek.core.analytics.CommentMode
 import com.yeobaek.core.analytics.CommentReported
 import com.yeobaek.core.analytics.CommentSheetClosed
+import com.yeobaek.core.analytics.CommentSheetContentsShown
 import com.yeobaek.core.analytics.CommentSheetOpened
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.CommentSubmitted
@@ -34,6 +36,8 @@ class CommentSheetAnalytics(
         commentCount: Int,
         source: CommentSheetSource,
         hasNewComments: Boolean?,
+        collectionVisitId: String? = null,
+        collectionCard: CommentCollectionCardContext? = null,
     ) {
         readingSession.onCommentSheetOpened()
         trackEvent(
@@ -46,6 +50,27 @@ class CommentSheetAnalytics(
                 hasNewComments = hasNewComments,
                 afterJump = isAfterJump(),
                 commentLikeAvailable = isCommentLikeEnabled(),
+                collectionVisitId = collectionVisitId,
+                collectionCard = collectionCard,
+            ),
+        )
+    }
+
+    fun contentsShown(
+        sheet: CommentSheetUiState,
+        collectionVisitId: String?,
+        collectionFilter: String?,
+        unreadCommentCountAtOpen: Int? = null,
+    ) {
+        trackEvent(
+            CommentSheetContentsShown(
+                bookId = bookId(),
+                sentenceId = sheet.sentenceId,
+                commentCount = sheet.comments.size,
+                source = sheet.source,
+                collectionVisitId = collectionVisitId,
+                collectionFilter = collectionFilter,
+                unreadCommentCountAtOpen = unreadCommentCountAtOpen,
             ),
         )
     }
@@ -90,12 +115,23 @@ class CommentSheetAnalytics(
         commentCount: Int,
         othersCommentCount: Int?,
         didSubmit: Boolean,
+        sentenceId: Long,
+        source: CommentSheetSource,
+        commentsShown: Boolean,
+        collectionVisitId: String?,
+        collectionFilter: String? = null,
     ) {
         trackEvent(
             CommentSheetClosed(
                 commentCount = commentCount,
                 othersCommentCount = othersCommentCount,
                 didSubmit = didSubmit,
+                bookId = bookId(),
+                sentenceId = sentenceId,
+                source = source,
+                commentsShown = commentsShown,
+                collectionVisitId = collectionVisitId,
+                collectionFilter = collectionFilter,
             ),
         )
     }

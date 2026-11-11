@@ -34,6 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.BookListVisitTracker
+import com.yeobaek.core.analytics.BookMetadataSection
+import com.yeobaek.core.common.TrackBookList
 import com.yeobaek.core.common.getGridCount
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
@@ -63,6 +66,8 @@ fun OnboardingScreen(
     closeBottomSheet: () -> Unit,
     updateSearchTextValue: (String) -> Unit,
     modifier: Modifier = Modifier,
+    bookListTracker: BookListVisitTracker? = null,
+    onMetadataViewed: (BookMetadataSection) -> Unit = {},
 ) {
     var isLoading by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -155,8 +160,17 @@ fun OnboardingScreen(
                 onBackClick = onBackBookDetail,
                 onReadClick = onReadBook,
                 onRetry = onRetryBookDetail,
+                onMetadataViewed = onMetadataViewed,
             )
         } else {
+            if (bookListTracker != null) {
+                val displayedBooks = uiState.bookUiModelList.takeIf {
+                    uiState.initBookState is InitBookState.Success &&
+                        uiState.searchState !is SearchState.Loading &&
+                        uiState.searchState !is SearchState.Failure
+                }
+                TrackBookList(bookListTracker, bookGridState, displayedBooks?.map { it.id })
+            }
             Column(
                 modifier = modifier.padding(innerPadding).padding(horizontal = 20.dp).fillMaxSize(),
                 horizontalAlignment = Alignment.Start,
@@ -215,6 +229,8 @@ fun OnboardingScreen(
                                 title = bookUiModel.title,
                                 authors = bookUiModel.authors,
                                 coverUrl = bookUiModel.coverUrl,
+                                genres = bookUiModel.genres,
+                                hashtags = bookUiModel.hashtags,
                                 onClick = { onSelectBook(bookUiModel.id) },
                             )
                         }

@@ -1,6 +1,9 @@
 package com.yeobaek.feature.group.detail.navigation
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -10,14 +13,17 @@ import androidx.navigation.toRoute
 import com.yeobaek.core.analytics.GroupDetailOpened
 import com.yeobaek.core.analytics.GroupExitRequested
 import com.yeobaek.core.analytics.InviteCodeCopied
+import com.yeobaek.core.analytics.InviteShareSubmitted
 import com.yeobaek.core.analytics.ReaderOpened
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.core.notification.ClubJoinNotificationEffect
 import com.yeobaek.feature.group.detail.BlockState
 import com.yeobaek.feature.group.detail.DetailScreen
 import com.yeobaek.feature.group.detail.DetailViewModel
+import com.yeobaek.feature.group.detail.GroupNotificationViewModel
 import com.yeobaek.feature.group.detail.UnBlockState
 import kotlinx.serialization.Serializable
 
@@ -39,8 +45,8 @@ fun NavController.navigateToDetail(
 
 fun NavGraphBuilder.detailNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String) -> Unit,
     navigateToReader: (Long) -> Unit,
-    navigateToBack: () -> Unit,
 ) {
     composable<Detail> { backStackEntry ->
         val route = backStackEntry.toRoute<Detail>()
@@ -58,6 +64,23 @@ fun NavGraphBuilder.detailNavGraph(
                 analyticsTracker = appContainer.analyticsTracker,
             ),
         )
+        val groupNotificationViewModel = viewModel(key = "group-notification-${route.groupId}") {
+            GroupNotificationViewModel(
+                groupId = route.groupId,
+                repository = appContainer.notificationRepository,
+                memberId = appContainer.userPreferences.userId,
+                installationId = appContainer.notificationInstallationId,
+                trackEvent = { appContainer.analyticsTracker.track(it) },
+            )
+        }
+        val notificationState by groupNotificationViewModel.uiState.collectAsStateWithLifecycle()
+        val lifecycleState by backStackEntry.lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+        val notificationVisible = detailViewModel.uiState.screenState == ScreenState.Success &&
+            notificationState.enabled != null &&
+            lifecycleState == Lifecycle.State.RESUMED
+        LaunchedEffect(notificationVisible) {
+            if (notificationVisible) groupNotificationViewModel.onSettingVisible()
+        }
         LaunchedEffect(
             route.groupId,
             route.notificationOpenId,
@@ -65,7 +88,7 @@ fun NavGraphBuilder.detailNavGraph(
             route.notificationOpenId?.let { openId ->
                 appContainer.analyticsTracker.track(
                     GroupDetailOpened(route.groupId),
-                    mapOf("notification_open_id" to openId),
+                    mapOf("notification_open_id" to openId, "entry_point" to "notification"),
                 )
             }
             detailViewModel.initGroupData(groupId = route.groupId)
@@ -87,10 +110,17 @@ fun NavGraphBuilder.detailNavGraph(
             }
         }
 
+        val navigateBack = { navigateToBack(backStackEntry.id) }
         DetailScreen(
             uiState = detailViewModel.uiState,
+            notificationState = notificationState,
+            onNotificationClick = groupNotificationViewModel::onNotificationClick,
+            onNotificationErrorShown = groupNotificationViewModel::dismissError,
             onInviteCodeCopy = {
                 appContainer.analyticsTracker.track(InviteCodeCopied(groupId = route.groupId))
+            },
+            onInviteShareSubmitted = { result, shareId ->
+                appContainer.analyticsTracker.track(InviteShareSubmitted(route.groupId, result, shareId))
             },
             onBlockUser = { otherUserId ->
                 detailViewModel.blockUser(otherUserId)
@@ -101,7 +131,7 @@ fun NavGraphBuilder.detailNavGraph(
             onExitRequest = {
                 appContainer.analyticsTracker.track(GroupExitRequested(groupId = route.groupId))
             },
-            onBackClick = navigateToBack,
+            onBackClick = navigateBack,
             onReadClick = {
                 appContainer.analyticsTracker.track(
                     ReaderOpened(
@@ -114,7 +144,7 @@ fun NavGraphBuilder.detailNavGraph(
             onExitClick = {
                 detailViewModel.exitGroup(route.groupId)
             },
-            navigateToHome = navigateToBack,
+            navigateToHome = navigateBack,
         )
     }
 }

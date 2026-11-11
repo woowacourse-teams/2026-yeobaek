@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import kotlin.math.roundToInt
@@ -31,7 +32,7 @@ fun CommentCollectionContent(
     commentedSentenceUiModel: CommentedSentenceUiModel,
     isRevealed: Boolean,
     onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
-    onReveal: () -> Unit,
+    onReveal: (CommentSentenceRevealTrigger) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isNewComment = commentedSentenceUiModel.isNewComment()
@@ -39,7 +40,7 @@ fun CommentCollectionContent(
     Card(
         onClick = {
             if (isContentHidden) {
-                onReveal()
+                onReveal(CommentSentenceRevealTrigger.CARD)
             } else {
                 onCommentCardClick(commentedSentenceUiModel)
             }
@@ -47,7 +48,7 @@ fun CommentCollectionContent(
         modifier = modifier.fillMaxWidth(),
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors().copy(
-            containerColor = if (isContentHidden) {
+            containerColor = if (commentedSentenceUiModel.requiresReveal) {
                 MaterialTheme.colorScheme.surfaceVariant
             } else {
                 MaterialTheme.colorScheme.surface
@@ -92,7 +93,7 @@ fun CommentCollectionContent(
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 if (isContentHidden) {
-                    TextButton(onClick = onReveal) {
+                    TextButton(onClick = { onReveal(CommentSentenceRevealTrigger.REVEAL_BUTTON) }) {
                         Text("문장 보기")
                     }
                 }

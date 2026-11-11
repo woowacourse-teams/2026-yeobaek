@@ -45,9 +45,11 @@ import yeobaek.backend.notification.domain.FcmSendResult;
 import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
+import yeobaek.backend.notification.registration.dto.NotificationClubPreferenceUpdateRequest;
 import yeobaek.backend.notification.registration.dto.NotificationPreferencesUpdateRequest;
 import yeobaek.backend.notification.registration.dto.NotificationRegistrationRequest;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
+import yeobaek.backend.notification.registration.service.NotificationClubPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 import yeobaek.backend.support.IntegrationTest;
@@ -58,6 +60,9 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     private static final String TABLET = "d" + "a".repeat(21);
     private static final String TITLE = "새로운 모임원이 참여했어요!";
     private static final String BODY = "모임에서 함께 이야기를 나눠 보세요.";
+
+    @Autowired
+    private NotificationClubPreferencesService clubPreferences;
 
     @Autowired
     private ClubService clubService;
@@ -98,7 +103,19 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("가입 커밋 후 기존 구성원에게 보내고 입장자 본인의 기기는 제외해요")
+    @DisplayName("휴대전화에서 해당 모임 알림을 꺼도 같은 회원의 태블릿에는 가입 알림을 보낸다")
+    void applyClubPreferencePerInstallation() throws FirebaseMessagingException {
+        register(recipient, TABLET);
+        clubPreferences.update(recipient.getId(), new FirebaseInstallationId(PHONE), club.getId(),
+                new NotificationClubPreferenceUpdateRequest(false));
+
+        clubService.join(joiner.getId(), JOIN_CODE);
+
+        verify(sender).send(List.of(TABLET), TITLE, BODY, data());
+    }
+
+    @Test
+    @DisplayName("가입 커밋 후 기존 구성원에게 보내고 입장자 본인의 기기는 제외한다")
     void sendAfterJoiningAndExcludeOwnDevices() throws FirebaseMessagingException {
         register(joiner, "e" + "a".repeat(21));
 
@@ -109,7 +126,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("재가입은 알리고 이미 가입 중인 회원의 중복 요청은 추가 알림을 보내지 않아요")
+    @DisplayName("재가입은 알리고 이미 가입 중인 회원의 중복 요청은 추가 알림을 보내지 않는다")
     void notifyRejoinButIgnoreRepeatedJoin() throws FirebaseMessagingException {
         clubService.join(joiner.getId(), JOIN_CODE);
         clubService.leave(joiner.getId(), club.getId());
@@ -124,7 +141,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("전체 알림이나 모임 입장 알림을 끈 기기만 제외하고 다른 기기는 유지해요")
+    @DisplayName("전체 알림이나 모임 입장 알림을 끈 기기만 제외하고 다른 기기는 유지한다")
     void applyDevicePreferences(boolean disableOverall) throws FirebaseMessagingException {
         register(recipient, TABLET);
         preferences.update(recipient.getId(), new FirebaseInstallationId(PHONE),
@@ -137,7 +154,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("댓글 알림만 꺼도 모임 입장 알림은 발송해요")
+    @DisplayName("댓글 알림만 꺼도 모임 입장 알림은 발송한다")
     void retainJoinPreferenceWhenCommentDisabled() throws FirebaseMessagingException {
         preferences.update(recipient.getId(), new FirebaseInstallationId(PHONE),
                 new NotificationPreferencesUpdateRequest(null, null, false, false));
@@ -148,7 +165,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("가입 트랜잭션이 롤백되면 등록과 알림 발송을 모두 취소해요")
+    @DisplayName("가입 트랜잭션이 롤백되면 등록과 알림 발송을 모두 취소한다")
     void skipNotificationAfterRollback() {
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             clubService.join(joiner.getId(), JOIN_CODE);
@@ -160,7 +177,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("등록 해제는 정리하고 재시도 가능한 실패만 모임 ID와 입장 시각으로 예약해요")
+    @DisplayName("등록 해제는 정리하고 재시도 가능한 실패만 모임 ID와 입장 시각으로 예약한다")
     void cleanupAndRetryOnlyFailedDevices() throws FirebaseMessagingException {
         NotificationRegistration tablet = register(recipient, TABLET);
         given(sender.send(any(), any(), any(), any())).willReturn(new FcmSendResult(0, List.of(
@@ -181,7 +198,7 @@ class ClubJoinNotificationIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("호출 전체의 접수 불명확은 원래 대상별로 만들고 한 번의 추가 시도만 허용해요")
+    @DisplayName("호출 전체의 접수 불명확은 원래 대상별로 만들고 한 번의 추가 시도만 허용한다")
     void retryUncertainCallOnce() throws FirebaseMessagingException {
         register(recipient, TABLET);
         var exception = org.mockito.Mockito.mock(FirebaseMessagingException.class);

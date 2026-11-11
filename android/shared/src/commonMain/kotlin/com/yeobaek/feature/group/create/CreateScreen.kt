@@ -1,5 +1,6 @@
 package com.yeobaek.feature.group.create
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -13,8 +14,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.AnalyticsEvent
+import com.yeobaek.core.analytics.BookListVisitTracker
+import com.yeobaek.core.analytics.BookMetadataSection
+import com.yeobaek.core.analytics.KeyboardDismissTrigger
+import com.yeobaek.core.analytics.KeyboardField
+import com.yeobaek.core.common.TrackBookList
+import com.yeobaek.core.common.rememberKeyboardDismissal
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.component.YeobaekTopAppBar
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
@@ -36,9 +47,23 @@ fun CreateScreen(
     onCreateGroup: () -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
+    bookListTracker: BookListVisitTracker? = null,
+    onMetadataViewed: (BookMetadataSection) -> Unit = {},
+    onFullyVisibleBooks: ((List<Long>) -> Unit)? = null,
+    onAnalyticsEvent: (AnalyticsEvent) -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val bookGridState = rememberLazyGridState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardDismissed = rememberKeyboardDismissal(
+        when (uiState.step) {
+            CreateStep.BookSelection -> KeyboardField.GROUP_CREATE_BOOK_SEARCH
+            CreateStep.GroupName -> KeyboardField.GROUP_NAME
+            CreateStep.BookDetail -> null
+        },
+        onAnalyticsEvent,
+    )
 
     PlatformBackHandler(onBack = onBackClick)
 
@@ -66,12 +91,28 @@ fun CreateScreen(
             onReadClick = onNextStep,
             onRetry = onRetryBookDetail,
             modifier = modifier,
+            onMetadataViewed = onMetadataViewed,
         )
         return
     }
 
+    if (uiState.step == CreateStep.BookSelection && bookListTracker != null) {
+        val displayedBooks = uiState.bookList.takeIf {
+            uiState.bookState is BookState.Success &&
+                uiState.searchState !is SearchState.Loading &&
+                uiState.searchState !is SearchState.Failure
+        }
+        TrackBookList(bookListTracker, bookGridState, displayedBooks?.map { it.id }, onFullyVisibleBooks)
+    }
+
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().pointerInput(focusManager, keyboardController, keyboardDismissed) {
+            detectTapGestures {
+                keyboardDismissed(KeyboardDismissTrigger.OUTSIDE_TAP)
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        },
         topBar = {
             YeobaekTopAppBar(
                 title = "모임 만들기",
@@ -107,6 +148,7 @@ fun CreateScreen(
                     gridState = bookGridState,
                     onClickBook = selectBook,
                     onLastVisibleBookChanged = onLastVisibleBookChanged,
+                    onImeSearch = { keyboardDismissed(KeyboardDismissTrigger.IME_SEARCH) },
                 )
 
                 CreateStep.GroupName -> CreateGroupContent(
@@ -115,6 +157,7 @@ fun CreateScreen(
                     isGroupNameValid = uiState.isGroupNameValid,
                     selectOtherBook = onSelectOtherBook,
                     onValueChangeGroupName = updateGroupNameValue,
+                    onImeDone = { keyboardDismissed(KeyboardDismissTrigger.IME_DONE) },
                 )
 
                 CreateStep.BookDetail -> Unit

@@ -11,6 +11,8 @@ data class BookDetailUiModel(
     val pageCount: String,
     val passageCount: String,
     val chapters: List<BookDetailChapterUiModel>,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 data class BookDetailChapterUiModel(
@@ -34,4 +36,6 @@ fun BookDetailModel.toUiModel(): BookDetailUiModel = BookDetailUiModel(
             passageRange = "문단 ${chapter.startPassageSequence}–${chapter.endPassageSequence}",
         )
     },
+    genres = genres,
+    hashtags = hashtags,
 )

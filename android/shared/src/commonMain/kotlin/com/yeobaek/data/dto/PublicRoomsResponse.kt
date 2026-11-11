@@ -39,6 +39,8 @@ data class PublicRoomBook(
     val coverImageUrl: String?,
     val passageCount: Int,
     val status: String,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 fun PublicRoomsResponse.toModel(): List<PublicRoomModel> = publicRooms.map(PublicRoom::toModel)
@@ -75,4 +77,6 @@ fun PublicRoomBook.toModel(): PublicRoomBookModel =
             "DELETED" -> PublicRoomBookStatus.DELETED
             else -> PublicRoomBookStatus.UNSUPPORTED
         },
+        genres = genres,
+        hashtags = hashtags,
     )

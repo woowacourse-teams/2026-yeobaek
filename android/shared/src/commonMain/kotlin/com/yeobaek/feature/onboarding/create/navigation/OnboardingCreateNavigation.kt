@@ -37,11 +37,11 @@ fun NavController.navigateToOnboardingCreate(
 
 fun NavGraphBuilder.onboardingCreateNavGraph(
     appContainer: AppContainer,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
     navigateToHome: () -> Unit,
-    navigateToBack: () -> Unit,
 ) {
-    composable<OnboardingCreate> {
-        val route = it.toRoute<OnboardingCreate>()
+    composable<OnboardingCreate> { entry ->
+        val route = entry.toRoute<OnboardingCreate>()
         TrackScreen(
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
@@ -62,16 +62,13 @@ fun NavGraphBuilder.onboardingCreateNavGraph(
             createGroupViewModel.initSelectBook(route.bookId)
         }
 
+        val navigateBack = {
+            navigateToBack(entry.id, createGroupViewModel::abandon)
+        }
         CreateGroupScreen(
             uiState = createGroupViewModel.uiState,
-            onClickBack = {
-                createGroupViewModel.abandon()
-                navigateToBack()
-            },
-            selectOtherBook = {
-                createGroupViewModel.abandon()
-                navigateToBack()
-            },
+            onClickBack = navigateBack,
+            selectOtherBook = navigateBack,
             onValueChangeGroupName = createGroupViewModel::updateGroupNameValue,
             onClickCreateGroup = createGroupViewModel::createGroup,
             navigateToHome = {

@@ -2,6 +2,7 @@ package com.yeobaek.feature.home.component
 
 import android.shared.generated.resources.Res
 import android.shared.generated.resources.ic_search
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,9 +24,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,6 +44,7 @@ import com.yeobaek.core.designsystem.component.BookItem
 import com.yeobaek.core.designsystem.component.YeobaekTextField
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.home.PublicRoomTabUiState
+import com.yeobaek.feature.home.RecentPublicRoomListVisit
 import com.yeobaek.feature.home.model.PublicRoomBookUiModel
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.lazy.grid.items as gridItems
@@ -51,6 +59,7 @@ fun PublicGroupSection(
     onListUserScrolled: () -> Unit,
     observationEpoch: Int,
     modifier: Modifier = Modifier,
+    recentListVisit: RecentPublicRoomListVisit? = null,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         YeobaekTextField(
@@ -85,6 +94,7 @@ fun PublicGroupSection(
                 onListObserved = onListObserved,
                 onListUserScrolled = onListUserScrolled,
                 observationEpoch = observationEpoch,
+                recentListVisit = recentListVisit,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -100,6 +110,7 @@ private fun PublicRoomGrid(
     onListObserved: (Int, Int?) -> Unit,
     onListUserScrolled: () -> Unit,
     observationEpoch: Int,
+    recentListVisit: RecentPublicRoomListVisit?,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -141,6 +152,8 @@ private fun PublicRoomGrid(
                 VisitedPublicRoomRow(
                     publicRooms = visitedPublicRooms,
                     onPublicRoomClick = onPublicRoomClick,
+                    recentListVisit = recentListVisit,
+                    observationEpoch = observationEpoch,
                 )
             }
         }
@@ -167,6 +180,8 @@ private fun PublicRoomGrid(
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
                     onClick = { onPublicRoomClick(publicRoom, PublicRoomEntryPoint.ROOM_LIST) },
+                    genres = publicRoom.genres,
+                    hashtags = publicRoom.hashtags,
                 )
             }
         }
@@ -177,9 +192,13 @@ private fun PublicRoomGrid(
 private fun VisitedPublicRoomRow(
     publicRooms: List<PublicRoomBookUiModel>,
     onPublicRoomClick: (PublicRoomBookUiModel, PublicRoomEntryPoint) -> Unit,
+    recentListVisit: RecentPublicRoomListVisit?,
+    observationEpoch: Int,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val isDragged = listState.interactionSource.collectIsDraggedAsState()
+    var isVisible by remember { mutableStateOf(false) }
     val firstPublicRoomId = publicRooms.firstOrNull()?.publicRoomId
 
     LaunchedEffect(firstPublicRoomId) {
@@ -187,13 +206,29 @@ private fun VisitedPublicRoomRow(
             listState.scrollToItem(0)
         }
     }
+    LaunchedEffect(listState, recentListVisit) {
+        var previous = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { position ->
+            if (isDragged.value && position != previous) recentListVisit?.onUserScrolled()
+            previous = position
+        }
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val itemWidth = (maxWidth - PUBLIC_ROOM_ITEM_SPACING * (getGridCount() - 1)) /
-            getGridCount()
+        val visibleCardCount = getGridCount()
+        val hasNextCardPeek = publicRooms.size > visibleCardCount
+        val nextCoverSpace = PUBLIC_ROOM_ITEM_SPACING + NEXT_VISITED_ROOM_COVER_PEEK
+        val cardSpacing = PUBLIC_ROOM_ITEM_SPACING * (visibleCardCount - 1)
+        val itemWidth = (maxWidth - cardSpacing - nextCoverSpace) / visibleCardCount
+        LaunchedEffect(isVisible, publicRooms.size, hasNextCardPeek, observationEpoch) {
+            if (isVisible) recentListVisit?.observe(publicRooms.size, hasNextCardPeek)
+        }
 
         LazyRow(
             state = listState,
+            modifier = Modifier.fillMaxWidth().onGloballyPositioned {
+                isVisible = !it.boundsInWindow().isEmpty
+            },
             horizontalArrangement = Arrangement.spacedBy(PUBLIC_ROOM_ITEM_SPACING),
         ) {
             rowItems(
@@ -204,7 +239,10 @@ private fun VisitedPublicRoomRow(
                     title = publicRoom.title,
                     authors = publicRoom.authors,
                     coverUrl = publicRoom.coverImageUrl,
-                    onClick = { onPublicRoomClick(publicRoom, PublicRoomEntryPoint.RECENT_ROOMS) },
+                    onClick = {
+                        recentListVisit?.observe(publicRooms.size, hasNextCardPeek)
+                        onPublicRoomClick(publicRoom, PublicRoomEntryPoint.RECENT_ROOMS)
+                    },
                     modifier = Modifier.width(itemWidth),
                 )
             }
@@ -250,7 +288,7 @@ private fun PublicGroupSectionPreview() {
     YeobaekTheme {
         PublicGroupSection(
             uiState = PublicRoomTabUiState(
-                visitedPublicRooms = previewPublicRooms.take(2),
+                visitedPublicRooms = previewPublicRooms,
                 publicRooms = previewPublicRooms,
                 screenState = ScreenState.Success,
             ),
@@ -295,3 +333,4 @@ private val previewPublicRooms = listOf(
 )
 
 private val PUBLIC_ROOM_ITEM_SPACING = 12.dp
+private val NEXT_VISITED_ROOM_COVER_PEEK = 24.dp

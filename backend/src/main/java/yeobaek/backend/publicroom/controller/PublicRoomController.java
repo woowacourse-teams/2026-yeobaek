@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import yeobaek.backend.auth.AuthMember;
 import yeobaek.backend.book.dto.PassagesResponse;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
 import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.dto.CommentCreateRequest;
 import yeobaek.backend.comment.dto.CommentResponse;
@@ -31,6 +32,8 @@ import yeobaek.backend.publicroom.dto.PublicRoomSort;
 import yeobaek.backend.publicroom.dto.PublicRoomsResponse;
 import yeobaek.backend.publicroom.dto.VisitedPublicRoomsResponse;
 import yeobaek.backend.publicroom.service.PublicRoomService;
+import yeobaek.backend.support.analytics.AnalyticsEvent;
+import yeobaek.backend.support.analytics.AnalyticsTracker;
 
 @Tag(name = "공개방")
 @SecurityRequirement(name = "memberId")
@@ -42,6 +45,7 @@ public class PublicRoomController {
 
     private final PublicRoomService publicRoomService;
     private final CommentService commentService;
+    private final AnalyticsTracker analyticsTracker;
 
     @Operation(summary = "전체 공개방 목록 조회 · 검색",
             description = "이용 가능한 책의 공개방을 전체 반환한다. keyword를 주면 제목 또는 작가 이름 부분 일치로 검색한다. 현재 기본 정렬과 MOST_VISITED는 중복을 제외한 누적 방문 회원 수 내림차순이며 동률 순서는 보장하지 않는다. 삭제 도서의 공개방은 제외한다.")
@@ -109,14 +113,32 @@ public class PublicRoomController {
         return commentService.countNewPublicRoomComments(memberId, publicRoomId, currentPassageId);
     }
 
-    @Operation(summary = "공개방 댓글 문장 전체 목록 조회",
-            description = "보이는 댓글이 있는 책 전체의 문장을 새 댓글 문장 → 미래 문장 → 확인한 문장 순으로 반환한다. 미래 문장에 미확인 댓글이 있으면 REVEAL_REQUIRED이며 본문은 응답에 포함한다. 조회는 댓글 확인 상태·진도·방문 시각을 변경하지 않는다. 없거나 다른 책의 현재 문단이면 400(INVALID_REQUEST).")
+    @Operation(summary = "공개방 댓글 문장 전체 목록 조회 (deprecated)",
+            description = "기존 응답과 정렬을 유지한다. 신규 클라이언트는 GET /api/v2/public-rooms/{publicRoomId}/commented-sentences를 사용한다.",
+            deprecated = true)
     @GetMapping("/api/public-rooms/{publicRoomId}/commented-sentences")
     public CommentedSentencesResponse findCommentedSentences(@AuthMember Long memberId,
                                                              @Parameter(description = PUBLIC_ROOM_ID_DESCRIPTION) @PathVariable Long publicRoomId,
                                                              @Parameter(description = "현재 읽고 있는 문단 ID (저장 진도와 별개인 댓글 발견·미래 문장 판단 기준)")
                                                              @RequestParam Long currentPassageId) {
         return commentService.findPublicRoomCommentedSentences(memberId, publicRoomId, currentPassageId);
+    }
+
+    @Operation(summary = "공개방 댓글 문장 목록 탭별 조회",
+            description = "ALL은 보이는 댓글이 있는 책 전체의 문장, NEW는 현재 문단까지 미확인 댓글이 있는 문장을 반환한다. 두 탭 모두 책 순서로 정렬한다. ALL의 미래 문장은 contentVisibility가 REVEAL_REQUIRED일 때 응답의 content를 화면에서 가린다. 목록 조회는 읽음 처리·진도·방문 시각을 변경하지 않는다.")
+    @GetMapping("/api/v2/public-rooms/{publicRoomId}/commented-sentences")
+    public CommentedSentencesResponse findCommentedSentencesV2(
+            @AuthMember Long memberId,
+            @Parameter(description = PUBLIC_ROOM_ID_DESCRIPTION) @PathVariable Long publicRoomId,
+            @Parameter(description = "이 책에서 현재 읽고 있는 문단 ID. NEW의 조회 범위와 ALL의 미래 문장 가림 기준이다. 없거나 다른 책의 문단이면 400(INVALID_REQUEST).")
+            @RequestParam("currentPassageId") Long currentPassageId,
+            @Parameter(description = "조회할 댓글 탭: 전체 댓글(ALL), 새 댓글(NEW)")
+            @RequestParam("filter") CommentedSentenceFilter filter) {
+        CommentedSentencesResponse response = commentService.findPublicRoomCommentedSentencesV2(
+                memberId, publicRoomId, currentPassageId, filter);
+        analyticsTracker.track(memberId, AnalyticsEvent.publicRoomCommentedSentencesViewV2(
+                publicRoomId, currentPassageId, response.commentedSentences().size(), filter.name()));
+        return response;
     }
 
     @Operation(summary = "공개방 문장의 댓글 상세 조회와 직접 확인",

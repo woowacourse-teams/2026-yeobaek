@@ -53,14 +53,21 @@ fun ReaderTableOfContents(
                     .statusBarsPadding()
                     .navigationBarsPadding(),
             ) {
-                IconButton(
-                    onClick = onDismissRequest,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_close),
-                        contentDescription = "목차 닫기",
-                        modifier = Modifier.size(24.dp),
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.ic_close),
+                            contentDescription = "목차 닫기",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                    Text(
+                        text = "목차",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
 

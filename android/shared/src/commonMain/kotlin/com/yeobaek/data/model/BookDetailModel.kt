@@ -9,4 +9,6 @@ data class BookDetailModel(
     val coverImageUrl: String?,
     val description: String?,
     val pageCount: Long?,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )

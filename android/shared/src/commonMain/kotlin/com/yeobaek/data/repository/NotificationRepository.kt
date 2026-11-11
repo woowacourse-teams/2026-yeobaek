@@ -7,6 +7,8 @@ interface NotificationRepository {
     suspend fun register(memberId: Int, fid: String)
     suspend fun getPreferences(memberId: Int, fid: String): NotificationPreferences
     suspend fun updatePreferences(memberId: Int, fid: String, setting: NotificationSetting, enabled: Boolean)
+    suspend fun getGroupPreference(memberId: Int, fid: String, groupId: Long): Boolean
+    suspend fun updateGroupPreference(memberId: Int, fid: String, groupId: Long, enabled: Boolean)
 }
 
 class NotificationRegistrationException(

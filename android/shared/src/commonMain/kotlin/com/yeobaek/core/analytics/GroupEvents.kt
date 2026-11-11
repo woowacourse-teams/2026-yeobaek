@@ -1,5 +1,7 @@
 package com.yeobaek.core.analytics
 
+import com.yeobaek.core.invitation.InviteAttribution
+
 data class GroupDetailOpened(
     val groupId: Long,
 ) : AnalyticsEvent {
@@ -9,9 +11,9 @@ data class GroupDetailOpened(
     )
 }
 
-data object GroupCreateInitiated : AnalyticsEvent {
+data class GroupCreateInitiated(val attemptId: String) : AnalyticsEvent {
     override val name = "group_create_initiated"
-    override val properties = emptyMap<String, Any>()
+    override val properties = mapOf(KEY_GROUP_CREATE_ATTEMPT_ID to attemptId)
 }
 
 /**
@@ -33,6 +35,7 @@ data class BookListExposure(
 
 data class GroupCreateSubmitted(
     val result: EventResult,
+    val attemptId: String,
     val reason: InvalidReason? = null,
     val bookId: Long? = null,
     val bookTitle: String? = null,
@@ -44,32 +47,49 @@ data class GroupCreateSubmitted(
         reason?.let { put(KEY_REASON, it.value) }
         bookId?.let { put(KEY_BOOK_ID, it) }
         bookTitle?.takeIf(String::isNotBlank)?.let { put(KEY_BOOK_TITLE, it) }
+        put(KEY_GROUP_CREATE_ATTEMPT_ID, attemptId)
         bookList?.putInto(this)
     }
 }
 
 enum class GroupJoinEntryPoint(val value: String) {
+    DEEPLINK("deeplink"),
     ONBOARDING("onboarding"),
     HOME("home"),
 }
 
-data class GroupJoinInitiated(
+data class GroupJoinVisit(
     val entryPoint: GroupJoinEntryPoint,
-) : AnalyticsEvent {
+    val id: String,
+    val invitationRequestId: String? = null,
+    val inviteAttribution: InviteAttribution? = null,
+) {
+    val properties = buildMap {
+        put(KEY_ENTRY_POINT, entryPoint.value)
+        put("join_visit_id", id)
+        invitationRequestId?.let { put("invitation_request_id", it) }
+        inviteAttribution?.let { putAll(it.properties) }
+    }
+}
+
+data class GroupJoinInitiated(val visit: GroupJoinVisit) : AnalyticsEvent {
     override val name = "group_join_initiated"
-    override val properties = mapOf(KEY_ENTRY_POINT to entryPoint.value)
+    override val properties = visit.properties
 }
 
 data class GroupJoinSubmitted(
     val result: EventResult,
-    val entryPoint: GroupJoinEntryPoint,
+    val visit: GroupJoinVisit,
     val reason: InvalidReason? = null,
+    val codeChanged: Boolean? = null,
 ) : AnalyticsEvent {
     override val name = "group_join_submitted"
-    override val properties = buildMap {
+    override val properties = buildMap<String, Any> {
+        putAll(visit.properties)
         put(KEY_RESULT, result.value)
-        put(KEY_ENTRY_POINT, entryPoint.value)
         reason?.let { put(KEY_REASON, it.value) }
+        put("code_prefilled", codeChanged != null)
+        codeChanged?.let { put("code_changed", it) }
     }
 }
 
@@ -96,33 +116,49 @@ data class GroupExited(
 data class GroupCreateBookSelected(
     val bookId: Long,
     val bookTitle: String,
+    val attemptId: String,
+    val card: BookCardContext,
 ) : AnalyticsEvent {
     override val name = "group_create_book_selected"
     override val properties = buildMap {
         put(KEY_BOOK_ID, bookId)
         bookTitle.takeIf(String::isNotBlank)?.let { put(KEY_BOOK_TITLE, it) }
+        put(KEY_GROUP_CREATE_ATTEMPT_ID, attemptId)
+        putAll(card.properties)
     }
 }
 
 data class GroupCreateAbandoned(
     val hasName: Boolean,
     val hasBook: Boolean,
+    val attemptId: String,
+    val step: String,
+    val bookSelectedCount: Int,
     val bookList: BookListExposure? = null,
 ) : AnalyticsEvent {
     override val name = "group_create_abandoned"
     override val properties = buildMap {
         put(KEY_HAS_NAME, hasName)
         put(KEY_HAS_BOOK, hasBook)
+        put(KEY_GROUP_CREATE_ATTEMPT_ID, attemptId)
+        put("step", step)
+        put("book_selected_count", bookSelectedCount)
         bookList?.putInto(this)
     }
 }
 
 data class GroupJoinAbandoned(
     val hasCode: Boolean,
-    val entryPoint: GroupJoinEntryPoint,
+    val visit: GroupJoinVisit,
+    val codeChanged: Boolean? = null,
 ) : AnalyticsEvent {
     override val name = "group_join_abandoned"
-    override val properties = mapOf(KEY_HAS_CODE to hasCode, KEY_ENTRY_POINT to entryPoint.value)
+    override val properties = buildMap<String, Any> {
+        putAll(visit.properties)
+        put(KEY_HAS_CODE, hasCode)
+        put("code_prefilled", codeChanged != null)
+        codeChanged?.let { put("code_changed", it) }
+    }
 }
 
 data class GroupExitRequested(
@@ -156,6 +192,7 @@ data class MemberUnblocked(
     )
 }
 
+private const val KEY_GROUP_CREATE_ATTEMPT_ID = "group_create_attempt_id"
 private const val KEY_GROUP_ID = "group_id"
 private const val KEY_ENTRY_POINT = "entry_point"
 private const val KEY_RESULT = "result"

@@ -3,17 +3,21 @@ package com.yeobaek.core.app
 import com.russhwolf.settings.Settings
 import com.yeobaek.BuildKonfig
 import com.yeobaek.core.analytics.AnalyticsClient
+import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.InviteLinkOpened
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.config.AppConfigStartup
 import com.yeobaek.core.config.FirebaseRemoteConfigDataSource
 import com.yeobaek.core.crashlytics.FirebaseCrashSink
+import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
 import com.yeobaek.core.update.UpdatePolicyRepository
@@ -21,6 +25,7 @@ import com.yeobaek.core.update.UpdatePolicySource
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.local.SurveyPreferences
 import com.yeobaek.data.local.UpdatePolicyPreferences
 import com.yeobaek.data.local.UserPreferences
 import com.yeobaek.data.repository.AppConfigRepository
@@ -30,6 +35,7 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.NotificationRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
+import com.yeobaek.data.repository.SurveyRepository
 import com.yeobaek.data.repository.UserRepository
 import com.yeobaek.data.repositoryImpl.remote.AppConfigRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.BookRepositoryImpl
@@ -38,6 +44,7 @@ import com.yeobaek.data.repositoryImpl.remote.GroupRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.NotificationRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.PublicRoomRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.ReaderRepositoryImpl
+import com.yeobaek.data.repositoryImpl.remote.SurveyRepositoryImpl
 import com.yeobaek.data.repositoryImpl.remote.UserRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +67,7 @@ class AppContainer(
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
     val guideOnboardingPreferences = GuideOnboardingPreferences(settings)
+    val surveyPreferences = SurveyPreferences(settings)
 
     val appStoreUpdateSession = if (updatePolicyPlatform ==
         UpdatePolicyPlatform.IOS
@@ -74,14 +82,21 @@ class AppContainer(
         commonProperties = mapOf(
             ENVIRONMENT_PROPERTY to if (isDebug) ENVIRONMENT_DEVELOPMENT else ENVIRONMENT_PRODUCTION,
             "installation_id" to installationId,
+            "app_version" to appVersion,
+            "app_version_code" to appVersionCode,
         ),
     )
 
     val crashReporter = CrashReporter(isDebug = isDebug)
 
+    fun trackDebugEvent(event: AnalyticsEvent) {
+        if (isDebug) analyticsTracker.track(event)
+    }
+
     val appName = if (isDebug) "조밀" else "여백"
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val surveyLinkLauncher = SurveyLinkLauncher(surveyPreferences, applicationScope)
     private var updatePolicyUpdatesJob: Job? = null
     val updatePolicyRepository = UpdatePolicyRepository(
         preferences = UpdatePolicyPreferences(settings, updatePolicyPlatform),
@@ -101,6 +116,10 @@ class AppContainer(
     private val apiProvider = ApiProvider(
         ktorfit = networkProvider.ktorfit,
     )
+
+    val invitations = AppInvitations { request ->
+        analyticsTracker.track(InviteLinkOpened(request.id, request.code != null, request.attribution))
+    }
 
     val notifications = AppNotifications { analyticsTracker.track(it) }
     val notificationRepository: NotificationRepository = NotificationRepositoryImpl(apiProvider.notificationApi)
@@ -145,6 +164,9 @@ class AppContainer(
     val readerRepository: ReaderRepository = ReaderRepositoryImpl(
         readerApi = apiProvider.readerApi,
     )
+    val surveyRepository: SurveyRepository = SurveyRepositoryImpl(
+        surveyApi = apiProvider.surveyApi,
+    )
 
     val posthogApiKey = if (isDebug) BuildKonfig.POSTHOG_DEBUG_API_KEY else BuildKonfig.POSTHOG_RELEASE_API_KEY
 
@@ -184,6 +206,10 @@ class AppContainer(
 
     fun onNotificationOpened(data: Map<String, String>) {
         notifications.onOpened(data)
+    }
+
+    fun onInvitationOpened(uri: String) {
+        invitations.open(uri)
     }
 
     fun close() {

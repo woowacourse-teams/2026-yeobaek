@@ -1,18 +1,18 @@
 package com.yeobaek.feature.home.component
 
 import android.shared.generated.resources.Res
-import android.shared.generated.resources.ic_right_arrow
+import android.shared.generated.resources.ic_chevron_right
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +57,7 @@ fun HomeGroupCard(
         ) {
             BookCoverImage(
                 imageUrl = uri,
+                modifier = Modifier.height(93.dp),
             )
             Box(
                 modifier = Modifier
@@ -71,8 +72,9 @@ fun HomeGroupCard(
                 )
             }
             Icon(
-                painter = painterResource(Res.drawable.ic_right_arrow),
-                contentDescription = "오른쪽 화살표 아이콘",
+                painter = painterResource(Res.drawable.ic_chevron_right),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
                 tint = YeobaekTextSecondary,
             )
         }
@@ -94,12 +96,12 @@ private fun GroupInfoCard(
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                title,
+                groupName,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 20.sp,
                 ),
             )
-            Text(groupName, style = MaterialTheme.typography.bodyMedium)
+            Text(title, style = MaterialTheme.typography.bodyMedium)
         }
         Text(
             "${groupCount}명 참여",
@@ -107,7 +109,6 @@ private fun GroupInfoCard(
                 color = MaterialTheme.colorScheme.outline,
             ),
         )
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 

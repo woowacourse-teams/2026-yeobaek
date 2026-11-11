@@ -6,4 +6,6 @@ data class BookSummaryModel(
     val passageCount: Int,
     val title: String,
     val coverImageUrl: String?,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )

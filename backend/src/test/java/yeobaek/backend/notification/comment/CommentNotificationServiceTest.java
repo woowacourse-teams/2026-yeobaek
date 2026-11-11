@@ -2,10 +2,10 @@ package yeobaek.backend.notification.comment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -14,9 +14,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ch.qos.logback.classic.Level;
-import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.ErrorCode;
 import com.google.firebase.IncomingHttpResponse;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,8 +26,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.transaction.PlatformTransactionManager;
 import yeobaek.backend.comment.event.ClubSentenceCommentCreatedEvent;
 import yeobaek.backend.comment.event.PublicRoomSentenceCommentCreatedEvent;
@@ -43,8 +43,8 @@ import yeobaek.backend.notification.domain.NotificationType;
 import yeobaek.backend.notification.registration.domain.FirebaseInstallationId;
 import yeobaek.backend.notification.registration.domain.NotificationRegistration;
 import yeobaek.backend.notification.registration.domain.NotificationRegistrations;
+import yeobaek.backend.notification.registration.service.NotificationRecipientQueryService;
 import yeobaek.backend.support.LogCapture;
-import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
 
 class CommentNotificationServiceTest {
 
@@ -54,7 +54,7 @@ class CommentNotificationServiceTest {
     private static final String TITLE = "새로운 댓글이 달렸어요!";
     private static final String BODY = "댓글을 남겼던 문장의 이야기를 확인해 보세요.";
 
-    private final NotificationRegistrationService registrations = mock(NotificationRegistrationService.class);
+    private final NotificationRecipientQueryService recipientQueryService = mock(NotificationRecipientQueryService.class);
     private final CommentNotificationRecipientQueryRepository query = mock(CommentNotificationRecipientQueryRepository.class);
     private final FcmPushSender sender = mock(FcmPushSender.class);
     private final FcmFailureHandler handler = mock(FcmFailureHandler.class);
@@ -62,7 +62,7 @@ class CommentNotificationServiceTest {
     private final List<FcmRetryTask> scheduledTasks = new ArrayList<>();
     private final CommentNotificationService service = new CommentNotificationService(
             new FcmNotificationService(sender, handler, retryService, mock(PlatformTransactionManager.class)),
-            registrations, query);
+            recipientQueryService, query);
 
     @BeforeEach
     void captureScheduledTasks() {
@@ -85,9 +85,12 @@ class CommentNotificationServiceTest {
 
         assertThat(notify(club)).isEmpty();
 
-        var order = inOrder(registrations, query, sender, handler);
-        order.verify(registrations).findByMemberIds(any(),
-                eq(club ? NotificationType.CLUB_COMMENT : NotificationType.PUBLIC_ROOM_COMMENT));
+        var order = inOrder(recipientQueryService, query, sender, handler);
+        if (club) {
+            order.verify(recipientQueryService).findClubRecipients(any(), eq(NotificationType.CLUB_COMMENT), eq(5L));
+        } else {
+            order.verify(recipientQueryService).findPublicRoomRecipients(any());
+        }
         order.verify(sender).send(fids, "새로운 댓글이 달렸어요!", "댓글을 남겼던 문장의 이야기를 확인해 보세요.", data(club));
         order.verify(handler).handle(eq(result), any(NotificationRegistrations.class));
     }
@@ -280,10 +283,10 @@ class CommentNotificationServiceTest {
     private void stubRecipients(boolean club, NotificationRegistrations snapshot) {
         if (club) {
             given(query.findReaderIdsAheadInClub(eq(5L), anyInt(), eq(7L))).willReturn(List.of());
-            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
+            given(recipientQueryService.findClubRecipients(any(), any(), eq(5L))).willReturn(snapshot);
         } else {
             given(query.findPreviousCommenterIdsInPublicRoom(8L, 13L, 7L)).willReturn(List.of());
-            given(registrations.findByMemberIds(any(), any())).willReturn(snapshot);
+            given(recipientQueryService.findPublicRoomRecipients(any())).willReturn(snapshot);
         }
     }
 

@@ -8,6 +8,7 @@ import com.yeobaek.core.analytics.ReaderSessionStart
 import kotlin.math.abs
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
+import kotlin.uuid.Uuid
 
 /**
  * 리더의 포그라운드 읽기 구간 하나를 세션으로 추적한다.
@@ -21,6 +22,7 @@ class ReadingSessionTracker(
 ) {
     private var startMark: TimeMark? = null
     private var hasStarted = false
+    private var readingSessionId = ""
     private var bookId = 0L
     private var maxReachedSequence = 0
     private var passagesRead = 0
@@ -32,6 +34,9 @@ class ReadingSessionTracker(
 
     val isActive: Boolean
         get() = startMark != null
+
+    val sessionId: String?
+        get() = readingSessionId.takeIf(String::isNotEmpty)
 
     fun start(
         bookId: Long,
@@ -51,6 +56,7 @@ class ReadingSessionTracker(
         commentCollectionsOpened = 0
         commentsWritten = 0
         newCommentBadgeShown = false
+        readingSessionId = Uuid.random().toString()
         startMark = timeSource.markNow()
 
         trackEvent(
@@ -59,6 +65,7 @@ class ReadingSessionTracker(
                 bookTitle = bookTitle,
                 progress = progress,
                 startedBy = startedBy,
+                readingSessionId = readingSessionId,
             ),
         )
     }
@@ -115,6 +122,7 @@ class ReadingSessionTracker(
                 commentCollectionsOpened = commentCollectionsOpened,
                 newCommentBadgeShown = newCommentBadgeShown,
                 endedBy = endedBy,
+                readingSessionId = readingSessionId,
             ),
         )
     }

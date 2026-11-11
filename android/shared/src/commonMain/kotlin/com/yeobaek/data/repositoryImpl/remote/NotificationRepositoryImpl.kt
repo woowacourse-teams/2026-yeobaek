@@ -1,6 +1,7 @@
 package com.yeobaek.data.repositoryImpl.remote
 
 import com.yeobaek.data.api.NotificationApi
+import com.yeobaek.data.dto.GroupNotificationPreferenceDto
 import com.yeobaek.data.dto.NotificationPreferencesUpdateRequest
 import com.yeobaek.data.dto.NotificationRegistrationRequest
 import com.yeobaek.data.dto.toModel
@@ -39,6 +40,20 @@ class NotificationRepositoryImpl(
                 fid,
                 NotificationPreferencesUpdateRequest.from(setting, enabled),
             )
+                .requireSuccess()
+        }
+    }
+
+    override suspend fun getGroupPreference(memberId: Int, fid: String, groupId: Long): Boolean =
+        withRegisteredDevice(memberId, fid) {
+            val response = notificationApi.getGroupPreference(groupId, memberId, fid)
+            response.requireSuccess()
+            response.body()?.enabled ?: throw IllegalStateException("모임 알림 설정 응답이 없습니다.")
+        }
+
+    override suspend fun updateGroupPreference(memberId: Int, fid: String, groupId: Long, enabled: Boolean) {
+        withRegisteredDevice(memberId, fid) {
+            notificationApi.updateGroupPreference(groupId, memberId, fid, GroupNotificationPreferenceDto(enabled))
                 .requireSuccess()
         }
     }

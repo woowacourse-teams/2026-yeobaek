@@ -9,8 +9,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.yeobaek.core.analytics.AnalyticsTracker
+import com.yeobaek.core.analytics.BookCardContext
 import com.yeobaek.core.analytics.BookDetailConfirmed
 import com.yeobaek.core.analytics.BookDetailEntryPoint
+import com.yeobaek.core.analytics.BookDetailVisit
+import com.yeobaek.core.analytics.BookListVisitTracker
+import com.yeobaek.core.analytics.BookMetadataSection
 import com.yeobaek.core.analytics.BookSearchEntryPoint
 import com.yeobaek.core.analytics.BookSearchTracker
 import com.yeobaek.core.analytics.EventResult
@@ -46,6 +50,9 @@ class OnboardingViewModel(
     var uiState by mutableStateOf(OnboardingUiState())
         private set
     var currentAttemptId: String? = null
+        private set
+    val bookListTracker = BookListVisitTracker(BookDetailEntryPoint.ONBOARDING) { analyticsTracker.track(it) }
+    var detailVisit = BookDetailVisit()
         private set
     private var searchJob: Job? = null
     private var bookDetailJob: Job? = null
@@ -126,7 +133,11 @@ class OnboardingViewModel(
 
     fun onSelectBook(id: Long) {
         if (uiState.publicRoomState is PublicRoomState.Loading) return
-        val selectedBook = uiState.bookUiModelList.firstOrNull { it.id == id } ?: return
+        val index = uiState.bookUiModelList.indexOfFirst { it.id == id }
+        val selectedBook = uiState.bookUiModelList.getOrNull(index) ?: return
+        val position = index + 1
+        val listVisitId = bookListTracker.selectBook(uiState.bookUiModelList.map { it.id }, position)
+        detailVisit = BookDetailVisit()
         uiState.searchResultVersion?.let { version ->
             if (uiState.searchState is SearchState.Success) {
                 bookSearchTracker.resultsShown(version, uiState.bookUiModelList.size)
@@ -135,7 +146,13 @@ class OnboardingViewModel(
         currentAttemptId = Random.nextLong().toULong().toString(16)
         analyticsTracker.track(
             ReadingOnboardingBookSelected(id, requireNotNull(currentAttemptId)),
-            bookSearchTracker.bookSelected(),
+            bookSearchTracker.bookSelected() +
+                BookCardContext(
+                    position = position,
+                    genreBadgeShown = selectedBook.genres.any(String::isNotBlank),
+                    hashtagsShown = selectedBook.hashtags.any { it.trim().trimStart('#').isNotBlank() },
+                    listVisitId = listVisitId,
+                ).properties,
         )
         uiState = uiState.copy(
             selectedBookUiState = SelectedBookUiState(selectedBook = selectedBook),
@@ -173,13 +190,20 @@ class OnboardingViewModel(
         }
     }
 
+    fun onMetadataViewed(section: BookMetadataSection) {
+        val book = uiState.selectedBookUiState.selectedBook ?: return
+        detailVisit.observe(book.id, BookDetailEntryPoint.ONBOARDING.value, section)?.let {
+            analyticsTracker.track(it)
+        }
+    }
+
     fun showReadingOptions() {
         if (uiState.bookDetailState !is BookDetailState.Success) return
         if (uiState.publicRoomState is PublicRoomState.Loading) return
         if (uiState.selectedBookUiState.isSelected) return
         val bookId = uiState.selectedBookUiState.selectedBook?.id ?: return
         analyticsTracker.track(
-            BookDetailConfirmed(bookId, BookDetailEntryPoint.ONBOARDING, currentAttemptId),
+            BookDetailConfirmed(bookId, BookDetailEntryPoint.ONBOARDING, currentAttemptId, visit = detailVisit),
         )
         uiState = uiState.copy(
             selectedBookUiState = uiState.selectedBookUiState.copy(isSelected = true),

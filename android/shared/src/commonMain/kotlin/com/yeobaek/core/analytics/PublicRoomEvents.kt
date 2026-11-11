@@ -41,6 +41,24 @@ data class PublicRoomListViewed(
     override val properties = mapOf(KEY_LIST_VISIT_ID to listVisitId, KEY_ROOM_COUNT to roomCount)
 }
 
+data class RecentPublicRoomListViewed(
+    val visitId: String,
+    val roomCount: Int,
+    val hasNextCardPeek: Boolean,
+) : AnalyticsEvent {
+    override val name = "recent_public_room_list_viewed"
+    override val properties = mapOf(
+        "recent_list_visit_id" to visitId,
+        "room_count" to roomCount,
+        "has_next_card_peek" to hasNextCardPeek,
+    )
+}
+
+data class RecentPublicRoomListScrolled(val visitId: String) : AnalyticsEvent {
+    override val name = "recent_public_room_list_scrolled"
+    override val properties = mapOf("recent_list_visit_id" to visitId)
+}
+
 enum class PublicRoomListEnd(val value: String) {
     TAB_SWITCH("tab_switch"),
     NAVIGATION("navigation"),

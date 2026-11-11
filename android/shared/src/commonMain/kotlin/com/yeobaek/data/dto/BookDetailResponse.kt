@@ -13,6 +13,8 @@ data class BookDetailResponse(
     val coverImageUrl: String?,
     val description: String? = null,
     val pageCount: Long? = null,
+    val genres: List<String> = emptyList(),
+    val hashtags: List<String> = emptyList(),
 )
 
 fun BookDetailResponse.toModel(): BookDetailModel =
@@ -25,4 +27,6 @@ fun BookDetailResponse.toModel(): BookDetailModel =
         coverImageUrl = coverImageUrl,
         description = description,
         pageCount = pageCount,
+        genres = genres,
+        hashtags = hashtags,
     )

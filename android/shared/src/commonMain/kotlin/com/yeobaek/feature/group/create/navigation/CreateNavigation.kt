@@ -3,13 +3,12 @@ package com.yeobaek.feature.group.create.navigation
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.yeobaek.core.analytics.BookDetailEntryPoint
+import com.yeobaek.core.analytics.BookListEnd
 import com.yeobaek.core.analytics.BookSearchEnd
 import com.yeobaek.core.analytics.EventResult
-import com.yeobaek.core.analytics.GroupCreateAbandoned
 import com.yeobaek.core.analytics.GroupCreateSubmitted
 import com.yeobaek.core.analytics.InvalidReason
 import com.yeobaek.core.analytics.bookDetailScreenProperties
@@ -37,10 +36,10 @@ fun NavController.navigateToCreate(
 
 fun NavGraphBuilder.createNavGraph(
     appContainer: AppContainer,
-    navController: NavHostController,
+    navigateToBack: (entryId: String, beforePop: () -> Unit) -> Unit,
     navigateToHome: () -> Unit,
 ) {
-    composable<Create> {
+    composable<Create> { entry ->
         val createViewModel: CreateViewModel = viewModel(
             factory = CreateViewModel.createViewModelFactory(
                 groupRepository = appContainer.groupRepository,
@@ -61,6 +60,7 @@ fun NavGraphBuilder.createNavGraph(
                 bookDetailScreenProperties(
                     bookId = requireNotNull(detailBookId),
                     entryPoint = BookDetailEntryPoint.GROUP_CREATE.value,
+                    detailVisitId = createViewModel.detailVisit.id,
                 )
             } else {
                 emptyMap()
@@ -80,24 +80,25 @@ fun NavGraphBuilder.createNavGraph(
             selectBook = createViewModel::selectBook,
             onLastVisibleBookChanged = createViewModel::onLastVisibleBookChanged,
             onNextStep = createViewModel::moveToGroupName,
+            bookListTracker = createViewModel.bookListTracker,
+            onMetadataViewed = createViewModel::onMetadataViewed,
+            onFullyVisibleBooks = createViewModel::onFullyVisibleBooks,
+            onAnalyticsEvent = { appContainer.analyticsTracker.track(it) },
             onRetryBookDetail = createViewModel::retryBookDetail,
             onSelectOtherBook = createViewModel::moveToBookSelection,
-            onBackClick = {
-                when (createViewModel.uiState.step) {
+            onBackClick = back@{
+                if (uiState.step != createViewModel.uiState.step) return@back
+                when (uiState.step) {
                     CreateStep.GroupName -> createViewModel.moveToBookDetail()
 
                     CreateStep.BookDetail -> createViewModel.moveToBookSelection()
 
                     CreateStep.BookSelection -> {
-                        createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
-                        appContainer.analyticsTracker.track(
-                            GroupCreateAbandoned(
-                                hasName = createViewModel.uiState.groupNameValue.isNotBlank(),
-                                hasBook = createViewModel.uiState.selectedBook != null,
-                                bookList = createViewModel.bookListExposure(),
-                            ),
-                        )
-                        navController.popBackStack()
+                        navigateToBack(entry.id) {
+                            createViewModel.bookSearchTracker.close(BookSearchEnd.NAVIGATION)
+                            createViewModel.bookListTracker.close(BookListEnd.NAVIGATION)
+                            createViewModel.abandon()
+                        }
                     }
                 }
             },
@@ -111,6 +112,7 @@ fun NavGraphBuilder.createNavGraph(
                     appContainer.analyticsTracker.track(
                         GroupCreateSubmitted(
                             result = EventResult.INVALID,
+                            attemptId = createViewModel.attemptId,
                             reason = reason,
                             bookList = createViewModel.bookListExposure(),
                         ),

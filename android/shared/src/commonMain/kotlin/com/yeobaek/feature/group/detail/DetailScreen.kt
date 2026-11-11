@@ -28,11 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.common.ScreenState
 import com.yeobaek.core.common.shouldCopySnackbar
 import com.yeobaek.core.common.toClipEntry
 import com.yeobaek.core.designsystem.component.YeobaekButton
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.invitation.InviteLink
+import com.yeobaek.core.invitation.rememberInviteShareSheet
 import com.yeobaek.feature.group.detail.component.BlockDialog
 import com.yeobaek.feature.group.detail.component.DeleteGroupDialog
 import com.yeobaek.feature.group.detail.component.DetailTopAppBar
@@ -41,6 +44,7 @@ import com.yeobaek.feature.group.detail.component.GroupBookInfoCard
 import com.yeobaek.feature.group.detail.component.GroupUserCard
 import com.yeobaek.feature.group.detail.component.InviteCodeCard
 import com.yeobaek.feature.group.detail.model.UserUiModel
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,13 +59,26 @@ fun DetailScreen(
     onUnBlockUser: (otherUserId: Int) -> Unit,
     navigateToHome: () -> Unit,
     modifier: Modifier = Modifier,
+    onInviteShareSubmitted: (EventResult, String?) -> Unit = { _, _ -> },
+    notificationState: GroupNotificationUiState? = null,
+    onNotificationClick: () -> Unit = {},
+    onNotificationErrorShown: () -> Unit = {},
 ) {
+    val shareSheet = rememberInviteShareSheet()
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
     var chooseOtherInfo by remember { mutableStateOf(UserUiModel()) }
+
+    val notificationError = notificationState?.error.takeIf { uiState.screenState == ScreenState.Success }
+    LaunchedEffect(notificationError) {
+        notificationError?.let {
+            snackbarHostState.showSnackbar(it)
+            onNotificationErrorShown()
+        }
+    }
 
     LaunchedEffect(uiState.exitState) {
         when (uiState.exitState) {
@@ -124,17 +141,17 @@ fun DetailScreen(
         modifier = modifier
             .fillMaxSize(),
         topBar = {
+            val showGroupActions = uiState.screenState == ScreenState.Success
+            val requestExit = {
+                onExitRequest()
+                showDeleteDialog = true
+            }
             DetailTopAppBar(
-                title = when (uiState.screenState) {
-                    is ScreenState.Success -> uiState.groupUiModel.name
-                    is ScreenState.Loading -> uiState.screenState.message
-                    is ScreenState.Error -> uiState.screenState.message
-                },
+                title = uiState.groupUiModel.name.ifBlank { "모임 상세" },
                 onBackClick = onBackClick,
-                onExitClick = {
-                    onExitRequest()
-                    showDeleteDialog = true
-                },
+                notificationState = notificationState.takeIf { showGroupActions },
+                onNotificationClick = onNotificationClick,
+                onExitClick = requestExit.takeIf { showGroupActions },
             )
         },
         bottomBar = {
@@ -203,6 +220,24 @@ fun DetailScreen(
                             snackbarHostState.showSnackbar(
                                 message = "초대 코드를 복사했습니다.",
                                 duration = SnackbarDuration.Short,
+                            )
+                        }
+                    }
+                },
+                onShareClick = {
+                    val code = uiState.groupUiModel.groupCode
+                    val name = uiState.groupUiModel.name.ifBlank { uiState.bookUiModel.title }
+                    val shareId = if (InviteLink.isValidCode(code)) Uuid.random().toString() else null
+                    val result = when {
+                        shareId == null -> EventResult.INVALID
+                        shareSheet.share(InviteLink.shareText(name, code, shareId)) -> EventResult.SUCCESS
+                        else -> EventResult.FAILURE
+                    }
+                    onInviteShareSubmitted(result, shareId)
+                    if (result != EventResult.SUCCESS) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "공유창을 열 수 없어요. 초대코드를 복사해 전달해주세요.",
                             )
                         }
                     }

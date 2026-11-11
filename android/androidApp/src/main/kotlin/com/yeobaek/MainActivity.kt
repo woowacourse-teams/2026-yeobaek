@@ -13,6 +13,8 @@ import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
+    private var invitationRequestId: String? = null
+
     private val notificationPermissionRequester = NotificationPermissionRequester(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,6 +24,10 @@ class MainActivity : ComponentActivity() {
         val app = application as YeobaekApplication
         val appContainer = app.appContainer
         intent.deliverNotificationOpen(appContainer)
+        invitationRequestId = intent.deliverInvitation(
+            appContainer.invitations,
+            savedInstanceState?.getString(INVITATION_REQUEST_ID),
+        )
 
         setContent {
             DoubleBackToExit(this) {
@@ -35,10 +41,17 @@ class MainActivity : ComponentActivity() {
         notificationPermissionRequester.requestOnce()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(INVITATION_REQUEST_ID, invitationRequestId)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        intent.deliverNotificationOpen((application as YeobaekApplication).appContainer)
+        val appContainer = (application as YeobaekApplication).appContainer
+        intent.deliverNotificationOpen(appContainer)
+        invitationRequestId = intent.deliverInvitation(appContainer.invitations)
     }
 }
 

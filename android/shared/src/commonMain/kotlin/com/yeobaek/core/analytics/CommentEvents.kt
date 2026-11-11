@@ -24,6 +24,8 @@ data class CommentSheetOpened(
     val hasNewComments: Boolean?,
     val afterJump: Boolean,
     val commentLikeAvailable: Boolean = true,
+    val collectionVisitId: String? = null,
+    val collectionCard: CommentCollectionCardContext? = null,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_opened"
     override val properties = buildMap {
@@ -35,6 +37,41 @@ data class CommentSheetOpened(
         hasNewComments?.let { put(KEY_HAS_NEW_COMMENTS, it) }
         put(KEY_AFTER_JUMP, afterJump)
         put("comment_like_available", commentLikeAvailable)
+        collectionVisitId?.let { put("collection_visit_id", it) }
+        collectionCard?.let {
+            put("collection_filter", it.filter)
+            it.position?.let { position -> put("card_position", position) }
+            put("unread_comment_count_at_open", it.unreadCommentCount)
+            put("requires_reveal", it.requiresReveal)
+        }
+    }
+}
+
+data class CommentCollectionCardContext(
+    val filter: String,
+    val position: Int?,
+    val unreadCommentCount: Int,
+    val requiresReveal: Boolean,
+)
+
+data class CommentSheetContentsShown(
+    val bookId: Long?,
+    val sentenceId: Long,
+    val commentCount: Int,
+    val source: CommentSheetSource,
+    val collectionVisitId: String?,
+    val collectionFilter: String?,
+    val unreadCommentCountAtOpen: Int?,
+) : AnalyticsEvent {
+    override val name = "comment_sheet_contents_shown"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
+        put(KEY_COMMENT_COUNT, commentCount)
+        put(KEY_SOURCE, source.value)
+        collectionVisitId?.let { put("collection_visit_id", it) }
+        collectionFilter?.let { put("collection_filter", it) }
+        unreadCommentCountAtOpen?.let { put("unread_comment_count_at_open", it) }
     }
 }
 
@@ -132,12 +169,24 @@ data class CommentSheetClosed(
     val commentCount: Int,
     val othersCommentCount: Int?,
     val didSubmit: Boolean,
+    val bookId: Long?,
+    val sentenceId: Long,
+    val source: CommentSheetSource,
+    val commentsShown: Boolean,
+    val collectionVisitId: String?,
+    val collectionFilter: String? = null,
 ) : AnalyticsEvent {
     override val name = "comment_sheet_closed"
     override val properties = buildMap {
         put(KEY_COMMENT_COUNT, commentCount)
         othersCommentCount?.let { put(KEY_OTHERS_COMMENT_COUNT, it) }
         put(KEY_DID_SUBMIT, didSubmit)
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
+        put(KEY_SOURCE, source.value)
+        put("comments_shown", commentsShown)
+        collectionVisitId?.let { put("collection_visit_id", it) }
+        collectionFilter?.let { put("collection_filter", it) }
     }
 }
 

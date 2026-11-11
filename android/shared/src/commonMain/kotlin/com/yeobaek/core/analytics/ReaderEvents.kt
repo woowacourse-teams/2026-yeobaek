@@ -30,6 +30,7 @@ data class ReaderLoaded(
     val bookTitle: String,
     val progress: Float,
     val startedBy: ReaderSessionStart,
+    val readingSessionId: String,
 ) : AnalyticsEvent {
     override val name = "reader_loaded"
     override val properties = buildMap {
@@ -37,6 +38,7 @@ data class ReaderLoaded(
         bookTitle.takeIf(String::isNotBlank)?.let { put(KEY_BOOK_TITLE, it) }
         put(KEY_PROGRESS, progress)
         put(KEY_STARTED_BY, startedBy.value)
+        put(KEY_READING_SESSION_ID, readingSessionId)
     }
 }
 
@@ -51,6 +53,7 @@ data class ReaderClosed(
     val commentCollectionsOpened: Int,
     val newCommentBadgeShown: Boolean,
     val endedBy: ReaderSessionEnd,
+    val readingSessionId: String,
 ) : AnalyticsEvent {
     override val name = "reader_closed"
     override val properties = mapOf(
@@ -64,6 +67,7 @@ data class ReaderClosed(
         KEY_COMMENT_COLLECTIONS_OPENED to commentCollectionsOpened,
         KEY_NEW_COMMENT_BADGE_SHOWN to newCommentBadgeShown,
         KEY_ENDED_BY to endedBy.value,
+        KEY_READING_SESSION_ID to readingSessionId,
     )
 }
 
@@ -100,9 +104,25 @@ data class ChapterSelected(
     }
 }
 
+data class TableOfContentsClosed(val bookId: Long?, val chapterSelected: Boolean) : AnalyticsEvent {
+    override val name = "table_of_contents_closed"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put("chapter_selected", chapterSelected)
+    }
+}
+
 data object TextSettingOpened : AnalyticsEvent {
     override val name = "text_setting_opened"
     override val properties = emptyMap<String, Any>()
+}
+
+data class TextSettingClosed(val bookId: Long?, val fontSizeChanged: Boolean) : AnalyticsEvent {
+    override val name = "text_setting_closed"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put("font_size_changed", fontSizeChanged)
+    }
 }
 
 data class FontSizeChanged(
@@ -116,6 +136,54 @@ data class FontSizeChanged(
     )
 }
 
+data class ReaderProgressSaved(
+    val bookId: Long?,
+    val readingSessionId: String?,
+    val passageSequence: Int,
+    val storedPassageSequence: Int?,
+    val trigger: ReaderSessionEnd,
+    val result: EventResult,
+    val durationMillis: Long,
+) : AnalyticsEvent {
+    override val name = "reader_progress_saved"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        readingSessionId?.let { put(KEY_READING_SESSION_ID, it) }
+        put("passage_sequence", passageSequence)
+        storedPassageSequence?.let { put("stored_passage_sequence", it) }
+        put("trigger", trigger.value)
+        put("result", result.value)
+        put("duration_ms", durationMillis)
+    }
+}
+
+enum class ReaderResumeSource(val value: String) {
+    SAVED_PROGRESS("saved_progress"),
+    BOOK_START("book_start"),
+    NOTIFICATION("notification"),
+    UNKNOWN("unknown"),
+}
+
+data class ReaderProgressRestored(
+    val bookId: Long?,
+    val readingSessionId: String?,
+    val source: ReaderResumeSource,
+    val result: EventResult,
+    val expectedPassageSequence: Int?,
+    val initialPassageSequence: Int?,
+) : AnalyticsEvent {
+    override val name = "reader_progress_restored"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        readingSessionId?.let { put(KEY_READING_SESSION_ID, it) }
+        put("resume_source", source.value)
+        put("result", result.value)
+        expectedPassageSequence?.let { put("expected_passage_sequence", it) }
+        initialPassageSequence?.let { put("initial_passage_sequence", it) }
+    }
+}
+
+private const val KEY_READING_SESSION_ID = "reading_session_id"
 private const val KEY_GROUP_ID = "group_id"
 private const val KEY_BOOK_ID = "book_id"
 private const val KEY_BOOK_TITLE = "book_title"

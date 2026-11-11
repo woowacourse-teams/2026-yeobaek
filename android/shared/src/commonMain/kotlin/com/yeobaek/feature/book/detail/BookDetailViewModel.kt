@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.yeobaek.core.analytics.BookDetailVisit
 import com.yeobaek.data.repository.BookRepository
 import com.yeobaek.feature.book.detail.model.toUiModel
 import kotlin.coroutines.cancellation.CancellationException
@@ -17,6 +18,7 @@ class BookDetailViewModel(
     private val bookId: Long,
     private val bookRepository: BookRepository,
 ) : ViewModel() {
+    val detailVisit = BookDetailVisit()
     var state: BookDetailState by mutableStateOf(BookDetailState.Loading)
         private set
 
