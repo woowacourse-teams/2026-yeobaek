@@ -88,12 +88,6 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       # Compose와 환경 파일은 개발 서버에 미리 반영한 것을 사용한다.
       - name: Deploy development server (blue/green)
         id: deploy
