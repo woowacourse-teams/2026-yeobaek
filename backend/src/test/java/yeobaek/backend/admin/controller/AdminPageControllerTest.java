@@ -45,7 +45,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("관리자 페이지는 책 목록 조회와 표시된 결과의 CSV 저장 동작을 제공한다")
     void serveBookInventoryUi() throws Exception {
-        mockMvc.perform(get("/admin"))
+        mockMvc.perform(get("/admin/books"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/admin/dashboard\"")))
                 .andExpect(content().string(containsString("id=\"load-books\"")))
@@ -59,7 +59,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("관리자 페이지는 삭제 상태와 도서 삭제 동작을 제공한다")
     void serveBookDeleteUi() throws Exception {
-        mockMvc.perform(get("/admin"))
+        mockMvc.perform(get("/admin/books"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("삭제됨")))
                 .andExpect(content().string(containsString("book.status === 'DELETED'")))
@@ -71,7 +71,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("신규 도서 표지는 파일 선택과 드래그 앤 드롭으로 첨부할 수 있다")
     void serveBookCoverDropUi() throws Exception {
-        mockMvc.perform(get("/admin"))
+        mockMvc.perform(get("/admin/books"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"new-cover-drop-zone\"")))
                 .andExpect(content().string(containsString("이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요.")))
@@ -86,7 +86,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("도서 JSON은 파일 선택과 드래그 앤 드롭으로 입력할 수 있다")
     void serveBookJsonDropUi() throws Exception {
-        mockMvc.perform(get("/admin"))
+        mockMvc.perform(get("/admin/books"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"upload-json-drop-zone\"")))
                 .andExpect(content().string(containsString("id=\"upload-json-file\"")))

@@ -920,7 +920,7 @@
 ### 관리자 통계 페이지
 `GET /admin/dashboard`
 
-- 별도 통계 페이지를 반환하고 기존 `/admin`과 이동 링크를 제공한다.
+- 별도 통계 페이지를 반환하고 관리자 홈(`/admin`), 도서 관리(`/admin/books`), 배포 모니터링과 이동 링크를 제공한다.
 - HTML 페이지는 토큰 없이 열리지만 데이터는 기존 `X-Admin-Token` 인증을 거친 세 API에서만 조회한다.
 - 전체 새로고침은 세 API를 각각 호출하며, 영역별 새로고침은 해당 API만 호출한다.
 - 조회 중·실패한 영역의 이전 결과는 숨긴다. 실패해도 성공한 다른 영역의 결과는 유지한다.
@@ -1193,7 +1193,9 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 도서 관리·통계·배포 모니터링 중 이동할 화면을 선택하는 관리자 홈 (HTML, Thymeleaf).
+
+`GET /admin/books` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -1303,7 +1305,8 @@
 | GET | /api/admin/dashboard/clubs | (관리자) 모임 목록·댓글 수 |
 | GET | /api/admin/dashboard/books | (관리자) 책별 모임 수 |
 | GET | /api/admin/dashboard/members | (관리자) 회원별 참여 수·평균·분포 |
-| GET | /admin | (관리자) 관리자 페이지 (HTML) |
+| GET | /admin | (관리자) 메뉴 선택 화면 (HTML) |
+| GET | /admin/books | (관리자) 도서 관리 화면 (HTML) |
 | GET | /admin/dashboard | (관리자) 통계 대시보드 (HTML) |
 | GET | /admin/deployment-monitoring | (관리자) 배포·롤백 외부 요청 측정 화면 (HTML) |
 | GET | /api/admin/deployment-monitoring | (관리자) 최근 측정 실행과 보관 결과 목록 |

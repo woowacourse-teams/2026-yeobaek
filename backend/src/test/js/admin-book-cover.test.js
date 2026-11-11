@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const page = fs.readFileSync(path.join(__dirname, '../../main/resources/templates/admin.html'), 'utf8');
+const page = fs.readFileSync(path.join(__dirname, '../../main/resources/templates/admin-books.html'), 'utf8');
 const coverCode = page.slice(page.indexOf('    async function resizeToJpeg('),
     page.indexOf('    async function replaceBookCover('));
 

@@ -16,13 +16,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Slf4j
 public class AdminPageController {
 
-    @GetMapping("/admin")
+    @GetMapping({"/admin", "/admin/"})
     public String adminPage() {
-        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage")
-                .log("관리자 도서 페이지 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage").addKeyValue(RESULT, SUCCESS)
-                .log("관리자 도서 페이지 처리를 완료했습니다.");
         return "admin";
+    }
+
+    @GetMapping("/admin/books")
+    public String booksPage() {
+        log.atInfo().addKeyValue(OPERATION, "admin.page.booksPage")
+                .log("관리자 도서 페이지 처리를 시작합니다.");
+        log.atInfo().addKeyValue(OPERATION, "admin.page.booksPage").addKeyValue(RESULT, SUCCESS)
+                .log("관리자 도서 페이지 처리를 완료했습니다.");
+        return "admin-books";
     }
 
     @GetMapping("/admin/dashboard")
