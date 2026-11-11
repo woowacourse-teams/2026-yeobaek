@@ -33,4 +33,9 @@ public class AdminPageController {
                 .log("관리자 대시보드 페이지 처리를 완료했습니다.");
         return "admin-dashboard";
     }
+
+    @GetMapping("/admin/deployment-monitoring")
+    public String deploymentMonitoringPage() {
+        return "admin-deployment-monitoring";
+    }
 }

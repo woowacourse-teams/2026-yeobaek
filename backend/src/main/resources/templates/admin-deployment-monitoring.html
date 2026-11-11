@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>배포 모니터링 · 여백 관리자</title>
+    <link rel="stylesheet" href="/admin-dashboard.css">
+    <link rel="stylesheet" href="/admin-deployment-monitoring.css">
+    <script src="/admin-deployment-monitoring.js" defer></script>
+</head>
+<body>
+<main>
+    <header class="page-header">
+        <div><p class="eyebrow">여백 / 관리자</p><h1>배포 모니터링</h1><p>배포 전부터 복구 후까지, 서비스의 응답을 확인합니다.</p></div>
+        <nav><a href="/admin">도서 관리</a> · <a href="/admin/dashboard">통계</a></nav>
+    </header>
+    <section class="access-panel" aria-labelledby="access-heading">
+        <div><h2 id="access-heading">관리자 인증</h2><p>토큰은 저장하지 않습니다. 다시 접속하면 재입력해 주세요.</p></div>
+        <div class="access-controls"><label for="admin-token">관리자 토큰</label>
+            <div class="input-row"><input type="password" id="admin-token" autocomplete="off" placeholder="X-Admin-Token"><button id="connect" type="button">조회 / 새로고침</button></div>
+        </div>
+    </section>
+    <p id="message" class="status" role="status" aria-live="polite">관리자 토큰을 입력한 뒤 조회해 주세요.</p>
+    <section class="data-panel" aria-labelledby="measurement-heading">
+        <div class="section-header"><div><p class="eyebrow" id="environment">환경 확인 전</p><h2 id="measurement-heading">외부 요청 측정</h2></div>
+            <div class="actions"><button id="start" type="button" disabled>측정 시작</button><button id="stop" type="button" class="secondary" disabled>측정 종료</button></div>
+        </div>
+        <p class="section-note">1초 간격 · 응답 제한 3초 · 최대 30분. 페이지를 닫아도 측정은 계속됩니다.</p>
+        <div class="metrics"><div class="metric"><span>측정 상태</span><strong id="measurement-status">시작 전</strong></div>
+            <div class="metric"><span>경과 시간</span><strong id="elapsed">—</strong></div></div>
+        <p id="deadline" class="section-note">배포·롤백 종료 후 최대 5분 동안 추가 관찰합니다.</p>
+        <p id="checked" class="section-note">마지막 확인: —</p>
+        <p id="command-status" role="status" aria-live="polite"></p>
+        <a id="measurement-link" target="_blank" rel="noopener noreferrer" hidden>GitHub에서 측정 실행 보기 ↗</a>
+        <div class="deployment-section">
+            <div class="section-header"><h3>연결한 배포·롤백</h3><button id="load-deployments" class="secondary" type="button" disabled>배포 불러오기</button></div>
+            <p class="section-note">측정 시작 → 실제 측정 중인지 확인 → 배포 시작 → 목록에서 연결할 실행 선택.</p>
+            <div id="linked-deployments">연결한 배포 없음</div>
+            <div id="deployment-picker" hidden><p class="section-note">최신 실행 최대 20개입니다. 목록 갱신은 ‘배포 불러오기’를 다시 누르세요.</p><div id="deployment-options"></div></div>
+        </div>
+    </section>
+    <section class="data-panel" aria-labelledby="history-heading">
+        <div class="section-header"><div><p class="eyebrow">기록</p><h2 id="history-heading">최근 측정</h2></div></div>
+        <p class="section-note">이 환경의 결과를 최근 20개까지 보관합니다. GitHub 보관 기한이 지나면 만료됩니다.</p>
+        <div class="table-scroll"><table><thead><tr><th>측정 요청 시각</th><th>실행 상태</th><th>보기</th></tr></thead><tbody id="runs"></tbody></table></div>
+        <h3>보관 중인 결과</h3>
+        <div class="table-scroll"><table><thead><tr><th>저장 시각</th><th>만료 예정</th><th>결과</th></tr></thead><tbody id="results"></tbody></table></div>
+    </section>
+    <section class="data-panel" id="result-panel" aria-labelledby="result-heading" hidden>
+        <div class="section-header"><div><p class="eyebrow">측정 결과</p><h2 id="result-heading">요청 응답 기록</h2></div><button id="download" type="button" class="secondary">JSON 다운로드</button></div>
+        <p id="result-period"></p><p id="result-target" class="section-note"></p><p id="result-reason"></p><p id="result-warning" class="status error"></p>
+        <div class="metrics"><div class="metric"><span>총 요청</span><strong id="total">—</strong></div><div class="metric"><span>성공</span><strong id="successes">—</strong></div><div class="metric"><span>실패</span><strong id="failures">—</strong></div></div>
+        <h3>요청 결과 타임라인</h3><div id="timeline" role="img" aria-label="시간순 요청 성공·실패" class="request-timeline"></div>
+        <p class="section-note">초록: 성공 · 빨강: 실패. 1초 사이의 짧은 장애는 관측되지 않을 수 있습니다.</p>
+        <h3>중단 추정 구간</h3><p id="outage-total"></p><div id="outages"></div>
+        <p class="section-note">첫 실패 요청 전송 시각부터 다음 정상 요청 전송 시각까지를 계산합니다. 실제 장애 시간과 차이가 있을 수 있습니다. 복구 미확인 구간은 합계에 포함하지 않습니다.</p>
+        <h3>응답 버전 변화</h3><div id="versions"></div>
+        <h3>연결한 배포·롤백 기록</h3><div id="result-deployments"></div>
+        <details><summary>실패 요청 상세</summary><div class="table-scroll"><table><thead><tr><th>요청 시각</th><th>실패 원인</th><th>응답/대기 시간</th></tr></thead><tbody id="failed-requests"></tbody></table></div></details>
+        <details><summary>전체 요청 기록</summary><div class="table-scroll"><table><thead><tr><th>요청 시각</th><th>결과</th><th>응답 시간</th><th>커밋 SHA</th></tr></thead><tbody id="all-requests"></tbody></table></div></details>
+    </section>
+    <footer>배포 작업의 성공과 외부 요청 측정 결과는 별도로 판단합니다. 시각은 브라우저의 현지 시간으로 표시됩니다.</footer>
+</main>
+</body>
+</html>

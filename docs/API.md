@@ -1305,6 +1305,18 @@
 | GET | /api/admin/dashboard/members | (관리자) 회원별 참여 수·평균·분포 |
 | GET | /admin | (관리자) 관리자 페이지 (HTML) |
 | GET | /admin/dashboard | (관리자) 통계 대시보드 (HTML) |
+| GET | /admin/deployment-monitoring | (관리자) 배포·롤백 외부 요청 측정 화면 (HTML) |
+| GET | /api/admin/deployment-monitoring | (관리자) 최근 측정 실행과 보관 결과 목록 |
+| POST | /api/admin/deployment-monitoring/sessions | (관리자) 수동 측정 시작 요청 |
+| GET | /api/admin/deployment-monitoring/sessions/{session} | (관리자) 측정·연결 배포 상태 조회 |
+| POST | /api/admin/deployment-monitoring/sessions/{session}/stop | (관리자) 측정 종료 요청 |
+| GET | /api/admin/deployment-monitoring/deployments | (관리자) 연결 가능한 배포·롤백 목록 |
+| POST | /api/admin/deployment-monitoring/sessions/{session}/deployments | (관리자) 배포 실행·시도 번호 연결 |
+| GET | /api/admin/deployment-monitoring/results/{artifactId} | (관리자) 보관된 측정 결과 조회 |
+
+배포 모니터링의 요청·응답, 종료 기준, 기록 해석과 설정 방법은
+[배포 모니터링 가이드](../backend/docs/배포_모니터링.md)를 따른다. 기존 `X-Admin-Token` 인증을
+적용하며, 측정 시작·종료·연결의 `202`는 명령 접수를 의미한다. 실제 실행 상태는 별도로 조회한다.
 
 ## 9. App Store 배포 전 후속 과제
 

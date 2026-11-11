@@ -17,6 +17,18 @@ class AdminPageControllerTest extends IntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    @DisplayName("배포 모니터링 화면은 관리자 토큰 입력과 측정 조작을 제공한다")
+    void serveDeploymentMonitoringPage() throws Exception {
+        mockMvc.perform(get("/admin/deployment-monitoring"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("배포 모니터링")))
+                .andExpect(content().string(containsString("id=\"admin-token\"")))
+                .andExpect(content().string(containsString("id=\"start\"")))
+                .andExpect(content().string(containsString("id=\"stop\"")))
+                .andExpect(content().string(containsString("/admin-deployment-monitoring.js")));
+    }
+
+    @Test
     @DisplayName("별도 통계 페이지는 관리자 토큰 입력과 영역별 조회 화면을 제공한다")
     void serveDashboardUi() throws Exception {
         mockMvc.perform(get("/admin/dashboard"))

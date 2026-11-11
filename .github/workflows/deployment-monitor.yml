@@ -1,0 +1,116 @@
+name: deployment-monitor
+run-name: monitor:${{ inputs.environment }}:${{ inputs.session }}:${{ inputs.command }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [dev, prod]
+        required: true
+      session:
+        description: Measurement UUID (new UUID for each start)
+        required: true
+        type: string
+      command:
+        type: choice
+        options: [start, stop, link]
+        required: true
+      measurement_run_id:
+        type: string
+      deployment_run_id:
+        type: string
+      deployment_attempt:
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  MONITOR_ENVIRONMENT: ${{ inputs.environment }}
+  MONITOR_SESSION: ${{ inputs.session }}
+  MONITOR_COMMAND: ${{ inputs.command }}
+  MONITOR_MEASUREMENT_RUN_ID: ${{ inputs.measurement_run_id }}
+  MONITOR_DEPLOYMENT_RUN_ID: ${{ inputs.deployment_run_id }}
+  MONITOR_DEPLOYMENT_ATTEMPT: ${{ inputs.deployment_attempt }}
+  # Targets are configured by maintainers, never accepted as browser input.
+  MONITOR_DEV_HEALTH_URL: ${{ vars.MONITOR_DEV_HEALTH_URL }}
+  MONITOR_PROD_HEALTH_URL: ${{ vars.MONITOR_PROD_HEALTH_URL }}
+  MONITOR_DEV_DEPLOY_WORKFLOWS: ${{ vars.MONITOR_DEV_DEPLOY_WORKFLOWS }}
+  MONITOR_PROD_DEPLOY_WORKFLOWS: ${{ vars.MONITOR_PROD_DEPLOY_WORKFLOWS }}
+
+jobs:
+  measurement:
+    if: inputs.command == 'start'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: deployment-measurement-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      MONITOR_OUTPUT: ${{ github.workspace }}/measurement-output
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject duplicate measurements
+        run: python3 backend/infra/monitoring/measure.py guard
+      - name: Start external requests
+        id: launch
+        shell: bash
+        run: |
+          mkdir -p "$MONITOR_OUTPUT"
+          nohup bash -c 'python3 backend/infra/monitoring/measure.py measure; echo "$?" > "$MONITOR_OUTPUT/exit-code"' > "$MONITOR_OUTPUT/runner.log" 2>&1 &
+          for attempt in $(seq 1 100); do
+            if [ -f "$MONITOR_OUTPUT/state.json" ]; then exit 0; fi
+            if [ -f "$MONITOR_OUTPUT/exit-code" ]; then exit 1; fi
+            sleep 0.2
+          done
+          exit 1
+      - name: Publish measurement readiness
+        uses: actions/upload-artifact@v4
+        with:
+          name: ym-state-${{ inputs.environment }}-${{ inputs.session }}
+          path: ${{ github.workspace }}/measurement-output/state.json
+          retention-days: ${{ vars.MONITOR_RETENTION_DAYS || '90' }}
+          if-no-files-found: error
+      - name: Wait for manual stop or time limit
+        if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
+        shell: bash
+        run: |
+          while [ ! -f "$MONITOR_OUTPUT/exit-code" ]; do sleep 2; done
+          exit "$(cat "$MONITOR_OUTPUT/exit-code")"
+      - name: Save result including failed requests
+        id: result
+        if: ${{ !cancelled() && steps.launch.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ym-result-${{ inputs.environment }}-${{ inputs.session }}
+          path: ${{ github.workspace }}/measurement-output/result.json
+          retention-days: ${{ vars.MONITOR_RETENTION_DAYS || '90' }}
+          if-no-files-found: error
+      - name: Keep latest twenty measurement results for this environment
+        if: ${{ !cancelled() && steps.result.outcome == 'success' }}
+        run: python3 backend/infra/monitoring/measure.py cleanup
+
+  control:
+    if: inputs.command != 'start'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MONITOR_OUTPUT: ${{ github.workspace }}/measurement-command
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate and write command
+        run: python3 backend/infra/monitoring/measure.py command
+      - name: Deliver command to measurement runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: ym-command-${{ inputs.environment }}-${{ inputs.session }}-${{ github.run_id }}
+          path: ${{ github.workspace }}/measurement-command/command.json
+          retention-days: ${{ vars.MONITOR_RETENTION_DAYS || '90' }}
+          if-no-files-found: error
