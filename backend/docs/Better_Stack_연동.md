@@ -32,7 +32,7 @@ Java Agent·Logtail 직접 전송·자체 UUID trace ID는 제거했다.
 - 전송은 SDK batch processor와 Micrometer registry의 비동기 전송을 사용한다. Collector
   장애가 요청 처리에 결합되지 않는다. 메모리 버퍼와 재시도는 영속 보관을 보장하지 않는다.
 - [공통 설정](../src/main/resources/observability.properties)은 기본 외부 전송을 끈다.
-  [개발 Compose](../infra/dev/docker-compose.yml)가 외부 전송을 켜며 `prod` 프로필을 유지한다.
+  [개발 Compose](../infra/dev/docker-compose.dev.yml)가 외부 전송을 켜며 `prod,dev` 프로필을 사용한다.
 - Actuator는 컨테이너 내부 `127.0.0.1:8081`의 health·metrics만 노출한다. 8081을 publish하거나
   nginx로 프록시하지 않는다. 기존 `/health`는 DB 확인용 공개 헬스체크로 유지한다.
 

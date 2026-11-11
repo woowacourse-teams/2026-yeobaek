@@ -16,7 +16,6 @@ services:
       OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
       DEPLOYMENT_ENVIRONMENT: dev
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
       TZ: Asia/Seoul
       DB_URL: ${YEOBAEK_DATABASE_URL:-jdbc:mysql://mysql:3306/yeobaek}
       DB_USERNAME: root
