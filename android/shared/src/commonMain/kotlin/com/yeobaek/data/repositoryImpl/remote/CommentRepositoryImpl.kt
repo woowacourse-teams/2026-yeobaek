@@ -6,6 +6,7 @@ import com.yeobaek.data.dto.toModel
 import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.CommentSpace
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.data.model.CommentedSentencesModel
 import com.yeobaek.data.model.CommentsModel
 import com.yeobaek.data.model.NewCommentCountModel
@@ -107,16 +108,19 @@ class CommentRepositoryImpl(
     override suspend fun getCommentedSentences(
         space: CommentSpace,
         currentPassageId: Long,
+        filter: CommentedSentenceFilter,
     ): CommentedSentencesModel {
         val response = when (space) {
             is CommentSpace.Group -> commentApi.getGroupCommentedSentences(
                 clubId = space.groupId,
                 currentPassageId = currentPassageId,
+                filter = filter.name,
             )
 
             is CommentSpace.PublicRoom -> commentApi.getPublicRoomCommentedSentences(
                 publicRoomId = space.publicRoomId,
                 currentPassageId = currentPassageId,
+                filter = filter.name,
             )
         }
 
