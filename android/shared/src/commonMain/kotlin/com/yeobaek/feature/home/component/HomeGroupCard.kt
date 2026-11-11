@@ -96,12 +96,12 @@ private fun GroupInfoCard(
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                title,
+                groupName,
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 20.sp,
                 ),
             )
-            Text(groupName, style = MaterialTheme.typography.bodyMedium)
+            Text(title, style = MaterialTheme.typography.bodyMedium)
         }
         Text(
             "${groupCount}명 참여",
