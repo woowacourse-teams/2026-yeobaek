@@ -33,6 +33,7 @@ import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.CommentNotification
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.CommentSpace
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.data.model.MyProgressModel
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.model.PassagesModel
@@ -44,6 +45,7 @@ import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
+import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
@@ -52,6 +54,8 @@ import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
@@ -133,7 +137,9 @@ class ReaderViewModel(
                 ),
                 commentedSentences = updatedCommentedSentences,
                 commentedSentenceMode = if (
-                    uiState.isCommentCollectionsVisible && updatedCommentedSentences.sentences.isEmpty()
+                    uiState.isCommentCollectionsVisible &&
+                    uiState.commentedSentenceMode == CommentedSentenceMode.Exists &&
+                    updatedCommentedSentences.sentences.isEmpty()
                 ) {
                     CommentedSentenceMode.None
                 } else {
@@ -574,13 +580,30 @@ class ReaderViewModel(
         loadCommentCollections(isRefreshing = false)
     }
 
-    private fun loadCommentCollections(isRefreshing: Boolean) {
+    fun selectCommentCollectionFilter(filter: CommentedSentenceFilter) {
+        if (!uiState.isCommentCollectionsVisible || filter == uiState.commentCollectionFilter) return
+
+        loadCommentCollections(isRefreshing = false, filter = filter)
+    }
+
+    private fun loadCommentCollections(
+        isRefreshing: Boolean,
+        filter: CommentedSentenceFilter = uiState.commentCollectionFilter,
+    ) {
         commentCollectionsJob?.cancel()
         val keepContent = isRefreshing &&
             uiState.commentedSentenceMode in
             listOf(CommentedSentenceMode.Exists, CommentedSentenceMode.None)
         if (!keepContent) {
-            uiState = uiState.copy(commentedSentenceMode = CommentedSentenceMode.Loading)
+            uiState = uiState.copy(
+                commentCollectionFilter = filter,
+                commentedSentenceMode = CommentedSentenceMode.Loading,
+                commentedSentences = if (filter == uiState.commentCollectionFilter) {
+                    uiState.commentedSentences
+                } else {
+                    CommentedSentencesUiModel()
+                },
+            )
         }
 
         commentCollectionsJob = viewModelScope.launch {
@@ -590,7 +613,9 @@ class ReaderViewModel(
                 val comments = commentRepository.getCommentedSentences(
                     space = commentSpace,
                     currentPassageId = currentPassageId,
+                    filter = filter,
                 ).toUiModel()
+                currentCoroutineContext().ensureActive()
 
                 uiState = uiState.copy(
                     commentedSentences = comments.copy(
@@ -613,6 +638,7 @@ class ReaderViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
                 if (!keepContent) {
                     uiState = uiState.copy(
@@ -685,7 +711,7 @@ class ReaderViewModel(
             isCommentCollectionsVisible = true,
             isTextSettingMenuExpanded = false,
         )
-        getCommentCollections()
+        loadCommentCollections(isRefreshing = false, filter = CommentedSentenceFilter.ALL)
     }
 
     fun dismissCommentCollections() {
