@@ -123,12 +123,12 @@ find_slots() {
 
   case "$active_address" in
     127.0.0.1:8080)
-      active_color=Blue; active_service=app; active_container=yeobaek-app-blue
+      active_color=Blue; active_service=app-blue; active_container=yeobaek-app-blue
       next_color=Green; next_service=app-green; next_container=yeobaek-app-green; next_port=8081
       ;;
     127.0.0.1:8081)
       active_color=Green; active_service=app-green; active_container=yeobaek-app-green
-      next_color=Blue; next_service=app; next_container=yeobaek-app-blue; next_port=8080
+      next_color=Blue; next_service=app-blue; next_container=yeobaek-app-blue; next_port=8080
       ;;
     *) fail "지원하지 않는 Nginx 대상입니다: $active_address" ;;
   esac

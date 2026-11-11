@@ -28,7 +28,7 @@ old = "a" * 40
 new = "b" * 40
 active = state.get("active", "yeobaek-app-blue")
 next_container = "yeobaek-app-green" if active == "yeobaek-app-blue" else "yeobaek-app-blue"
-next_service = "app-green" if active == "yeobaek-app-blue" else "app"
+next_service = "app-green" if active == "yeobaek-app-blue" else "app-blue"
 
 def end(code=0, output=""):
     state_path.write_text(json.dumps(state))
@@ -103,7 +103,7 @@ if name == "docker":
         if "State.ExitCode" in template:
             code = 137 if scenario == "forced-stop" else 0
             end(0, f"{status}|{'true' if status == 'running' else 'false'}|{code}|false")
-        if active == "yeobaek-app-blue": end(0, "running|yeobaek-dev|app|127.0.0.1:8080;")
+        if active == "yeobaek-app-blue": end(0, "running|yeobaek-dev|app-blue|127.0.0.1:8080;")
         end(0, "running|yeobaek-dev|app-green|127.0.0.1:8081;")
     if args[:2] == ["container", "logs"]: end(0, "test application log")
     if args[:2] == ["container", "stop"]:

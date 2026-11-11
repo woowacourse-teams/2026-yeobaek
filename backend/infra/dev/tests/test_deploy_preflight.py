@@ -24,7 +24,7 @@ class DeployPreflightTest(unittest.TestCase):
             **os.environ,
             "PATH": f"{self.directory}:{os.environ['PATH']}",
             "NGINX_CONFIG": str(self.config),
-            "TEST_DETAILS": "running|yeobaek-dev|app|127.0.0.1:8080;",
+            "TEST_DETAILS": "running|yeobaek-dev|app-blue|127.0.0.1:8080;",
             "TEST_ACTIVE": "yeobaek-app-blue",
             "TEST_CONTAINERS": "yeobaek-app-blue\nyeobaek-mysql",
             "TEST_HEALTH_URL": "http://127.0.0.1:8080/health",
@@ -82,7 +82,7 @@ exit "$TEST_CURL_EXIT"
         )
         result = self.run_check()
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertIn("다음 배포 위치: Blue (app, 호스트 포트 8080)", result.stdout)
+        self.assertIn("다음 배포 위치: Blue (app-blue, 호스트 포트 8080)", result.stdout)
 
     def test_leftover_container_stops_deployment(self):
         self.env["TEST_CONTAINERS"] += "\nyeobaek-app-green"
@@ -97,15 +97,19 @@ exit "$TEST_CURL_EXIT"
         self.assert_stopped("상태를 확인하지 못했습니다")
 
     def test_stopped_current_app_is_rejected(self):
-        self.env["TEST_DETAILS"] = "exited|yeobaek-dev|app|127.0.0.1:8080;"
+        self.env["TEST_DETAILS"] = "exited|yeobaek-dev|app-blue|127.0.0.1:8080;"
         self.assert_stopped("실행 상태가 running이 아닙니다")
 
     def test_other_compose_project_is_rejected(self):
-        self.env["TEST_DETAILS"] = "running|yeobaek-prod|app|127.0.0.1:8080;"
+        self.env["TEST_DETAILS"] = "running|yeobaek-prod|app-blue|127.0.0.1:8080;"
+        self.assert_stopped("예상한 개발용 Compose 서비스가 아닙니다")
+
+    def test_renamed_container_with_legacy_service_is_rejected(self):
+        self.env["TEST_DETAILS"] = "running|yeobaek-dev|app|127.0.0.1:8080;"
         self.assert_stopped("예상한 개발용 Compose 서비스가 아닙니다")
 
     def test_wrong_port_binding_is_rejected(self):
-        self.env["TEST_DETAILS"] = "running|yeobaek-dev|app|127.0.0.1:8081;"
+        self.env["TEST_DETAILS"] = "running|yeobaek-dev|app-blue|127.0.0.1:8081;"
         self.assert_stopped("포트 연결이 예상과 다릅니다")
 
     def test_failed_or_redirected_health_is_rejected(self):

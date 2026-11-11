@@ -16,11 +16,19 @@
 
 | 역할 | Compose 서비스 | 컨테이너 | 호스트 → 앱 포트 |
 |---|---|---|---|
-| Blue | `app` | `yeobaek-app-blue` | `127.0.0.1:8080` → `8080` |
+| Blue | `app-blue` | `yeobaek-app-blue` | `127.0.0.1:8080` → `8080` |
 | Green | `app-green` | `yeobaek-app-green` | `127.0.0.1:8081` → `8080` |
 
 서버에 기존 이름 `yeobaek-app`의 컨테이너가 있다면 이름 전환을 준비한 뒤 이 스크립트를 사용한다.
 스크립트가 실행 중인 컨테이너 이름을 자동으로 변경하지는 않는다.
+Compose 서비스 이름도 `app`에서 `app-blue`로 바뀐다. 컨테이너 이름만 변경해도
+Compose 소속 정보는 그대로이므로, 서버에서는 새 서비스 설정으로 컨테이너를 다시 만들어야 한다.
+기존 앱과 새 Blue는 같은 8080 포트를 사용하므로 단순히 함께 실행할 수 없다.
+최초 전환은 기존 앱·Green 상태와 Nginx 전달 대상을 확인한 뒤 별도로 진행한다.
+
+관측 설정용 `backup.sh`는 선택한 컨테이너의 실제 서비스 이름을 백업에 반영한다.
+`rollback.sh`도 백업의 `app.inspect.json`에서 당시 서비스 이름을 읽으므로 기존 `app` 백업을 복구할 수 있다.
+이 두 스크립트는 Nginx 전달 대상을 바꾸지 않는 설정 백업·복구용이며, 무중단 배포의 자동 복구와는 별개다.
 
 기본 Nginx 설정은 `/etc/nginx/conf.d/yeobaek-dev.conf`, 확인 도메인은 `https://yeobaekdev.duckdns.org/health`다.
 `DEPLOY_DIR`, `NGINX_CONFIG`, `NGINX_ERROR_LOG`, `HEALTH_URL`로 경로와 주소를 지정할 수 있다.

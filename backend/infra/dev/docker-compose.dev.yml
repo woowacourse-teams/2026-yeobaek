@@ -41,8 +41,8 @@ x-app-common: &app-common
       condition: service_healthy
 
 services:
-  # app 서비스는 Blue다. 컨테이너 이름에도 색상을 표시한다.
-  app:
+  # 서비스 이름과 컨테이너 이름 모두 색상을 표시한다.
+  app-blue:
     <<: *app-common
     container_name: yeobaek-app-blue
     # nginx가 호스트에서 프록시하므로 로컬호스트에만 바인딩한다.

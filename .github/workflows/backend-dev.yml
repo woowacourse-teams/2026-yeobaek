@@ -1,6 +1,6 @@
 # develop: 테스트·정적 분석 → 이미지 발행 → 개발 서버 배포.
 # 사전 준비: 개발 서버에 ec2-dev 러너와 ~/yeobaek-dev/docker-compose.yml, .env를 설정한다.
-# Compose의 app 서비스와 DB·볼륨·컨테이너 이름은 개발 전용으로 구성한다.
+# Compose의 app-blue/app-green 서비스와 DB·볼륨·컨테이너 이름은 개발 전용으로 구성한다.
 name: backend-dev
 
 on:
