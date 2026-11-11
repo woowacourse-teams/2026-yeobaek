@@ -39,8 +39,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,17 +68,10 @@ fun CommentCollectionContents(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val listState = key(selectedFilter) { rememberLazyListState() }
     var revealedSentenceIds by remember { mutableStateOf(emptySet<Long>()) }
     val displayedSentences = commentedSentences.sentences
-    val sentenceOrder = displayedSentences.map(CommentedSentenceUiModel::sentenceId)
     val isNewCommentsTab = selectedFilter == CommentedSentenceFilter.NEW
-
-    LaunchedEffect(selectedFilter, sentenceOrder) {
-        if (displayedSentences.isNotEmpty()) {
-            listState.scrollToItem(0)
-        }
-    }
 
     Surface(modifier = modifier.fillMaxSize()) {
         Scaffold(
