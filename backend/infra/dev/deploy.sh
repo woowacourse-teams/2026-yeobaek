@@ -205,6 +205,9 @@ stop_and_remove() {
   python3 "$helper" record-shutdown "$record_dir/containers/$container/shutdown.json" "$status" "$running" "$exit_code" "$oom" || return 1
   if [[ "$exit_code" == 137 || "$oom" == true ]]; then
     warn "$container 강제 종료 가능성 있음(exit=$exit_code, OOM=$oom). 종료 자체는 확인됐으며 무중단 여부는 외부 측정으로 판단합니다."
+  elif [[ "$exit_code" == 143 ]]; then
+    # 직접 보낸 SIGTERM에 해당하는 종료 코드는 OOM이 없고 종료가 확인되면 일반 기록으로 남긴다.
+    log "$container SIGTERM 전송 후 종료 확인(exit=143)."
   elif [[ "$exit_code" != 0 ]]; then
     warn "$container 종료 코드=$exit_code. 종료 자체는 확인됐습니다."
   fi
