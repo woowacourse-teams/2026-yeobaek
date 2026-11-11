@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 cd "${DEPLOY_DIR:-$HOME/yeobaek-dev}"
 deploy_dir=$(pwd -P)
-app_container=${APP_CONTAINER:-yeobaek-app}
+app_container=${APP_CONTAINER:-yeobaek-app-blue}
 collector_container=${COLLECTOR_CONTAINER:-yeobaek-otel-collector}
 actual_dir=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$app_container")
 actual_dir=$(cd "$actual_dir" && pwd -P)
