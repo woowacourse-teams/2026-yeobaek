@@ -101,8 +101,9 @@ if name == "docker":
         if "json .State" in template: end(0, json.dumps({"Status": status}))
         if template == "{{.Image}}": end(0, "sha256:" + "d" * 64)
         if "State.ExitCode" in template:
-            code = 137 if scenario == "forced-stop" else 0
-            end(0, f"{status}|{'true' if status == 'running' else 'false'}|{code}|false")
+            code = {"forced-stop": 137, "sigterm-stop": 143, "oom-stop": 143, "error-stop": 1}.get(scenario, 0)
+            oom = "true" if scenario == "oom-stop" else "false"
+            end(0, f"{status}|{'true' if status == 'running' else 'false'}|{code}|{oom}")
         if active == "yeobaek-app-blue": end(0, "running|yeobaek-dev|app-blue|127.0.0.1:8080;")
         end(0, "running|yeobaek-dev|app-green|127.0.0.1:8081;")
     if args[:2] == ["container", "logs"]: end(0, "test application log")
@@ -236,6 +237,31 @@ class DeployFlowTest(unittest.TestCase):
         self.assertIn("강제 종료 가능성", self.summary.read_text())
         self.assertIn("::warning::", self.output)
         self.assertNotIn("::error::", self.output)
+
+    def test_confirmed_sigterm_stop_is_success_without_warning(self):
+        self.assertEqual(0, self.deploy("sigterm-stop"), self.output)
+        self.assertIn("## 🟢 개발 배포 완료", self.summary.read_text())
+        self.assertNotIn("::warning::", self.output)
+        self.assertIn("SIGTERM 전송 후 종료 확인(exit=143)", self.output)
+        record = next((self.root / "deployment" / "records").iterdir())
+        shutdown = json.loads((record / "containers" / "yeobaek-app-blue" / "shutdown.json").read_text())
+        self.assertEqual(143, shutdown["exit_code"])
+        self.assertFalse(shutdown["running"])
+        self.assertFalse(shutdown["oom_killed"])
+        stop = next(c for c in self.calls if c[:3] == ["docker", "container", "stop"])
+        self.assertEqual("SIGTERM", stop[stop.index("--signal") + 1])
+
+    def test_oom_is_warning_even_with_sigterm_exit_code(self):
+        self.assertEqual(0, self.deploy("oom-stop"), self.output)
+        self.assertIn("## 🟠 개발 배포 완료", self.summary.read_text())
+        self.assertIn("::warning::", self.output)
+        self.assertIn("exit=143, OOM=true", self.output)
+
+    def test_other_nonzero_exit_code_remains_warning(self):
+        self.assertEqual(0, self.deploy("error-stop"), self.output)
+        self.assertIn("## 🟠 개발 배포 완료", self.summary.read_text())
+        self.assertIn("::warning::", self.output)
+        self.assertIn("종료 코드=1", self.output)
 
     def test_unconfirmed_stop_fails_without_rollback(self):
         self.assertEqual(1, self.deploy("stop-fail"), self.output)
