@@ -1,5 +1,6 @@
 package com.yeobaek.feature.reader
 
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
@@ -20,6 +21,7 @@ data class ReaderUiState(
     val isTextSettingMenuExpanded: Boolean = false,
     val isCommentCollectionsVisible: Boolean = false,
     val isNewComment: Boolean = false,
+    val commentCollectionFilter: CommentedSentenceFilter = CommentedSentenceFilter.ALL,
     val commentedSentences: CommentedSentencesUiModel = CommentedSentencesUiModel(),
     val commentedSentenceMode: CommentedSentenceMode = CommentedSentenceMode.None,
     val returnPassageSequence: Int? = null,

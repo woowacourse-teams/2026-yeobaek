@@ -165,6 +165,7 @@ private fun ReaderRoute(
             onCommentCollectionsClick = readerViewModel::openCommentCollections,
             onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
             onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+            onCommentCollectionFilterSelected = readerViewModel::selectCommentCollectionFilter,
             onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
             onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
             onMoveToComment = readerViewModel::moveToSelectedComment,
@@ -173,7 +174,7 @@ private fun ReaderRoute(
     }
     val commentSheetActions = remember(commentSheet) {
         CommentSheetActions(
-            onDismiss = commentSheet::dismiss,
+            onDismiss = readerViewModel::dismissCommentSheet,
             onRetry = commentSheet::retryLoad,
             onInputChange = commentSheet::updateInput,
             onSubmit = commentSheet::submit,

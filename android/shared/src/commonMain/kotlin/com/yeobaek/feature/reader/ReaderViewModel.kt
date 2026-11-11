@@ -33,6 +33,7 @@ import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.CommentNotification
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.CommentSpace
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.data.model.MyProgressModel
 import com.yeobaek.data.model.PassageModel
 import com.yeobaek.data.model.PassagesModel
@@ -44,6 +45,7 @@ import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
+import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.ReaderFontSize
@@ -52,6 +54,8 @@ import com.yeobaek.feature.reader.model.toUiModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 class ReaderViewModel(
@@ -117,7 +121,16 @@ class ReaderViewModel(
                 itemCount = itemCount,
             )
         },
-        onCommentCountChanged = { sentenceId, commentCount ->
+        onCommentCountChanged = onCommentCountChanged@{ sentenceId, commentCount ->
+            val updatedPassages = uiState.passages.updateCommentCount(
+                sentenceId = sentenceId,
+                commentCount = commentCount,
+            )
+            if (isNewCommentSheetOpen()) {
+                uiState = uiState.copy(passages = updatedPassages)
+                return@onCommentCountChanged
+            }
+
             val shouldReloadCommentCollections = commentCount > 0 &&
                 uiState.commentedSentences.sentences.none { sentence ->
                     sentence.sentenceId == sentenceId
@@ -127,13 +140,12 @@ class ReaderViewModel(
                 commentCount = commentCount,
             )
             uiState = uiState.copy(
-                passages = uiState.passages.updateCommentCount(
-                    sentenceId = sentenceId,
-                    commentCount = commentCount,
-                ),
+                passages = updatedPassages,
                 commentedSentences = updatedCommentedSentences,
                 commentedSentenceMode = if (
-                    uiState.isCommentCollectionsVisible && updatedCommentedSentences.sentences.isEmpty()
+                    uiState.isCommentCollectionsVisible &&
+                    uiState.commentedSentenceMode == CommentedSentenceMode.Exists &&
+                    updatedCommentedSentences.sentences.isEmpty()
                 ) {
                     CommentedSentenceMode.None
                 } else {
@@ -162,6 +174,7 @@ class ReaderViewModel(
     private var commentCollectionsJob: Job? = null
     private var newCommentCountJob: Job? = null
     private var commentNotificationJob: Job? = null
+    private var viewedNewCommentSentenceId: Long? = null
 
     private var currentBookId: Long? = null
     private var lastSavedPassageId: Long? = null
@@ -574,13 +587,32 @@ class ReaderViewModel(
         loadCommentCollections(isRefreshing = false)
     }
 
-    private fun loadCommentCollections(isRefreshing: Boolean) {
+    fun selectCommentCollectionFilter(filter: CommentedSentenceFilter) {
+        if (!uiState.isCommentCollectionsVisible || filter == uiState.commentCollectionFilter) return
+
+        loadCommentCollections(isRefreshing = false, filter = filter)
+    }
+
+    private fun loadCommentCollections(
+        isRefreshing: Boolean,
+        filter: CommentedSentenceFilter = uiState.commentCollectionFilter,
+    ) {
+        if (filter == CommentedSentenceFilter.NEW && isNewCommentSheetOpen()) return
+
         commentCollectionsJob?.cancel()
         val keepContent = isRefreshing &&
             uiState.commentedSentenceMode in
             listOf(CommentedSentenceMode.Exists, CommentedSentenceMode.None)
         if (!keepContent) {
-            uiState = uiState.copy(commentedSentenceMode = CommentedSentenceMode.Loading)
+            uiState = uiState.copy(
+                commentCollectionFilter = filter,
+                commentedSentenceMode = CommentedSentenceMode.Loading,
+                commentedSentences = if (filter == uiState.commentCollectionFilter) {
+                    uiState.commentedSentences
+                } else {
+                    CommentedSentencesUiModel()
+                },
+            )
         }
 
         commentCollectionsJob = viewModelScope.launch {
@@ -590,7 +622,9 @@ class ReaderViewModel(
                 val comments = commentRepository.getCommentedSentences(
                     space = commentSpace,
                     currentPassageId = currentPassageId,
+                    filter = filter,
                 ).toUiModel()
+                currentCoroutineContext().ensureActive()
 
                 uiState = uiState.copy(
                     commentedSentences = comments.copy(
@@ -613,6 +647,7 @@ class ReaderViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 recordFailure(e, CrashOperation.COMMENT_COLLECTION_LOAD_FAILED)
                 if (!keepContent) {
                     uiState = uiState.copy(
@@ -685,7 +720,7 @@ class ReaderViewModel(
             isCommentCollectionsVisible = true,
             isTextSettingMenuExpanded = false,
         )
-        getCommentCollections()
+        loadCommentCollections(isRefreshing = false, filter = CommentedSentenceFilter.ALL)
     }
 
     fun dismissCommentCollections() {
@@ -719,7 +754,23 @@ class ReaderViewModel(
         commentCollectionSession.onCardClicked()
         commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
+        viewedNewCommentSentenceId = null
+        if (uiState.commentCollectionFilter == CommentedSentenceFilter.NEW) {
+            commentCollectionsJob?.cancel()
+        }
         commentSheet.openFromCollection(sentence, commentCollectionSession.visitId)
+    }
+
+    fun dismissCommentSheet() {
+        val shouldRefreshNewComments = isNewCommentSheetOpen()
+        val viewedSentenceId = viewedNewCommentSentenceId
+        viewedNewCommentSentenceId = null
+        commentSheet.dismiss()
+
+        if (shouldRefreshNewComments) {
+            viewedSentenceId?.let(::removeViewedSentenceFromNewComments)
+            loadCommentCollections(isRefreshing = true)
+        }
     }
 
     fun onCommentSheetContentsShown(sentenceId: Long) {
@@ -745,11 +796,11 @@ class ReaderViewModel(
             ),
         )
         commentCollectionSession.end(CommentCollectionEnd.JUMP)
-        commentSheet.dismiss()
         uiState = uiState.copy(
             isCommentCollectionsVisible = false,
             returnPassageSequence = returnSequence,
         )
+        dismissCommentSheet()
         moveToPassage(targetSequence)
     }
 
@@ -799,10 +850,36 @@ class ReaderViewModel(
         }
 
     private fun handleCommentsViewed(sentenceId: Long) {
-        uiState = uiState.copy(
-            commentedSentences = uiState.commentedSentences.markCommentsViewed(sentenceId),
-        )
+        if (isNewCommentSheetOpen()) {
+            viewedNewCommentSentenceId = sentenceId
+        } else {
+            uiState = uiState.copy(
+                commentedSentences = uiState.commentedSentences.markCommentsViewed(sentenceId),
+            )
+        }
         refreshNewCommentStatus()
+    }
+
+    private fun isNewCommentSheetOpen(): Boolean = uiState.isCommentCollectionsVisible &&
+        uiState.commentCollectionFilter == CommentedSentenceFilter.NEW &&
+        commentSheet.uiState?.source == CommentSheetSource.COMMENT_COLLECTION
+
+    private fun removeViewedSentenceFromNewComments(sentenceId: Long) {
+        val currentSentences = uiState.commentedSentences
+        val updatedSentences = currentSentences.copy(
+            sentences = currentSentences.sentences.filterNot { it.sentenceId == sentenceId },
+        )
+        uiState = uiState.copy(
+            commentedSentences = updatedSentences,
+            commentedSentenceMode = if (
+                uiState.commentedSentenceMode == CommentedSentenceMode.Exists &&
+                updatedSentences.sentences.isEmpty()
+            ) {
+                CommentedSentenceMode.Loading
+            } else {
+                uiState.commentedSentenceMode
+            },
+        )
     }
 
     private fun refreshNewCommentStatus() {
