@@ -20,7 +20,13 @@
     <string name="nickname_change_success">닉네임이 변경되었어요</string>
     <string name="nickname_change_back">뒤로가기</string>
     <string name="reader_text_settings_open">글자 크기 설정 열기</string>
+    <string name="reader_comment_collection_all_tab">전체 댓글</string>
+    <string name="reader_comment_collection_new_tab">새 댓글</string>
     <string name="reader_comment_collection_spoiler_notice">아직 읽지 않은 문장은 스포일러 방지를 위해 가려져 있어요.</string>
+    <string name="reader_comment_collection_new_notice">읽은 문장에 달린 새 댓글만 볼 수 있어요.</string>
+    <string name="reader_comment_collection_new_empty_title">새 댓글을 모두 읽었어요</string>
+    <string name="reader_comment_collection_new_empty_description">새로운 댓글이 달리면 이곳에서\n확인할 수 있어요.</string>
+    <string name="reader_comment_collection_show_all">전체 댓글 보기</string>
     <string name="reader_go_to_sentence">이 문장 보러 가기</string>
     <string name="reader_return_to_reading_position">읽던 곳으로 돌아가기</string>
 </resources>

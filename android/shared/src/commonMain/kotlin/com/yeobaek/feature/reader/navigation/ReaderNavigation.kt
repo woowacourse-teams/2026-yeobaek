@@ -166,6 +166,7 @@ private fun ReaderRoute(
             onCommentCollectionsClick = readerViewModel::openCommentCollections,
             onCommentCollectionsDismiss = readerViewModel::dismissCommentCollections,
             onCommentCollectionsRetry = readerViewModel::getCommentCollections,
+            onCommentCollectionFilterSelected = readerViewModel::selectCommentCollectionFilter,
             onCommentCardClick = readerViewModel::openSentenceCommentsByCollection,
             onCommentSentenceReveal = readerViewModel::onCommentSentenceRevealed,
             onMoveToComment = readerViewModel::moveToSelectedComment,

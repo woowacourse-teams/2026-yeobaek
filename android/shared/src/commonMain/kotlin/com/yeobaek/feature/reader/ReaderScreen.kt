@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
+import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.component.CommentBottomSheet
 import com.yeobaek.feature.reader.component.CommentCollectionContents
 import com.yeobaek.feature.reader.component.PassageItem
@@ -142,6 +143,8 @@ fun ReaderScreen(
             CommentCollectionContents(
                 commentedSentences = uiState.commentedSentences,
                 mode = uiState.commentedSentenceMode,
+                selectedFilter = uiState.commentCollectionFilter,
+                onFilterSelected = actions.onCommentCollectionFilterSelected,
                 onCommentCardClick = actions.onCommentCardClick,
                 onSentenceReveal = actions.onCommentSentenceReveal,
                 onRetry = actions.onCommentCollectionsRetry,
@@ -194,6 +197,7 @@ class ReaderActions(
     val onCommentCollectionsClick: () -> Unit,
     val onCommentCollectionsDismiss: () -> Unit,
     val onCommentCollectionsRetry: () -> Unit,
+    val onCommentCollectionFilterSelected: (CommentedSentenceFilter) -> Unit,
     val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
     val onCommentSentenceReveal: () -> Unit,
     val onMoveToComment: () -> Unit,
@@ -383,6 +387,7 @@ private fun ReaderScreenPreview() {
                 onCommentCollectionsClick = {},
                 onCommentCollectionsDismiss = {},
                 onCommentCollectionsRetry = {},
+                onCommentCollectionFilterSelected = {},
                 onCommentCardClick = {},
                 onCommentSentenceReveal = {},
                 onMoveToComment = {},
