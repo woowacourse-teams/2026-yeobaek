@@ -59,3 +59,25 @@ data class NotificationSettingSubmitted(
         "result" to result.value,
     )
 }
+
+enum class GroupNotificationAction(val eventName: String) {
+    VIEWED("group_notification_setting_viewed"),
+    TOGGLE_CLICKED("group_notification_setting_toggle_clicked"),
+    SUBMITTED("group_notification_setting_submitted"),
+    LOADED("group_notification_setting_loaded"),
+    LOAD_RETRIED("group_notification_setting_load_retried"),
+}
+
+data class GroupNotificationSettingEvent(
+    val action: GroupNotificationAction,
+    val groupId: Long,
+    val groupDetailVisitId: String,
+    val details: Map<String, Any> = emptyMap(),
+) : AnalyticsEvent {
+    override val name = action.eventName
+    override val properties = details +
+        mapOf(
+            "group_id" to groupId,
+            "group_detail_visit_id" to groupDetailVisitId,
+        )
+}

@@ -14,12 +14,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.yeobaek.core.analytics.CommentCollectionAction
+import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.data.model.CommentedSentenceFilter
@@ -120,6 +123,9 @@ fun ReaderScreen(
         }
 
         if (uiState.returnPassageSequence != null && uiState.mode == ReaderMode.Idle) {
+            if (commentSheet == null && !uiState.isCommentCollectionsVisible && !uiState.isTableOfContentsVisible) {
+                LaunchedEffect(uiState.returnPassageSequence) { actions.onReturnButtonShown() }
+            }
             ReaderReturnButton(
                 onClick = actions.onReturnToPreviousReadingPosition,
                 modifier = Modifier
@@ -145,6 +151,8 @@ fun ReaderScreen(
                 mode = uiState.commentedSentenceMode,
                 selectedFilter = uiState.commentCollectionFilter,
                 onFilterSelected = actions.onCommentCollectionFilterSelected,
+                onShowAll = actions.onShowAllComments,
+                onSpoilerExposure = actions.onSpoilerExposure,
                 onCommentCardClick = actions.onCommentCardClick,
                 onSentenceReveal = actions.onCommentSentenceReveal,
                 onRetry = actions.onCommentCollectionsRetry,
@@ -199,9 +207,13 @@ class ReaderActions(
     val onCommentCollectionsRetry: () -> Unit,
     val onCommentCollectionFilterSelected: (CommentedSentenceFilter) -> Unit,
     val onCommentCardClick: (CommentedSentenceUiModel) -> Unit,
-    val onCommentSentenceReveal: () -> Unit,
+    val onCommentSentenceReveal: (CommentedSentenceUiModel, CommentSentenceRevealTrigger) -> Unit,
     val onMoveToComment: () -> Unit,
     val onReturnToPreviousReadingPosition: () -> Unit,
+    val onInitialPositionApplied: (Int?) -> Unit = {},
+    val onShowAllComments: () -> Unit = { onCommentCollectionFilterSelected(CommentedSentenceFilter.ALL) },
+    val onSpoilerExposure: (CommentCollectionAction) -> Unit = {},
+    val onReturnButtonShown: () -> Unit = {},
 )
 
 @Composable
@@ -389,7 +401,7 @@ private fun ReaderScreenPreview() {
                 onCommentCollectionsRetry = {},
                 onCommentCollectionFilterSelected = {},
                 onCommentCardClick = {},
-                onCommentSentenceReveal = {},
+                onCommentSentenceReveal = { _, _ -> },
                 onMoveToComment = {},
                 onReturnToPreviousReadingPosition = {},
             ),

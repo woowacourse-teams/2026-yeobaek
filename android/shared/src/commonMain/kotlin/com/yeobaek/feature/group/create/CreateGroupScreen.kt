@@ -39,6 +39,7 @@ fun CreateGroupContent(
     selectOtherBook: () -> Unit,
     onValueChangeGroupName: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onImeDone: () -> Unit = {},
 ) {
     Column(
         modifier = modifier.padding(16.dp).fillMaxWidth(),
@@ -64,6 +65,7 @@ fun CreateGroupContent(
             value = groupName,
             onValueChange = onValueChangeGroupName,
             isError = !isGroupNameValid,
+            onImeDone = onImeDone,
         )
     }
 }
@@ -121,6 +123,7 @@ private fun GroupNameTextField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    onImeDone: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -154,6 +157,7 @@ private fun GroupNameTextField(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
+                    onImeDone()
                     focusManager.clearFocus()
                     keyboardController?.hide()
                 }),

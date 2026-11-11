@@ -51,7 +51,7 @@ class CommentCollectionScrollTest {
                     onCommentCardClick = { card ->
                         sentences = sentences.filterNot { it.sentenceId == card.sentenceId }
                     },
-                    onSentenceReveal = {},
+                    onSentenceReveal = { _, _ -> },
                     onRetry = {},
                     onDismissRequest = {},
                 )

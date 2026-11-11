@@ -57,6 +57,7 @@ fun CreateBookSelectionContent(
     onClickBook: (SelectBookUiModel) -> Unit,
     onLastVisibleBookChanged: (lastVisibleIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
+    onImeSearch: () -> Unit = {},
 ) {
     val currentOnLastVisibleBookChanged by rememberUpdatedState(onLastVisibleBookChanged)
 
@@ -80,6 +81,7 @@ fun CreateBookSelectionContent(
             searchTextValue = searchTextValue,
             updateSearchTextValue = updateSearchTextValue,
             enabled = bookState is BookState.Success,
+            onImeSearch = onImeSearch,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -118,6 +120,7 @@ private fun CreateBookSearchTextField(
     searchTextValue: String,
     updateSearchTextValue: (String) -> Unit,
     enabled: Boolean,
+    onImeSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -132,6 +135,7 @@ private fun CreateBookSearchTextField(
         enabled = enabled,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = {
+            onImeSearch()
             focusManager.clearFocus()
             keyboardController?.hide()
         }),

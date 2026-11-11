@@ -28,6 +28,7 @@ data class PublicRoomBookDetail(
     val bookPosition: Int = 0,
     val genreBadgeShown: Boolean = false,
     val hashtagsShown: Boolean = false,
+    val recentListVisitId: String? = null,
 )
 
 fun NavController.navigateToPublicRoomBookDetail(
@@ -47,6 +48,7 @@ fun NavController.navigateToPublicRoomBookDetail(
             bookPosition = card?.position ?: 0,
             genreBadgeShown = card?.genreBadgeShown == true,
             hashtagsShown = card?.hashtagsShown == true,
+            recentListVisitId = card?.recentListVisitId,
         ),
         navOptions = navOptions,
     )
@@ -66,8 +68,16 @@ fun NavGraphBuilder.publicRoomBookDetailNavGraph(
             factory = BookDetailViewModel.bookDetailViewModelFactory(route.bookId, appContainer.bookRepository),
         )
         val detailVisit = bookDetailViewModel.detailVisit
-        val card = route.bookPosition.takeIf { it > 0 }?.let {
-            BookCardContext(it, route.genreBadgeShown, route.hashtagsShown, route.listVisitId)
+        val card = if (route.bookPosition > 0 || route.recentListVisitId != null) {
+            BookCardContext(
+                position = route.bookPosition.takeIf { it > 0 },
+                genreBadgeShown = route.genreBadgeShown,
+                hashtagsShown = route.hashtagsShown,
+                listVisitId = route.listVisitId,
+                recentListVisitId = route.recentListVisitId,
+            )
+        } else {
+            null
         }
         TrackScreen(
             crashReporter = appContainer.crashReporter,

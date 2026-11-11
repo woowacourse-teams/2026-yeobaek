@@ -84,6 +84,7 @@ fun NavGraphBuilder.homeNavGraph(
             navigateToDetail = { groupId ->
                 appContainer.analyticsTracker.track(
                     GroupDetailOpened(groupId = groupId),
+                    mapOf("entry_point" to "home"),
                 )
                 navigateToDetail(groupId)
             },
@@ -128,12 +129,13 @@ fun NavGraphBuilder.homeNavGraph(
                         position = position.takeIf { it > 0 },
                         genreBadgeShown = publicRoom.genres.any(String::isNotBlank),
                         hashtagsShown = publicRoom.hashtags.any { it.trim().trimStart('#').isNotBlank() },
-                        listVisitId = listVisitId,
+                        listVisitId = listVisitId.takeIf { entryPoint == PublicRoomEntryPoint.ROOM_LIST },
+                        recentListVisitId = listVisitId.takeIf { entryPoint == PublicRoomEntryPoint.RECENT_ROOMS },
                     ),
                 )
             },
             navigateToMyPage = {
-                appContainer.analyticsTracker.track(MyPageOpened)
+                appContainer.analyticsTracker.track(MyPageOpened, mapOf("entry_point" to "home"))
                 navigateToMyPage()
             },
         )

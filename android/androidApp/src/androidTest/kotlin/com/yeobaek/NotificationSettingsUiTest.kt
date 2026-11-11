@@ -33,6 +33,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
+import com.yeobaek.core.analytics.AnalyticsEvent
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.firebase.messaging.RemoteMessage
@@ -305,6 +306,7 @@ class NotificationSettingsUiTest {
     @Test
     fun groupBellShowsStoredStateAndRestoresItWhenSaveFails() {
         val repository = TestNotificationRepository().apply { failLoad = true }
+        val events = mutableListOf<AnalyticsEvent>()
         var groupName by mutableStateOf("심야북클럽")
         lateinit var vm: GroupNotificationViewModel
         rule.runOnUiThread {
@@ -312,7 +314,13 @@ class NotificationSettingsUiTest {
                 rule.activity,
                 viewModelFactory {
                     initializer {
-                        GroupNotificationViewModel(5, repository, MutableStateFlow(7), MutableStateFlow("fid-test"))
+                        GroupNotificationViewModel(
+                            groupId = 5,
+                            repository = repository,
+                            memberId = MutableStateFlow(7),
+                            installationId = MutableStateFlow("fid-test"),
+                            trackEvent = { events.add(it) },
+                        )
                     }
                 },
             )[GroupNotificationViewModel::class.java]
@@ -347,6 +355,10 @@ class NotificationSettingsUiTest {
         rule.onNodeWithContentDescription("모임 알림 설정 다시 불러오기").performClick()
         val bell = rule.onNodeWithContentDescription("모임 알림")
         bell.assertIsOn()
+        rule.runOnIdle {
+            vm.onSettingVisible()
+            vm.onSettingVisible()
+        }
         capture("16-group-notifications-on")
         val gate = CompletableDeferred<Unit>()
         rule.runOnIdle { repository.beforeUpdate = { gate.await() } }
@@ -364,7 +376,21 @@ class NotificationSettingsUiTest {
         rule.runOnIdle { repository.failUpdate = false }
         bell.performClick()
         bell.assertIsOn()
-        rule.runOnIdle { assertEquals(true, repository.groupPreference) }
+        rule.runOnIdle {
+            assertEquals(true, repository.groupPreference)
+            val loads = events.filter { it.name == "group_notification_setting_loaded" }
+            val clicks = events.filter { it.name == "group_notification_setting_toggle_clicked" }
+            val results = events.filter { it.name == "group_notification_setting_submitted" }
+            val retry = events.single { it.name == "group_notification_setting_load_retried" }
+            val viewed = events.single { it.name == "group_notification_setting_viewed" }
+            assertEquals(listOf("initial", "retry"), loads.map { it.properties["trigger"] })
+            assertEquals(listOf("failure", "success"), loads.map { it.properties["result"] })
+            assertEquals("request_failed", retry.properties["previous_failure_reason"])
+            assertEquals(true, viewed.properties["enabled"])
+            assertEquals(listOf("success", "failure", "success"), results.map { it.properties["result"] })
+            assertEquals(clicks.map { it.properties["setting_attempt_id"] }, results.map { it.properties["setting_attempt_id"] })
+            assertEquals(1, events.map { it.properties["group_detail_visit_id"] }.toSet().size)
+        }
 
         val longName = "매주 목요일 밤 함께 책을 읽고 이야기하는 심야북클럽"
         rule.runOnIdle { groupName = longName }

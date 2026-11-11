@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
+import com.yeobaek.core.analytics.CommentCollectionCardContext
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.crashlytics.CrashContext
@@ -51,6 +52,12 @@ class CommentSheetController(
     val pendingRestorePassageSequence: Int?
         get() = savedStateHandle[SHEET_PASSAGE_SEQUENCE_KEY]
 
+    val collectionVisitId: String?
+        get() = savedStateHandle[SHEET_COLLECTION_VISIT_KEY]
+
+    val collectionFilter: String?
+        get() = savedStateHandle[SHEET_COLLECTION_FILTER_KEY]
+
     fun open(
         sentence: SentenceUiModel,
         passageSequence: Int?,
@@ -69,7 +76,11 @@ class CommentSheetController(
         )
     }
 
-    fun openFromCollection(sentence: CommentedSentenceUiModel, collectionVisitId: String?) {
+    fun openFromCollection(
+        sentence: CommentedSentenceUiModel,
+        collectionVisitId: String?,
+        card: CommentCollectionCardContext,
+    ) {
         open(
             sentenceId = sentence.sentenceId,
             sentenceContent = sentence.content,
@@ -79,6 +90,7 @@ class CommentSheetController(
             hasNewComments = sentence.isNewComment(),
             source = CommentSheetSource.COMMENT_COLLECTION,
             collectionVisitId = collectionVisitId,
+            collectionCard = card,
         )
     }
 
@@ -138,6 +150,7 @@ class CommentSheetController(
         scrollToLatest: Boolean = false,
         source: CommentSheetSource,
         collectionVisitId: String? = null,
+        collectionCard: CommentCollectionCardContext? = null,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -154,6 +167,7 @@ class CommentSheetController(
             source = source,
             hasNewComments = hasNewComments,
             collectionVisitId = collectionVisitId,
+            collectionCard = collectionCard,
         )
         uiState = CommentSheetUiState(
             sentenceId = sentenceId,
@@ -167,6 +181,8 @@ class CommentSheetController(
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
         savedStateHandle[SHEET_SOURCE_KEY] = source.value
         savedStateHandle[SHEET_COLLECTION_VISIT_KEY] = collectionVisitId
+        savedStateHandle[SHEET_COLLECTION_FILTER_KEY] = collectionCard?.filter
+        savedStateHandle[SHEET_UNREAD_COUNT_KEY] = collectionCard?.unreadCommentCount
         savedStateHandle[SHEET_COMMENTS_SHOWN_KEY] = false
         savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] = scrollToLatest
         if (passageSequence == null) {
@@ -238,7 +254,8 @@ class CommentSheetController(
         if (savedStateHandle.get<Boolean>(SHEET_COMMENTS_SHOWN_KEY) == true) return null
 
         savedStateHandle[SHEET_COMMENTS_SHOWN_KEY] = true
-        return savedStateHandle[SHEET_COLLECTION_VISIT_KEY]
+        analytics.contentsShown(sheet, collectionVisitId, collectionFilter, savedStateHandle[SHEET_UNREAD_COUNT_KEY])
+        return collectionVisitId
     }
 
     fun dismiss() {
@@ -256,12 +273,15 @@ class CommentSheetController(
                 source = sheet.source,
                 commentsShown = savedStateHandle.get<Boolean>(SHEET_COMMENTS_SHOWN_KEY) == true,
                 collectionVisitId = savedStateHandle[SHEET_COLLECTION_VISIT_KEY],
+                collectionFilter = savedStateHandle[SHEET_COLLECTION_FILTER_KEY],
             )
         }
         uiState = null
         savedStateHandle.remove<Long>(SHEET_SENTENCE_ID_KEY)
         savedStateHandle.remove<String>(SHEET_SOURCE_KEY)
         savedStateHandle.remove<String>(SHEET_COLLECTION_VISIT_KEY)
+        savedStateHandle.remove<String>(SHEET_COLLECTION_FILTER_KEY)
+        savedStateHandle.remove<Int>(SHEET_UNREAD_COUNT_KEY)
         savedStateHandle.remove<Boolean>(SHEET_COMMENTS_SHOWN_KEY)
         savedStateHandle.remove<Int>(SHEET_PASSAGE_SEQUENCE_KEY)
         savedStateHandle.remove<Int>(SHEET_TARGET_PASSAGE_SEQUENCE_KEY)
@@ -714,6 +734,8 @@ class CommentSheetController(
         const val SHEET_SENTENCE_ID_KEY = "commentSheetSentenceId"
         const val SHEET_SOURCE_KEY = "commentSheetSource"
         const val SHEET_COLLECTION_VISIT_KEY = "commentSheetCollectionVisitId"
+        const val SHEET_COLLECTION_FILTER_KEY = "commentSheetCollectionFilter"
+        const val SHEET_UNREAD_COUNT_KEY = "commentSheetUnreadCountAtOpen"
         const val SHEET_COMMENTS_SHOWN_KEY = "commentSheetCommentsShown"
         const val SHEET_PASSAGE_SEQUENCE_KEY = "commentSheetPassageSequence"
         const val SHEET_TARGET_PASSAGE_SEQUENCE_KEY = "commentSheetTargetPassageSequence"
