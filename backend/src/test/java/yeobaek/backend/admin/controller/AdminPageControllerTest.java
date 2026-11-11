@@ -17,6 +17,16 @@ class AdminPageControllerTest extends IntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    @DisplayName("관리자 홈에서 도서 관리·통계·배포 모니터링으로 이동할 수 있다")
+    void serveAdminHome() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/admin/books\"")))
+                .andExpect(content().string(containsString("href=\"/admin/dashboard\"")))
+                .andExpect(content().string(containsString("href=\"/admin/deployment-monitoring\"")));
+    }
+
+    @Test
     @DisplayName("배포 모니터링 화면은 관리자 토큰 입력과 측정 조작을 제공한다")
     void serveDeploymentMonitoringPage() throws Exception {
         mockMvc.perform(get("/admin/deployment-monitoring"))

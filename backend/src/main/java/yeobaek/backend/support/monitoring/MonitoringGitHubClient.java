@@ -1,5 +1,9 @@
 package yeobaek.backend.support.monitoring;
 
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.RESULT;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,12 +17,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
+@Slf4j
 public class MonitoringGitHubClient {
 
     private static final int MAX_BYTES = 5_000_000;
@@ -42,15 +49,28 @@ public class MonitoringGitHubClient {
     }
 
     public JsonNode get(String path) {
-        return json(request(path).GET().build());
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.get").log("GitHub 조회를 시작합니다.");
+
+        JsonNode response = json(request(path).GET().build());
+
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.get").addKeyValue(RESULT, SUCCESS)
+                .log("GitHub 조회를 완료했습니다.");
+        return response;
     }
 
     public void post(String path, Object body) {
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.post").log("GitHub 명령 전달을 시작합니다.");
+
         json(request(path).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body))).build());
+
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.post").addKeyValue(RESULT, SUCCESS)
+                .log("GitHub 명령 전달을 완료했습니다.");
     }
 
     public List<JsonNode> pages(String path, String field) {
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.pages").log("GitHub 목록 조회를 시작합니다.");
+
         List<JsonNode> items = new ArrayList<>();
         String separator = path.contains("?") ? "&" : "?";
         for (int page = 1; page <= 100; page++) {
@@ -60,6 +80,8 @@ public class MonitoringGitHubClient {
             }
             batch.forEach(items::add);
             if (batch.size() < PAGE_SIZE) {
+                log.atInfo().addKeyValue(OPERATION, "monitoring.github.pages").addKeyValue(RESULT, SUCCESS)
+                        .addKeyValue("resultCount", items.size()).log("GitHub 목록 조회를 완료했습니다.");
                 return items;
             }
         }
@@ -67,6 +89,9 @@ public class MonitoringGitHubClient {
     }
 
     public JsonNode artifact(long id, String filename) {
+        log.atInfo().addKeyValue(OPERATION, "monitoring.github.artifact").addKeyValue("artifactId", id)
+                .log("측정 기록 다운로드를 시작합니다.");
+
         HttpResponse<InputStream> redirect = send(request("/actions/artifacts/" + id + "/zip").GET().build());
         try {
             redirect.body().close();
@@ -82,10 +107,14 @@ public class MonitoringGitHubClient {
                     .timeout(Duration.ofSeconds(15)).GET().build());
             try (InputStream archive = download.body()) {
                 requireSuccess(download.statusCode());
-                return unzip(boundedRead(archive), filename);
+                JsonNode response = unzip(boundedRead(archive), filename);
+
+                log.atInfo().addKeyValue(OPERATION, "monitoring.github.artifact").addKeyValue(RESULT, SUCCESS)
+                        .addKeyValue("artifactId", id).log("측정 기록 다운로드를 완료했습니다.");
+                return response;
             }
         } catch (IOException exception) {
-            throw new IllegalStateException("측정 결과를 읽을 수 없습니다.", exception);
+            throw githubFailure("측정 결과를 읽을 수 없습니다.", exception);
         }
     }
 
@@ -93,7 +122,7 @@ public class MonitoringGitHubClient {
         try (ZipInputStream zipped = new ZipInputStream(new ByteArrayInputStream(archive))) {
             for (ZipEntry entry = zipped.getNextEntry(); entry != null; entry = zipped.getNextEntry()) {
                 if (filename.equals(entry.getName()) && !entry.isDirectory()) {
-                    return mapper.readTree(boundedRead(zipped));
+                    return parseJson(boundedRead(zipped));
                 }
             }
         }
@@ -114,9 +143,17 @@ public class MonitoringGitHubClient {
         try (InputStream body = response.body()) {
             requireSuccess(response.statusCode());
             byte[] bytes = boundedRead(body);
-            return bytes.length == 0 ? mapper.createObjectNode() : mapper.readTree(bytes);
+            return bytes.length == 0 ? mapper.createObjectNode() : parseJson(bytes);
         } catch (IOException exception) {
-            throw new IllegalStateException("GitHub 응답을 읽을 수 없습니다.", exception);
+            throw githubFailure("GitHub 응답을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private JsonNode parseJson(byte[] bytes) {
+        try {
+            return mapper.readTree(bytes);
+        } catch (JacksonException exception) {
+            throw githubFailure("GitHub 응답 JSON 형식이 올바르지 않습니다.", exception);
         }
     }
 
@@ -125,10 +162,17 @@ public class MonitoringGitHubClient {
             return client.send(request, HttpResponse.BodyHandlers.ofInputStream());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("GitHub 조회가 중단됐습니다.", exception);
+            throw githubFailure("GitHub 조회가 중단됐습니다.", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("GitHub에 연결할 수 없습니다.", exception);
+            throw githubFailure("GitHub에 연결할 수 없습니다.", exception);
         }
+    }
+
+    private IllegalStateException githubFailure(String message, Exception exception) {
+        // Keep the failure location and type without upstream bodies or signed URLs in exception messages.
+        var safeCause = new IllegalStateException(exception.getClass().getSimpleName());
+        safeCause.setStackTrace(exception.getStackTrace());
+        return new IllegalStateException(message, safeCause);
     }
 
     private void requireSuccess(int status) {

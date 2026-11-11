@@ -1212,6 +1212,68 @@
 - 삭제 전 도서명이 포함된 확인 창을 한 번 표시한다.
 - 삭제된 작품은 “삭제됨” 상태를 표시하고 삭제 버튼을 비활성화한다.
 
+### 배포·롤백 모니터링
+
+기본 경로는 `/api/admin/deployment-monitoring`이며 모든 요청에 `X-Admin-Token`이 필요하다.
+정상 응답은 `Cache-Control: no-store`를 반환한다. 측정은 GitHub 러너에서 계속되므로 화면을 닫아도 중단되지 않는다.
+
+| 메서드·경로 (기본 경로 뒤) | 요청 | 정상 응답 |
+| --- | --- | --- |
+| `GET` | 없음 | `200` 환경, 최근 측정 실행·보관 결과 각 최대 20개 |
+| `POST /sessions` | 본문 없음 | `202 {"session":"UUID"}`. 진행 중인 측정이 있으면 기존 UUID |
+| `GET /sessions/{session}` | 시작 응답의 UUID | `200` 측정·배포·명령 상태 |
+| `POST /sessions/{session}/stop` | 본문 없음 | `202`, 빈 본문 |
+| `GET /deployments` | 없음 | `200`, 연결 가능한 배포·롤백 실행 배열 (최대 20개) |
+| `POST /sessions/{session}/deployments` | `{"runId":123,"attempt":1}`. 둘 다 필수 양의 정수 | `202`, 빈 본문 |
+| `GET /results/{artifactId}` | 보관 결과 목록의 `id` | `200`, 저장된 측정 결과 JSON |
+
+**202는 명령 접수이며 실제 측정 시작·종료·배포 연결 완료를 뜻하지 않는다.**
+시작 요청 후 10초 간격으로 상태를 조회하고, `state`가 생겨 실제 요청 시작을 확인한 뒤 배포한다.
+배포 목록의 `id`와 `attempt`를 함께 보내 연결한다. 종료 후 `resultAvailable=true`가 되면
+목록에서 같은 `session`의 결과 `id`를 찾아 조회한다.
+
+| 응답 | 핵심 필드 |
+| --- | --- |
+| 목록 | `environment`: dev/prod, `measurements`: 실행 배열, `results`: 보관 결과 배열. 없으면 빈 배열 |
+| 실행 | `id`, `attempt`, `session`(배포 실행은 null), `title`, `status`, `conclusion`(종료 전 null), `sha`, `createdAt`, `url`, `phase` |
+| 보관 결과 | `id`, `session`, `createdAt`, `expiresAt`, `bytes`(압축 크기) |
+| 측정 상태 | `run`: 측정 실행, `state`: 시작 확인 기록 또는 null, `deployments`: 연결이 반영된 실행 배열, `commands`: 전달 명령 배열, `resultAvailable`, `checkedAt`, `observationEndsAt` |
+| 시작 확인 기록 | `session`, `environment`, `target`, `startedAt`, `maxDurationSeconds`, `intervalSeconds`, `requestTimeoutSeconds` |
+| 전달 명령 | `command`: stop/link, `status`, `conclusion`, `url`. 명령 성공 후에도 러너 반영까지 지연될 수 있음 |
+
+`status`는 GitHub 실행 상태이며 `completed`가 종료를 뜻한다. `conclusion`은 success/failure/cancelled 등의
+실행 결과다. 연결된 배포의 `phase`는 waiting/building/deploying/running/completed로 표시하고,
+그 외 실행 목록의 `phase`는 `status`와 같다. 실행의 `sha`는 워크플로 커밋이며 앱 응답에서 관측한 SHA와 구분한다.
+
+`state=null`은 요청 시작을 아직 확인하지 못했다는 뜻이다. `run.status=completed`인데
+`resultAvailable=false`이면 결과 없이 종료된 상태이며 실패 0건으로 표시하지 않는다.
+`observationEndsAt`은 연결한 모든 실행이 끝난 시각부터 5분 뒤이며, 연결 없음·진행 중·완료 시각 불명은 null이다.
+자동 종료는 이 시각과 `state.startedAt + 30분` 중 빠른 시점이다. 시각은 UTC ISO 8601 문자열이다.
+
+결과 JSON은 다음을 포함한다.
+
+| 필드 | 의미 |
+| --- | --- |
+| `session`, `environment`, `target` | 측정 식별자·환경·요청 대상 |
+| `startedAt`, `sendingStoppedAt`, `finishedAt` | 요청 시작·새 요청 중단·결과 작성 시각 |
+| `intervalSeconds`, `requestTimeoutSeconds`, `maxDurationSeconds` | 요청 간격 1초·응답 제한 3초·전체 제한 1,800초 |
+| `stopReason` | manual / maximum_duration / deployment_finished / measurement_error |
+| `summary` | total, successes, failures, estimatedRecoveredSeconds, recoveryUnconfirmed, outages, versions |
+| `samples[]` | sequence, startedAt, statusCode, elapsedMs, commitSha, success, error |
+| `deployments[]` | id, run_attempt, head_sha, status, conclusion, html_url, created_at, measurementStartedAt, measurementCompletedAt |
+| `fatalError`, `missedScheduledRequests`, `controlErrors` | 측정 도구 오류(null이면 없음), 보내지 못한 예정 요청 수, 명령·배포 상태 조회 실패 횟수 |
+| `lastControlCheckAt`, `lastControlErrorAt` | 마지막 상태 조회 성공·실패 시각. 기록이 없으면 null |
+
+요청 `error`는 timeout/connection_error/http_error이며 성공이면 null이다. HTTP 응답을 못 받으면
+`statusCode=0`, 버전을 못 읽으면 `commitSha=null`이다. `outages[]`는 startedAt/recoveredAt/estimatedSeconds,
+`versions[]`는 at/commitSha를 담는다. 중단 추정 시간은 첫 실패 요청부터 다음 성공 요청까지로 계산하며,
+복구를 확인하지 못한 구간은 recoveredAt·estimatedSeconds가 null이고 합계에서 제외한다.
+
+오류는 공통 `{code, message}` 형식이다. 잘못된 UUID·연결 대상·만료 결과는 `400 INVALID_REQUEST`,
+인증 실패는 `401 UNAUTHORIZED`, GitHub 설정·통신 문제는 `500 INTERNAL_ERROR`다.
+시작 직후 GitHub 목록에 실행이 아직 없으면 400이 올 수 있으므로 같은 UUID로 다시 조회한다.
+운영 설정과 기록 해석의 자세한 내용은 [배포 모니터링 가이드](../backend/docs/배포_모니터링.md)를 참고한다.
+
 ## 7. Android 개발자 변경 안내
 
 공개방 신규 API와 기존 공통 API의 공개방 확장을 구현했다. 운영 환경에서는 스키마 전환과 서버 배포 이후 사용할 수 있다. 상세 요청·응답과 호출 흐름은 10절을 따른다.

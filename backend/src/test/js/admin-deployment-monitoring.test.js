@@ -121,3 +121,37 @@ test('관리자 토큰을 바꾼 뒤 이전 응답이 도착해도 화면을 갱
     await pending;
     assert.equal(get('runs').children.length, 0);
 });
+
+
+test('토큰 변경 전에 요청한 배포 목록이 실패해도 새 화면에 오류를 표시하지 않는다', async () => {
+    let finish;
+    const { app, get } = setup(() => new Promise(resolve => { finish = resolve; }));
+    const pending = app.loadDeployments();
+    get('admin-token').value = 'different-token';
+    get('admin-token').listeners.input();
+    finish(response({ message: '이전 인증 오류' }, 401));
+    await pending;
+
+    assert.doesNotMatch(get('message').textContent, /이전 인증 오류/);
+    assert.equal(get('deployment-picker').hidden, true);
+});
+
+test('이전 결과 조회가 늦게 끝나도 마지막으로 선택한 결과를 덮어쓰지 않는다', async () => {
+    const pending = new Map();
+    const { app, get } = setup(url => new Promise(resolve => { pending.set(url, resolve); }));
+    const first = app.loadResult(1);
+    const second = app.loadResult(2);
+    const result = {
+        session: 'session-two', target: 'https://example/health', startedAt: run.createdAt,
+        sendingStoppedAt: '2026-11-11T00:00:02Z', stopReason: 'manual', deployments: [], samples: [],
+        summary: { total: 0, successes: 0, failures: 0, estimatedRecoveredSeconds: 0,
+            recoveryUnconfirmed: false, outages: [], versions: [] }
+    };
+    pending.get('/api/admin/deployment-monitoring/results/2')(response(result));
+    await second;
+    pending.get('/api/admin/deployment-monitoring/results/1')(response({ message: '만료된 이전 결과' }, 400));
+    await first;
+
+    assert.equal(get('result-panel').hidden, false);
+    assert.doesNotMatch(get('message').textContent, /만료된 이전 결과/);
+});

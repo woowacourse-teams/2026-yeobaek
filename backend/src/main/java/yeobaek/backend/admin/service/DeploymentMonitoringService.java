@@ -1,5 +1,9 @@
 package yeobaek.backend.admin.service;
 
+import static yeobaek.backend.support.LogField.OPERATION;
+import static yeobaek.backend.support.LogField.RESULT;
+import static yeobaek.backend.support.LogField.SUCCESS;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -8,8 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
+import yeobaek.backend.admin.domain.DeploymentJob;
+import yeobaek.backend.admin.domain.DeploymentObservation;
+import yeobaek.backend.admin.domain.DeploymentProgress;
 import yeobaek.backend.admin.dto.MonitoringArtifactResponse;
 import yeobaek.backend.admin.dto.MonitoringCommandResponse;
 import yeobaek.backend.admin.dto.MonitoringLinkRequest;
@@ -22,14 +30,19 @@ import yeobaek.backend.support.monitoring.MonitoringSettings;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DeploymentMonitoringService {
 
     private static final String WORKFLOW = "deployment-monitor.yml";
     private static final String LINK_COMMAND = "link";
+
     private final MonitoringGitHubClient github;
     private final MonitoringSettings settings;
 
     public MonitoringOverviewResponse overview() {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.overview")
+                .log("측정 목록 조회를 시작합니다.");
+
         List<MonitoringRunResponse> measurements = measurementRuns().stream().limit(20).map(this::toRun).toList();
         String prefix = "ym-result-" + settings.getEnvironment() + "-";
         List<MonitoringArtifactResponse> results = artifacts().stream()
@@ -38,85 +51,114 @@ public class DeploymentMonitoringService {
                 .limit(20)
                 .map(node -> new MonitoringArtifactResponse(node.path("id").asLong(),
                         text(node, "name").substring(prefix.length()), text(node, "created_at"),
-                        text(node, "expires_at"), node.path("size_in_bytes").asLong())).toList();
+                        text(node, "expires_at"), node.path("size_in_bytes").asLong()))
+                .toList();
+
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.overview").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("environment", settings.getEnvironment())
+                .addKeyValue("measurementCount", measurements.size()).addKeyValue("resultCount", results.size())
+                .log("측정 목록 조회를 완료했습니다.");
         return new MonitoringOverviewResponse(settings.getEnvironment(), measurements, results);
     }
 
     public MonitoringStartResponse start() {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.start")
+                .log("측정 시작 요청 처리를 시작합니다.");
+
         settings.requireConfigured();
         List<JsonNode> active = measurementRuns().stream().filter(this::active).toList();
         if (!active.isEmpty()) {
-            return new MonitoringStartResponse(sessionOf(active.getFirst()));
+            String session = sessionOf(active.getFirst());
+            logStartAccepted(session, true);
+            return new MonitoringStartResponse(session);
         }
+
         String session = UUID.randomUUID().toString();
         dispatch(session, "start", Map.of());
+        logStartAccepted(session, false);
         return new MonitoringStartResponse(session);
     }
 
     public void stop(String session) {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.stop")
+                .log("측정 종료 요청 처리를 시작합니다.");
+
         JsonNode measurement = requireActive(session);
         dispatch(session, "stop", Map.of("measurement_run_id", text(measurement, "id")));
+
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.stop").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("session", session).addKeyValue("measurementRunId", measurement.path("id").asLong())
+                .log("측정 종료 요청을 전달했습니다.");
     }
 
     public void link(String session, MonitoringLinkRequest link) {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.link")
+                .log("배포 연결 요청 처리를 시작합니다.");
+
         JsonNode measurement = requireActive(session);
         JsonNode deployment = github.get("/actions/runs/" + link.runId() + "/attempts/" + link.attempt());
         validateDeployment(deployment);
         dispatch(session, "link", Map.of("measurement_run_id", text(measurement, "id"),
                 "deployment_run_id", link.runId().toString(), "deployment_attempt", link.attempt().toString()));
+
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.link").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("session", session).addKeyValue("deploymentRunId", link.runId())
+                .addKeyValue("attempt", link.attempt()).log("배포 연결 요청을 전달했습니다.");
     }
 
     public List<MonitoringRunResponse> deployments() {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.deployments")
+                .log("배포 목록 조회를 시작합니다.");
+
         List<JsonNode> runs = new ArrayList<>();
         for (String workflow : settings.getDeploymentWorkflows()) {
             JsonNode response = github.get("/actions/workflows/" + workflow + "/runs?per_page=20&branch="
                     + settings.getDeploymentBranch());
             response.path("workflow_runs").forEach(runs::add);
         }
-        return runs.stream().sorted(Comparator.comparingLong((JsonNode node) -> node.path("id").asLong()).reversed())
+        List<MonitoringRunResponse> response = runs.stream()
+                .sorted(Comparator.comparingLong((JsonNode node) -> node.path("id").asLong()).reversed())
                 .limit(20).map(this::toRun).toList();
+
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.deployments").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("resultCount", response.size()).log("배포 목록 조회를 완료했습니다.");
+        return response;
     }
 
     public MonitoringSessionResponse session(String session) {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.session")
+                .log("측정 상태 조회를 시작합니다.");
+
         JsonNode measurement = measurement(session);
         List<JsonNode> artifacts = artifacts();
         JsonNode stateArtifact = findArtifact(artifacts, "ym-state-" + settings.getEnvironment() + "-" + session);
         JsonNode state = stateArtifact == null ? null : readArtifact(stateArtifact, session, "state.json", "start");
         boolean resultAvailable = findArtifact(artifacts, "ym-result-" + settings.getEnvironment() + "-" + session) != null;
         List<MonitoringCommandResponse> commands = commandRuns(session);
-        Map<String, JsonNode> linked = new LinkedHashMap<>();
-        String commandPrefix = "ym-command-" + settings.getEnvironment() + "-" + session + "-";
-        for (JsonNode artifact : artifacts) {
-            if (text(artifact, "name").startsWith(commandPrefix)) {
-                JsonNode command = readArtifact(artifact, session, "command.json", null);
-                if (LINK_COMMAND.equals(text(command, "command"))) {
-                    String path = "/actions/runs/" + command.path("deploymentRunId").asLong()
-                            + "/attempts/" + command.path("attempt").asInt();
-                    linked.put(path, command);
-                }
-            }
-        }
+
         List<MonitoringRunResponse> deployments = new ArrayList<>();
-        List<Instant> endings = new ArrayList<>();
-        for (String path : linked.keySet()) {
+        List<DeploymentProgress> progress = new ArrayList<>();
+        for (String path : linkedDeploymentPaths(session, artifacts)) {
             JsonNode run = github.get(path);
             validateDeployment(run);
-            List<JsonNode> jobs = github.pages(path + "/jobs", "jobs");
-            deployments.add(toRun(run, phase(run, jobs)));
-            if (!active(run)) {
-                endings.add(jobs.stream().filter(job -> !job.path("completed_at").isNull())
-                        .map(job -> text(job, "completed_at")).filter(value -> !value.isBlank())
-                        .map(Instant::parse).max(Comparator.naturalOrder())
-                        .orElseGet(() -> Instant.parse(text(run, "updated_at"))));
-            }
+            DeploymentProgress deploymentProgress = progress(run, github.pages(path + "/jobs", "jobs"));
+            progress.add(deploymentProgress);
+            deployments.add(toRun(run, deploymentProgress.phase()));
         }
-        String observationEndsAt = !endings.isEmpty() && endings.size() == deployments.size()
-                ? endings.stream().max(Comparator.naturalOrder()).orElseThrow().plusSeconds(300).toString() : null;
+
+        String observationEndsAt = new DeploymentObservation(progress).endsAt().map(Instant::toString).orElse(null);
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.session").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("session", session).addKeyValue("status", text(measurement, "status"))
+                .addKeyValue("resultAvailable", resultAvailable).addKeyValue("deploymentCount", deployments.size())
+                .log("측정 상태 조회를 완료했습니다.");
         return new MonitoringSessionResponse(toRun(measurement), state, deployments, commands,
                 resultAvailable, Instant.now().toString(), observationEndsAt);
     }
 
     public JsonNode result(long artifactId) {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.result")
+                .log("측정 결과 조회를 시작합니다.");
+
         JsonNode artifact = github.get("/actions/artifacts/" + artifactId);
         String prefix = "ym-result-" + settings.getEnvironment() + "-";
         String name = text(artifact, "name");
@@ -125,7 +167,36 @@ public class DeploymentMonitoringService {
         }
         String session = name.substring(prefix.length());
         validateSession(session);
-        return readArtifact(artifact, session, "result.json", "start");
+        JsonNode response = readArtifact(artifact, session, "result.json", "start");
+
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.result").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("session", session).addKeyValue("artifactId", artifactId)
+                .log("측정 결과 조회를 완료했습니다.");
+        return response;
+    }
+
+    private void logStartAccepted(String session, boolean reused) {
+        log.atInfo().addKeyValue(OPERATION, "admin.monitoring.start").addKeyValue(RESULT, SUCCESS)
+                .addKeyValue("session", session).addKeyValue("environment", settings.getEnvironment())
+                .addKeyValue("reused", reused).log("측정 시작 요청을 처리했습니다.");
+    }
+
+    private List<String> linkedDeploymentPaths(String session, List<JsonNode> artifacts) {
+        List<String> paths = new ArrayList<>();
+        String commandPrefix = "ym-command-" + settings.getEnvironment() + "-" + session + "-";
+        for (JsonNode artifact : artifacts) {
+            if (text(artifact, "name").startsWith(commandPrefix)) {
+                JsonNode command = readArtifact(artifact, session, "command.json", null);
+                if (LINK_COMMAND.equals(text(command, "command"))) {
+                    String path = "/actions/runs/" + command.path("deploymentRunId").asLong()
+                            + "/attempts/" + command.path("attempt").asInt();
+                    if (!paths.contains(path)) {
+                        paths.add(path);
+                    }
+                }
+            }
+        }
+        return paths;
     }
 
     private List<JsonNode> measurementRuns() {
@@ -213,19 +284,16 @@ public class DeploymentMonitoringService {
                 text(run, "head_sha"), text(run, "created_at"), text(run, "html_url"), phase);
     }
 
-    private String phase(JsonNode run, List<JsonNode> jobs) {
-        if (!active(run)) {
-            return "completed";
-        }
-        if (jobs.stream().anyMatch(job -> "deploy".equals(text(job, "name"))
-                && "in_progress".equals(text(job, "status")))) {
-            return "deploying";
-        }
-        if (jobs.stream().anyMatch(job -> "build-and-push".equals(text(job, "name"))
-                && "in_progress".equals(text(job, "status")))) {
-            return "building";
-        }
-        return "in_progress".equals(text(run, "status")) ? "running" : "waiting";
+    private DeploymentProgress progress(JsonNode run, List<JsonNode> jobs) {
+        List<DeploymentJob> deploymentJobs = jobs.stream()
+                .map(job -> new DeploymentJob(text(job, "name"), text(job, "status"), instant(job, "completed_at")))
+                .toList();
+        return new DeploymentProgress(text(run, "status"), instant(run, "updated_at"), deploymentJobs);
+    }
+
+    private Instant instant(JsonNode node, String field) {
+        String value = text(node, field);
+        return value.isBlank() ? null : Instant.parse(value);
     }
 
     private String sessionOf(JsonNode run) {
