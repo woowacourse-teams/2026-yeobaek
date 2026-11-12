@@ -2,7 +2,7 @@
 # 사전 확인: bash deploy.sh
 # EC2 배포: bash deploy.sh <Docker Hub 이미지:커밋SHA> <커밋SHA>
 # deploy_support.py를 이 파일과 같은 디렉터리에 둔다.
-# 준비 조건과 배포 기록의 파일별 용도는 ../dev/README.md와 ../../docs/배포_가이드.md를 참고한다.
+# 준비 조건과 배포 기록은 같은 디렉터리의 README.md, 서버 설정은 ../../docs/배포_가이드.md를 참고한다.
 # 기본 경로: ~/yeobaek-dev, /etc/nginx/conf.d/yeobaek-dev.conf
 # 기본 도메인: https://yeobaekdev.duckdns.org/health
 # Linux의 Python 3, flock, timeout과 비대화식 sudo 권한이 필요하다.
