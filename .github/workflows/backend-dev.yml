@@ -17,8 +17,8 @@ on:
       - 'backend/config/**'
       - 'backend/infra/prod/Dockerfile'
       - 'backend/infra/dev/docker-compose.dev.yml'
-      - 'backend/infra/dev/deploy.sh'
-      - 'backend/infra/dev/deploy_support.py'
+      - 'backend/infra/deploy/deploy.sh'
+      - 'backend/infra/deploy/deploy_support.py'
       - '.github/workflows/backend-dev.yml'
   workflow_dispatch:
 concurrency:
@@ -41,7 +41,8 @@ jobs:
 
       - name: Verify deployment scripts
         run: |
-          bash -n infra/dev/deploy.sh
+          bash -n infra/deploy/deploy.sh
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/deploy/tests -v
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/dev/tests -v
 
       - uses: actions/setup-java@v4
@@ -98,4 +99,4 @@ jobs:
         run: |
           set -euo pipefail
           export DEPLOY_DIR="$HOME/yeobaek-dev"
-          bash "$GITHUB_WORKSPACE/backend/infra/dev/deploy.sh" "$DEPLOY_IMAGE" "$DEPLOYED_COMMIT_SHA"
+          bash "$GITHUB_WORKSPACE/backend/infra/deploy/deploy.sh" "$DEPLOY_IMAGE" "$DEPLOYED_COMMIT_SHA"

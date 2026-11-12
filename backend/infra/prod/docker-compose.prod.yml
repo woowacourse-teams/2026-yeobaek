@@ -1,44 +1,56 @@
 # EC2 배포용 구성. 서버의 ~/yeobaek/docker-compose.yml로 복사해 사용한다 (docs/배포_가이드.md).
 # 같은 디렉터리의 .env는 Compose 치환용, otel.env는 Collector 전용이다.
+
+x-app-common: &app-common
+  image: ${DOCKERHUB_USERNAME}/yeobaek-backend:latest
+  restart: unless-stopped
+  environment:
+    SPRING_PROFILES_ACTIVE: prod
+    SPRING_APPLICATION_NAME: yeobaek-api
+    OBSERVABILITY_ENABLED: "true"
+    OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
+    DEPLOYMENT_ENVIRONMENT: prod
+    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+    FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID is required}
+    GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+    TZ: Asia/Seoul
+    DB_URL: jdbc:mysql://mysql:3306/yeobaek
+    DB_USERNAME: root
+    DB_PASSWORD: ${DB_PASSWORD}
+    ADMIN_TOKEN: ${ADMIN_TOKEN}
+    POSTHOG_ENABLED: ${POSTHOG_ENABLED:-false}
+    POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+    POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+    BOOK_COVER_S3_BUCKET: ${BOOK_COVER_S3_BUCKET}
+    BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
+    BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
+    BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
+  volumes:
+    - type: bind
+      source: ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE is required}
+      target: /run/secrets/firebase-admin.json
+      read_only: true
+      bind:
+        create_host_path: false
+  depends_on:
+    mysql:
+      condition: service_healthy
+
 services:
-  app:
-    image: ${DOCKERHUB_USERNAME}/yeobaek-backend:latest
-    container_name: yeobaek-app
-    restart: unless-stopped
-    # nginx가 호스트에서 프록시하므로 로컬호스트에만 바인딩한다
+  # 배포 스크립트는 전환 대상 앱의 서비스 이름을 지정해 실행한다.
+  app-blue:
+    <<: *app-common
+    container_name: yeobaek-app-blue
+    stop_grace_period: 90s
     ports:
       - "127.0.0.1:8080:8080"
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_APPLICATION_NAME: yeobaek-api
-      OBSERVABILITY_ENABLED: "true"
-      OBSERVABILITY_OTLP_ENDPOINT: http://otel-collector:4318
-      DEPLOYMENT_ENVIRONMENT: prod
-      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID is required}
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
-      TZ: Asia/Seoul
-      DB_URL: jdbc:mysql://mysql:3306/yeobaek
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD}
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
-      POSTHOG_ENABLED: ${POSTHOG_ENABLED:-false}
-      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
-      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
-      BOOK_COVER_S3_BUCKET: ${BOOK_COVER_S3_BUCKET}
-      BOOK_COVER_S3_REGION: ${BOOK_COVER_S3_REGION}
-      BOOK_COVER_PUBLIC_BASE_URL: ${BOOK_COVER_PUBLIC_BASE_URL}
-      BOOK_COVER_S3_PREFIX: ${BOOK_COVER_S3_PREFIX:-yeobaek}
-    volumes:
-      - type: bind
-        source: ${FIREBASE_CREDENTIALS_FILE:?FIREBASE_CREDENTIALS_FILE is required}
-        target: /run/secrets/firebase-admin.json
-        read_only: true
-        bind:
-          create_host_path: false
-    depends_on:
-      mysql:
-        condition: service_healthy
+
+  app-green:
+    <<: *app-common
+    container_name: yeobaek-app-green
+    stop_grace_period: 90s
+    ports:
+      - "127.0.0.1:8081:8080"
 
   mysql:
     image: mysql:8.4

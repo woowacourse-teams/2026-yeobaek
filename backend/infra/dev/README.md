@@ -6,7 +6,7 @@
 
 ## 실행 파일과 준비 조건
 
-- `deploy.sh`와 `deploy_support.py`는 같은 디렉터리에 둔다. Python 외부 패키지는 필요하지 않다.
+- 공용 [deploy.sh](../deploy/deploy.sh)와 `deploy_support.py`는 `backend/infra/deploy/`에 함께 둔다. Python 외부 패키지는 필요하지 않다.
 - 인자 없이 `bash deploy.sh`를 실행하면 읽기 전용 사전 확인만 한다.
 - 실제 배포는 `bash deploy.sh <이미지주소:커밋SHA> <40자리커밋SHA>`로 실행한다.
 - 기본 배포 디렉터리는 `/home/ec2-user/yeobaek-dev`이며, 그 안의 `docker-compose.yml`과 `.env`를 사용한다.
@@ -41,7 +41,7 @@ Compose 소속 정보는 그대로이므로, 서버에서는 새 서비스 설�
 1. GitHub 러너에서 배포 스크립트 테스트와 백엔드 빌드를 실행한다.
 2. 커밋 SHA를 담은 이미지를 빌드하고 Docker Hub에 올린다.
 3. 개발 서버의 `ec2-dev` 러너에서 같은 커밋을 체크아웃한다.
-4. 체크아웃한 `backend/infra/dev/deploy.sh`에 이미지 주소와 SHA를 전달한다.
+4. 체크아웃한 `backend/infra/deploy/deploy.sh`에 이미지 주소와 SHA를 전달한다.
 
 스크립트와 Python 보조 파일은 체크아웃한 작업 폴더에서 함께 읽는다. 두 파일을 서버에 따로 복사할 필요는 없다.
 Compose와 `.env`는 계속 `~/yeobaek-dev`의 파일을 사용하며 워크플로가 자동으로 덮어쓰지 않는다.
@@ -206,7 +206,8 @@ Blue가 종료됐지만 강제 종료 가능성이 있으면 경고를 남기고
 저장소 루트에서 다음 명령을 실행한다. 테스트는 가짜 Docker·Nginx 명령과 임시 디렉터리를 사용한다.
 
 ```bash
-bash -n backend/infra/dev/deploy.sh
+bash -n backend/infra/deploy/deploy.sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/deploy/tests -v
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/dev/tests -v
 ```
 

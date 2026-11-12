@@ -1,6 +1,6 @@
 # 백엔드 CI/CD (M8 배포 구성 결정, 2026-08-06)
 # main에 서버 빌드·실행 관련 변경이 푸시되면: 게이트(테스트+정적분석) → 도커 이미지 빌드 → Docker Hub 푸시(빌드 잡)
-# → EC2의 셀프 호스티드 러너에서 pull & 재기동(배포 잡). 보안 그룹이 SSH를 막고 있어
+# → EC2의 셀프 호스티드 러너에서 블루·그린 전환(배포 잡). 보안 그룹이 SSH를 막고 있어
 # SSH 대신 EC2에 상주하는 러너(라벨: ec2-prod)가 배포를 수행한다. 시크릿은 backend/docs/배포_가이드.md 참고.
 name: backend-prod
 
@@ -18,6 +18,9 @@ on:
       - 'backend/gradlew'
       - 'backend/config/**'
       - 'backend/infra/prod/Dockerfile'
+      - 'backend/infra/prod/docker-compose.prod.yml'
+      - 'backend/infra/deploy/deploy.sh'
+      - 'backend/infra/deploy/deploy_support.py'
       - '.github/workflows/backend-prod.yml'
   workflow_dispatch:
 
@@ -39,6 +42,12 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify deployment scripts
+        run: |
+          bash -n infra/deploy/deploy.sh
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/deploy/tests -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/dev/tests -v
 
       - uses: actions/setup-java@v4
         with:
@@ -70,6 +79,8 @@ jobs:
           file: backend/infra/prod/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            DEPLOYED_COMMIT_SHA=${{ github.sha }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:${{ github.sha }}
@@ -78,10 +89,22 @@ jobs:
     needs: build-and-push
     runs-on: [self-hosted, ec2-prod]
     steps:
-      # 서버의 ~/yeobaek/docker-compose.yml과 .env를 사용하므로 체크아웃이 필요 없다
-      - name: Pull & restart
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # 서버에 준비한 Compose와 .env를 사용한다.
+      - name: Deploy production server (blue/green)
+        shell: bash
+        env:
+          DEPLOY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:${{ github.sha }}
+          DEPLOYED_COMMIT_SHA: ${{ github.sha }}
+          COMPOSE_PROJECT_NAME: yeobaek
+          NGINX_CONFIG: /etc/nginx/conf.d/yeobaek.conf
+          HEALTH_URL: https://yeobaek.duckdns.org/health
+          DEPLOY_LABEL: 운영
         run: |
-          cd ~/yeobaek
-          docker compose pull
-          docker compose up -d
-          docker image prune -f
+          set -euo pipefail
+          export DEPLOY_DIR="$HOME/yeobaek"
+          bash "$GITHUB_WORKSPACE/backend/infra/deploy/deploy.sh" "$DEPLOY_IMAGE" "$DEPLOYED_COMMIT_SHA"

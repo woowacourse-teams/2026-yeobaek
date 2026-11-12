@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 사전 확인: bash deploy.sh
-# 개발 EC2 배포: bash deploy.sh <Docker Hub 이미지:커밋SHA> <커밋SHA>
+# EC2 배포: bash deploy.sh <Docker Hub 이미지:커밋SHA> <커밋SHA>
 # deploy_support.py를 이 파일과 같은 디렉터리에 둔다.
-# 준비 조건과 배포 기록의 파일별 용도는 같은 디렉터리의 README.md를 참고한다.
+# 준비 조건과 배포 기록의 파일별 용도는 ../dev/README.md와 ../../docs/배포_가이드.md를 참고한다.
 # 기본 경로: ~/yeobaek-dev, /etc/nginx/conf.d/yeobaek-dev.conf
 # 기본 도메인: https://yeobaekdev.duckdns.org/health
 # Linux의 Python 3, flock, timeout과 비대화식 sudo 권한이 필요하다.
@@ -19,7 +19,13 @@ nginx_log=${NGINX_ERROR_LOG:-/var/log/nginx/error.log}
 deploy_dir=${DEPLOY_DIR:-$HOME/yeobaek-dev}
 health_url=${HEALTH_URL:-https://yeobaekdev.duckdns.org/health}
 worker_wait_seconds=${WORKER_WAIT_SECONDS:-120}
-compose_project=yeobaek-dev
+compose_project=${COMPOSE_PROJECT_NAME:-yeobaek-dev}
+deploy_label=${DEPLOY_LABEL:-개발}
+[[ "$compose_project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || {
+  printf '잘못된 Compose 프로젝트 이름: %s\n' "$compose_project" >&2
+  exit 1
+}
+nginx_staging="$(dirname "$nginx_config")/.${compose_project}-deploy.tmp"
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 helper="$script_dir/deploy_support.py"
 record_dir=
@@ -64,11 +70,11 @@ write_actions_summary() {
   local code=$1 title switch_status="미확인"
   [[ -n ${GITHUB_STEP_SUMMARY:-} ]] || return 0
   if [[ "$code" != 0 ]]; then
-    title="🔴 개발 배포 실패 — 확인 필요"
+    title="🔴 $deploy_label 배포 실패 — 확인 필요"
   elif [[ "$warning_count" -gt 0 ]]; then
-    title="🟠 개발 배포 완료 — 경고 확인 필요"
+    title="🟠 $deploy_label 배포 완료 — 경고 확인 필요"
   else
-    title="🟢 개발 배포 완료"
+    title="🟢 $deploy_label 배포 완료"
   fi
   [[ "$switch_verified" == 1 ]] && switch_status="확인 완료"
   {
@@ -137,7 +143,7 @@ find_slots() {
 
 check_current_app() {
   local details state project service bindings http_status
-  # 실행 상태뿐 아니라 개발용 Compose 소속과 실제 공개 포트도 확인한다.
+  # 실행 상태, Compose 프로젝트와 서비스 이름, 호스트 포트를 확인한다.
   if ! details=$(docker container inspect --format \
     '{{.State.Status}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{range (index .NetworkSettings.Ports "8080/tcp")}}{{.HostIp}}:{{.HostPort}};{{end}}' \
     "$active_container"); then
@@ -146,7 +152,7 @@ check_current_app() {
   IFS='|' read -r state project service bindings <<< "$details"
   [[ "$state" == running ]] || fail "$active_container 실행 상태가 running이 아닙니다: $state"
   [[ "$project" == "$compose_project" && "$service" == "$active_service" ]] || \
-    fail "$active_container 컨테이너가 예상한 개발용 Compose 서비스가 아닙니다."
+    fail "$active_container 컨테이너가 예상한 Compose 서비스가 아닙니다 (프로젝트: $compose_project, 서비스: $active_service)."
   [[ "$bindings" == "$active_address;" ]] || \
     fail "$active_container 포트 연결이 예상과 다릅니다: $bindings"
 
@@ -226,7 +232,7 @@ cleanup_new() {
 
 install_nginx_config() {
   local source=$1 staging
-  staging="$(dirname "$nginx_config")/.yeobaek-dev-deploy.tmp"
+  staging=$nginx_staging
   # 같은 디렉터리에서 교체해 중간까지만 작성된 설정이 보이지 않도록 한다.
   if ! sudo -n cp -p "$nginx_config" "$staging"; then return 1; fi
   if ! sudo -n tee "$staging" < "$source" > /dev/null; then
@@ -290,7 +296,7 @@ finish() {
     fi
     # 전환 검증 이후의 정리 실패에는 자동 롤백하지 않는다.
     if [[ ${GITHUB_ACTIONS:-false} == true ]]; then
-      printf '::error::개발 배포 실패: 단계=%s, 복구=%s, 정리=%s\n' "$phase" "$rollback_result" "$cleanup_result"
+      printf '::error::%s 배포 실패: 단계=%s, 복구=%s, 정리=%s\n' "$deploy_label" "$phase" "$rollback_result" "$cleanup_result"
     fi
   fi
   for container in yeobaek-app-blue yeobaek-app-green; do
@@ -303,7 +309,7 @@ finish() {
     warn "배포 결과 JSON 저장 실패. deployment.log를 확인하세요."
   log "배포 종료: exit=$code, 전환확인=$switch_verified, 복구=$rollback_result, 정리=$cleanup_result"
   log "기록 위치: $record_dir"
-  if ! python3 "$helper" cleanup-temporary "$deployment_root" "$nginx_config"; then
+  if ! python3 "$helper" cleanup-temporary "$deployment_root" "$nginx_staging"; then
     warn "임시 파일 정리 실패. 다음 배포에서 다시 정리합니다."
   fi
   # 성공·실패 결과를 모두 기록한 뒤 정리한다. 기록 삭제 실패로 배포 결과를 바꾸지 않는다.
@@ -342,7 +348,7 @@ for command_name in python3 sudo flock timeout ps stat cmp; do
   command -v "$command_name" >/dev/null 2>&1 || fail "필요한 명령이 없습니다: $command_name"
 done
 [[ -f "$helper" ]] || fail "deploy_support.py가 스크립트 옆에 필요합니다."
-[[ -d "$deploy_dir" ]] || fail "개발 배포 디렉터리가 없습니다: $deploy_dir"
+[[ -d "$deploy_dir" ]] || fail "배포 디렉터리가 없습니다: $deploy_dir"
 deploy_dir=$(cd "$deploy_dir" && pwd -P)
 deployment_root="$deploy_dir/deployment"
 [[ ! -L "$deployment_root" && ! -L "$deployment_root/records" ]] || fail "배포 기록 경로는 심볼릭 링크가 아니어야 합니다."
@@ -350,7 +356,7 @@ mkdir -p "$deployment_root/records"
 exec 9> "$deployment_root/deploy.lock"
 flock -n 9 || fail "다른 배포가 실행 중입니다."
 # 중단된 이전 실행이 남긴 임시 파일을 배포 잠금을 잡은 뒤 정리한다.
-if ! python3 "$helper" cleanup-temporary "$deployment_root" "$nginx_config"; then
+if ! python3 "$helper" cleanup-temporary "$deployment_root" "$nginx_staging"; then
   warn "이전 배포의 임시 파일 정리 실패. 배포 종료 때 다시 정리합니다."
 fi
 record_dir=$(mktemp -d "$deployment_root/records/${deploy_sha}__$(TZ=Asia/Seoul date +%Y%m%d-%H%M%S)-KST__XXXXXX")
@@ -358,14 +364,14 @@ mkdir -p "$record_dir/nginx" "$record_dir/containers/yeobaek-app-blue" "$record_
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-log "개발 배포 시작: $deploy_image"
+log "$deploy_label 배포 시작: $deploy_image"
 record_metadata started "$deploy_image" "$deploy_sha"
 
 find_slots
 check_current_app
 check_next_slot
 [[ ! -L "$nginx_config" ]] || fail "Nginx 설정은 심볼릭 링크가 아닌 파일이어야 합니다."
-[[ -f "$deploy_dir/docker-compose.yml" && -f "$deploy_dir/.env" ]] || fail "개발 서버 Compose와 .env가 필요합니다."
+[[ -f "$deploy_dir/docker-compose.yml" && -f "$deploy_dir/.env" ]] || fail "서버 Compose와 .env가 필요합니다."
 active_sha=$(health_check active_app_local "http://$active_address/health" - 3) || \
   fail "현재 앱의 커밋 SHA를 확인할 수 없습니다. SHA 응답 기능이 있는 앱을 먼저 준비하세요."
 health_check active_app_via_domain "$health_url" "$active_sha" 3 > /dev/null || \
@@ -380,7 +386,7 @@ cp "$nginx_config" "$record_dir/nginx/config-before-deploy.conf"
 
 phase=start-new-app
 write_override "$deploy_image"
-compose config --quiet
+compose config --quiet "$next_service"
 compose pull "$next_service"
 # pull한 이미지 ID로 고정해 실행 도중 태그가 바뀌어도 같은 이미지를 사용한다.
 image_id=$(docker image inspect --format '{{.Id}}' "$deploy_image")
