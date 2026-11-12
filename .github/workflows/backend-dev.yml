@@ -19,6 +19,7 @@ on:
       - 'backend/infra/dev/docker-compose.dev.yml'
       - 'backend/infra/deploy/deploy.sh'
       - 'backend/infra/deploy/deploy_support.py'
+      - 'backend/infra/monitoring/measure.py'
       - '.github/workflows/backend-dev.yml'
   workflow_dispatch:
 concurrency:
@@ -27,6 +28,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build-and-push:
@@ -78,7 +80,45 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:develop
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:${{ github.sha }}
 
+  measure:
+    name: Measure deployment availability
+    if: ${{ vars.MONITOR_DEV_ENABLED == 'true' }}
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 33
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MONITOR_ENVIRONMENT: dev
+      MONITOR_HEALTH_URL: ${{ vars.MONITOR_DEV_HEALTH_URL }}
+      MONITOR_INGEST_URL: ${{ vars.MONITOR_DEV_INGEST_URL }}
+      MONITOR_SOURCE_TOKEN: ${{ secrets.MONITOR_DEV_SOURCE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record three pre-deploy health checks
+        shell: bash
+        run: |
+          export MONITOR_READY="$RUNNER_TEMP/deployment-monitor-ready"
+          nohup bash -c 'python3 -u backend/infra/monitoring/measure.py; echo "$?" > "$MONITOR_READY.exit"' \
+            > "$MONITOR_READY.log" 2>&1 &
+          for attempt in {1..60}; do
+            if [[ -f "$MONITOR_READY.exit" ]]; then cat "$MONITOR_READY.log"; exit 1; fi
+            if [[ -f "$MONITOR_READY" ]]; then exit 0; fi
+            sleep 0.5
+          done
+          echo "Pre-deploy health checks did not complete" >&2
+          exit 1
+      - name: Collect and send measurement to Better Stack
+        shell: bash
+        run: |
+          MONITOR_READY="$RUNNER_TEMP/deployment-monitor-ready"
+          until [[ -s "$MONITOR_READY.exit" ]]; do sleep 1; done
+          cat "$MONITOR_READY.log"
+          exit "$(cat "$MONITOR_READY.exit")"
+
   deploy:
+    name: Deploy application
     needs: build-and-push
     runs-on: [self-hosted, ec2-dev]
     steps:
@@ -87,6 +127,12 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Wait for pre-deploy health check results
+        if: ${{ vars.MONITOR_DEV_ENABLED == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 backend/infra/monitoring/measure.py wait
 
       # Compose와 환경 파일은 개발 서버에 미리 반영한 것을 사용한다.
       - name: Deploy development server (blue/green)

@@ -45,6 +45,20 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Detect deployment monitoring changes
+        id: monitoring-changes
+        working-directory: .
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files=$(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA" -- backend/infra/monitoring/)
+          if [[ -n "$changed_files" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-java@v4
         if: steps.backend-changes.outputs.changed == 'true'
         with:
@@ -55,3 +69,7 @@ jobs:
       - name: Build (tests + PMD + SpotBugs)
         if: steps.backend-changes.outputs.changed == 'true'
         run: ./gradlew build
+
+      - name: Test deployment measurement
+        if: ${{ !cancelled() && steps.monitoring-changes.outputs.changed == 'true' }}
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/monitoring/tests -v
