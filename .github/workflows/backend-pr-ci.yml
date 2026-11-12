@@ -62,7 +62,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Detect deployment monitoring changes
+        id: monitoring-changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files=$(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA" -- backend/infra/monitoring/)
+          if [[ -n "$changed_files" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Test deployment measurement
-        if: hashFiles('backend/infra/monitoring/measure.py') != ''
+        if: steps.monitoring-changes.outputs.changed == 'true'
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/monitoring/tests -v
