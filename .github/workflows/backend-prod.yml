@@ -18,6 +18,7 @@ on:
       - 'backend/gradlew'
       - 'backend/config/**'
       - 'backend/infra/prod/Dockerfile'
+      - 'backend/infra/monitoring/measure.py'
       - '.github/workflows/backend-prod.yml'
   workflow_dispatch:
 
@@ -28,6 +29,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build-and-push:
@@ -70,15 +72,65 @@ jobs:
           file: backend/infra/prod/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            DEPLOYED_COMMIT_SHA=${{ github.sha }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/yeobaek-backend:${{ github.sha }}
 
+  measure:
+    name: Measure deployment availability
+    if: ${{ vars.MONITOR_PROD_ENABLED == 'true' }}
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 33
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MONITOR_ENVIRONMENT: prod
+      MONITOR_HEALTH_URL: ${{ vars.MONITOR_PROD_HEALTH_URL }}
+      MONITOR_INGEST_URL: ${{ vars.MONITOR_PROD_INGEST_URL }}
+      MONITOR_SOURCE_TOKEN: ${{ secrets.MONITOR_PROD_SOURCE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Start external health checks
+        shell: bash
+        run: |
+          export MONITOR_READY="$RUNNER_TEMP/deployment-monitor-ready"
+          nohup bash -c 'python3 -u backend/infra/monitoring/measure.py; echo "$?" > "$MONITOR_READY.exit"' \
+            > "$MONITOR_READY.log" 2>&1 &
+          for attempt in {1..60}; do
+            if [[ -f "$MONITOR_READY.exit" ]]; then cat "$MONITOR_READY.log"; exit 1; fi
+            if [[ -f "$MONITOR_READY" ]]; then exit 0; fi
+            sleep 0.5
+          done
+          echo "External measurement did not become ready" >&2
+          exit 1
+      - name: Collect and send measurement to Better Stack
+        shell: bash
+        run: |
+          MONITOR_READY="$RUNNER_TEMP/deployment-monitor-ready"
+          until [[ -s "$MONITOR_READY.exit" ]]; do sleep 1; done
+          cat "$MONITOR_READY.log"
+          exit "$(cat "$MONITOR_READY.exit")"
+
   deploy:
+    name: Deploy application
     needs: build-and-push
     runs-on: [self-hosted, ec2-prod]
     steps:
-      # 서버의 ~/yeobaek/docker-compose.yml과 .env를 사용하므로 체크아웃이 필요 없다
+      - uses: actions/checkout@v4
+        if: ${{ vars.MONITOR_PROD_ENABLED == 'true' }}
+        with:
+          persist-credentials: false
+      - name: Wait for the first external health check
+        if: ${{ vars.MONITOR_PROD_ENABLED == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 backend/infra/monitoring/measure.py wait
+
+      # 배포는 서버의 ~/yeobaek/docker-compose.yml과 .env를 사용한다.
       - name: Pull & restart
         run: |
           cd ~/yeobaek

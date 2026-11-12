@@ -1,4 +1,4 @@
-"""One probe per second on a GitHub-hosted runner; commands live in artifacts."""
+"""Measure public HTTPS availability around a deploy and send logs to Better Stack."""
 import concurrent.futures
 import datetime as dt
 import json
@@ -9,15 +9,18 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
+import urllib.request
 
-from github_api import GitHub
-
-WORKFLOW = ".github/workflows/deployment-monitor.yml"
 INTERVAL = 1
 REQUEST_TIMEOUT = 3
 MAX_DURATION = 1800
 AFTER_DEPLOYMENT = 300
+DEPLOYMENT_POLL_INTERVAL = 10
+READY_STEP = "Start external health checks"
+MONITOR_JOB = "Measure deployment availability"
+DEPLOY_JOB = "Deploy application"
 
 
 def timestamp():
@@ -26,24 +29,6 @@ def timestamp():
 
 def epoch(value):
     return dt.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
-
-
-def write_json(path, value):
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
-    temporary.replace(path)
-
-
-def settings():
-    environment = os.environ["MONITOR_ENVIRONMENT"]
-    session = os.environ["MONITOR_SESSION"]
-    if environment not in ("dev", "prod") or not re.fullmatch(r"[a-f0-9-]{36}", session):
-        raise ValueError("Invalid environment/session")
-    url = os.environ.get(f"MONITOR_{environment.upper()}_HEALTH_URL", "")
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.fragment:
-        raise ValueError("Configure an HTTPS MONITOR health URL without credentials")
-    return environment, session, url
 
 
 def probe(url, session, sequence, ready=None):
@@ -106,226 +91,159 @@ def summarize(samples):
             "recoveryUnconfirmed": start is not None}
 
 
-def allowed_deployment(run, environment):
-    branch = "develop" if environment == "dev" else "main"
-    configured = os.environ.get(f"MONITOR_{environment.upper()}_DEPLOY_WORKFLOWS", "")
-    names = configured.split(",") if configured else [f"backend-{environment}.yml"]
-    return run["head_branch"] == branch and run["path"].split("@")[0] in [
-        ".github/workflows/" + name.strip() for name in names]
+def jobs():
+    api = os.environ["GITHUB_API_URL"]
+    repo = os.environ["GITHUB_REPOSITORY"]
+    run = os.environ["GITHUB_RUN_ID"]
+    attempt = os.environ["GITHUB_RUN_ATTEMPT"]
+    request = urllib.request.Request(
+        f"{api}/repos/{repo}/actions/runs/{run}/attempts/{attempt}/jobs?per_page=100",
+        headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                 "Accept": "application/vnd.github+json"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        return {job["name"]: job for job in json.load(response)["jobs"]}
 
 
-class Controls:
-    def __init__(self, github, environment, session):
-        self.github = github
-        self.environment = environment
-        self.session = session
-        self.seen = set()
-        self.links = {}
-        self.stop = False
-        self.error_count = 0
-        self.last_error_at = None
-        self.last_checked_at = None
-        self.deadline = None
-        self.lock = threading.Lock()
-
-    def refresh(self):
+def wait_for_monitor():
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
         try:
-            artifacts = sorted(self.github.artifacts(), key=lambda item: item["id"])
-            prefix = f"ym-command-{self.environment}-{self.session}-"
-            for artifact in artifacts:
-                if artifact["expired"] or not artifact["name"].startswith(prefix) or artifact["id"] in self.seen:
-                    continue
-                source = self.github.request(f'/actions/runs/{artifact["workflow_run"]["id"]}')
-                if source["path"].split("@")[0] != WORKFLOW or not source["display_title"].startswith(
-                        f"monitor:{self.environment}:{self.session}:"):
-                    raise ValueError("Invalid command source")
-                command = self.github.artifact_json(artifact["id"], "command.json")
-                if command["command"] == "stop":
-                    with self.lock:
-                        self.stop = True
-                elif command["command"] == "link":
-                    run_id, attempt = int(command["deploymentRunId"]), int(command["attempt"])
-                    run = self.github.request(f"/actions/runs/{run_id}/attempts/{attempt}")
-                    if not allowed_deployment(run, self.environment):
-                        raise ValueError("Invalid deployment workflow")
-                    with self.lock:
-                        self.links[(run_id, attempt)] = run
-                        self.deadline = None
-                else:
-                    raise ValueError("Invalid command")
-                self.seen.add(artifact["id"])
-            with self.lock:
-                previous = dict(self.links)
-                keys = list(previous)
-            refreshed, completed = {}, []
-            for run_id, attempt in keys:
-                cached = previous[(run_id, attempt)]
-                if cached.get("measurementCompletedAt"):
-                    refreshed[(run_id, attempt)] = cached
-                    completed.append(epoch(cached["measurementCompletedAt"]))
-                    continue
-                run = self.github.request(f"/actions/runs/{run_id}/attempts/{attempt}")
-                refreshed[(run_id, attempt)] = run
-                run["measurementStartedAt"] = run.get("run_started_at") or run.get("created_at")
-                run["measurementCompletedAt"] = None
-                if run["status"] == "completed":
-                    jobs = list(self.github.pages(
-                        f"/actions/runs/{run_id}/attempts/{attempt}/jobs", "jobs"))
-                    starts = [epoch(job["started_at"]) for job in jobs if job.get("started_at")]
-                    if starts:
-                        run["measurementStartedAt"] = dt.datetime.fromtimestamp(min(starts), dt.timezone.utc).isoformat()
-                    times = [epoch(job["completed_at"]) for job in jobs if job.get("completed_at")]
-                    end = max(times) if times else epoch(run["updated_at"])
-                    run["measurementCompletedAt"] = dt.datetime.fromtimestamp(end, dt.timezone.utc).isoformat()
-                    completed.append(end)
-            with self.lock:
-                self.links.update(refreshed)
-                self.deadline = max(completed) + AFTER_DEPLOYMENT if keys and len(completed) == len(keys) else None
-                self.last_checked_at = timestamp()
-        except (OSError, ValueError, KeyError):
-            # Unknown deployment state must not be interpreted as completed.
-            with self.lock:
-                self.deadline = None
-                self.error_count += 1
-                self.last_error_at = timestamp()
+            monitor = jobs().get(MONITOR_JOB, {})
+        except OSError:
+            time.sleep(3)
+            continue
+        if monitor.get("status") == "completed":
+            break
+        for step in monitor.get("steps", []):
+            if step["name"] == READY_STEP and step.get("conclusion") == "success":
+                # Reserve time for the deploy to start even if the EC2 runner queued.
+                if time.time() - epoch(step["completed_at"]) < MAX_DURATION - AFTER_DEPLOYMENT:
+                    return
+                raise RuntimeError("External measurement is too close to its time limit")
+        time.sleep(3)
+    raise RuntimeError("External measurement did not start for this workflow attempt")
+
+
+class DeploymentStatus:
+    def __init__(self):
+        self.completed = None
+        self.conclusion = None
 
     def poll(self, finished):
         while not finished.is_set():
-            self.refresh()
-            finished.wait(10)
-
-    def snapshot(self):
-        with self.lock:
-            return self.stop, self.deadline, {
-                "deployments": [{key: run.get(key) for key in (
-                    "id", "run_attempt", "head_sha", "status", "conclusion", "html_url", "created_at",
-                    "measurementStartedAt", "measurementCompletedAt")}
-                    for run in self.links.values()],
-                "controlErrors": self.error_count, "lastControlErrorAt": self.last_error_at,
-                "lastControlCheckAt": self.last_checked_at,
-            }
+            try:
+                deploy = jobs().get(DEPLOY_JOB, {})
+                if deploy.get("status") == "completed":
+                    self.conclusion = deploy["conclusion"]
+                    self.completed = deploy["completed_at"]
+                    return
+            except OSError:
+                # An unavailable API is not evidence that deploy finished.
+                pass
+            finished.wait(DEPLOYMENT_POLL_INTERVAL)
 
 
-def measure():
-    environment, session, url = settings()
-    directory = Path(os.environ["MONITOR_OUTPUT"])
-    directory.mkdir(parents=True, exist_ok=True)
-    github = GitHub()
-    controls = Controls(github, environment, session)
-    finished = threading.Event()
-    thread = threading.Thread(target=controls.poll, args=(finished,), daemon=True)
-    futures, samples = [], []
-    started, monotonic_start = timestamp(), time.monotonic()
-    state = {"session": session, "environment": environment, "target": url,
-             "startedAt": started, "maxDurationSeconds": MAX_DURATION,
-             "intervalSeconds": INTERVAL, "requestTimeoutSeconds": REQUEST_TIMEOUT}
-    reason, fatal, skipped = "maximum_duration", None, 0
+def measure(url, session, ready_path, deployment):
+    started, begin = timestamp(), time.monotonic()
+    pending, samples = [], []
+    finished, ready = threading.Event(), threading.Event()
+    poller = threading.Thread(target=deployment.poll, args=(finished,), daemon=True)
+    next_sequence, skipped, reason = 1, 0, "maximum_duration"
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-            # Submit before publishing readiness; the browser never treats job setup as measuring.
-            ready = threading.Event()
-            futures.append(pool.submit(probe, url, session, 0, ready))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            pending.append(pool.submit(probe, url, session, 0, ready))
             if not ready.wait(5):
-                raise RuntimeError("First probe did not start")
-            write_json(directory / "state.json", state)
-            thread.start()
-            next_sequence = 1
-            while time.monotonic() - monotonic_start < MAX_DURATION:
-                stop, deadline, _ = controls.snapshot()
-                if stop or (deadline is not None and time.time() >= deadline):
-                    reason = "manual" if stop else "deployment_finished"
+                pending[0].result()
+                raise RuntimeError("First health check did not start")
+            ready_path.touch()
+            poller.start()
+            while time.monotonic() - begin < MAX_DURATION:
+                if deployment.completed and time.time() >= epoch(deployment.completed) + AFTER_DEPLOYMENT:
+                    reason = "deployment_finished"
                     break
-                elapsed = time.monotonic() - monotonic_start
+                elapsed = time.monotonic() - begin
                 if elapsed >= next_sequence * INTERVAL:
-                    current_sequence = int(elapsed // INTERVAL)
-                    skipped += max(0, current_sequence - next_sequence)
-                    futures.append(pool.submit(probe, url, session, current_sequence))
-                    next_sequence = current_sequence + 1
-                for future in list(futures):
-                    if future.done():
-                        samples.append(future.result())
-                        futures.remove(future)
-                time.sleep(0.05)
-            sending_stopped_at = timestamp()
-            for future in futures:
-                samples.append(future.result())
-    except Exception as error:  # Preserve partial evidence even if the runner script fails.
-        reason, fatal, sending_stopped_at = "measurement_error", type(error).__name__, timestamp()
+                    sequence = int(elapsed // INTERVAL)
+                    skipped += sequence - next_sequence
+                    pending.append(pool.submit(probe, url, session, sequence))
+                    next_sequence = sequence + 1
+                completed = [future for future in pending if future.done()]
+                for future in completed:
+                    samples.append(future.result())
+                    pending.remove(future)
+                finished.wait(0.05)
+            stopped = timestamp()
+            samples.extend(future.result() for future in pending)
     finally:
         finished.set()
-        _, _, control_state = controls.snapshot()
-        ordered = sorted(samples, key=lambda sample: sample["sequence"])
-        result = {**state, **control_state, "sendingStoppedAt": sending_stopped_at,
-                  "finishedAt": timestamp(), "stopReason": reason, "fatalError": fatal,
-                  "missedScheduledRequests": skipped, "summary": summarize(ordered), "samples": ordered}
-        write_json(directory / "result.json", result)
-    return 1 if fatal else 0
+    samples.sort(key=lambda sample: sample["sequence"])
+    summary = summarize(samples)
+    summary.update(startedAt=started, stoppedAt=stopped, stopReason=reason,
+                   skipped=skipped, deploymentConclusion=deployment.conclusion,
+                   deploymentCompletedAt=deployment.completed)
+    return samples, summary
 
 
-def guard():
-    environment, session, _ = settings()
-    github = GitHub()
-    own_id = int(os.environ["GITHUB_RUN_ID"])
-    own = github.request(f"/actions/runs/{own_id}")
-    if int(os.environ["GITHUB_RUN_ATTEMPT"]) != 1:
-        raise ValueError("Start a new measurement instead of rerunning an old session")
-    runs = github.pages("/actions/workflows/deployment-monitor.yml/runs?event=workflow_dispatch", "workflow_runs")
-    for run in runs:
-        if run["id"] == own_id or not run["display_title"].startswith(f"monitor:{environment}:"):
-            continue
-        if not run["display_title"].endswith(":start"):
-            continue
-        # A queued duplicate must not begin an unrelated measurement after the current one finishes.
-        if run["id"] < own_id and (run["status"] != "completed" or run["updated_at"] >= own["created_at"]):
-            raise ValueError("Another measurement was active when this start was requested")
-        if run["display_title"] == f"monitor:{environment}:{session}:start":
-            raise ValueError("Session already exists")
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
-def command():
-    environment, session, _ = settings()
-    github = GitHub()
-    run_id = int(os.environ["MONITOR_MEASUREMENT_RUN_ID"])
-    run = github.request(f"/actions/runs/{run_id}")
-    if run["path"].split("@")[0] != WORKFLOW or run["display_title"] != f"monitor:{environment}:{session}:start":
-        raise ValueError("Invalid measurement")
-    if run["status"] == "completed":
-        raise ValueError("Measurement already finished")
-    action = os.environ["MONITOR_COMMAND"]
-    payload = {"command": action}
-    if action == "link":
-        deployment_id = int(os.environ["MONITOR_DEPLOYMENT_RUN_ID"])
-        attempt = int(os.environ["MONITOR_DEPLOYMENT_ATTEMPT"])
-        deployment = github.request(f"/actions/runs/{deployment_id}/attempts/{attempt}")
-        if not allowed_deployment(deployment, environment):
-            raise ValueError("Invalid deployment")
-        payload.update(deploymentRunId=deployment_id, attempt=attempt)
-    elif action != "stop":
-        raise ValueError("Invalid command")
-    directory = Path(os.environ["MONITOR_OUTPUT"])
-    directory.mkdir(parents=True, exist_ok=True)
-    write_json(directory / "command.json", payload)
+def send_logs(endpoint, token, context, samples, summary):
+    events = [
+        dict(context, **sample, dt=sample["startedAt"], event="deployment_health_check")
+        for sample in samples
+    ]
+    events.append(dict(context, **summary, dt=summary["stoppedAt"], event="deployment_health_summary"))
+    request = urllib.request.Request(
+        endpoint, data=json.dumps(events).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.build_opener(NoRedirect).open(request, timeout=15) as response:
+            if response.status != 202:
+                raise RuntimeError(f"Better Stack returned HTTP {response.status}")
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"Better Stack returned HTTP {error.code}") from None
+    except (OSError, ValueError):
+        raise RuntimeError("Could not reach the Better Stack ingest endpoint") from None
 
 
-def cleanup():
-    environment, session, _ = settings()
-    github = GitHub()
-    artifacts = github.artifacts()
-    prefix = f"ym-result-{environment}-"
-    results = sorted([a for a in artifacts if not a["expired"] and a["name"].startswith(prefix)],
-                     key=lambda a: a["created_at"], reverse=True)
-    if not any(a["name"] == prefix + session for a in results):
-        raise ValueError("New result not uploaded; refusing cleanup")
-    for result in results[20:]:
-        old_session = result["name"][len(prefix):]
-        if not re.fullmatch(r"[a-f0-9-]{36}", old_session):
-            continue
-        for artifact in artifacts:
-            if artifact["name"] in (result["name"], f"ym-state-{environment}-{old_session}") or artifact[
-                    "name"].startswith(f"ym-command-{environment}-{old_session}-"):
-                github.request(f'/actions/artifacts/{artifact["id"]}', "DELETE")
+def https_url(key):
+    value = os.environ.get(key, "")
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.fragment:
+        raise ValueError(f"Configure {key} with an HTTPS URL")
+    return value
+
+
+def run():
+    url = https_url("MONITOR_HEALTH_URL")
+    endpoint = https_url("MONITOR_INGEST_URL")
+    token = os.environ.get("MONITOR_SOURCE_TOKEN")
+    if not token:
+        raise ValueError("Configure MONITOR_SOURCE_TOKEN")
+    context = {
+        "environment": os.environ["MONITOR_ENVIRONMENT"],
+        "runId": int(os.environ["GITHUB_RUN_ID"]),
+        "runAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+        "deploymentCommitSha": os.environ["GITHUB_SHA"],
+    }
+    session = f"{context['runId']}-{context['runAttempt']}"
+    samples, summary = measure(url, session, Path(os.environ["MONITOR_READY"]), DeploymentStatus())
+    send_logs(endpoint, token, context, samples, summary)
+    print(f"Sent {summary['total']} health checks to Better Stack ({summary['failures']} failures)")
+    if summary["stopReason"] == "maximum_duration":
+        raise RuntimeError("Measurement reached its time limit before post-deploy observation ended")
 
 
 if __name__ == "__main__":
-    functions = {"guard": guard, "command": command, "measure": measure, "cleanup": cleanup}
-    sys.exit(functions[sys.argv[1]]())
+    try:
+        if sys.argv[1:] == ["wait"]:
+            wait_for_monitor()
+        else:
+            run()
+    except (RuntimeError, ValueError) as error:
+        sys.exit(str(error))

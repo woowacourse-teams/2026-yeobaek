@@ -123,7 +123,7 @@ test('삭제 도서는 두 메타데이터 편집기에서 수정할 수 없다'
 });
 
 function requestHarness(response, onLoad = () => {}) {
-    const page = fs.readFileSync(path.join(__dirname, '../../main/resources/templates/admin-books.html'), 'utf8');
+    const page = fs.readFileSync(path.join(__dirname, '../../main/resources/templates/admin.html'), 'utf8');
     const source = page.slice(page.indexOf('    async function saveBookMetadata('),
         page.indexOf('    function escapeHtml('));
     const requests = [];

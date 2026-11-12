@@ -920,7 +920,7 @@
 ### 관리자 통계 페이지
 `GET /admin/dashboard`
 
-- 별도 통계 페이지를 반환하고 관리자 홈(`/admin`), 도서 관리(`/admin/books`), 배포 모니터링과 이동 링크를 제공한다.
+- 별도 통계 페이지를 반환하고 기존 `/admin`과 이동 링크를 제공한다.
 - HTML 페이지는 토큰 없이 열리지만 데이터는 기존 `X-Admin-Token` 인증을 거친 세 API에서만 조회한다.
 - 전체 새로고침은 세 API를 각각 호출하며, 영역별 새로고침은 해당 API만 호출한다.
 - 조회 중·실패한 영역의 이전 결과는 숨긴다. 실패해도 성공한 다른 영역의 결과는 유지한다.
@@ -1193,9 +1193,7 @@
 - 삭제 복구 API는 제공하지 않는다.
 
 ### 관리자 페이지
-`GET /admin` — 도서 관리·통계·배포 모니터링 중 이동할 화면을 선택하는 관리자 홈 (HTML, Thymeleaf).
-
-`GET /admin/books` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
+`GET /admin` — 표지 파일 직접 업로드 + 소개 편집/비우기 + JSON의 소개를 사용하는 도서 인제스트 폼 + 책 목록 조회·CSV 저장·표지 교체·제거·도서 삭제 UI (HTML, Thymeleaf). 페이지 접근 자체는 토큰이 불필요하며, 페이지 안에서 호출하는 관리자 API에 토큰을 입력해 사용한다.
 
 - 책 목록은 한 권당 한 행이며 제목·작가명/ID·ISNI·출판사·출판연도·문단 수·상태와 표지를 표시한다.
 - CSV는 화면에 조회된 목록으로 브라우저에서 생성한다. 다운로드 시 서버에 다시 조회하지 않는다.
@@ -1211,68 +1209,6 @@
 - 표지가 있는 작품에는 표지 교체·제거를, 없는 작품에는 표지 추가를 제공한다.
 - 삭제 전 도서명이 포함된 확인 창을 한 번 표시한다.
 - 삭제된 작품은 “삭제됨” 상태를 표시하고 삭제 버튼을 비활성화한다.
-
-### 배포·롤백 모니터링
-
-기본 경로는 `/api/admin/deployment-monitoring`이며 모든 요청에 `X-Admin-Token`이 필요하다.
-정상 응답은 `Cache-Control: no-store`를 반환한다. 측정은 GitHub 러너에서 계속되므로 화면을 닫아도 중단되지 않는다.
-
-| 메서드·경로 (기본 경로 뒤) | 요청 | 정상 응답 |
-| --- | --- | --- |
-| `GET` | 없음 | `200` 환경, 최근 측정 실행·보관 결과 각 최대 20개 |
-| `POST /sessions` | 본문 없음 | `202 {"session":"UUID"}`. 진행 중인 측정이 있으면 기존 UUID |
-| `GET /sessions/{session}` | 시작 응답의 UUID | `200` 측정·배포·명령 상태 |
-| `POST /sessions/{session}/stop` | 본문 없음 | `202`, 빈 본문 |
-| `GET /deployments` | 없음 | `200`, 연결 가능한 배포·롤백 실행 배열 (최대 20개) |
-| `POST /sessions/{session}/deployments` | `{"runId":123,"attempt":1}`. 둘 다 필수 양의 정수 | `202`, 빈 본문 |
-| `GET /results/{artifactId}` | 보관 결과 목록의 `id` | `200`, 저장된 측정 결과 JSON |
-
-**202는 명령 접수이며 실제 측정 시작·종료·배포 연결 완료를 뜻하지 않는다.**
-시작 요청 후 10초 간격으로 상태를 조회하고, `state`가 생겨 실제 요청 시작을 확인한 뒤 배포한다.
-배포 목록의 `id`와 `attempt`를 함께 보내 연결한다. 종료 후 `resultAvailable=true`가 되면
-목록에서 같은 `session`의 결과 `id`를 찾아 조회한다.
-
-| 응답 | 핵심 필드 |
-| --- | --- |
-| 목록 | `environment`: dev/prod, `measurements`: 실행 배열, `results`: 보관 결과 배열. 없으면 빈 배열 |
-| 실행 | `id`, `attempt`, `session`(배포 실행은 null), `title`, `status`, `conclusion`(종료 전 null), `sha`, `createdAt`, `url`, `phase` |
-| 보관 결과 | `id`, `session`, `createdAt`, `expiresAt`, `bytes`(압축 크기) |
-| 측정 상태 | `run`: 측정 실행, `state`: 시작 확인 기록 또는 null, `deployments`: 연결이 반영된 실행 배열, `commands`: 전달 명령 배열, `resultAvailable`, `checkedAt`, `observationEndsAt` |
-| 시작 확인 기록 | `session`, `environment`, `target`, `startedAt`, `maxDurationSeconds`, `intervalSeconds`, `requestTimeoutSeconds` |
-| 전달 명령 | `command`: stop/link, `status`, `conclusion`, `url`. 명령 성공 후에도 러너 반영까지 지연될 수 있음 |
-
-`status`는 GitHub 실행 상태이며 `completed`가 종료를 뜻한다. `conclusion`은 success/failure/cancelled 등의
-실행 결과다. 연결된 배포의 `phase`는 waiting/building/deploying/running/completed로 표시하고,
-그 외 실행 목록의 `phase`는 `status`와 같다. 실행의 `sha`는 워크플로 커밋이며 앱 응답에서 관측한 SHA와 구분한다.
-
-`state=null`은 요청 시작을 아직 확인하지 못했다는 뜻이다. `run.status=completed`인데
-`resultAvailable=false`이면 결과 없이 종료된 상태이며 실패 0건으로 표시하지 않는다.
-`observationEndsAt`은 연결한 모든 실행이 끝난 시각부터 5분 뒤이며, 연결 없음·진행 중·완료 시각 불명은 null이다.
-자동 종료는 이 시각과 `state.startedAt + 30분` 중 빠른 시점이다. 시각은 UTC ISO 8601 문자열이다.
-
-결과 JSON은 다음을 포함한다.
-
-| 필드 | 의미 |
-| --- | --- |
-| `session`, `environment`, `target` | 측정 식별자·환경·요청 대상 |
-| `startedAt`, `sendingStoppedAt`, `finishedAt` | 요청 시작·새 요청 중단·결과 작성 시각 |
-| `intervalSeconds`, `requestTimeoutSeconds`, `maxDurationSeconds` | 요청 간격 1초·응답 제한 3초·전체 제한 1,800초 |
-| `stopReason` | manual / maximum_duration / deployment_finished / measurement_error |
-| `summary` | total, successes, failures, estimatedRecoveredSeconds, recoveryUnconfirmed, outages, versions |
-| `samples[]` | sequence, startedAt, statusCode, elapsedMs, commitSha, success, error |
-| `deployments[]` | id, run_attempt, head_sha, status, conclusion, html_url, created_at, measurementStartedAt, measurementCompletedAt |
-| `fatalError`, `missedScheduledRequests`, `controlErrors` | 측정 도구 오류(null이면 없음), 보내지 못한 예정 요청 수, 명령·배포 상태 조회 실패 횟수 |
-| `lastControlCheckAt`, `lastControlErrorAt` | 마지막 상태 조회 성공·실패 시각. 기록이 없으면 null |
-
-요청 `error`는 timeout/connection_error/http_error이며 성공이면 null이다. HTTP 응답을 못 받으면
-`statusCode=0`, 버전을 못 읽으면 `commitSha=null`이다. `outages[]`는 startedAt/recoveredAt/estimatedSeconds,
-`versions[]`는 at/commitSha를 담는다. 중단 추정 시간은 첫 실패 요청부터 다음 성공 요청까지로 계산하며,
-복구를 확인하지 못한 구간은 recoveredAt·estimatedSeconds가 null이고 합계에서 제외한다.
-
-오류는 공통 `{code, message}` 형식이다. 잘못된 UUID·연결 대상·만료 결과는 `400 INVALID_REQUEST`,
-인증 실패는 `401 UNAUTHORIZED`, GitHub 설정·통신 문제는 `500 INTERNAL_ERROR`다.
-시작 직후 GitHub 목록에 실행이 아직 없으면 400이 올 수 있으므로 같은 UUID로 다시 조회한다.
-운영 설정과 기록 해석의 자세한 내용은 [배포 모니터링 가이드](../backend/docs/배포_모니터링.md)를 참고한다.
 
 ## 7. Android 개발자 변경 안내
 
@@ -1367,21 +1303,8 @@
 | GET | /api/admin/dashboard/clubs | (관리자) 모임 목록·댓글 수 |
 | GET | /api/admin/dashboard/books | (관리자) 책별 모임 수 |
 | GET | /api/admin/dashboard/members | (관리자) 회원별 참여 수·평균·분포 |
-| GET | /admin | (관리자) 메뉴 선택 화면 (HTML) |
-| GET | /admin/books | (관리자) 도서 관리 화면 (HTML) |
+| GET | /admin | (관리자) 관리자 페이지 (HTML) |
 | GET | /admin/dashboard | (관리자) 통계 대시보드 (HTML) |
-| GET | /admin/deployment-monitoring | (관리자) 배포·롤백 외부 요청 측정 화면 (HTML) |
-| GET | /api/admin/deployment-monitoring | (관리자) 최근 측정 실행과 보관 결과 목록 |
-| POST | /api/admin/deployment-monitoring/sessions | (관리자) 수동 측정 시작 요청 |
-| GET | /api/admin/deployment-monitoring/sessions/{session} | (관리자) 측정·연결 배포 상태 조회 |
-| POST | /api/admin/deployment-monitoring/sessions/{session}/stop | (관리자) 측정 종료 요청 |
-| GET | /api/admin/deployment-monitoring/deployments | (관리자) 연결 가능한 배포·롤백 목록 |
-| POST | /api/admin/deployment-monitoring/sessions/{session}/deployments | (관리자) 배포 실행·시도 번호 연결 |
-| GET | /api/admin/deployment-monitoring/results/{artifactId} | (관리자) 보관된 측정 결과 조회 |
-
-배포 모니터링의 요청·응답, 종료 기준, 기록 해석과 설정 방법은
-[배포 모니터링 가이드](../backend/docs/배포_모니터링.md)를 따른다. 기존 `X-Admin-Token` 인증을
-적용하며, 측정 시작·종료·연결의 `202`는 명령 접수를 의미한다. 실제 실행 상태는 별도로 조회한다.
 
 ## 9. App Store 배포 전 후속 과제
 

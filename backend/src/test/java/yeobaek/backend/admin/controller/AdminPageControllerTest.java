@@ -17,28 +17,6 @@ class AdminPageControllerTest extends IntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("관리자 홈에서 도서 관리·통계·배포 모니터링으로 이동할 수 있다")
-    void serveAdminHome() throws Exception {
-        mockMvc.perform(get("/admin"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/admin/books\"")))
-                .andExpect(content().string(containsString("href=\"/admin/dashboard\"")))
-                .andExpect(content().string(containsString("href=\"/admin/deployment-monitoring\"")));
-    }
-
-    @Test
-    @DisplayName("배포 모니터링 화면은 관리자 토큰 입력과 측정 조작을 제공한다")
-    void serveDeploymentMonitoringPage() throws Exception {
-        mockMvc.perform(get("/admin/deployment-monitoring"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("배포 모니터링")))
-                .andExpect(content().string(containsString("id=\"admin-token\"")))
-                .andExpect(content().string(containsString("id=\"start\"")))
-                .andExpect(content().string(containsString("id=\"stop\"")))
-                .andExpect(content().string(containsString("/admin-deployment-monitoring.js")));
-    }
-
-    @Test
     @DisplayName("별도 통계 페이지는 관리자 토큰 입력과 영역별 조회 화면을 제공한다")
     void serveDashboardUi() throws Exception {
         mockMvc.perform(get("/admin/dashboard"))
@@ -55,7 +33,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("관리자 페이지는 책 목록 조회와 표시된 결과의 CSV 저장 동작을 제공한다")
     void serveBookInventoryUi() throws Exception {
-        mockMvc.perform(get("/admin/books"))
+        mockMvc.perform(get("/admin"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/admin/dashboard\"")))
                 .andExpect(content().string(containsString("id=\"load-books\"")))
@@ -69,7 +47,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("관리자 페이지는 삭제 상태와 도서 삭제 동작을 제공한다")
     void serveBookDeleteUi() throws Exception {
-        mockMvc.perform(get("/admin/books"))
+        mockMvc.perform(get("/admin"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("삭제됨")))
                 .andExpect(content().string(containsString("book.status === 'DELETED'")))
@@ -81,7 +59,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("신규 도서 표지는 파일 선택과 드래그 앤 드롭으로 첨부할 수 있다")
     void serveBookCoverDropUi() throws Exception {
-        mockMvc.perform(get("/admin/books"))
+        mockMvc.perform(get("/admin"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"new-cover-drop-zone\"")))
                 .andExpect(content().string(containsString("이미지를 여기로 끌어다 놓거나 클릭해서 선택하세요.")))
@@ -96,7 +74,7 @@ class AdminPageControllerTest extends IntegrationTest {
     @Test
     @DisplayName("도서 JSON은 파일 선택과 드래그 앤 드롭으로 입력할 수 있다")
     void serveBookJsonDropUi() throws Exception {
-        mockMvc.perform(get("/admin/books"))
+        mockMvc.perform(get("/admin"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"upload-json-drop-zone\"")))
                 .andExpect(content().string(containsString("id=\"upload-json-file\"")))

@@ -16,22 +16,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Slf4j
 public class AdminPageController {
 
-    @GetMapping({"/admin", "/admin/"})
+    @GetMapping("/admin")
     public String adminPage() {
         log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage")
-                .log("관리자 홈 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage").addKeyValue(RESULT, SUCCESS)
-                .log("관리자 홈 처리를 완료했습니다.");
-        return "admin";
-    }
-
-    @GetMapping("/admin/books")
-    public String booksPage() {
-        log.atInfo().addKeyValue(OPERATION, "admin.page.booksPage")
                 .log("관리자 도서 페이지 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.booksPage").addKeyValue(RESULT, SUCCESS)
+        log.atInfo().addKeyValue(OPERATION, "admin.page.adminPage").addKeyValue(RESULT, SUCCESS)
                 .log("관리자 도서 페이지 처리를 완료했습니다.");
-        return "admin-books";
+        return "admin";
     }
 
     @GetMapping("/admin/dashboard")
@@ -41,14 +32,5 @@ public class AdminPageController {
         log.atInfo().addKeyValue(OPERATION, "admin.page.dashboardPage").addKeyValue(RESULT, SUCCESS)
                 .log("관리자 대시보드 페이지 처리를 완료했습니다.");
         return "admin-dashboard";
-    }
-
-    @GetMapping("/admin/deployment-monitoring")
-    public String deploymentMonitoringPage() {
-        log.atInfo().addKeyValue(OPERATION, "admin.page.deploymentMonitoringPage")
-                .log("관리자 배포 모니터링 페이지 처리를 시작합니다.");
-        log.atInfo().addKeyValue(OPERATION, "admin.page.deploymentMonitoringPage").addKeyValue(RESULT, SUCCESS)
-                .log("관리자 배포 모니터링 페이지 처리를 완료했습니다.");
-        return "admin-deployment-monitoring";
     }
 }

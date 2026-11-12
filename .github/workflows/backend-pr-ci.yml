@@ -39,9 +39,7 @@ jobs:
             'backend/gradle/**' \
             'backend/gradlew' \
             'backend/gradlew.bat' \
-            'backend/.gitattributes' \
-            'backend/infra/monitoring/**' \
-            '.github/workflows/deployment-monitor.yml'; then
+            'backend/.gitattributes'; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -58,8 +56,13 @@ jobs:
         if: steps.backend-changes.outputs.changed == 'true'
         run: ./gradlew build
 
-      - name: Verify monitoring runner and admin scripts
-        if: steps.backend-changes.outputs.changed == 'true'
-        run: |
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/monitoring/tests -v
-          node --test src/test/js/*.test.js
+  deployment-monitor-verify:
+    name: Deployment monitor verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test deployment measurement
+        if: hashFiles('backend/infra/monitoring/measure.py') != ''
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/monitoring/tests -v

@@ -58,23 +58,6 @@ class ApiDocsServingTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모니터링 문서는 관리자 인증과 비동기 접수 및 필수 배포 식별자를 설명한다")
-    void serveMonitoringContract() throws Exception {
-        mockMvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$['paths']['/api/admin/deployment-monitoring/sessions']['post']['responses']['202']")
-                        .exists())
-                .andExpect(jsonPath("$['paths']['/api/admin/deployment-monitoring/sessions']['post']['security'][0]['adminToken']")
-                        .isArray())
-                .andExpect(jsonPath("$['components']['schemas']['MonitoringLinkRequest']['required']")
-                        .value(org.hamcrest.Matchers.containsInAnyOrder("runId", "attempt")))
-                .andExpect(jsonPath("$['components']['schemas']['MonitoringSessionResponse']['properties']['state']['type']")
-                        .value("object"))
-                .andExpect(jsonPath("$['paths']['/api/admin/deployment-monitoring/results/{artifactId}']['get']['responses']['200']['content']['application/json']['schema']['type']")
-                        .value("object"));
-    }
-
-    @Test
     @DisplayName("/docs 진입 시 Swagger UI로 리다이렉트된다")
     void redirectDocsToSwaggerUi() throws Exception {
         mockMvc.perform(get("/docs"))
