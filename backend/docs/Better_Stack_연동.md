@@ -70,7 +70,8 @@ MySQL digest의 누적 gauge는 같은 DB/digest의 두 시점 차이로 해석�
 - 개발 프로필은 `prod,dev`, 운영은 `prod`다. `prod`는 DB/S3 설정 프로필이며 관측 환경과 별개다.
 - 두 환경 모두 `OBSERVABILITY_ENABLED=true`, `OBSERVABILITY_OTLP_ENDPOINT=http://otel-collector:4318`을 사용한다.
   `DEPLOYMENT_ENVIRONMENT`는 각각 `dev`, `prod`로 구분한다.
-- `.env`는 Compose 값 치환용이다. 앱에는 Compose의 `app.environment`에 지정된 값만 전달된다.
+- `.env`는 Compose 값 치환용이다. 앱에는 해당 서비스의 `environment`에 지정된 값만 전달된다.
+  개발은 `x-app-common.environment`를 `app-blue`와 `app-green`이 공유하고, 운영은 `app.environment`를 사용한다.
 - `otel.env`는 Collector 전용이다. `BETTER_STACK_APP_*`는 앱 소스,
   `BETTER_STACK_INFRA_*`는 인프라 소스의 URL·토큰이며 환경별 실제 값은 서로 다르다.
   endpoint는 `/v1/*`를 붙이지 않은 OTLP base URL이다. 앱에는 Better Stack 토큰을 전달하지 않는다.
@@ -79,15 +80,19 @@ MySQL digest의 누적 gauge는 같은 DB/digest의 두 시점 차이로 해석�
 
 ## 배포 후 수신 확인
 
-대상 EC2에서 실행한다. 운영은 `~/yeobaek`, 프로젝트 `yeobaek`으로 두 줄을 바꾼다.
+대상 EC2에서 실행한다. 개발은 확인할 앱에 따라 `APP_SERVICE`와 `APP_PORT`를 지정한다.
+Blue는 `app-blue`/`8080`, Green은 `app-green`/`8081`이다.
+운영은 `~/yeobaek`, 프로젝트 `yeobaek`, 서비스 `app`, 포트 `8080`을 사용한다.
 
 ```bash
 cd ~/yeobaek-dev
 COMPOSE=(docker compose -p yeobaek-dev -f docker-compose.yml)
+APP_SERVICE=app-blue
+APP_PORT=8080
 "${COMPOSE[@]}" ps
 "${COMPOSE[@]}" logs --since=5m otel-collector
-curl --fail http://127.0.0.1:8080/health
-APP_ID=$("${COMPOSE[@]}" ps -q app)
+curl --fail "http://127.0.0.1:$APP_PORT/health"
+APP_ID=$("${COMPOSE[@]}" ps -q "$APP_SERVICE")
 test -n "$APP_ID"
 docker run --rm --network "container:$APP_ID" curlimages/curl:8.16.0 \
   -fsS http://127.0.0.1:8081/actuator/health
