@@ -26,10 +26,6 @@ Compose 소속 정보는 그대로이므로, 서버에서는 새 서비스 설�
 기존 앱과 새 Blue는 같은 8080 포트를 사용하므로 단순히 함께 실행할 수 없다.
 최초 전환은 기존 앱·Green 상태와 Nginx 전달 대상을 확인한 뒤 별도로 진행한다.
 
-관측 설정용 `backup.sh`는 선택한 컨테이너의 실제 서비스 이름을 백업에 반영한다.
-`rollback.sh`도 백업의 `app.inspect.json`에서 당시 서비스 이름을 읽으므로 기존 `app` 백업을 복구할 수 있다.
-이 두 스크립트는 Nginx 전달 대상을 바꾸지 않는 설정 백업·복구용이며, 무중단 배포의 자동 복구와는 별개다.
-
 기본 Nginx 설정은 `/etc/nginx/conf.d/yeobaek-dev.conf`, 확인 도메인은 `https://yeobaekdev.duckdns.org/health`다.
 `DEPLOY_DIR`, `NGINX_CONFIG`, `NGINX_ERROR_LOG`, `HEALTH_URL`로 경로와 주소를 지정할 수 있다.
 기존 worker의 대기 제한은 `WORKER_WAIT_SECONDS`로 지정하며 기본값은 120초다. 초과 시 앱을 유지한다.
@@ -208,7 +204,6 @@ Blue가 종료됐지만 강제 종료 가능성이 있으면 경고를 남기고
 ```bash
 bash -n backend/infra/deploy/deploy.sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/deploy/tests -v
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s backend/infra/dev/tests -v
 ```
 
 실제 서버의 요청 연속성, sudo 실행 권한, worker 종료 로그, 기록 용량은 개발 서버 배포 테스트에서 확인한다.
