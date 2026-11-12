@@ -234,7 +234,7 @@ def prune_records(current_path):
     print("현재 배포를 포함해 최대 최근 20회분을 유지합니다.")
 
 
-def cleanup_temporary(deployment_root, nginx_config):
+def cleanup_temporary(deployment_root, staging):
     root = Path(deployment_root) / "records"
     errors = []
     # 다른 도구의 임시 파일은 지우지 않고, 우리가 원자적 JSON 저장에 쓰는 경로만 정리한다.
@@ -257,7 +257,6 @@ def cleanup_temporary(deployment_root, nginx_config):
                 except OSError as error:
                     errors.append(str(error))
     # Nginx 임시 파일은 고정 이름 하나를 사용하며, 배포 잠금을 보유한 상태에서만 정리한다.
-    staging = str(Path(nginx_config).parent / ".yeobaek-dev-deploy.tmp")
     try:
         subprocess.run(["sudo", "-n", "rm", "-f", "--", staging], check=True, timeout=5)
     except (OSError, subprocess.SubprocessError) as error:

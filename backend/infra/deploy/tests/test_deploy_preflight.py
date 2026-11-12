@@ -1,6 +1,6 @@
 """실제 Docker/Nginx를 변경하지 않고 배포 사전 확인의 성공·실패 분기를 검증한다.
 
-실행: python3 -m unittest discover -s backend/infra/dev/tests -v
+실행: python3 -m unittest discover -s backend/infra/deploy/tests -v
 """
 
 import os
@@ -102,11 +102,11 @@ exit "$TEST_CURL_EXIT"
 
     def test_other_compose_project_is_rejected(self):
         self.env["TEST_DETAILS"] = "running|yeobaek-prod|app-blue|127.0.0.1:8080;"
-        self.assert_stopped("예상한 개발용 Compose 서비스가 아닙니다")
+        self.assert_stopped("예상한 Compose 서비스가 아닙니다")
 
     def test_renamed_container_with_legacy_service_is_rejected(self):
         self.env["TEST_DETAILS"] = "running|yeobaek-dev|app|127.0.0.1:8080;"
-        self.assert_stopped("예상한 개발용 Compose 서비스가 아닙니다")
+        self.assert_stopped("예상한 Compose 서비스가 아닙니다")
 
     def test_wrong_port_binding_is_rejected(self):
         self.env["TEST_DETAILS"] = "running|yeobaek-dev|app-blue|127.0.0.1:8081;"

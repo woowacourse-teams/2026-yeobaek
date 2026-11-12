@@ -29,6 +29,7 @@ new = "b" * 40
 active = state.get("active", "yeobaek-app-blue")
 next_container = "yeobaek-app-green" if active == "yeobaek-app-blue" else "yeobaek-app-blue"
 next_service = "app-green" if active == "yeobaek-app-blue" else "app-blue"
+project = os.environ.get("TEST_COMPOSE_PROJECT", "yeobaek-dev")
 
 def end(code=0, output=""):
     state_path.write_text(json.dumps(state))
@@ -104,8 +105,8 @@ if name == "docker":
             code = {"forced-stop": 137, "sigterm-stop": 143, "oom-stop": 143, "error-stop": 1}.get(scenario, 0)
             oom = "true" if scenario == "oom-stop" else "false"
             end(0, f"{status}|{'true' if status == 'running' else 'false'}|{code}|{oom}")
-        if active == "yeobaek-app-blue": end(0, "running|yeobaek-dev|app-blue|127.0.0.1:8080;")
-        end(0, "running|yeobaek-dev|app-green|127.0.0.1:8081;")
+        if active == "yeobaek-app-blue": end(0, f"running|{project}|app-blue|127.0.0.1:8080;")
+        end(0, f"running|{project}|app-green|127.0.0.1:8081;")
     if args[:2] == ["container", "logs"]: end(0, "test application log")
     if args[:2] == ["container", "stop"]:
         if scenario == "stop-fail": end(1)
@@ -157,6 +158,33 @@ class DeployFlowTest(unittest.TestCase):
 
     def stopped(self):
         return [call[-1] for call in self.calls if call[:3] == ["docker", "container", "stop"]]
+
+    def test_production_uses_its_project_domain_and_nginx_staging_file(self):
+        domain = "https://yeobaek.duckdns.org/health"
+        self.env.update(COMPOSE_PROJECT_NAME="yeobaek", TEST_COMPOSE_PROJECT="yeobaek",
+                        HEALTH_URL=domain, DEPLOY_LABEL="운영")
+        self.assertEqual(0, self.deploy(), self.output)
+        self.assertIn("## 🟢 운영 배포 완료", self.summary.read_text())
+        compose = [call for call in self.calls if call[:2] == ["docker", "compose"]]
+        self.assertTrue(compose)
+        self.assertTrue(all(call[call.index("-p") + 1] == "yeobaek" for call in compose))
+        self.assertTrue(any(call[1:3] == ["-n", "mv"] and
+                            call[-2] == str(self.root / ".yeobaek-deploy.tmp")
+                            for call in self.calls if call[0] == "sudo"))
+        domain_checks = [call[3] for call in self.calls if call[0] == "python3" and
+                         call[2] == "health" and call[3].startswith("https://")]
+        self.assertEqual([domain, domain], domain_checks)
+
+    def test_production_legacy_app_fails_preflight_before_switching(self):
+        self.env.update(COMPOSE_PROJECT_NAME="yeobaek", DEPLOY_LABEL="운영")
+        (self.root / "state.json").write_text(json.dumps({
+            "containers": {"yeobaek-app": "running"}, "reloads": 0,
+        }))
+        self.assertEqual(1, self.deploy(), self.output)
+        self.assertEqual({"yeobaek-app": "running"}, self.state["containers"])
+        self.assertEqual(0, self.state["reloads"])
+        self.assertEqual(self.original, self.config.read_text())
+        self.assertFalse(any(call[:2] == ["docker", "compose"] for call in self.calls))
 
     def test_success_drains_before_stopping_old_app(self):
         self.assertEqual(0, self.deploy(), self.output)
