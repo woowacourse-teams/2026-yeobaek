@@ -15,10 +15,11 @@ import urllib.request
 
 INTERVAL = 1
 REQUEST_TIMEOUT = 3
+PRE_DEPLOY_CHECKS = 3
 MAX_DURATION = 1800
 AFTER_DEPLOYMENT = 300
 DEPLOYMENT_POLL_INTERVAL = 10
-READY_STEP = "Start external health checks"
+READY_STEP = "Record three pre-deploy health checks"
 MONITOR_JOB = "Measure deployment availability"
 DEPLOY_JOB = "Deploy application"
 
@@ -31,7 +32,7 @@ def epoch(value):
     return dt.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
 
 
-def probe(url, session, sequence, ready=None):
+def probe(url, session, sequence):
     started = timestamp()
     begin = time.monotonic()
     separator = "&" if "?" in url else "?"
@@ -43,8 +44,6 @@ def probe(url, session, sequence, ready=None):
             "--header", "Cache-Control: no-cache, no-store",
             "--write-out", "%{http_code}\n%{time_total}\n%header{deployed-commit-sha}", target,
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
-            if ready is not None:
-                ready.set()
             try:
                 stdout, _ = process.communicate(timeout=REQUEST_TIMEOUT + 1)
             except subprocess.TimeoutExpired:
@@ -85,7 +84,10 @@ def summarize(samples):
     if start is not None:
         outages.append({"startedAt": start, "recoveredAt": None, "estimatedSeconds": None})
     failures = sum(not sample["success"] for sample in ordered)
+    pre_deploy = [sample for sample in ordered if sample.get("phase") == "pre_deploy"]
     return {"total": len(ordered), "successes": len(ordered) - failures, "failures": failures,
+            "preDeployChecks": len(pre_deploy),
+            "preDeployFailures": sum(not sample["success"] for sample in pre_deploy),
             "outages": outages, "versions": versions,
             "estimatedRecoveredSeconds": round(sum(item["estimatedSeconds"] or 0 for item in outages), 3),
             "recoveryUnconfirmed": start is not None}
@@ -122,7 +124,7 @@ def wait_for_monitor():
                     return
                 raise RuntimeError("External measurement is too close to its time limit")
         time.sleep(3)
-    raise RuntimeError("External measurement did not start for this workflow attempt")
+    raise RuntimeError("Pre-deploy health checks did not complete for this workflow attempt")
 
 
 class DeploymentStatus:
@@ -147,31 +149,35 @@ class DeploymentStatus:
 def measure(url, session, ready_path, deployment):
     started, begin = timestamp(), time.monotonic()
     pending, samples = [], []
-    finished, ready = threading.Event(), threading.Event()
+    finished = threading.Event()
     poller = threading.Thread(target=deployment.poll, args=(finished,), daemon=True)
-    next_sequence, skipped, reason = 1, 0, "maximum_duration"
+    next_sequence, skipped, reason = 0, 0, "maximum_duration"
+    pre_deploy_completed = 0
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            pending.append(pool.submit(probe, url, session, 0, ready))
-            if not ready.wait(5):
-                pending[0].result()
-                raise RuntimeError("First health check did not start")
-            ready_path.touch()
-            poller.start()
             while time.monotonic() - begin < MAX_DURATION:
                 if deployment.completed and time.time() >= epoch(deployment.completed) + AFTER_DEPLOYMENT:
                     reason = "deployment_finished"
                     break
                 elapsed = time.monotonic() - begin
                 if elapsed >= next_sequence * INTERVAL:
-                    sequence = int(elapsed // INTERVAL)
+                    sequence = next_sequence
+                    if sequence >= PRE_DEPLOY_CHECKS:
+                        sequence = int(elapsed // INTERVAL)
                     skipped += sequence - next_sequence
                     pending.append(pool.submit(probe, url, session, sequence))
                     next_sequence = sequence + 1
                 completed = [future for future in pending if future.done()]
                 for future in completed:
-                    samples.append(future.result())
+                    sample = future.result()
+                    if sample["sequence"] < PRE_DEPLOY_CHECKS:
+                        sample["phase"] = "pre_deploy"
+                        pre_deploy_completed += 1
+                    samples.append(sample)
                     pending.remove(future)
+                    if sample.get("phase") == "pre_deploy" and pre_deploy_completed == PRE_DEPLOY_CHECKS:
+                        ready_path.touch()
+                        poller.start()
                 finished.wait(0.05)
             stopped = timestamp()
             samples.extend(future.result() for future in pending)

@@ -3,8 +3,9 @@ import json
 import os
 from pathlib import Path
 import sys
+import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import urllib.error
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -22,7 +23,7 @@ def job(step_conclusion, status="in_progress"):
 class WaitForMonitorTest(unittest.TestCase):
     @patch.object(measure.time, "sleep")
     @patch.object(measure, "jobs")
-    def test_waits_for_first_probe(self, jobs, sleep):
+    def test_waits_for_pre_deploy_check_results(self, jobs, sleep):
         jobs.side_effect = [job(None), job("success")]
         measure.wait_for_monitor()
         self.assertEqual(jobs.call_count, 2)
@@ -30,7 +31,7 @@ class WaitForMonitorTest(unittest.TestCase):
     @patch.object(measure, "jobs")
     def test_completed_monitor_cannot_release_deploy(self, jobs):
         jobs.return_value = job("success", status="completed")
-        with self.assertRaisesRegex(RuntimeError, "did not start"):
+        with self.assertRaisesRegex(RuntimeError, "did not complete"):
             measure.wait_for_monitor()
 
     @patch.object(measure.urllib.request, "urlopen")
@@ -41,6 +42,45 @@ class WaitForMonitorTest(unittest.TestCase):
         with patch.dict(os.environ, env):
             self.assertEqual(measure.jobs(), {})
         self.assertIn("/actions/runs/123/attempts/2/jobs", urlopen.call_args.args[0].full_url)
+
+
+class PreDeployChecksTest(unittest.TestCase):
+    @patch.object(measure, "AFTER_DEPLOYMENT", 0)
+    @patch.object(measure, "INTERVAL", 0.1)
+    @patch.object(measure, "MAX_DURATION", 2)
+    def test_waits_for_all_results_and_releases_deploy_even_with_failures(self):
+        third_check = threading.Event()
+        first_check_finished = threading.Event()
+        statuses = [(0, "timeout"), (502, "http_error"), (200, None)]
+
+        def probe(url, session, sequence):
+            started_at = measure.timestamp()
+            if sequence == 0:
+                self.assertTrue(third_check.wait(1))
+                first_check_finished.set()
+            if sequence == 2:
+                third_check.set()
+            status, error = statuses[sequence] if sequence < len(statuses) else (200, None)
+            return {"sequence": sequence, "startedAt": started_at, "statusCode": status,
+                    "commitSha": None, "success": status == 200, "error": error}
+
+        deployment = Mock(completed=None, conclusion=None)
+
+        def release_deploy():
+            self.assertTrue(first_check_finished.is_set())
+            deployment.completed = measure.timestamp()
+            deployment.conclusion = "success"
+
+        ready = Mock()
+        ready.touch.side_effect = release_deploy
+        with patch.object(measure, "probe", side_effect=probe):
+            samples, summary = measure.measure("https://app.example/health", "123-2", ready, deployment)
+
+        ready.touch.assert_called_once_with()
+        baseline = [sample for sample in samples if sample.get("phase") == "pre_deploy"]
+        self.assertEqual([(sample["statusCode"], sample["error"]) for sample in baseline], statuses)
+        self.assertEqual((summary["preDeployChecks"], summary["preDeployFailures"]), (3, 2))
+        self.assertEqual(summary["stopReason"], "deployment_finished")
 
 
 class BetterStackTest(unittest.TestCase):

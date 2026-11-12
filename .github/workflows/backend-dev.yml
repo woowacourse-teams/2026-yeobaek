@@ -96,7 +96,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Start external health checks
+      - name: Record three pre-deploy health checks
         shell: bash
         run: |
           export MONITOR_READY="$RUNNER_TEMP/deployment-monitor-ready"
@@ -107,7 +107,7 @@ jobs:
             if [[ -f "$MONITOR_READY" ]]; then exit 0; fi
             sleep 0.5
           done
-          echo "External measurement did not become ready" >&2
+          echo "Pre-deploy health checks did not complete" >&2
           exit 1
       - name: Collect and send measurement to Better Stack
         shell: bash
@@ -128,7 +128,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Wait for the first external health check
+      - name: Wait for pre-deploy health check results
         if: ${{ vars.MONITOR_DEV_ENABLED == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
