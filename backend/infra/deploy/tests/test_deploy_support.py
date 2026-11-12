@@ -247,7 +247,7 @@ class TemporaryCleanupTest(unittest.TestCase):
             own_temp = record / ".health-checks.json.tmp"
             own_temp.write_text("remove")
             with patch.object(support.subprocess, "run"):
-                support.cleanup_temporary(root, "/example/nginx.conf")
+                support.cleanup_temporary(root, "/example/.yeobaek-dev-deploy.tmp")
             self.assertEqual("keep", protected.read_text())
             self.assertFalse(own_temp.exists())
 
