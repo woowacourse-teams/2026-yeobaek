@@ -734,6 +734,63 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 self.assertEqual(ingest.read_bytes(), b"previous ingest")
                 self.assertEqual(archive.read_bytes(), b"previous archive")
 
+    def test_major_defect_blocks_final_conversion_until_retranslation_and_reevaluation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original, translation, meta_path, meta = self._write_book_inputs(root, "중대 결함 책")
+            brief = {"genre": "고전 문학", "coreSummary": ["기억의 이야기.", "선택의 이야기."],
+                     "keywords": ["기억", "선택", "시간"], "visualMotifs": ["시계"],
+                     "targetAudience": "성인 독자", "avoid": []}
+            (root / "표지_브리프.json").write_text(json.dumps(brief), encoding="utf-8")
+            cover_dir = root / "표지"
+            cover.prepare(meta, brief, cover_dir, "F")
+            image, prompt = cover_dir / "F.png", cover_dir / "프롬프트" / "F.txt"
+            self._write_png(image, 1)
+            review = {"schemaVersion": 2, "variants": {"F": {
+                "textExact": True, "frontCoverOnly": True, "styleMatch": True,
+                "legible": True, "publicationReady": True,
+                "imageSha256": cover._sha256_file(image), "promptSha256": cover._sha256_file(prompt)
+            }}, "setChecks": {"noExtraTextAcrossSet": True}}
+            (cover_dir / "표지_검수.json").write_text(json.dumps(review), encoding="utf-8")
+
+            translation.write_text("## I. 첫째\n\n마지막 문단.\n", encoding="utf-8")
+            data = create_evaluation(root, original, [translation], book_title=meta["title"])
+            data["defects"] = [{
+                "id": "D01", "criterion": "A1", "severity": "major", "description": "핵심 순서가 바뀌었다.",
+                "source_quote": "First paragraph.", "translation_quote": "마지막 문단.",
+                "locations": ["1장 1문단"],
+            }]
+            data["questions"][0].update(status="E", defect_ids=["D01"])
+            report = root / REPORT_NAME
+            report.write_bytes(render_report(data).encode("utf-8"))
+            ingest, archive = root / "ingest.json", root / "중대_결함_책.zip"
+            ingest.write_bytes(b"previous ingest")
+            archive.write_bytes(b"previous archive")
+            for flags in ((), ("--force",), ("--no-verify", "--force")):
+                with self.subTest(flags=flags):
+                    result = self._run_conversion(root, original, translation, meta_path, flags)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("중대 결함 1건", result.stderr)
+                    self.assertIn("재번역", result.stderr)
+                    self.assertEqual(ingest.read_bytes(), b"previous ingest")
+                    self.assertEqual(archive.read_bytes(), b"previous archive")
+
+            translation.write_text("## I. 첫째\n\n첫 문단.\n", encoding="utf-8")
+            stale = self._run_conversion(root, original, translation, meta_path)
+            self.assertIn("평가 후 입력이 변경", stale.stderr)
+            self.assertEqual(ingest.read_bytes(), b"previous ingest")
+            self.assertEqual(archive.read_bytes(), b"previous archive")
+
+            reevaluated = create_evaluation(root, original, [translation], book_title=meta["title"])
+            reevaluated["evaluation_id"] = "재번역 후 평가"
+            reevaluated["revisions"] = ["D01: 첫 문단으로 재번역하고 원문과 다시 대조했다."]
+            report.write_bytes(render_report(reevaluated).encode("utf-8"))
+            completed = self._run_conversion(root, original, translation, meta_path)
+            self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            with zipfile.ZipFile(archive) as zipped:
+                self.assertEqual(zipped.read(REPORT_NAME), report.read_bytes())
+                self.assertEqual(zipped.read("번역본/01_첫째.md"), translation.read_bytes())
+
     def test_changed_evaluation_input_preserves_existing_outputs(self):
         for target in ("원문.txt", "번역본/01_첫째.md", "번역_공통_가이드.md"):
             with self.subTest(target=target), tempfile.TemporaryDirectory() as tmp:

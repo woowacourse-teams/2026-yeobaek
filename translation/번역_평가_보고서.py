@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import string
 from collections import Counter, defaultdict
@@ -12,13 +13,38 @@ from pathlib import Path, PurePosixPath
 
 REPORT_NAME = "번역_평가_결과.md"
 STYLE_GUIDE_NAME = "번역_공통_가이드.md"
+DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
 SCHEMA_VERSION = 1
 RUBRIC_VERSION = "1.0"
-CRITERIA = tuple(
-    f"{area}{number}"
-    for area, size in zip("ABCDEFG", (5, 4, 4, 4, 3, 3, 2))
-    for number in range(1, size + 1)
-)
+# 번역_평가_기준.md의 코드와 표기 순서.
+CRITERION_NAMES = {
+    "A1": "사건·속성",
+    "A2": "논리·확실성",
+    "A3": "시간·진행",
+    "A4": "누락·가필",
+    "A5": "지시 대상",
+    "B1": "서술자·시점",
+    "B2": "함축·다의성",
+    "B3": "감정·태도",
+    "B4": "화행",
+    "C1": "호칭·높임말",
+    "C2": "인물의 목소리",
+    "C3": "서술 문체",
+    "C4": "작품별 문체 적합성",
+    "D1": "심상·비유",
+    "D2": "말장난·소리",
+    "D3": "반복·대비",
+    "D4": "호흡·속도",
+    "E1": "문화·제도",
+    "E2": "시대·사회 맥락",
+    "E3": "주석·설명 위치",
+    "F1": "문법·표기",
+    "F2": "어휘·결합",
+    "F3": "연결·읽기",
+    "G1": "명칭·용어",
+    "G2": "작품 전반의 관계·문체·모티프",
+}
+CRITERIA = tuple(CRITERION_NAMES)
 STATUSES = ("P", "E", "U", "NA", "NO")
 SEVERITIES = ("major", "minor", "unresolved")
 KINDS = ("common", "fact", "literary")
@@ -141,12 +167,19 @@ def _validate_questions(questions, defect_codes, scope_kind):
         if kind == "common":
             common_criteria.append(criterion)
         status = _choice(question, "status", STATUSES)
-        _str(question, "prompt")
-        _str(question, "reason")
-        _str(question, "location", allow_blank=status not in ("P", "E"))
-        _str(question, "source_quote", allow_blank=status not in ("P", "E"))
-        _str(question, "translation_quote", allow_blank=status != "P")
-        references = _unique(_strings(question, "defect_ids"), "questions.defect_ids")
+        if kind != "common" or "prompt" in question:
+            _str(question, "prompt", allow_blank=kind == "common")
+        if kind != "common" or status in ("U", "NA", "NO"):
+            _str(question, "reason")
+        elif "reason" in question:
+            _str(question, "reason", allow_blank=True)
+        needs_example = kind != "common" and status == "P"
+        for key in ("location", "source_quote", "translation_quote"):
+            if needs_example or key in question:
+                _str(question, key, allow_blank=not needs_example)
+        references = set()
+        if "defect_ids" in question:
+            references = _unique(_strings(question, "defect_ids"), "questions.defect_ids")
         if status == "E":
             _check(references and references <= defect_codes.keys(), "E 질문은 존재하는 결함 ID를 연결해야 합니다.")
         else:
@@ -182,8 +215,8 @@ def _validate_runs(runs):
             _str(run, "model_evidence")
             _check(run["unknown_reason"] is None, "모델 확인 시 unknown_reason은 null이어야 합니다.")
     _unique(ids, "runs.run_id")
-    _check(roles["translate"] >= 1 and roles["evaluate"] >= 2 and roles["adjudicate"] >= 1,
-           "번역 1회 이상, 독립 평가 2회 이상, 최종 재검토 1회 이상의 실행 기록이 필요합니다.")
+    _check(roles["translate"] >= 1 and roles["evaluate"] >= 1,
+           "번역과 독립 평가의 실행 기록이 각 1회 이상 필요합니다.")
 
 
 def _validate_record(data):
@@ -323,15 +356,27 @@ def render_report(data):
     _append_items(lines, "평가 한계", data["limitations"])
     lines.extend(["", "## 질문별 판정", ""])
     for question in data["questions"]:
-        lines.append(f"- **{_md(question['id'])} · {question['criterion']} · {question['status']}** {_md(question['prompt'])}")
-        if question["location"].strip():
-            lines.append(f"  - 위치 {_md(question['location'])}")
-        lines.append(f"  - {_md(question['reason'])}")
-        if question["source_quote"].strip():
-            lines.append(f"  - 원문 「{_md(question['source_quote'])}」")
-        if question["translation_quote"].strip():
-            lines.append(f"  - 번역 「{_md(question['translation_quote'])}」")
-        if question["defect_ids"]:
+        criterion = question["criterion"]
+        label_parts = [criterion]
+        if question["id"] != criterion:
+            label_parts.insert(0, _md(question["id"]))
+        if question["kind"] == "common":
+            label_parts.append(CRITERION_NAMES[criterion])
+        label_parts.append(question["status"])
+        label = "- **" + " · ".join(label_parts) + "**"
+        if question.get("prompt"):
+            label += f" {_md(question['prompt'])}"
+        lines.append(label)
+        if question.get("reason", "").strip():
+            lines.append(f"  - {_md(question['reason'])}")
+        if question["status"] != "E":
+            if question.get("location", "").strip():
+                lines.append(f"  - 위치 {_md(question['location'])}")
+            if question.get("source_quote", "").strip():
+                lines.append(f"  - 원문 「{_md(question['source_quote'])}」")
+            if question.get("translation_quote", "").strip():
+                lines.append(f"  - 번역 「{_md(question['translation_quote'])}」")
+        if question.get("defect_ids"):
             lines.append("  - 결함 " + ", ".join(map(_md, question["defect_ids"])))
 
     data_json = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False)
@@ -348,32 +393,70 @@ def _read_record(raw):
     return json.loads(raw, object_pairs_hook=_unique_json_object)
 
 
-def _validate_input_files(data, book_dir, original_path, translation_paths):
-    inputs = data["inputs"]
-    originals = [(inputs["source"], original_path.resolve()),
-                 (inputs["style_guide"], (book_dir / STYLE_GUIDE_NAME).resolve())]
+def _resolve_translation_files(book_dir, translation_paths):
     translation_paths = [path.resolve() for path in translation_paths]
-    translations = inputs["translations"]
-    _check(len(translations) == len(translation_paths), "평가 대상과 최종 변환의 번역 파일 수가 다릅니다.")
-    _unique(translation_paths, "최종 변환 번역 경로")
+    _unique(translation_paths, "번역 파일 경로")
     archived_translations = {
         path.resolve()
         for path in (book_dir / "번역본").rglob("*")
         if path.is_file() and path.suffix.lower() == ".md"
     }
-    _check(set(translation_paths) == archived_translations, "번역본/의 Markdown 파일 목록과 최종 변환 대상이 다릅니다.")
+    _check(set(translation_paths) == archived_translations, "번역본/의 Markdown 파일 목록과 지정한 파일이 다릅니다.")
     translation_dir = book_dir / "번역본"
     _check(all(path.is_relative_to(translation_dir) for path in translation_paths),
            "번역 파일은 책 폴더의 번역본/ 안에 있어야 합니다.")
+    return translation_paths
+
+
+def _file_sha256(path):
+    _check(path.is_file(), f"평가 입력 파일을 찾을 수 없습니다: {path}")
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _validate_input_files(data, book_dir, original_path, translation_paths):
+    inputs = data["inputs"]
+    originals = [(inputs["source"], original_path.resolve()),
+                 (inputs["style_guide"], (book_dir / STYLE_GUIDE_NAME).resolve())]
+    translations = inputs["translations"]
+    translation_paths = _resolve_translation_files(book_dir, translation_paths)
     _check([path.relative_to(book_dir).as_posix() for path in translation_paths] == [
         record["path"] for record in translations
     ], "평가 기록의 번역 경로와 최종 변환의 경로·순서가 다릅니다.")
     for record, path in originals + list(zip(translations, translation_paths)):
         name = record["path"]
         _check((book_dir / name).resolve() == path, f"평가 입력 경로 또는 번역 파일 순서가 다릅니다: {name}")
-        _check(path.is_file(), f"평가 입력 파일을 찾을 수 없습니다: {path}")
-        current_hash = hashlib.sha256(path.read_bytes()).hexdigest()
-        _check(current_hash == record["sha256"], f"평가 후 입력이 변경되었습니다: {name}. 최종본을 다시 평가하세요.")
+        _check(_file_sha256(path) == record["sha256"], f"평가 후 입력이 변경되었습니다: {name}. 최종본을 다시 평가하세요.")
+
+
+def _capture_inputs(args):
+    _check(args.original is not None and args.translations,
+           "입력 수집에는 --original과 --translations가 필요합니다.")
+    _check(args.output is None, "입력 수집 결과의 경로는 평가 기록 JSON 위치에 지정합니다.")
+    book_dir = (args.book_dir or Path.cwd()).resolve()
+    record_path = args.record
+    _check(not record_path.resolve().is_relative_to((book_dir / "번역본").resolve()),
+           "평가 기록은 번역본/ 밖에 저장하세요.")
+    _check(not record_path.exists() and not record_path.is_symlink(),
+           "평가 기록이 이미 있습니다. 다시 평가할 때는 새 기록 경로를 지정하세요.")
+    translations = _resolve_translation_files(book_dir, [book_dir / path for path in args.translations])
+
+    def file_record(path):
+        return {"path": Path(os.path.relpath(path, book_dir)).as_posix(), "sha256": _file_sha256(path)}
+
+    inputs = {
+        "source": file_record(book_dir / args.original),
+        "translations": [file_record(path) for path in translations],
+        "style_guide": file_record(book_dir / STYLE_GUIDE_NAME),
+    }
+    if args.source_index is not None:
+        inputs["source_index"] = file_record(book_dir / args.source_index)
+    else:
+        inputs["chapter_pattern"] = DEFAULT_CHAPTER_RE if args.chapter_re is None else args.chapter_re
+    _validate_inputs(inputs)
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    with record_path.open("x", encoding="utf-8", newline="\n") as record_file:
+        json.dump({"inputs": inputs}, record_file, ensure_ascii=False, indent=2)
+        record_file.write("\n")
 
 
 def load_report(path, *, book_dir, original_path, translation_paths):
@@ -407,11 +490,26 @@ def _protect_report_output(output, record_path, inputs):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="번역 평가 기록을 Markdown 보고서로 생성합니다.")
-    parser.add_argument("record", type=Path, help="평가 기록 JSON")
-    parser.add_argument("--output", type=Path, default=Path(REPORT_NAME), help="출력 Markdown")
+    parser = argparse.ArgumentParser(description="평가 입력을 기록하거나 번역 평가 Markdown 보고서를 생성합니다.")
+    parser.add_argument("record", type=Path, help="평가 기록 JSON (입력 수집 시 새 파일)")
+    parser.add_argument("--output", type=Path, help=f"출력 Markdown (기본값: {REPORT_NAME})")
+    parser.add_argument("--capture-inputs", action="store_true", help="평가 시작 시 실제 입력을 새 JSON에 기록")
+    parser.add_argument("--book-dir", type=Path, help="입력 수집의 기준 폴더 (기본값: 현재 폴더)")
+    parser.add_argument("--original", type=Path, help="입력 수집에 사용할 원문")
+    parser.add_argument("--translations", type=Path, nargs="+", help="입력 수집에 사용할 번역 파일 (최종 변환 순서)")
+    structure = parser.add_mutually_exclusive_group()
+    structure.add_argument("--source-index", type=Path, help="입력 수집에 사용할 원문 색인")
+    structure.add_argument("--chapter-re", help="입력 수집에 사용할 장 제목 정규식")
     args = parser.parse_args(argv)
     try:
+        if args.capture_inputs:
+            _capture_inputs(args)
+            return
+        _check(all(option is None for option in (
+            args.original, args.translations, args.book_dir, args.source_index, args.chapter_re,
+        )), "원문·번역·장 구분 옵션은 --capture-inputs와 함께 사용하세요.")
+        if args.output is None:
+            args.output = Path(REPORT_NAME)
         _check(args.output.name == REPORT_NAME, f"보고서 출력 파일명은 {REPORT_NAME}이어야 합니다.")
         data = _read_record(args.record.read_text(encoding="utf-8-sig"))
         report = render_report(data)

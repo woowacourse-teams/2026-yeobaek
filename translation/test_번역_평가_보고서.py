@@ -7,7 +7,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from 번역_평가_보고서 import CRITERIA, REPORT_NAME, STYLE_GUIDE_NAME, load_report, render_report, summarize
+from 번역_평가_보고서 import (
+    CRITERIA,
+    DEFAULT_CHAPTER_RE,
+    REPORT_NAME,
+    STYLE_GUIDE_NAME,
+    load_report,
+    render_report,
+    summarize,
+)
 
 
 def create_evaluation(book_dir, original, translations, *, source_language="en", book_title="시험 도서",
@@ -63,11 +71,11 @@ def create_evaluation(book_dir, original, translations, *, source_language="en",
             "source": file_record(original),
             "translations": [file_record(path) for path in translations],
             "style_guide": file_record(book_dir / STYLE_GUIDE_NAME),
-            "chapter_pattern": r"^[IVXLCDM]+\.\s+\S",
+            "chapter_pattern": DEFAULT_CHAPTER_RE,
         },
         "question_set_id": "시험 문항 세트",
         "questions": [
-            *(question(code, "common", code) for code in CRITERIA),
+            *({"id": code, "kind": "common", "criterion": code, "status": "P"} for code in CRITERIA),
             question("F01", "fact", "A1"),
             question("L01", "literary", "D4"),
         ],
@@ -77,8 +85,6 @@ def create_evaluation(book_dir, original, translations, *, source_language="en",
         "runs": [
             run("translation-1", "translate"),
             run("evaluation-1", "evaluate"),
-            run("evaluation-2", "evaluate"),
-            run("adjudication-1", "adjudicate"),
         ],
     }
 
@@ -121,6 +127,19 @@ class QualityReportTests(unittest.TestCase):
             capture_output=True,
         )
 
+    def run_capture_cli(self, record_path, *options, cwd=None, translations=None):
+        script = Path(__file__).with_name("번역_평가_보고서.py")
+        if translations is None:
+            translations = [path.relative_to(self.book_dir) for path in self.translations]
+        return subprocess.run(
+            [sys.executable, str(script), str(record_path), "--capture-inputs",
+             "--original", str(Path("..") / self.original.name),
+             "--translations", *map(str, translations), *map(str, options)],
+            cwd=cwd or self.book_dir,
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            capture_output=True,
+        )
+
     def test_cli_round_trip_keeps_one_json_block_and_escapes_markdown(self):
         self.record["book_title"] = "시험 [제목]"
         self.record["runs"][0]["method"] = "모델 \x60\x60\x60 | 분리\n다음 줄"
@@ -131,6 +150,7 @@ class QualityReportTests(unittest.TestCase):
         report = self.report.read_bytes().decode("utf-8")
         self.assertNotIn("\r", report)
         self.assertTrue(report.startswith("# 번역 평가 결과 — 시험 \\[제목\\]\n"))
+        self.assertIn("**A1 · 사건·속성 · P**", report)
         self.assertIn(r"\| 분리 다음 줄", report)
         self.assertEqual(report.count("\n" + "\x60" * 3 + "json\n"), 1)
 
@@ -157,6 +177,8 @@ class QualityReportTests(unittest.TestCase):
         fact, literary = self.record["questions"][-2:]
         for question in (common, fact):
             question.update(status="E", defect_ids=["X01"])
+        for key in ("location", "source_quote", "translation_quote"):
+            del fact[key]
         literary.update(status="U", reason="가려진 표현의 강도를 판단할 판본 근거가 부족하다.")
 
         summary = summarize(self.record)
@@ -164,6 +186,22 @@ class QualityReportTests(unittest.TestCase):
         self.assertEqual(summary["common_counts"]["E"], 1)
         self.assertEqual(summary["source_counts"], {"P": 0, "E": 1, "U": 1, "NA": 0, "NO": 0})
         self.assertEqual((summary["applicable"], summary["lower"], summary["upper"]), (2, 0.5, 1))
+        self.write_report()
+        self.assertEqual(self.read_report(), self.record)
+        report_body = self.report.read_text(encoding="utf-8").split("## 집계용 평가 기록", 1)[0]
+        self.assertEqual(report_body.count("원문 「fourteen or younger」"), 1)
+
+    def test_compact_questions_require_reasons_for_nonjudgments_and_evidence_for_source_preservation(self):
+        common, fact = self.record["questions"][0], self.record["questions"][-2]
+        for status in ("U", "NA", "NO"):
+            with self.subTest(status=status):
+                common["status"] = status
+                with self.assertRaisesRegex(ValueError, "reason"):
+                    render_report(self.record)
+        common.update(reason="확인할 대응 문단이 평가에서 제외되었다.")
+        fact.pop("source_quote")
+        with self.assertRaisesRegex(ValueError, "source_quote"):
+            render_report(self.record)
 
     def test_summary_leaves_bounds_empty_for_unevaluated_or_inapplicable_questions(self):
         fact, literary = self.record["questions"][-2:]
@@ -208,6 +246,7 @@ class QualityReportTests(unittest.TestCase):
             **defect, "id": "X02", "description": "장소의 속성이 바뀌었다.", "locations": ["1장 2문단"],
         }]
         common = self.record["questions"][0]
+        common["reason"] = "공통 항목의 결함 상태 검증용 사유"
         for status in ("P", "U", "NA", "NO"):
             with self.subTest(common_status=status):
                 common["status"] = status
@@ -245,14 +284,68 @@ class QualityReportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "함께 기록"):
             render_report(self.record)
 
-    def test_rejects_missing_independent_run_and_noninteger_scope(self):
+    def test_requires_at_least_one_independent_run_and_integer_scope(self):
         self.record["scope"]["total_paragraphs"] = True
         with self.assertRaisesRegex(ValueError, "total_paragraphs"):
             render_report(self.record)
         self.record["scope"]["total_paragraphs"] = 1
-        self.record["runs"].pop(2)
+        self.write_report()
+        self.assertEqual([run["role"] for run in self.read_report()["runs"]], ["translate", "evaluate"])
+        self.record["runs"].pop()
         with self.assertRaisesRegex(ValueError, "독립 평가"):
             render_report(self.record)
+
+    def test_capture_tracks_actual_input_order_and_preserves_existing_record(self):
+        relative_record_path = Path("작업") / "평가.json"
+        record_path = self.book_dir / relative_record_path
+        ordered_translations = list(reversed(self.translations))
+        result = self.run_capture_cli(
+            relative_record_path, translations=[path.relative_to(self.book_dir) for path in ordered_translations],
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        expected = create_evaluation(self.book_dir, self.original, ordered_translations)["inputs"]
+        original_record = record_path.read_bytes()
+        self.assertEqual(json.loads(original_record), {"inputs": expected})
+
+        self.record["inputs"] = json.loads(original_record)["inputs"]
+        self.write_report()
+        self.assertEqual(self.read_report(ordered_translations), self.record)
+        ordered_translations[0].write_bytes(b"updated translation")
+        rejected = self.run_capture_cli(relative_record_path)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertEqual(record_path.read_bytes(), original_record)
+        with self.assertRaisesRegex(ValueError, "평가 후 입력이 변경"):
+            self.read_report(ordered_translations)
+
+    def test_capture_supports_book_directory_and_source_index(self):
+        work_dir = self.book_dir.parent
+        record_path = work_dir / "평가.json"
+        index = work_dir / "색인.json"
+        index.write_bytes(b"{\"source_index\": true}\n")
+        result = self.run_capture_cli(
+            record_path.name, "--book-dir", self.book_dir.name, "--source-index", f"../{index.name}",
+            cwd=work_dir,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8"))
+        inputs = json.loads(record_path.read_bytes())["inputs"]
+        expected = {key: value for key, value in self.record["inputs"].items() if key != "chapter_pattern"}
+        self.assertEqual(inputs, {
+            **expected, "source_index": {"path": f"../{index.name}", "sha256": hashlib.sha256(index.read_bytes()).hexdigest()},
+        })
+
+    def test_capture_rejects_incomplete_translation_set_without_creating_record(self):
+        record_path = self.book_dir / "평가.json"
+        result = self.run_capture_cli(record_path, translations=[self.translations[0]])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("파일 목록", result.stderr.decode("utf-8"))
+        self.assertFalse(record_path.exists())
+
+    def test_capture_cannot_create_files_inside_translation_folder(self):
+        record_path = self.translations[0].parent / "평가.md"
+        result = self.run_capture_cli(record_path)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("번역본/ 밖", result.stderr.decode("utf-8"))
+        self.assertFalse(record_path.exists())
 
     def test_rejects_changed_input_bytes(self):
         self.write_report()

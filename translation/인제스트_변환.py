@@ -2,7 +2,7 @@
 """번역본(마크다운) → 문장 단위 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
 
 최종 보관용 ZIP에는 원문 파일, 최종 번역 평가 결과와 표지 산출물을 함께 보관한다.
-최종 변환은 책 폴더의 번역_평가_결과.md와 평가 입력의 경로·순서·해시를 검증한다.
+최종 변환은 평가 입력의 경로·순서·해시를 검증하고, 남은 중대 결함이 있으면 중단한다.
 표지 생성·검증 자체는 `표지_하네스.md`와 `표지_시안_준비.py`가 담당한다.
 
 번역본 형식(번역_지침.md의 [4. 구조 보존 규칙]):
@@ -45,16 +45,12 @@ import subprocess
 import sys
 import zipfile
 from 표지_시안_준비 import manifest_variant_ids
-from 번역_평가_보고서 import REPORT_NAME, load_report, summarize
+from 번역_평가_보고서 import DEFAULT_CHAPTER_RE, REPORT_NAME, load_report, summarize
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
-
-# 기본값: 열 0에서 시작하는 로마숫자 장 제목 ("I. Silver Blaze" 형태)
-# 다른 형식의 책은 --chapter-re로 교체한다. 예: "^CHAPTER [IVXLCDM]+" , "^Chapter \d+"
-DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
 
 SENTENCE_TERMINATORS = ".?!。？！…"
 SENTENCE_CLOSERS = "\"'’”)]}〉》」』】〕］｝）〗〙〛｠»›"
@@ -1587,6 +1583,13 @@ def main():
             raise ValueError("원문 색인을 사용한 평가는 같은 --source-index로 변환해야 합니다.")
         elif evaluation["inputs"].get("chapter_pattern") != args.chapter_re:
             raise ValueError("평가 보고서와 최종 변환의 원문 장 구분 패턴이 다릅니다.")
+        measurement = summarize(evaluation)
+        major_count = measurement["defect_counts"]["major"]
+        if major_count:
+            raise ValueError(
+                f"중대 결함 {major_count}건이 남아 있습니다. 해당 범위를 재번역하고 "
+                "주변 문맥·관련 항목을 재평가한 뒤 보고서를 다시 생성하세요."
+            )
     except (ValueError, OSError, UnicodeError) as error:
         sys.exit(f"[번역 평가 검증 실패] {error} — ingest.json과 ZIP을 출력하지 않았습니다.")
 
@@ -1600,7 +1603,6 @@ def main():
                    source_index=args.source_index, source_index_review=args.source_index_review,
                    quality_report=report_path)
     print(f"ZIP 저장 완료: {zip_output}")
-    measurement = summarize(evaluation)
     print(f"최종 번역 평가: {evaluation['scope']['evaluated_paragraphs']}/{total}문단, "
           f"고정 질문 {measurement['source_counts']}, 고유 결함 {measurement['defect_counts']}")
     print(f"평가 기준 {evaluation['rubric_version']} / 결과·사용 모델 기록: {report_path}")
