@@ -36,6 +36,7 @@ import com.yeobaek.core.designsystem.theme.YeobaekTextSubtle
 fun DeleteCommentDialog(
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
+    errorMessage: String? = null,
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -73,6 +74,10 @@ fun DeleteCommentDialog(
                         lineHeight = 20.sp,
                     ),
                 )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = errorMessage, color = YeobaekError, style = MaterialTheme.typography.bodySmall)
+                }
                 Spacer(modifier = Modifier.height(17.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),

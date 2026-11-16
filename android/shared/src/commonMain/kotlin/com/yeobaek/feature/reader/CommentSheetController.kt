@@ -285,7 +285,7 @@ class CommentSheetController(
     fun dismiss() {
         cancelLoad()
         refreshPending = false
-        uiState?.let { sheet ->
+        uiState?.takeUnless { it.isPanelDeleteOnly }?.let { sheet ->
             analytics.sheetClosed(
                 commentCount = sheet.comments.size,
                 // 댓글을 불러오지 못한 시트는 남의 댓글 수를 알 수 없으므로 보내지 않는다.
@@ -372,11 +372,31 @@ class CommentSheetController(
         )
     }
 
+    fun requestPanelDelete(sentence: SentenceUiModel, comments: List<CommentUiModel>, commentId: Long) {
+        if (uiState?.canSwitchSentence == false || comments.none { it.commentId == commentId && it.isMine }) return
+
+        dismiss()
+        sheetVersion++
+        uiState = CommentSheetUiState(
+            sentenceId = sentence.sentenceId,
+            sentenceContent = sentence.content,
+            comments = comments,
+            openedInPanel = true,
+            isPanelDeleteOnly = true,
+        )
+        requestDelete(commentId)
+    }
+
     fun cancelDelete() {
         val sheet = uiState ?: return
         if (sheet.isDeleting) return
         if (sheet.deletingCommentId != null) {
             analytics.deleteCanceled()
+        }
+
+        if (sheet.isPanelDeleteOnly) {
+            dismiss()
+            return
         }
 
         uiState = sheet.copy(
@@ -390,6 +410,7 @@ class CommentSheetController(
         val commentId = sheet.deletingCommentId ?: return
         if (sheet.isDeleting || sheet.isSubmitting) return
         if (sheet.findMyComment(commentId) == null) return
+        val requestSheetVersion = sheetVersion
 
         prepareMutation()
 
@@ -407,13 +428,13 @@ class CommentSheetController(
             try {
                 commentRepository.deleteComment(commentId)
 
-                updateSheet(
+                val updated = updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isDeleting },
                 ) { currentSheet ->
                     currentSheet.withCommentDeleted(commentId)
                 }
-                val commentCount = sheet.withCommentDeleted(commentId).comments.size
+                val commentCount = updated?.comments?.size ?: sheet.comments.count { it.commentId != commentId }
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
@@ -421,6 +442,10 @@ class CommentSheetController(
                     itemCount = commentCount,
                 )
                 analytics.deleted(result = EventResult.SUCCESS)
+                val lastPanelCommentDeleted = updated?.openedInPanel == true && commentCount == 0
+                if (updated?.isPanelDeleteOnly == true || lastPanelCommentDeleted) {
+                    dismiss()
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -432,7 +457,7 @@ class CommentSheetController(
                 analytics.deleted(result = EventResult.FAILURE)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isDeleting },
                 ) { currentSheet ->
                     currentSheet.copy(
                         isDeleting = false,
@@ -457,6 +482,7 @@ class CommentSheetController(
             return
         }
         val editingCommentId = sheet.editingCommentId
+        val requestSheetVersion = sheetVersion
 
         prepareMutation()
 
@@ -482,26 +508,24 @@ class CommentSheetController(
                     commentRepository.updateComment(editingCommentId, content)
                 }.toUiModel()
 
-                updateSheet(
+                val updated = updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isSubmitting },
                 ) { currentSheet ->
                     currentSheet.withCommentSaved(
                         savedComment = savedComment,
                         editedCommentId = editingCommentId,
                     )
                 }
-                val commentCount = sheet.withCommentSaved(
-                    savedComment = savedComment,
-                    editedCommentId = editingCommentId,
-                ).comments.size
+                val commentCount = updated?.comments?.size
+                    ?: (sheet.comments.size + if (editingCommentId == null) 1 else 0)
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
-                didSubmitInSheet = true
+                if (updated != null) didSubmitInSheet = true
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     passageSequence = sheet.targetPassageSequence,
@@ -510,6 +534,9 @@ class CommentSheetController(
                     commentLength = content.length,
                     result = EventResult.SUCCESS,
                 )
+                if (updated != null && sheet.openedInPanel) {
+                    dismiss()
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -528,7 +555,7 @@ class CommentSheetController(
                 )
                 updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isSubmitting },
                 ) { currentSheet ->
                     currentSheet.copy(
                         isSubmitting = false,
@@ -720,10 +747,10 @@ class CommentSheetController(
         sentenceId: Long,
         isWaiting: (CommentSheetUiState) -> Boolean,
         transform: (CommentSheetUiState) -> CommentSheetUiState,
-    ) {
+    ): CommentSheetUiState? {
         val sheet = uiState
             ?.takeIf { currentSheet -> currentSheet.sentenceId == sentenceId && isWaiting(currentSheet) }
-            ?: return
+            ?: return null
         val updated = transform(sheet)
         uiState = updated
         if (
@@ -734,10 +761,11 @@ class CommentSheetController(
             onCommentsUpdated(sentenceId, updated.comments)
         }
         persistDraft()
+        return updated
     }
 
     private fun persistDraft() {
-        val sheet = uiState ?: return
+        val sheet = uiState?.takeUnless { it.isPanelDeleteOnly } ?: return
         savedStateHandle[SHEET_INPUT_KEY] = sheet.input
         if (sheet.editingCommentId == null) {
             savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)

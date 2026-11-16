@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
@@ -43,6 +44,7 @@ fun CommentItem(
     modifier: Modifier = Modifier,
     reserveLikeCountSpace: Boolean = false,
 ) {
+    val focusManager = LocalFocusManager.current
     var isMenuExpanded by remember(comment.commentId) {
         mutableStateOf(false)
     }
@@ -60,9 +62,10 @@ fun CommentItem(
     val longPressLabel = if (comment.isMine) "댓글 수정 및 삭제 메뉴 열기" else "댓글 신고 메뉴 열기"
     val menuButtonDescription = if (comment.isMine) "댓글 메뉴 열기" else "댓글 신고하기"
 
-    val longPressModifier = Modifier
-        .pointerInput(comment.commentId) {
+    val commentGestures = Modifier
+        .pointerInput(comment.commentId, focusManager) {
             detectTapGestures(
+                onTap = { focusManager.clearFocus() },
                 onLongPress = {
                     isMenuExpanded = true
                 },
@@ -78,7 +81,7 @@ fun CommentItem(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(longPressModifier),
+            .then(commentGestures),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -65,10 +65,11 @@ fun ReaderScreen(
     panelLikeError: String? = null,
 ) {
     val showCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
-    val panelThread = commentSheet?.takeIf {
+    val visibleThread = commentSheet?.takeUnless { it.isPanelDeleteOnly }
+    val panelThread = visibleThread?.takeIf {
         showCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
     }
-    val modalThread = commentSheet?.takeIf { panelThread == null && !it.openedInPanel }
+    val modalThread = visibleThread?.takeIf { panelThread == null && !it.openedInPanel }
     val isReaderOverlayVisible = uiState.isTableOfContentsVisible || uiState.isCommentCollectionsVisible
     val panelThreadToRecord = panelThread?.takeUnless { it.openedInPanel }?.sentenceId
     LaunchedEffect(panelThreadToRecord) {
@@ -78,6 +79,7 @@ fun ReaderScreen(
     PlatformBackHandler(
         onBack = {
             when {
+                commentSheet?.deletingCommentId != null -> commentSheetActions.onDeleteCancel()
                 modalThread != null -> commentSheetActions.onDismiss()
                 uiState.isCommentCollectionsVisible -> actions.onCommentCollectionsDismiss()
                 uiState.isTableOfContentsVisible -> actions.onTableOfContentsDismiss()
@@ -252,6 +254,7 @@ fun ReaderScreen(
         DeleteCommentDialog(
             onDismissRequest = commentSheetActions.onDeleteCancel,
             onConfirm = commentSheetActions.onDeleteConfirm,
+            errorMessage = commentSheet.deleteErrorMessage,
         )
     }
 }

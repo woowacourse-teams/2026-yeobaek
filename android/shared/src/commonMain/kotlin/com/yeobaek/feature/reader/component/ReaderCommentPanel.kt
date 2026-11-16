@@ -7,6 +7,7 @@ import android.shared.generated.resources.reader_sentence_comment_group_count
 import android.shared.generated.resources.reader_sentence_comments_title
 import android.shared.generated.resources.reader_write_sentence_comment
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -129,13 +131,13 @@ fun ReaderCommentPanel(
         }
     }
 
-    LaunchedEffect(thread?.sentenceId, thread?.submittedCommentId) {
-        val submittedId = thread?.submittedCommentId ?: return@LaunchedEffect
-        val index = thread.comments.indexOfFirst { it.commentId == submittedId }
-        if (index >= 0) listState.animateScrollToItem(selectedStart + index + 1)
-    }
-
-    Row(modifier = modifier.background(MaterialTheme.colorScheme.surface)) {
+    Row(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .pointerInput(focusManager) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            },
+    ) {
         VerticalDivider(Modifier.fillMaxHeight())
         Column(modifier = Modifier.weight(1f).fillMaxHeight().imePadding()) {
             Row(

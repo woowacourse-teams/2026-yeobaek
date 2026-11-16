@@ -1,14 +1,20 @@
 package com.yeobaek
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
@@ -21,25 +27,47 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performFirstLinkClick
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.lifecycleScope
 import com.yeobaek.core.analytics.CommentSheetSource
+import com.yeobaek.core.common.TrackedScreen
+import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
+import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.model.CommentModel
+import com.yeobaek.data.model.CommentSpace
+import com.yeobaek.data.model.CommentedSentenceFilter
+import com.yeobaek.data.model.CommentedSentencesModel
+import com.yeobaek.data.model.CommentsModel
+import com.yeobaek.data.model.NewCommentCountModel
+import com.yeobaek.data.repository.CommentRepository
 import com.yeobaek.feature.reader.CommentSheetActions
+import com.yeobaek.feature.reader.CommentSheetAnalytics
+import com.yeobaek.feature.reader.CommentSheetController
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderLoadState
+import com.yeobaek.feature.reader.ReaderPanelCommentAction
 import com.yeobaek.feature.reader.ReaderPanelThread
 import com.yeobaek.feature.reader.ReaderPassageText
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderUiState
+import com.yeobaek.feature.reader.ReadingSessionTracker
 import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
+import com.yeobaek.feature.reader.model.toUiModel
+import kotlinx.coroutines.awaitCancellation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -168,6 +196,42 @@ class ReaderCommentPresentationTest {
     }
 
     @Test
+    fun tappingOutsideThePanelInputClearsFocusAndKeepsTheDraft() {
+        val sentence = SentenceUiModel(1, 1, "댓글이 있는 문장.", 1)
+        val comments = listOf(comment(10, "기존 댓글"))
+        setReaderContent(
+            windowSize = mutableStateOf(IntSize(1_194, 834)),
+            thread = mutableStateOf(
+                CommentSheetUiState(
+                    sentenceId = sentence.sentenceId,
+                    sentenceContent = sentence.content,
+                    comments = comments,
+                    input = "작성 중인 댓글",
+                    openedInPanel = true,
+                ),
+            ),
+            passages = LoadedPassages(listOf(PassageUiModel(1, 1, 1, listOf(sentence)))),
+            panelThreads = mapOf(1L to ReaderPanelThread.Loaded(comments)),
+            suppressKeyboard = true,
+        )
+
+        val input = rule.onNodeWithContentDescription("댓글 입력")
+        fun assertTapClearsFocus(tap: () -> Unit) {
+            input.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            input.assertIsFocused()
+            tap()
+            input.assertIsNotFocused()
+            rule.onNodeWithText("작성 중인 댓글").assertIsDisplayed()
+        }
+        assertTapClearsFocus {
+            rule.onNodeWithText("기존 댓글").assertIsDisplayed().performTouchInput { click() }
+        }
+        assertTapClearsFocus {
+            rule.onNodeWithText("문장 댓글").assertIsDisplayed().performTouchInput { click() }
+        }
+    }
+
+    @Test
     fun showsMultipleThreadsImmediatelyAndReplacesThemWhenThePassageScrolls() {
         val thread = mutableStateOf<CommentSheetUiState?>(null)
         val passages = LoadedPassages(
@@ -247,6 +311,137 @@ class ReaderCommentPresentationTest {
         rule.onNodeWithText("작성 중인 초안").assertDoesNotExist()
     }
 
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun deletingTheFinalCommentRemovesTheSentenceAndSavingClosesTheEditor() {
+        val first = SentenceUiModel(1, 1, "내 댓글이 있는 문장. ", 2)
+        val second = SentenceUiModel(2, 2, "다른 댓글이 있는 문장. ", 1)
+        val repository = CommentMutationRepository()
+        val passages = mutableStateOf(LoadedPassages(listOf(PassageUiModel(1, 1, 1, listOf(first, second)))))
+        val previews = mutableStateMapOf<Long, ReaderPanelThread>(
+            1L to ReaderPanelThread.Loaded(repository.comments.map { it.toUiModel() }),
+            2L to ReaderPanelThread.Loaded(listOf(comment(20, "다른 문장의 댓글"))),
+        )
+        val controller = CommentSheetController(
+            savedStateHandle = SavedStateHandle(),
+            commentSpace = CommentSpace.PublicRoom(1),
+            commentRepository = repository,
+            crashReporter = CrashReporter(isDebug = true),
+            scope = rule.activity.lifecycleScope,
+            crashContext = { operation, _, _ -> CrashContext(TrackedScreen.READER, operation) },
+            onCommentCountChanged = { sentenceId, count ->
+                passages.value = passages.value.updateCommentCount(sentenceId, count)
+            },
+            onCommentsViewed = {},
+            onCommentsUpdated = { sentenceId, comments -> previews[sentenceId] = ReaderPanelThread.Loaded(comments) },
+            onLikeUpdated = { _, _ -> },
+            analytics = CommentSheetAnalytics({}, ReadingSessionTracker({}), { 1L }, { 1 }, { false }),
+            isCommentLikeEnabled = { true },
+            isPanelLikePending = { false },
+        )
+        rule.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(1_194.dp, 834.dp))) {
+                YeobaekTheme {
+                    ReaderScreen(
+                        uiState = ReaderUiState(
+                            loadState = ReaderLoadState.Success,
+                            title = "테스트 책",
+                            passages = passages.value,
+                            readingSequence = 1,
+                            totalPassageCount = 1,
+                        ),
+                        commentSheet = controller.uiState,
+                        actions = createReaderActions(
+                            onPanelLike = { _, _ -> },
+                            onPanelThreadShown = {},
+                            onPanelCommentAction = { sentence, commentId, action ->
+                                val comments = (previews[sentence.sentenceId] as ReaderPanelThread.Loaded).comments
+                                when (action) {
+                                    ReaderPanelCommentAction.Edit -> {
+                                        controller.open(sentence, 1, cachedComments = comments, openedInPanel = true)
+                                        controller.startEditing(commentId)
+                                    }
+
+                                    ReaderPanelCommentAction.Delete -> {
+                                        controller.requestPanelDelete(sentence, comments, commentId)
+                                    }
+
+                                    ReaderPanelCommentAction.Report -> error("Unexpected report action")
+                                }
+                            },
+                            onSentenceClick = { sentence ->
+                                val comments = (previews[sentence.sentenceId] as ReaderPanelThread.Loaded).comments
+                                controller.open(sentence, 1, cachedComments = comments, openedInPanel = true)
+                            },
+                        ),
+                        commentSheetActions = createCommentActions(controller::dismiss, controller),
+                        isCommentLikeEnabled = true,
+                        panelThreads = previews,
+                    )
+                }
+            }
+        }
+
+        val body = ReaderPassageText(listOf(first, second)).text
+        val panel = rule.onNode(hasScrollAction() and !hasAnyDescendant(hasText(body)))
+        rule.onNodeWithText("2개 문장").assertIsDisplayed()
+        rule.onAllNodesWithContentDescription("댓글 메뉴 열기")[0].performClick()
+        rule.onNodeWithText("수정").performClick()
+        rule.onNodeWithContentDescription("댓글 입력").performTextReplacement("저장한 댓글")
+        rule.onNodeWithText("저장").performSemanticsAction(SemanticsActions.OnClick) { it() }
+        rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        panel.performScrollToIndex(0)
+        rule.onNodeWithText("저장한 댓글").assertIsDisplayed()
+
+        fun openDeleteConfirmation() {
+            rule.onAllNodesWithContentDescription("댓글 메뉴 열기")[0].performClick()
+            rule.onNodeWithText("삭제").performClick()
+            rule.onNodeWithText("댓글을 삭제할까요?").assertIsDisplayed()
+            rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        }
+
+        openDeleteConfirmation()
+        rule.onNodeWithText("취소").performClick()
+        rule.onNodeWithText("댓글을 삭제할까요?").assertDoesNotExist()
+        rule.onNodeWithText("저장한 댓글").assertIsDisplayed()
+
+        openDeleteConfirmation()
+        rule.onNodeWithText("삭제").performClick()
+        rule.onNodeWithText("저장한 댓글").assertDoesNotExist()
+        rule.onNodeWithText("2개 문장").assertIsDisplayed()
+
+        openDeleteConfirmation()
+        rule.onNodeWithText("삭제").performClick()
+        rule.onNodeWithText("1개 문장").assertIsDisplayed()
+        rule.onNodeWithText(ReaderPassageText(listOf(first)).text).assertDoesNotExist()
+        rule.onNodeWithText("다른 문장의 댓글").assertIsDisplayed()
+
+        rule.onNodeWithText(body).performFirstLinkClick { link ->
+            (link.item as? LinkAnnotation.Clickable)?.tag == first.sentenceId.toString()
+        }
+        rule.onNodeWithContentDescription("댓글 입력").performTextReplacement("새로 등록한 댓글")
+        rule.onNodeWithText("등록").performSemanticsAction(SemanticsActions.OnClick) { it() }
+        rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        rule.onNodeWithText("2개 문장").assertIsDisplayed()
+        rule.onNodeWithText("새로 등록한 댓글").assertIsDisplayed()
+
+        rule.runOnIdle {
+            previews[2L] = ReaderPanelThread.Loaded(List(8) { comment(20L + it, "다른 문장의 댓글") })
+            passages.value = passages.value.updateCommentCount(2L, 8)
+        }
+        val existingComment = rule.onNodeWithText("새로 등록한 댓글")
+        panel.performScrollToIndex(0)
+        rule.onAllNodesWithText("댓글 달기")[0].performClick()
+        rule.onNodeWithContentDescription("댓글 입력").performSemanticsAction(SemanticsActions.SetText) {
+            it(AnnotatedString("두 번째로 등록한 댓글"))
+        }
+        val existingCommentTop = existingComment.getUnclippedBoundsInRoot().top
+        rule.onNodeWithText("등록").performSemanticsAction(SemanticsActions.OnClick) { it() }
+        rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        assertEquals(existingCommentTop, existingComment.getUnclippedBoundsInRoot().top)
+        rule.onNodeWithText("두 번째로 등록한 댓글").assertIsDisplayed()
+    }
+
     private fun comment(id: Long, body: String) = CommentUiModel(
         commentId = id,
         memberId = 1,
@@ -257,6 +452,7 @@ class ReaderCommentPresentationTest {
         isMine = false,
     )
 
+    @OptIn(ExperimentalComposeUiApi::class)
     private fun setReaderContent(
         windowSize: MutableState<IntSize>,
         thread: MutableState<CommentSheetUiState?>,
@@ -264,6 +460,7 @@ class ReaderCommentPresentationTest {
         passages: LoadedPassages = LoadedPassages(),
         panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
         onPanelLike: (Long, Long) -> Unit = { _, _ -> },
+        suppressKeyboard: Boolean = false,
     ) {
         val commentActions = createCommentActions(onDismiss = { thread.value = null })
         val readerActions = createReaderActions(
@@ -279,7 +476,7 @@ class ReaderCommentPresentationTest {
         }
         rule.setContent {
             val size = windowSize.value
-            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(size.width.dp, size.height.dp))) {
+            val readerContent: @Composable () -> Unit = {
                 YeobaekTheme {
                     ReaderScreen(
                         uiState = ReaderUiState(
@@ -298,6 +495,16 @@ class ReaderCommentPresentationTest {
                     )
                 }
             }
+            DeviceConfigurationOverride(DeviceConfigurationOverride.WindowSize(DpSize(size.width.dp, size.height.dp))) {
+                if (suppressKeyboard) {
+                    InterceptPlatformTextInput(
+                        interceptor = { _, _ -> awaitCancellation() },
+                        content = readerContent,
+                    )
+                } else {
+                    readerContent()
+                }
+            }
         }
     }
 
@@ -310,6 +517,7 @@ class ReaderCommentPresentationTest {
     private fun createReaderActions(
         onPanelLike: (Long, Long) -> Unit,
         onPanelThreadShown: (Long) -> Unit,
+        onPanelCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit = { _, _, _ -> },
         onSentenceClick: (SentenceUiModel) -> Unit,
     ) = ReaderActions(
         onBackClick = {},
@@ -337,22 +545,62 @@ class ReaderCommentPresentationTest {
         onReturnToPreviousReadingPosition = {},
         onPanelLike = onPanelLike,
         onPanelThreadShown = onPanelThreadShown,
+        onPanelCommentAction = onPanelCommentAction,
     )
 
-    private fun createCommentActions(onDismiss: () -> Unit) = CommentSheetActions(
+    private fun createCommentActions(
+        onDismiss: () -> Unit,
+        controller: CommentSheetController? = null,
+    ) = CommentSheetActions(
         onDismiss = onDismiss,
         onRetry = {},
-        onInputChange = {},
-        onSubmit = {},
+        onInputChange = { input -> controller?.updateInput(input) },
+        onSubmit = { controller?.submit() },
         onEdit = {},
         onEditCancel = {},
         onDelete = {},
-        onDeleteCancel = {},
-        onDeleteConfirm = {},
+        onDeleteCancel = { controller?.cancelDelete() },
+        onDeleteConfirm = { controller?.confirmDelete() },
         onReport = {},
         onReportResultConsumed = {},
         onScrollToLatestConsumed = {},
         onLike = {},
         onLikeErrorConsumed = {},
     )
+
+    private class CommentMutationRepository : CommentRepository {
+        val comments = mutableListOf(
+            CommentModel(10, 1, "독자", "첫 댓글", "2026-11-16T12:00:00", null, true),
+            CommentModel(11, 1, "독자", "둘째 댓글", "2026-11-16T12:00:00", null, true),
+        )
+
+        override suspend fun getComments(space: CommentSpace, sentenceId: Long) = CommentsModel(comments.toList())
+
+        override suspend fun updateComment(commentId: Long, content: String): CommentModel {
+            val index = comments.indexOfFirst { it.commentId == commentId }
+            return comments[index].copy(content = content).also { comments[index] = it }
+        }
+
+        override suspend fun deleteComment(commentId: Long) {
+            check(comments.removeAll { it.commentId == commentId })
+        }
+
+        override suspend fun createComment(space: CommentSpace, sentenceId: Long, content: String): CommentModel {
+            val commentId = (comments.maxOfOrNull { it.commentId } ?: 11L) + 1
+            return CommentModel(commentId, 1, "독자", content, "2026-11-16T12:00:00", null, true)
+                .also { comments.add(it) }
+        }
+
+        override suspend fun setCommentLiked(commentId: Long, liked: Boolean): Nothing = error("Unexpected like")
+
+        override suspend fun reportComment(commentId: Long): Nothing = error("Unexpected report")
+
+        override suspend fun getNewCommentCount(space: CommentSpace, currentPassageId: Long) = NewCommentCountModel(0)
+
+        override suspend fun getCommentedSentences(
+            space: CommentSpace,
+            currentPassageId: Long,
+            filter: CommentedSentenceFilter,
+        ) = CommentedSentencesModel(emptyList())
+    }
 }

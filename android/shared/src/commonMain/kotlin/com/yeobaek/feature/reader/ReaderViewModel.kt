@@ -957,11 +957,21 @@ class ReaderViewModel(
         commentId: Long,
         action: ReaderPanelCommentAction,
     ) {
-        openPanelThread(sentence)
         when (action) {
-            ReaderPanelCommentAction.Edit -> commentSheet.startEditing(commentId)
-            ReaderPanelCommentAction.Delete -> commentSheet.requestDelete(commentId)
-            ReaderPanelCommentAction.Report -> commentSheet.report(commentId)
+            ReaderPanelCommentAction.Edit -> {
+                openPanelThread(sentence)
+                commentSheet.startEditing(commentId)
+            }
+
+            ReaderPanelCommentAction.Delete -> {
+                val cached = panelComments.threads[sentence.sentenceId] as? ReaderPanelThread.Loaded ?: return
+                commentSheet.requestPanelDelete(sentence, cached.comments, commentId)
+            }
+
+            ReaderPanelCommentAction.Report -> {
+                openPanelThread(sentence)
+                commentSheet.report(commentId)
+            }
         }
     }
 
