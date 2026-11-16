@@ -41,6 +41,7 @@ fun CommentItem(
     onReport: () -> Unit,
     onLike: () -> Unit,
     modifier: Modifier = Modifier,
+    reserveLikeCountSpace: Boolean = false,
 ) {
     var isMenuExpanded by remember(comment.commentId) {
         mutableStateOf(false)
@@ -94,6 +95,7 @@ fun CommentItem(
                 onLike = onLike,
                 menuButtonDescription = menuButtonDescription,
                 modifier = Modifier.padding(end = 16.dp),
+                reserveLikeCountSpace = reserveLikeCountSpace,
             )
         }
 

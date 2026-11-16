@@ -49,6 +49,7 @@ import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.CommentNotification
 import com.yeobaek.data.local.ReaderPreferences
+import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.data.model.MyProgressModel
@@ -61,6 +62,7 @@ import com.yeobaek.data.repository.GroupRepository
 import com.yeobaek.data.repository.PublicRoomRepository
 import com.yeobaek.data.repository.ReaderRepository
 import com.yeobaek.feature.reader.model.ChapterUiModel
+import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.CommentedSentencesUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
@@ -129,6 +131,16 @@ class ReaderViewModel(
         is ReaderTarget.PublicRoom -> CommentSpace.PublicRoom(publicRoomId = readerTarget.id)
     }
 
+    val panelComments = ReaderPanelComments(
+        scope = viewModelScope,
+        onCommentsViewed = ::markCommentsViewed,
+    ) { sentenceId ->
+        commentRepository.getComments(commentSpace, sentenceId).comments.map { it.toUiModel() }
+    }
+
+    var panelLikeError by mutableStateOf<String?>(null)
+        private set
+
     val commentSheet = CommentSheetController(
         savedStateHandle = savedStateHandle,
         commentSpace = commentSpace,
@@ -186,7 +198,10 @@ class ReaderViewModel(
             isCommentLikeEnabled = isCommentLikeEnabled,
         ),
         onCommentsViewed = ::handleCommentsViewed,
+        onCommentsUpdated = panelComments::replace,
+        onLikeUpdated = panelComments::updateLike,
         isCommentLikeEnabled = isCommentLikeEnabled,
+        isPanelLikePending = panelComments::isLikePending,
     )
 
     private var pagingJob: Job? = null
@@ -904,9 +919,70 @@ class ReaderViewModel(
     }
 
     fun openSentenceComments(sentence: SentenceUiModel) {
+        val panelThread = commentSheet.uiState?.takeIf { it.openedInPanel }
+        if (panelThread?.sentenceId == sentence.sentenceId) {
+            commentSheet.setPanelPresentation(sentence.sentenceId, inPanel = false)
+        } else if (panelThread?.canSwitchSentence != false) {
+            openSentenceComments(sentence, cachedComments = null, openedInPanel = false)
+        }
+    }
+
+    fun openPanelThread(sentence: SentenceUiModel) {
+        if (commentSheet.uiState?.sentenceId == sentence.sentenceId) return
+        val cached = panelComments.threads[sentence.sentenceId] as? ReaderPanelThread.Loaded
+        openSentenceComments(sentence, cached?.comments, openedInPanel = true)
+    }
+
+    fun onPanelThreadShown(sentenceId: Long) {
+        commentSheet.setPanelPresentation(sentenceId, inPanel = true)
+    }
+
+    private fun openSentenceComments(
+        sentence: SentenceUiModel,
+        cachedComments: List<CommentUiModel>?,
+        openedInPanel: Boolean,
+    ) {
         commitFontSizeChange()
         uiState = uiState.copy(isTextSettingMenuExpanded = false)
-        commentSheet.open(sentence, uiState.passages.findPassageSequenceBySentenceId(sentence.sentenceId))
+        commentSheet.open(
+            sentence = sentence,
+            passageSequence = uiState.passages.findPassageSequenceBySentenceId(sentence.sentenceId),
+            cachedComments = cachedComments,
+            openedInPanel = openedInPanel,
+        )
+    }
+
+    fun handlePanelCommentAction(
+        sentence: SentenceUiModel,
+        commentId: Long,
+        action: ReaderPanelCommentAction,
+    ) {
+        openPanelThread(sentence)
+        when (action) {
+            ReaderPanelCommentAction.Edit -> commentSheet.startEditing(commentId)
+            ReaderPanelCommentAction.Delete -> commentSheet.requestDelete(commentId)
+            ReaderPanelCommentAction.Report -> commentSheet.report(commentId)
+        }
+    }
+
+    fun togglePanelCommentLike(sentenceId: Long, commentId: Long) {
+        if (!isCommentLikeEnabled() || commentSheet.isLikeRequestPending(commentId)) return
+        val previous = panelComments.beginLike(sentenceId, commentId) ?: return
+        viewModelScope.launch {
+            var result: CommentLikeModel? = null
+            try {
+                if (!isCommentLikeEnabled()) return@launch
+                result = commentSheet.submitLike(sentenceId, commentId, !previous.likedByMe, CommentSheetSource.READER)
+                if (result == null) panelLikeError = COMMENT_LIKE_ERROR_MESSAGE
+            } finally {
+                val settled = panelComments.finishLike(sentenceId, previous, result)
+                commentSheet.applyPanelLike(sentenceId, settled)
+            }
+        }
+    }
+
+    fun consumePanelLikeError() {
+        panelLikeError = null
     }
 
     fun openSentenceCommentsByCollection(sentence: CommentedSentenceUiModel) {
@@ -1065,11 +1141,16 @@ class ReaderViewModel(
     private fun handleCommentsViewed(sentenceId: Long) {
         if (isNewCommentSheetOpen()) {
             viewedNewCommentSentenceId = sentenceId
-        } else {
-            uiState = uiState.copy(
-                commentedSentences = uiState.commentedSentences.markCommentsViewed(sentenceId),
-            )
+            refreshNewCommentStatus()
+            return
         }
+        markCommentsViewed(sentenceId)
+    }
+
+    private fun markCommentsViewed(sentenceId: Long) {
+        uiState = uiState.copy(
+            commentedSentences = uiState.commentedSentences.markCommentsViewed(sentenceId),
+        )
         refreshNewCommentStatus()
     }
 
@@ -1138,6 +1219,7 @@ class ReaderViewModel(
     }
 
     private suspend fun refreshComments(notification: CommentNotification) {
+        panelComments.refresh(notification.sentenceId)
         commentSheet.refresh(notification.sentenceId)
         refreshNewCommentStatus()
         if (uiState.isCommentCollectionsVisible) {

@@ -21,7 +21,7 @@ import com.yeobaek.feature.reader.CommentSheetUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CommentBottomSheet(
+fun CommentBottomSheet(
     uiState: CommentSheetUiState,
     actions: CommentSheetActions,
     isLikeEnabled: Boolean,

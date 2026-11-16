@@ -5,6 +5,7 @@ import android.shared.generated.resources.reader_go_to_sentence
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +34,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun CommentThreadContent(
+fun CommentThreadContent(
     uiState: CommentSheetUiState,
     actions: CommentSheetActions,
     isLikeEnabled: Boolean,
@@ -42,38 +43,8 @@ internal fun CommentThreadContent(
     isVisible: Boolean = true,
 ) {
     val commentListState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = rememberCommentThreadFeedback(uiState, actions, isVisible)
     val focusManager = LocalFocusManager.current
-
-    val contentsVisible = isVisible && !uiState.isLoading && uiState.loadErrorMessage == null
-    LaunchedEffect(uiState.sentenceId, contentsVisible) {
-        if (contentsVisible) {
-            withFrameNanos { }
-            actions.onContentsShown(uiState.sentenceId)
-        }
-    }
-
-    LaunchedEffect(uiState.reportState) {
-        val message = when (val reportState = uiState.reportState) {
-            is ReportState.Success -> "댓글을 신고했습니다."
-            is ReportState.Failure -> reportState.message
-            is ReportState.Idle, ReportState.Loading -> null
-        } ?: return@LaunchedEffect
-
-        coroutineScope.launch {
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
-        }
-        actions.onReportResultConsumed()
-    }
-
-    LaunchedEffect(uiState.likeErrorMessage) {
-        val message = uiState.likeErrorMessage ?: return@LaunchedEffect
-        snackbarHostState.currentSnackbarData?.dismiss()
-        snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
-        actions.onLikeErrorConsumed()
-    }
 
     LaunchedEffect(
         uiState.sentenceId,
@@ -130,20 +101,7 @@ internal fun CommentThreadContent(
                     Text(stringResource(Res.string.reader_go_to_sentence))
                 }
             }
-            CommentInput(
-                value = uiState.input,
-                enabled = !uiState.isSubmitting,
-                isEditing = uiState.editingCommentId != null,
-                onValueChange = actions.onInputChange,
-                onSubmit = {
-                    actions.onSubmit()
-                    focusManager.clearFocus()
-                },
-                onEditCancel = {
-                    actions.onEditCancel()
-                    focusManager.clearFocus()
-                },
-            )
+            CommentThreadInput(uiState, actions)
         }
         SnackbarHost(
             hostState = snackbarHostState,
@@ -153,4 +111,71 @@ internal fun CommentThreadContent(
                 .padding(bottom = 72.dp),
         )
     }
+}
+
+@Composable
+fun rememberCommentThreadFeedback(
+    uiState: CommentSheetUiState,
+    actions: CommentSheetActions,
+    isVisible: Boolean,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+): SnackbarHostState {
+    val coroutineScope = rememberCoroutineScope()
+
+    val contentsVisible = isVisible && !uiState.isLoading && uiState.loadErrorMessage == null
+    LaunchedEffect(uiState.sentenceId, contentsVisible) {
+        if (contentsVisible) {
+            withFrameNanos { }
+            actions.onContentsShown(uiState.sentenceId)
+        }
+    }
+
+    LaunchedEffect(uiState.reportState) {
+        val message = when (val reportState = uiState.reportState) {
+            is ReportState.Success -> "댓글을 신고했습니다."
+            is ReportState.Failure -> reportState.message
+            is ReportState.Idle, ReportState.Loading -> null
+        } ?: return@LaunchedEffect
+
+        coroutineScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        }
+        actions.onReportResultConsumed()
+    }
+
+    LaunchedEffect(uiState.likeErrorMessage) {
+        val message = uiState.likeErrorMessage ?: return@LaunchedEffect
+        snackbarHostState.currentSnackbarData?.dismiss()
+        snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        actions.onLikeErrorConsumed()
+    }
+
+    return snackbarHostState
+}
+
+@Composable
+fun CommentThreadInput(
+    uiState: CommentSheetUiState,
+    actions: CommentSheetActions,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+) {
+    val focusManager = LocalFocusManager.current
+    CommentInput(
+        value = uiState.input,
+        enabled = !uiState.isSubmitting,
+        isEditing = uiState.editingCommentId != null,
+        onValueChange = actions.onInputChange,
+        onSubmit = {
+            actions.onSubmit()
+            focusManager.clearFocus()
+        },
+        modifier = modifier,
+        contentPadding = contentPadding,
+        onEditCancel = {
+            actions.onEditCancel()
+            focusManager.clearFocus()
+        },
+    )
 }

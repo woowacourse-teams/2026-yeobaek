@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +53,7 @@ fun CommentInput(
     onSubmit: () -> Unit,
     onEditCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
 ) {
     val focusRequester = remember { FocusRequester() }
     var textFieldValue by remember {
@@ -86,7 +88,7 @@ fun CommentInput(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .imePadding()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(contentPadding),
     ) {
         if (isEditing) {
             Row(

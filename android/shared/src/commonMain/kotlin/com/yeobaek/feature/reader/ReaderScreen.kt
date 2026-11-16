@@ -19,6 +19,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -55,13 +61,19 @@ fun ReaderScreen(
     commentSheetActions: CommentSheetActions,
     isCommentLikeEnabled: Boolean,
     modifier: Modifier = Modifier,
+    panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
+    panelLikeError: String? = null,
 ) {
     val showCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
     val panelThread = commentSheet?.takeIf {
         showCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
     }
-    val modalThread = commentSheet?.takeIf { panelThread == null }
+    val modalThread = commentSheet?.takeIf { panelThread == null && !it.openedInPanel }
     val isReaderOverlayVisible = uiState.isTableOfContentsVisible || uiState.isCommentCollectionsVisible
+    val panelThreadToRecord = panelThread?.takeUnless { it.openedInPanel }?.sentenceId
+    LaunchedEffect(panelThreadToRecord) {
+        panelThreadToRecord?.let(actions.onPanelThreadShown)
+    }
 
     PlatformBackHandler(
         onBack = {
@@ -79,6 +91,15 @@ fun ReaderScreen(
         uiState = uiState,
         actions = actions,
     )
+    val visibleCommentedSentences = if (showCommentPanel) {
+        rememberVisibleCommentedSentences(readerListState, uiState)
+    } else {
+        emptyList()
+    }
+    val sentencesToLoad = if (modalThread == null && !isReaderOverlayVisible) visibleCommentedSentences else emptyList()
+    LaunchedEffect(sentencesToLoad) {
+        actions.onVisibleCommentSentencesChange(sentencesToLoad)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
@@ -139,17 +160,36 @@ fun ReaderScreen(
                             readerListState = readerListState,
                             onSentenceClick = { sentence ->
                                 if (panelThread.canOpenSentence(sentence.sentenceId)) {
-                                    actions.onSentenceClick(sentence)
+                                    if (showCommentPanel) {
+                                        actions.onPanelThreadOpen(sentence)
+                                    } else {
+                                        actions.onSentenceClick(sentence)
+                                    }
                                 }
                             },
                             modifier = Modifier.weight(1f),
                         )
                         if (showCommentPanel) {
                             ReaderCommentPanel(
+                                sentences = panelSentences(visibleCommentedSentences, panelThread, uiState.passages),
+                                previews = panelThreads,
                                 thread = panelThread,
                                 actions = commentSheetActions,
+                                onWriteComment = { sentence ->
+                                    if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                        actions.onPanelThreadOpen(sentence)
+                                    }
+                                },
+                                onPreviewRetry = actions.onPanelThreadRetry,
+                                onCommentAction = { sentence, commentId, action ->
+                                    if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                        actions.onPanelCommentAction(sentence, commentId, action)
+                                    }
+                                },
+                                onPanelLike = actions.onPanelLike,
+                                panelLikeError = panelLikeError,
+                                onPanelLikeErrorConsumed = actions.onPanelLikeErrorConsumed,
                                 isLikeEnabled = isCommentLikeEnabled,
-                                onGoToText = actions.onMoveToComment,
                                 isThreadVisible = !isReaderOverlayVisible,
                                 modifier = Modifier.width(panelWidth).fillMaxHeight(),
                             )
@@ -216,13 +256,49 @@ fun ReaderScreen(
     }
 }
 
+@Composable
+private fun rememberVisibleCommentedSentences(
+    readerListState: ReaderListState,
+    uiState: ReaderUiState,
+): List<SentenceUiModel> {
+    val currentUiState by rememberUpdatedState(uiState)
+    var visibleSentences by remember(readerListState) { mutableStateOf(emptyList<SentenceUiModel>()) }
+    LaunchedEffect(readerListState) {
+        snapshotFlow {
+            val state = currentUiState
+            if (!readerListState.hasPositionedInitialPassage ||
+                readerListState.fontSizeRestoreRequest != null ||
+                state.mode is ReaderMode.MovingTo
+            ) {
+                null
+            } else {
+                readerListState.visibleCommentedSentences(state.passages, state.fontSize)
+            }
+        }.collect { sentences ->
+            if (sentences != null) visibleSentences = sentences
+        }
+    }
+    return visibleSentences
+}
+
 private fun CommentSheetUiState?.canOpenSentence(sentenceId: Long): Boolean {
     if (this == null) return true
-    return this.sentenceId != sentenceId &&
-        input.isEmpty() &&
-        editingCommentId == null &&
-        !isSubmitting &&
-        !isDeleting
+    return this.sentenceId != sentenceId && canSwitchSentence
+}
+
+private fun panelSentences(
+    visible: List<SentenceUiModel>,
+    thread: CommentSheetUiState?,
+    passages: LoadedPassages,
+): List<SentenceUiModel> {
+    if (thread == null || visible.any { it.sentenceId == thread.sentenceId }) return visible
+    val ids = visible.mapTo(mutableSetOf(thread.sentenceId)) { it.sentenceId }
+    val ordered = passages.items.flatMap { passage -> passage.sentences.filter { it.sentenceId in ids } }
+    return if (ordered.none { it.sentenceId == thread.sentenceId }) {
+        listOf(SentenceUiModel(thread.sentenceId, 0, thread.sentenceContent, thread.comments.size)) + visible
+    } else {
+        ordered
+    }
 }
 
 class ReaderActions(
@@ -253,6 +329,13 @@ class ReaderActions(
     val onShowAllComments: () -> Unit = { onCommentCollectionFilterSelected(CommentedSentenceFilter.ALL) },
     val onSpoilerExposure: (CommentCollectionAction) -> Unit = {},
     val onReturnButtonShown: () -> Unit = {},
+    val onVisibleCommentSentencesChange: (List<SentenceUiModel>) -> Unit = {},
+    val onPanelThreadOpen: (SentenceUiModel) -> Unit = onSentenceClick,
+    val onPanelThreadShown: (Long) -> Unit = {},
+    val onPanelThreadRetry: (Long) -> Unit = {},
+    val onPanelCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit = { _, _, _ -> },
+    val onPanelLike: (Long, Long) -> Unit = { _, _ -> },
+    val onPanelLikeErrorConsumed: () -> Unit = {},
 )
 
 @Composable
@@ -314,8 +397,8 @@ private fun ReaderContent(
                 passage = passage,
                 fontSize = fontSize,
                 onSentenceClick = onSentenceClick,
-                onTextLayout = { result ->
-                    readerListState.updateTextLayout(passage.passageId, fontSize, result)
+                onTextLayout = { text, result ->
+                    readerListState.updateTextLayout(passage.passageId, fontSize, text, result)
                 },
             )
         }

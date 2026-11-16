@@ -38,7 +38,7 @@ fun PassageItem(
     fontSize: Int,
     onSentenceClick: (SentenceUiModel) -> Unit,
     modifier: Modifier = Modifier,
-    onTextLayout: (TextLayoutResult) -> Unit = {},
+    onTextLayout: (ReaderPassageText, TextLayoutResult) -> Unit = { _, _ -> },
 ) {
     val currentOnSentenceClick by rememberUpdatedState(onSentenceClick)
     val currentOnTextLayout by rememberUpdatedState(onTextLayout)
@@ -49,8 +49,8 @@ fun PassageItem(
         lineHeight = (fontSize * 2f).sp,
         letterSpacing = 1.sp,
     )
-    val (passageText, underlineTextRanges) = remember(passage.sentences) {
-        val readerText = ReaderPassageText(passage.sentences)
+    val readerText = remember(passage.sentences) { ReaderPassageText(passage.sentences) }
+    val (passageText, underlineTextRanges) = remember(readerText) {
         val commentedSentenceRanges = mutableListOf<TextRange>()
         val text = buildAnnotatedString {
             passage.sentences.forEachIndexed { index, sentence ->
@@ -92,7 +92,7 @@ fun PassageItem(
         text = passageText,
         onTextLayout = { result ->
             textLayoutResult = result
-            currentOnTextLayout(result)
+            currentOnTextLayout(readerText, result)
         },
         modifier = modifier
             .fillMaxWidth()
