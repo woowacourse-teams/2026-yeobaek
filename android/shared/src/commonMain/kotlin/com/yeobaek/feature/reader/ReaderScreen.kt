@@ -2,10 +2,14 @@ package com.yeobaek.feature.reader
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,12 +27,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.analytics.CommentCollectionAction
 import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
+import com.yeobaek.core.analytics.CommentSheetSource
+import com.yeobaek.core.common.isLandscape
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.component.CommentBottomSheet
 import com.yeobaek.feature.reader.component.CommentCollectionContents
+import com.yeobaek.feature.reader.component.DeleteCommentDialog
 import com.yeobaek.feature.reader.component.PassageItem
+import com.yeobaek.feature.reader.component.ReaderCommentPanel
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderReturnButton
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
@@ -48,12 +56,20 @@ fun ReaderScreen(
     isCommentLikeEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val showCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
+    val panelThread = commentSheet?.takeIf {
+        showCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
+    }
+    val modalThread = commentSheet?.takeIf { panelThread == null }
+    val isReaderOverlayVisible = uiState.isTableOfContentsVisible || uiState.isCommentCollectionsVisible
+
     PlatformBackHandler(
         onBack = {
             when {
-                commentSheet != null -> commentSheetActions.onDismiss()
+                modalThread != null -> commentSheetActions.onDismiss()
                 uiState.isCommentCollectionsVisible -> actions.onCommentCollectionsDismiss()
                 uiState.isTableOfContentsVisible -> actions.onTableOfContentsDismiss()
+                panelThread != null -> commentSheetActions.onDismiss()
                 else -> actions.onBackClick()
             }
         },
@@ -112,18 +128,39 @@ fun ReaderScreen(
                     modifier = Modifier.padding(innerPadding),
                 )
 
-                ReaderLoadState.Success -> ReaderContent(
-                    passages = uiState.passages.items,
-                    fontSize = uiState.fontSize,
-                    readerListState = readerListState,
-                    onSentenceClick = actions.onSentenceClick,
-                    modifier = Modifier.padding(innerPadding),
-                )
+                ReaderLoadState.Success -> BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                ) {
+                    val panelWidth = minOf(maxWidth / 3, 352.dp)
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        ReaderContent(
+                            passages = uiState.passages.items,
+                            fontSize = uiState.fontSize,
+                            readerListState = readerListState,
+                            onSentenceClick = { sentence ->
+                                if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                    actions.onSentenceClick(sentence)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (showCommentPanel) {
+                            ReaderCommentPanel(
+                                thread = panelThread,
+                                actions = commentSheetActions,
+                                isLikeEnabled = isCommentLikeEnabled,
+                                onGoToText = actions.onMoveToComment,
+                                isThreadVisible = !isReaderOverlayVisible,
+                                modifier = Modifier.width(panelWidth).fillMaxHeight(),
+                            )
+                        }
+                    }
+                }
             }
         }
 
         if (uiState.returnPassageSequence != null && uiState.mode == ReaderMode.Idle) {
-            if (commentSheet == null && !uiState.isCommentCollectionsVisible && !uiState.isTableOfContentsVisible) {
+            if (modalThread == null && !isReaderOverlayVisible) {
                 LaunchedEffect(uiState.returnPassageSequence) { actions.onReturnButtonShown() }
             }
             ReaderReturnButton(
@@ -162,28 +199,30 @@ fun ReaderScreen(
         }
     }
 
-    if (commentSheet != null) {
+    if (modalThread != null) {
         CommentBottomSheet(
-            uiState = commentSheet,
+            uiState = modalThread,
+            actions = commentSheetActions,
             isLikeEnabled = isCommentLikeEnabled,
-            onDismissRequest = commentSheetActions.onDismiss,
-            onRetry = commentSheetActions.onRetry,
             onGoToText = actions.onMoveToComment,
-            onInputChange = commentSheetActions.onInputChange,
-            onSubmit = commentSheetActions.onSubmit,
-            onEdit = commentSheetActions.onEdit,
-            onEditCancel = commentSheetActions.onEditCancel,
-            onReport = commentSheetActions.onReport,
-            onReportResultConsumed = commentSheetActions.onReportResultConsumed,
-            onLike = commentSheetActions.onLike,
-            onLikeErrorConsumed = commentSheetActions.onLikeErrorConsumed,
-            onDelete = commentSheetActions.onDelete,
-            onDeleteCancel = commentSheetActions.onDeleteCancel,
-            onDeleteConfirm = commentSheetActions.onDeleteConfirm,
-            onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
-            onContentsShown = commentSheetActions.onContentsShown,
         )
     }
+
+    if (commentSheet?.deletingCommentId != null) {
+        DeleteCommentDialog(
+            onDismissRequest = commentSheetActions.onDeleteCancel,
+            onConfirm = commentSheetActions.onDeleteConfirm,
+        )
+    }
+}
+
+private fun CommentSheetUiState?.canOpenSentence(sentenceId: Long): Boolean {
+    if (this == null) return true
+    return this.sentenceId != sentenceId &&
+        input.isEmpty() &&
+        editingCommentId == null &&
+        !isSubmitting &&
+        !isDeleting
 }
 
 class ReaderActions(

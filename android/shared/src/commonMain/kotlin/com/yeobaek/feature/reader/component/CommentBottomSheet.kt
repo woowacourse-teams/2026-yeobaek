@@ -1,138 +1,41 @@
 package com.yeobaek.feature.reader.component
 
-import android.shared.generated.resources.Res
-import android.shared.generated.resources.reader_go_to_sentence
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.CommentSheetUiState
-import com.yeobaek.feature.reader.ReportState
-import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommentBottomSheet(
+internal fun CommentBottomSheet(
     uiState: CommentSheetUiState,
+    actions: CommentSheetActions,
     isLikeEnabled: Boolean,
-    onDismissRequest: () -> Unit,
-    onRetry: () -> Unit,
     onGoToText: () -> Unit,
-    onInputChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onEdit: (Long) -> Unit,
-    onEditCancel: () -> Unit,
-    onDelete: (Long) -> Unit,
-    onReport: (Long) -> Unit,
-    onReportResultConsumed: () -> Unit,
-    onLike: (Long) -> Unit,
-    onLikeErrorConsumed: () -> Unit,
-    onDeleteCancel: () -> Unit,
-    onDeleteConfirm: () -> Unit,
-    onScrollToLatestConsumed: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    onContentsShown: (Long) -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val commentListState = rememberLazyListState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-
-    val contentsVisible = sheetState.isVisible && !uiState.isLoading && uiState.loadErrorMessage == null
-    LaunchedEffect(uiState.sentenceId, contentsVisible) {
-        if (contentsVisible) {
-            withFrameNanos { }
-            onContentsShown(uiState.sentenceId)
-        }
-    }
-
-    LaunchedEffect(uiState.reportState) {
-        val message = when (val reportState = uiState.reportState) {
-            is ReportState.Success -> "댓글을 신고했습니다."
-            is ReportState.Failure -> reportState.message
-            is ReportState.Idle, ReportState.Loading -> null
-        } ?: return@LaunchedEffect
-
-        coroutineScope.launch {
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = SnackbarDuration.Short,
-            )
-        }
-        onReportResultConsumed()
-    }
-
-    LaunchedEffect(uiState.likeErrorMessage) {
-        val message = uiState.likeErrorMessage ?: return@LaunchedEffect
-        snackbarHostState.currentSnackbarData?.dismiss()
-        snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
-        onLikeErrorConsumed()
-    }
-
-    LaunchedEffect(
-        uiState.sentenceId,
-        uiState.scrollToLatestPending,
-        uiState.isLoading,
-        uiState.loadErrorMessage,
-    ) {
-        if (!uiState.scrollToLatestPending || uiState.isLoading || uiState.loadErrorMessage != null) {
-            return@LaunchedEffect
-        }
-        if (uiState.comments.isNotEmpty()) {
-            commentListState.scrollToItem(uiState.comments.lastIndex)
-        }
-        onScrollToLatestConsumed(uiState.sentenceId)
-    }
-
-    LaunchedEffect(uiState.sentenceId, uiState.submittedCommentId) {
-        val commentId = uiState.submittedCommentId ?: return@LaunchedEffect
-        val index = uiState.comments.indexOfFirst { it.commentId == commentId }
-        if (index >= 0) commentListState.animateScrollToItem(index)
-    }
-
     ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = actions.onDismiss,
         modifier = modifier,
         sheetState = sheetState,
-        shape = RoundedCornerShape(
-            topStart = 20.dp,
-            topEnd = 20.dp,
-        ),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = MaterialTheme.colorScheme.onSurface.copy(
-            alpha = 0.08f,
-        ),
+        scrimColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -152,81 +55,13 @@ fun CommentBottomSheet(
             }
         },
     ) {
-        val focusManager = LocalFocusManager.current
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.72f),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                focusManager.clearFocus()
-                            },
-                        )
-                    },
-            ) {
-                SentenceQuote(
-                    content = uiState.sentenceContent,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-                Spacer(modifier = Modifier.height(22.dp))
-                CommentList(
-                    uiState = uiState,
-                    isLikeEnabled = isLikeEnabled,
-                    onEdit = onEdit,
-                    onDelete = onDelete,
-                    onReport = onReport,
-                    onLike = onLike,
-                    onRetry = onRetry,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    listState = commentListState,
-                )
-                if (uiState.targetPassageSequence != null) {
-                    Button(
-                        onClick = onGoToText,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 8.dp),
-                    ) {
-                        Text(stringResource(Res.string.reader_go_to_sentence))
-                    }
-                }
-                CommentInput(
-                    value = uiState.input,
-                    enabled = !uiState.isSubmitting,
-                    isEditing = uiState.editingCommentId != null,
-                    onValueChange = onInputChange,
-                    onSubmit = {
-                        onSubmit()
-                        focusManager.clearFocus()
-                    },
-                    onEditCancel = {
-                        onEditCancel()
-                        focusManager.clearFocus()
-                    },
-                )
-            }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 72.dp),
-            )
-        }
-    }
-
-    if (uiState.deletingCommentId != null) {
-        DeleteCommentDialog(
-            onDismissRequest = onDeleteCancel,
-            onConfirm = onDeleteConfirm,
+        CommentThreadContent(
+            uiState = uiState,
+            actions = actions,
+            isLikeEnabled = isLikeEnabled,
+            onGoToText = onGoToText,
+            isVisible = sheetState.isVisible,
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.72f),
         )
     }
 }
