@@ -9,6 +9,7 @@ import com.yeobaek.core.config.RemoteConfigDataSource
 import com.yeobaek.core.config.RemoteConfigKeys
 import com.yeobaek.core.config.SessionMessages
 import com.yeobaek.core.config.SurveyConfig
+import com.yeobaek.data.local.PatchNotePreferences
 import com.yeobaek.data.repository.AppConfigRepository
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
@@ -26,6 +27,7 @@ import kotlinx.serialization.json.Json
 class AppConfigRepositoryImpl(
     private val dataSource: RemoteConfigDataSource,
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+    private val patchNotePreferences: PatchNotePreferences? = null,
 ) : AppConfigRepository {
     private val _state = MutableStateFlow(AppConfigState())
     override val state = _state.asStateFlow()
@@ -45,6 +47,7 @@ class AppConfigRepositoryImpl(
                     RemoteConfigKeys.COMMENT_LIKE_ENABLED to FeatureFlags().commentLikeEnabled,
                     RemoteConfigKeys.ONBOARDING_TITLE to SessionMessages().onboardingTitle,
                     RemoteConfigKeys.PMF_SURVEY to surveyJson.encodeToString(SurveyConfig.DEFAULT),
+                    RemoteConfigKeys.PATCH_NOTE to """{"enabled":false}""",
                 ),
             )
             val activated = dataSource.activate()
@@ -53,6 +56,7 @@ class AppConfigRepositoryImpl(
             val survey = readSurveyConfig()
             val title = dataSource.getValue(RemoteConfigKeys.ONBOARDING_TITLE)
             val fetchInfo = dataSource.getFetchInfo()
+            cachePatchNote(useDefault = activated)
             val hasTitle = title.value.isNotBlank()
             val messageSources = if (hasTitle) {
                 mapOf(RemoteConfigKeys.ONBOARDING_TITLE to title.source)
@@ -164,6 +168,7 @@ class AppConfigRepositoryImpl(
             currentCoroutineContext().ensureActive()
             val flags = readFeatureFlags()
             val survey = readSurveyConfig()
+            cachePatchNote(useDefault = true)
             _state.value = _state.value.copy(
                 featureFlags = flags.featureFlags,
                 surveyConfig = survey.config,
@@ -181,6 +186,14 @@ class AppConfigRepositoryImpl(
             _state.value = _state.value.copy(lastError = exception.message ?: "원격 설정 활성화에 실패했습니다.")
             Result.failure(exception)
         }
+
+    private fun cachePatchNote(useDefault: Boolean) {
+        val preferences = patchNotePreferences ?: return
+        val value = dataSource.getValue(RemoteConfigKeys.PATCH_NOTE)
+        if (useDefault || value.source == ConfigValueSource.REMOTE) {
+            preferences.saveForNextLaunch(value.value)
+        }
+    }
 
     private fun readFeatureFlags(): FeatureFlagValues {
         val like = dataSource.getValue(RemoteConfigKeys.COMMENT_LIKE_ENABLED)

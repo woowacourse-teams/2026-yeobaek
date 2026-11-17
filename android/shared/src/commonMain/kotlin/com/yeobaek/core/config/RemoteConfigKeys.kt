@@ -4,4 +4,5 @@ object RemoteConfigKeys {
     const val COMMENT_LIKE_ENABLED = "comment_like_enabled"
     const val ONBOARDING_TITLE = "onboarding_title"
     const val PMF_SURVEY = "pmf_survey"
+    const val PATCH_NOTE = "patch_note"
 }
