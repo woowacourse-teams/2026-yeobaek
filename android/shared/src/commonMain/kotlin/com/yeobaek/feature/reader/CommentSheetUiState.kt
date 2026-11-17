@@ -9,7 +9,6 @@ data class CommentSheetUiState(
     val source: CommentSheetSource = CommentSheetSource.READER,
     val targetPassageSequence: Int? = null,
     val comments: List<CommentUiModel> = emptyList(),
-    val submittedCommentId: Long? = null,
     val scrollToLatestPending: Boolean = false,
     val input: String = "",
     val editingCommentId: Long? = null,

@@ -160,6 +160,60 @@ class ReaderCommentPresentationTest {
         rule.onNodeWithText("초안").assertIsDisplayed()
     }
 
+    @Test
+    fun collapsingThePanelKeepsTheDraftAndPlacesTheIconInTheReaderMargin() {
+        val windowSize = mutableStateOf(IntSize(1_194, 834))
+        val sentences = listOf(
+            SentenceUiModel(1, 1, "첫 문장. ", 1),
+            SentenceUiModel(2, 2, "둘째 문장.", 2),
+        )
+        val thread = mutableStateOf<CommentSheetUiState?>(
+            selectedThread.copy(sentenceContent = sentences.first().content, openedInPanel = true),
+        )
+        val passageWithoutComments = PassageUiModel(
+            2,
+            2,
+            1,
+            listOf(SentenceUiModel(3, 1, "댓글 없이 읽는 본문이에요. ".repeat(180), 0)),
+        )
+        setReaderContent(
+            windowSize = windowSize,
+            thread = thread,
+            passages = LoadedPassages(listOf(PassageUiModel(1, 1, 1, sentences), passageWithoutComments)),
+            panelThreads = mapOf(
+                1L to ReaderPanelThread.Loaded(listOf(comment(10, "첫 댓글"))),
+                2L to ReaderPanelThread.Loaded(listOf(comment(20, "둘째 댓글"), comment(21, "셋째 댓글"))),
+            ),
+        )
+
+        val close = rule.onNodeWithContentDescription("문장 댓글 닫기")
+        val reopen = rule.onNodeWithContentDescription("문장 댓글 열기")
+        val body = rule.onNodeWithText(ReaderPassageText(sentences).text)
+        val openBodyBounds = body.getUnclippedBoundsInRoot()
+        close.performClick()
+        rule.onNodeWithText("문장 댓글").assertDoesNotExist()
+        rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        rule.onNode(isDialog()).assertDoesNotExist()
+        val reopenBounds = reopen.assertIsDisplayed().getUnclippedBoundsInRoot()
+        val textBounds = body.getUnclippedBoundsInRoot()
+        assertEquals(openBodyBounds.left, textBounds.left)
+        assertTrue(reopenBounds.left >= textBounds.right)
+
+        rule.runOnIdle { windowSize.value = IntSize(600, 1_000) }
+        reopen.assertDoesNotExist()
+        rule.onNode(isDialog()).assertDoesNotExist()
+
+        rule.runOnIdle { windowSize.value = IntSize(1_194, 834) }
+        reopen.assertIsDisplayed().performClick()
+        close.assertIsDisplayed()
+        rule.onNodeWithText("초안").assertIsDisplayed()
+
+        close.performClick()
+        rule.onNode(hasScrollAction()).performScrollToIndex(1)
+        reopen.assertIsDisplayed().performClick()
+        close.assertIsDisplayed()
+    }
+
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun selectingAnUncommentedSentenceRevealsItsQuoteAndInputTogether() {
