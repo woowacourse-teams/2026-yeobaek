@@ -3,12 +3,12 @@ package com.yeobaek.feature.reader
 import androidx.compose.ui.text.TextRange
 import com.yeobaek.feature.reader.model.SentenceUiModel
 
-internal data class ReaderTextPosition(
+data class ReaderTextPosition(
     val sentenceId: Long,
     val sourceOffset: Int,
 )
 
-internal class ReaderPassageText(sentences: List<SentenceUiModel>) {
+class ReaderPassageText(private val sentences: List<SentenceUiModel>) {
     private val positions = mutableListOf<ReaderTextPosition?>()
     val sentenceRanges: List<TextRange>
     val text: String
@@ -50,4 +50,24 @@ internal class ReaderPassageText(sentences: List<SentenceUiModel>) {
 
     fun displayOffsetOf(position: ReaderTextPosition): Int? =
         positions.indexOf(position).takeIf { it >= 0 }
+
+    fun matches(sentences: List<SentenceUiModel>): Boolean {
+        if (this.sentences === sentences) return true
+        if (this.sentences.size != sentences.size) return false
+        return sentences.indices.all { index ->
+            val original = this.sentences[index]
+            val current = sentences[index]
+            original.sentenceId == current.sentenceId && original.content == current.content
+        }
+    }
+
+    fun commentedSentencesIn(
+        visibleRange: TextRange,
+        sentences: List<SentenceUiModel>,
+    ): List<SentenceUiModel> = sentences.filterIndexed { index, sentence ->
+        val range = sentenceRanges[index]
+        val visibleStart = maxOf(range.start, visibleRange.start)
+        val visibleEnd = minOf(range.end, visibleRange.end)
+        sentence.hasComment && firstCharacterIn(visibleStart, visibleEnd) != null
+    }
 }

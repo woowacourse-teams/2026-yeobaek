@@ -11,6 +11,7 @@ import com.yeobaek.core.crashlytics.CrashContext
 import com.yeobaek.core.crashlytics.CrashLogLevel
 import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
+import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentModel
 import com.yeobaek.data.model.CommentSpace
 import com.yeobaek.data.repository.CommentRepository
@@ -19,12 +20,15 @@ import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import com.yeobaek.feature.reader.model.toUiModel
 import com.yeobaek.feature.reader.model.toggleLikeOptimistically
+import com.yeobaek.feature.reader.model.withLikeFrom
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+
+const val COMMENT_LIKE_ERROR_MESSAGE = "좋아요를 변경하지 못했습니다."
 
 class CommentSheetController(
     private val savedStateHandle: SavedStateHandle,
@@ -35,8 +39,11 @@ class CommentSheetController(
     private val crashContext: (operation: CrashOperation, sentenceId: Long, itemCount: Int?) -> CrashContext,
     private val onCommentCountChanged: (sentenceId: Long, commentCount: Int) -> Unit,
     private val onCommentsViewed: (sentenceId: Long) -> Unit,
+    private val onCommentsUpdated: (sentenceId: Long, comments: List<CommentUiModel>) -> Unit,
+    private val onLikeUpdated: (sentenceId: Long, comment: CommentUiModel) -> Unit,
     private val analytics: CommentSheetAnalytics,
     private val isCommentLikeEnabled: () -> Boolean,
+    private val isPanelLikePending: (Long) -> Boolean,
 ) {
     var uiState by mutableStateOf<CommentSheetUiState?>(null)
         private set
@@ -45,6 +52,7 @@ class CommentSheetController(
     private var didSubmitInSheet = false
     private var refreshPending = false
     private var sheetVersion = 0L
+    private val likeRequests = mutableSetOf<Long>()
 
     val pendingRestoreSentenceId: Long?
         get() = savedStateHandle[SHEET_SENTENCE_ID_KEY]
@@ -63,6 +71,8 @@ class CommentSheetController(
         passageSequence: Int?,
         scrollToLatest: Boolean = false,
         source: CommentSheetSource = CommentSheetSource.READER,
+        cachedComments: List<CommentUiModel>? = null,
+        openedInPanel: Boolean = false,
     ) {
         open(
             sentenceId = sentence.sentenceId,
@@ -73,6 +83,8 @@ class CommentSheetController(
             hasNewComments = null,
             scrollToLatest = scrollToLatest,
             source = source,
+            cachedComments = cachedComments,
+            openedInPanel = openedInPanel,
         )
     }
 
@@ -108,9 +120,16 @@ class CommentSheetController(
             editingCommentId = savedStateHandle[SHEET_EDITING_COMMENT_ID_KEY],
             scrollToLatestPending = savedStateHandle[SHEET_SCROLL_TO_LATEST_KEY] ?: false,
             isLoading = true,
+            openedInPanel = savedStateHandle[SHEET_OPENED_IN_PANEL_KEY] ?: false,
         )
         persistDraft()
         loadComments(sentence.sentenceId)
+    }
+
+    fun setPanelPresentation(sentenceId: Long, inPanel: Boolean) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId && it.openedInPanel != inPanel } ?: return
+        uiState = sheet.copy(openedInPanel = inPanel)
+        savedStateHandle[SHEET_OPENED_IN_PANEL_KEY] = inPanel
     }
 
     fun retryLoad() {
@@ -151,6 +170,8 @@ class CommentSheetController(
         source: CommentSheetSource,
         collectionVisitId: String? = null,
         collectionCard: CommentCollectionCardContext? = null,
+        cachedComments: List<CommentUiModel>? = null,
+        openedInPanel: Boolean = false,
     ) {
         cancelLoad()
         didSubmitInSheet = false
@@ -174,12 +195,15 @@ class CommentSheetController(
             sentenceContent = sentenceContent,
             source = source,
             targetPassageSequence = targetPassageSequence,
+            comments = cachedComments.orEmpty(),
             scrollToLatestPending = scrollToLatest,
-            isLoading = true,
+            isLoading = cachedComments == null,
+            openedInPanel = openedInPanel,
         )
         sheetVersion++
         savedStateHandle[SHEET_SENTENCE_ID_KEY] = sentenceId
         savedStateHandle[SHEET_SOURCE_KEY] = source.value
+        savedStateHandle[SHEET_OPENED_IN_PANEL_KEY] = openedInPanel
         savedStateHandle[SHEET_COLLECTION_VISIT_KEY] = collectionVisitId
         savedStateHandle[SHEET_COLLECTION_FILTER_KEY] = collectionCard?.filter
         savedStateHandle[SHEET_UNREAD_COUNT_KEY] = collectionCard?.unreadCommentCount
@@ -197,7 +221,7 @@ class CommentSheetController(
         }
         persistDraft()
 
-        loadComments(sentenceId)
+        loadComments(sentenceId, isRefresh = cachedComments != null)
     }
 
     private fun loadComments(sentenceId: Long, isRefresh: Boolean = false) {
@@ -261,7 +285,7 @@ class CommentSheetController(
     fun dismiss() {
         cancelLoad()
         refreshPending = false
-        uiState?.let { sheet ->
+        uiState?.takeUnless { it.isPanelDeleteOnly }?.let { sheet ->
             analytics.sheetClosed(
                 commentCount = sheet.comments.size,
                 // 댓글을 불러오지 못한 시트는 남의 댓글 수를 알 수 없으므로 보내지 않는다.
@@ -279,6 +303,7 @@ class CommentSheetController(
         uiState = null
         savedStateHandle.remove<Long>(SHEET_SENTENCE_ID_KEY)
         savedStateHandle.remove<String>(SHEET_SOURCE_KEY)
+        savedStateHandle.remove<Boolean>(SHEET_OPENED_IN_PANEL_KEY)
         savedStateHandle.remove<String>(SHEET_COLLECTION_VISIT_KEY)
         savedStateHandle.remove<String>(SHEET_COLLECTION_FILTER_KEY)
         savedStateHandle.remove<Int>(SHEET_UNREAD_COUNT_KEY)
@@ -347,11 +372,31 @@ class CommentSheetController(
         )
     }
 
+    fun requestPanelDelete(sentence: SentenceUiModel, comments: List<CommentUiModel>, commentId: Long) {
+        if (uiState?.canSwitchSentence == false || comments.none { it.commentId == commentId && it.isMine }) return
+
+        dismiss()
+        sheetVersion++
+        uiState = CommentSheetUiState(
+            sentenceId = sentence.sentenceId,
+            sentenceContent = sentence.content,
+            comments = comments,
+            openedInPanel = true,
+            isPanelDeleteOnly = true,
+        )
+        requestDelete(commentId)
+    }
+
     fun cancelDelete() {
         val sheet = uiState ?: return
         if (sheet.isDeleting) return
         if (sheet.deletingCommentId != null) {
             analytics.deleteCanceled()
+        }
+
+        if (sheet.isPanelDeleteOnly) {
+            dismiss()
+            return
         }
 
         uiState = sheet.copy(
@@ -365,6 +410,7 @@ class CommentSheetController(
         val commentId = sheet.deletingCommentId ?: return
         if (sheet.isDeleting || sheet.isSubmitting) return
         if (sheet.findMyComment(commentId) == null) return
+        val requestSheetVersion = sheetVersion
 
         prepareMutation()
 
@@ -382,13 +428,13 @@ class CommentSheetController(
             try {
                 commentRepository.deleteComment(commentId)
 
-                updateSheet(
+                val updated = updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isDeleting },
                 ) { currentSheet ->
                     currentSheet.withCommentDeleted(commentId)
                 }
-                val commentCount = sheet.withCommentDeleted(commentId).comments.size
+                val commentCount = updated?.comments?.size ?: sheet.comments.count { it.commentId != commentId }
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_DELETE_SUCCEEDED,
@@ -396,6 +442,10 @@ class CommentSheetController(
                     itemCount = commentCount,
                 )
                 analytics.deleted(result = EventResult.SUCCESS)
+                val lastPanelCommentDeleted = updated?.openedInPanel == true && commentCount == 0
+                if (updated?.isPanelDeleteOnly == true || lastPanelCommentDeleted) {
+                    dismiss()
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -407,7 +457,7 @@ class CommentSheetController(
                 analytics.deleted(result = EventResult.FAILURE)
                 updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isDeleting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isDeleting },
                 ) { currentSheet ->
                     currentSheet.copy(
                         isDeleting = false,
@@ -432,6 +482,7 @@ class CommentSheetController(
             return
         }
         val editingCommentId = sheet.editingCommentId
+        val requestSheetVersion = sheetVersion
 
         prepareMutation()
 
@@ -457,26 +508,24 @@ class CommentSheetController(
                     commentRepository.updateComment(editingCommentId, content)
                 }.toUiModel()
 
-                updateSheet(
+                val updated = updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isSubmitting },
                 ) { currentSheet ->
                     currentSheet.withCommentSaved(
                         savedComment = savedComment,
                         editedCommentId = editingCommentId,
                     )
                 }
-                val commentCount = sheet.withCommentSaved(
-                    savedComment = savedComment,
-                    editedCommentId = editingCommentId,
-                ).comments.size
+                val commentCount = updated?.comments?.size
+                    ?: (sheet.comments.size + if (editingCommentId == null) 1 else 0)
                 onCommentCountChanged(sheet.sentenceId, commentCount)
                 track(
                     operation = CrashOperation.COMMENT_SAVE_SUCCEEDED,
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
-                didSubmitInSheet = true
+                if (updated != null) didSubmitInSheet = true
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     passageSequence = sheet.targetPassageSequence,
@@ -485,6 +534,9 @@ class CommentSheetController(
                     commentLength = content.length,
                     result = EventResult.SUCCESS,
                 )
+                if (updated != null && sheet.openedInPanel) {
+                    dismiss()
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
@@ -503,7 +555,7 @@ class CommentSheetController(
                 )
                 updateSheet(
                     sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet -> currentSheet.isSubmitting },
+                    isWaiting = { currentSheet -> sheetVersion == requestSheetVersion && currentSheet.isSubmitting },
                 ) { currentSheet ->
                     currentSheet.copy(
                         isSubmitting = false,
@@ -565,7 +617,7 @@ class CommentSheetController(
         val sheet = uiState ?: return
         if (!isCommentLikeEnabled()) return
         val comment = sheet.comments.firstOrNull { it.commentId == commentId } ?: return
-        if (comment.isLikePending) return
+        if (comment.isLikePending || isPanelLikePending(commentId) || isLikeRequestPending(commentId)) return
 
         val liked = !comment.likedByMe
         uiState = sheet.copy(
@@ -584,52 +636,75 @@ class CommentSheetController(
                 restoreLike(comment, sheet.sentenceId, curSheetVersion)
                 return@launch
             }
-            try {
-                val result = commentRepository.setCommentLiked(commentId, liked)
-                analytics.likeSubmitted(commentId, sheet.sentenceId, liked, EventResult.SUCCESS, sheet.source)
+            val result = submitLike(sheet.sentenceId, commentId, liked, sheet.source)
+            if (result == null) {
+                restoreLike(comment, sheet.sentenceId, curSheetVersion, COMMENT_LIKE_ERROR_MESSAGE)
+                return@launch
+            }
+            val updated = comment.copy(
+                likeCount = result.likeCount,
+                likedByMe = result.likedByMe,
+                isLikePending = false,
+            )
+            onLikeUpdated(sheet.sentenceId, updated)
+            if (curSheetVersion != sheetVersion) return@launch
 
-                if (curSheetVersion != sheetVersion) return@launch
-
-                updateSheet(
-                    sentenceId = sheet.sentenceId,
-                    isWaiting = { currentSheet ->
-                        currentSheet.comments.any { current ->
-                            current.commentId == commentId && current.isLikePending
-                        }
+            updateSheet(
+                sentenceId = sheet.sentenceId,
+                isWaiting = { currentSheet ->
+                    currentSheet.comments.any { it.commentId == commentId && it.isLikePending }
+                },
+            ) { currentSheet ->
+                currentSheet.copy(
+                    comments = currentSheet.comments.map { current ->
+                        if (current.commentId == commentId) current.withLikeFrom(updated) else current
                     },
-                ) { currentSheet ->
-                    currentSheet.copy(
-                        comments = currentSheet.comments.map { current ->
-                            if (current.commentId == commentId) {
-                                current.copy(
-                                    likeCount = result.likeCount,
-                                    likedByMe = result.likedByMe,
-                                    isLikePending = false,
-                                )
-                            } else {
-                                current
-                            }
-                        },
-                    )
-                }
-            } catch (exception: CancellationException) {
-                throw exception
-            } catch (exception: Exception) {
-                analytics.likeSubmitted(commentId, sheet.sentenceId, liked, EventResult.FAILURE, sheet.source)
-                recordFailure(
-                    exception = exception,
-                    operation = CrashOperation.COMMENT_LIKE_FAILED,
-                    sentenceId = sheet.sentenceId,
-                )
-
-                restoreLike(
-                    comment = comment,
-                    sentenceId = sheet.sentenceId,
-                    requestSheetVersion = curSheetVersion,
-                    errorMessage = "좋아요를 변경하지 못했습니다.",
                 )
             }
         }
+    }
+
+    fun isLikeRequestPending(commentId: Long): Boolean = commentId in likeRequests
+
+    suspend fun submitLike(
+        sentenceId: Long,
+        commentId: Long,
+        liked: Boolean,
+        source: CommentSheetSource,
+    ): CommentLikeModel? {
+        if (!likeRequests.add(commentId)) return null
+        return try {
+            commentRepository.setCommentLiked(commentId, liked).also {
+                analytics.likeSubmitted(commentId, sentenceId, liked, EventResult.SUCCESS, source)
+            }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            analytics.likeSubmitted(commentId, sentenceId, liked, EventResult.FAILURE, source)
+            recordFailure(
+                exception = exception,
+                operation = CrashOperation.COMMENT_LIKE_FAILED,
+                sentenceId = sentenceId,
+            )
+            null
+        } finally {
+            likeRequests.remove(commentId)
+        }
+    }
+
+    fun applyPanelLike(sentenceId: Long, comment: CommentUiModel) {
+        if (uiState?.sentenceId != sentenceId) return
+        updateSheet(
+            sentenceId = sentenceId,
+            isWaiting = { sheet -> sheet.comments.any { it.commentId == comment.commentId } },
+        ) { sheet ->
+            sheet.copy(
+                comments = sheet.comments.map { current ->
+                    if (current.commentId == comment.commentId) current.withLikeFrom(comment) else current
+                },
+            )
+        }
+        if (loadJob?.isActive == true) refresh(sentenceId)
     }
 
     private fun restoreLike(
@@ -672,16 +747,25 @@ class CommentSheetController(
         sentenceId: Long,
         isWaiting: (CommentSheetUiState) -> Boolean,
         transform: (CommentSheetUiState) -> CommentSheetUiState,
-    ) {
+    ): CommentSheetUiState? {
         val sheet = uiState
             ?.takeIf { currentSheet -> currentSheet.sentenceId == sentenceId && isWaiting(currentSheet) }
-            ?: return
-        uiState = transform(sheet)
+            ?: return null
+        val updated = transform(sheet)
+        uiState = updated
+        if (
+            !updated.isLoading &&
+            updated.loadErrorMessage == null &&
+            (sheet.isLoading || updated.comments != sheet.comments)
+        ) {
+            onCommentsUpdated(sentenceId, updated.comments)
+        }
         persistDraft()
+        return updated
     }
 
     private fun persistDraft() {
-        val sheet = uiState ?: return
+        val sheet = uiState?.takeUnless { it.isPanelDeleteOnly } ?: return
         savedStateHandle[SHEET_INPUT_KEY] = sheet.input
         if (sheet.editingCommentId == null) {
             savedStateHandle.remove<Long>(SHEET_EDITING_COMMENT_ID_KEY)
@@ -733,6 +817,7 @@ class CommentSheetController(
     private companion object {
         const val SHEET_SENTENCE_ID_KEY = "commentSheetSentenceId"
         const val SHEET_SOURCE_KEY = "commentSheetSource"
+        const val SHEET_OPENED_IN_PANEL_KEY = "commentSheetOpenedInPanel"
         const val SHEET_COLLECTION_VISIT_KEY = "commentSheetCollectionVisitId"
         const val SHEET_COLLECTION_FILTER_KEY = "commentSheetCollectionFilter"
         const val SHEET_UNREAD_COUNT_KEY = "commentSheetUnreadCountAtOpen"

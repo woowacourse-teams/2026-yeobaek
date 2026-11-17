@@ -22,7 +22,12 @@ data class CommentSheetUiState(
     val deleteErrorMessage: String? = null,
     val likeErrorMessage: String? = null,
     val reportState: ReportState = ReportState.Idle,
-)
+    val openedInPanel: Boolean = false,
+    val isPanelDeleteOnly: Boolean = false,
+) {
+    val canSwitchSentence: Boolean
+        get() = input.isEmpty() && editingCommentId == null && deletingCommentId == null && !isSubmitting && !isDeleting
+}
 
 sealed class ReportState {
     data object Idle : ReportState()

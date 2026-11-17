@@ -45,3 +45,9 @@ fun CommentUiModel.toggleLikeOptimistically(): CommentUiModel = copy(
     likedByMe = !likedByMe,
     isLikePending = true,
 )
+
+fun CommentUiModel.withLikeFrom(other: CommentUiModel): CommentUiModel = copy(
+    likeCount = other.likeCount,
+    likedByMe = other.likedByMe,
+    isLikePending = other.isLikePending,
+)

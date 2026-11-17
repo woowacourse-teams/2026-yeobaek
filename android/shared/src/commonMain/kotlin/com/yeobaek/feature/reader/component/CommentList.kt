@@ -1,5 +1,7 @@
 package com.yeobaek.feature.reader.component
 
+import android.shared.generated.resources.Res
+import android.shared.generated.resources.reader_comment_list_empty_message
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.model.CommentUiModel
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun CommentList(
@@ -46,7 +49,7 @@ fun CommentList(
         )
 
         uiState.comments.isEmpty() -> CommentListMessage(
-            text = "아직 댓글이 없어요.\n첫 번째 생각을 남겨보세요.",
+            text = stringResource(Res.string.reader_comment_list_empty_message),
             modifier = modifier,
         )
 
@@ -80,7 +83,7 @@ fun CommentList(
 }
 
 @Composable
-private fun CommentListError(
+fun CommentListError(
     message: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -102,7 +105,7 @@ private fun CommentListError(
 }
 
 @Composable
-private fun CommentListMessage(
+fun CommentListMessage(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurfaceVariant,

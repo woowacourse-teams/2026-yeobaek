@@ -2,10 +2,14 @@ package com.yeobaek.feature.reader
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
@@ -15,6 +19,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -23,12 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.analytics.CommentCollectionAction
 import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
+import com.yeobaek.core.analytics.CommentSheetSource
+import com.yeobaek.core.common.isLandscape
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.platform.PlatformBackHandler
 import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.component.CommentBottomSheet
 import com.yeobaek.feature.reader.component.CommentCollectionContents
+import com.yeobaek.feature.reader.component.DeleteCommentDialog
 import com.yeobaek.feature.reader.component.PassageItem
+import com.yeobaek.feature.reader.component.ReaderCommentPanel
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderReturnButton
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
@@ -47,13 +61,29 @@ fun ReaderScreen(
     commentSheetActions: CommentSheetActions,
     isCommentLikeEnabled: Boolean,
     modifier: Modifier = Modifier,
+    panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
+    panelLikeError: String? = null,
 ) {
+    val showCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
+    val visibleThread = commentSheet?.takeUnless { it.isPanelDeleteOnly }
+    val panelThread = visibleThread?.takeIf {
+        showCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
+    }
+    val modalThread = visibleThread?.takeIf { panelThread == null && !it.openedInPanel }
+    val isReaderOverlayVisible = uiState.isTableOfContentsVisible || uiState.isCommentCollectionsVisible
+    val panelThreadToRecord = panelThread?.takeUnless { it.openedInPanel }?.sentenceId
+    LaunchedEffect(panelThreadToRecord) {
+        panelThreadToRecord?.let(actions.onPanelThreadShown)
+    }
+
     PlatformBackHandler(
         onBack = {
             when {
-                commentSheet != null -> commentSheetActions.onDismiss()
+                commentSheet?.deletingCommentId != null -> commentSheetActions.onDeleteCancel()
+                modalThread != null -> commentSheetActions.onDismiss()
                 uiState.isCommentCollectionsVisible -> actions.onCommentCollectionsDismiss()
                 uiState.isTableOfContentsVisible -> actions.onTableOfContentsDismiss()
+                panelThread != null -> commentSheetActions.onDismiss()
                 else -> actions.onBackClick()
             }
         },
@@ -63,6 +93,15 @@ fun ReaderScreen(
         uiState = uiState,
         actions = actions,
     )
+    val visibleCommentedSentences = if (showCommentPanel) {
+        rememberVisibleCommentedSentences(readerListState, uiState)
+    } else {
+        emptyList()
+    }
+    val sentencesToLoad = if (modalThread == null && !isReaderOverlayVisible) visibleCommentedSentences else emptyList()
+    LaunchedEffect(sentencesToLoad) {
+        actions.onVisibleCommentSentencesChange(sentencesToLoad)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
@@ -112,18 +151,58 @@ fun ReaderScreen(
                     modifier = Modifier.padding(innerPadding),
                 )
 
-                ReaderLoadState.Success -> ReaderContent(
-                    passages = uiState.passages.items,
-                    fontSize = uiState.fontSize,
-                    readerListState = readerListState,
-                    onSentenceClick = actions.onSentenceClick,
-                    modifier = Modifier.padding(innerPadding),
-                )
+                ReaderLoadState.Success -> BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize().padding(innerPadding),
+                ) {
+                    val panelWidth = minOf(maxWidth / 3, 352.dp)
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        ReaderContent(
+                            passages = uiState.passages.items,
+                            fontSize = uiState.fontSize,
+                            readerListState = readerListState,
+                            onSentenceClick = { sentence ->
+                                if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                    if (showCommentPanel) {
+                                        actions.onPanelThreadOpen(sentence)
+                                    } else {
+                                        actions.onSentenceClick(sentence)
+                                    }
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (showCommentPanel) {
+                            ReaderCommentPanel(
+                                sentences = panelSentences(visibleCommentedSentences, panelThread, uiState.passages),
+                                previews = panelThreads,
+                                thread = panelThread,
+                                actions = commentSheetActions,
+                                onWriteComment = { sentence ->
+                                    if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                        actions.onPanelThreadOpen(sentence)
+                                    }
+                                },
+                                onPreviewRetry = actions.onPanelThreadRetry,
+                                onCommentAction = { sentence, commentId, action ->
+                                    if (panelThread.canOpenSentence(sentence.sentenceId)) {
+                                        actions.onPanelCommentAction(sentence, commentId, action)
+                                    }
+                                },
+                                onPanelLike = actions.onPanelLike,
+                                panelLikeError = panelLikeError,
+                                onPanelLikeErrorConsumed = actions.onPanelLikeErrorConsumed,
+                                isLikeEnabled = isCommentLikeEnabled,
+                                isThreadVisible = !isReaderOverlayVisible,
+                                modifier = Modifier.width(panelWidth).fillMaxHeight(),
+                            )
+                        }
+                    }
+                }
             }
         }
 
         if (uiState.returnPassageSequence != null && uiState.mode == ReaderMode.Idle) {
-            if (commentSheet == null && !uiState.isCommentCollectionsVisible && !uiState.isTableOfContentsVisible) {
+            if (modalThread == null && !isReaderOverlayVisible) {
                 LaunchedEffect(uiState.returnPassageSequence) { actions.onReturnButtonShown() }
             }
             ReaderReturnButton(
@@ -162,27 +241,66 @@ fun ReaderScreen(
         }
     }
 
-    if (commentSheet != null) {
+    if (modalThread != null) {
         CommentBottomSheet(
-            uiState = commentSheet,
+            uiState = modalThread,
+            actions = commentSheetActions,
             isLikeEnabled = isCommentLikeEnabled,
-            onDismissRequest = commentSheetActions.onDismiss,
-            onRetry = commentSheetActions.onRetry,
             onGoToText = actions.onMoveToComment,
-            onInputChange = commentSheetActions.onInputChange,
-            onSubmit = commentSheetActions.onSubmit,
-            onEdit = commentSheetActions.onEdit,
-            onEditCancel = commentSheetActions.onEditCancel,
-            onReport = commentSheetActions.onReport,
-            onReportResultConsumed = commentSheetActions.onReportResultConsumed,
-            onLike = commentSheetActions.onLike,
-            onLikeErrorConsumed = commentSheetActions.onLikeErrorConsumed,
-            onDelete = commentSheetActions.onDelete,
-            onDeleteCancel = commentSheetActions.onDeleteCancel,
-            onDeleteConfirm = commentSheetActions.onDeleteConfirm,
-            onScrollToLatestConsumed = commentSheetActions.onScrollToLatestConsumed,
-            onContentsShown = commentSheetActions.onContentsShown,
         )
+    }
+
+    if (commentSheet?.deletingCommentId != null) {
+        DeleteCommentDialog(
+            onDismissRequest = commentSheetActions.onDeleteCancel,
+            onConfirm = commentSheetActions.onDeleteConfirm,
+            errorMessage = commentSheet.deleteErrorMessage,
+        )
+    }
+}
+
+@Composable
+private fun rememberVisibleCommentedSentences(
+    readerListState: ReaderListState,
+    uiState: ReaderUiState,
+): List<SentenceUiModel> {
+    val currentUiState by rememberUpdatedState(uiState)
+    var visibleSentences by remember(readerListState) { mutableStateOf(emptyList<SentenceUiModel>()) }
+    LaunchedEffect(readerListState) {
+        snapshotFlow {
+            val state = currentUiState
+            if (!readerListState.hasPositionedInitialPassage ||
+                readerListState.fontSizeRestoreRequest != null ||
+                state.mode is ReaderMode.MovingTo
+            ) {
+                null
+            } else {
+                readerListState.visibleCommentedSentences(state.passages, state.fontSize)
+            }
+        }.collect { sentences ->
+            if (sentences != null) visibleSentences = sentences
+        }
+    }
+    return visibleSentences
+}
+
+private fun CommentSheetUiState?.canOpenSentence(sentenceId: Long): Boolean {
+    if (this == null) return true
+    return this.sentenceId != sentenceId && canSwitchSentence
+}
+
+private fun panelSentences(
+    visible: List<SentenceUiModel>,
+    thread: CommentSheetUiState?,
+    passages: LoadedPassages,
+): List<SentenceUiModel> {
+    if (thread == null || visible.any { it.sentenceId == thread.sentenceId }) return visible
+    val ids = visible.mapTo(mutableSetOf(thread.sentenceId)) { it.sentenceId }
+    val ordered = passages.items.flatMap { passage -> passage.sentences.filter { it.sentenceId in ids } }
+    return if (ordered.none { it.sentenceId == thread.sentenceId }) {
+        listOf(SentenceUiModel(thread.sentenceId, 0, thread.sentenceContent, thread.comments.size)) + visible
+    } else {
+        ordered
     }
 }
 
@@ -214,6 +332,13 @@ class ReaderActions(
     val onShowAllComments: () -> Unit = { onCommentCollectionFilterSelected(CommentedSentenceFilter.ALL) },
     val onSpoilerExposure: (CommentCollectionAction) -> Unit = {},
     val onReturnButtonShown: () -> Unit = {},
+    val onVisibleCommentSentencesChange: (List<SentenceUiModel>) -> Unit = {},
+    val onPanelThreadOpen: (SentenceUiModel) -> Unit = onSentenceClick,
+    val onPanelThreadShown: (Long) -> Unit = {},
+    val onPanelThreadRetry: (Long) -> Unit = {},
+    val onPanelCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit = { _, _, _ -> },
+    val onPanelLike: (Long, Long) -> Unit = { _, _ -> },
+    val onPanelLikeErrorConsumed: () -> Unit = {},
 )
 
 @Composable
@@ -275,8 +400,8 @@ private fun ReaderContent(
                 passage = passage,
                 fontSize = fontSize,
                 onSentenceClick = onSentenceClick,
-                onTextLayout = { result ->
-                    readerListState.updateTextLayout(passage.passageId, fontSize, result)
+                onTextLayout = { text, result ->
+                    readerListState.updateTextLayout(passage.passageId, fontSize, text, result)
                 },
             )
         }

@@ -182,6 +182,13 @@ private fun ReaderRoute(
             onMoveToComment = readerViewModel::moveToSelectedComment,
             onReturnToPreviousReadingPosition = readerViewModel::returnToReadingAnchor,
             onInitialPositionApplied = readerViewModel::onInitialPositionApplied,
+            onVisibleCommentSentencesChange = readerViewModel.panelComments::updateVisible,
+            onPanelThreadOpen = readerViewModel::openPanelThread,
+            onPanelThreadShown = readerViewModel::onPanelThreadShown,
+            onPanelThreadRetry = readerViewModel.panelComments::refresh,
+            onPanelCommentAction = readerViewModel::handlePanelCommentAction,
+            onPanelLike = readerViewModel::togglePanelCommentLike,
+            onPanelLikeErrorConsumed = readerViewModel::consumePanelLikeError,
         )
     }
     val commentSheetActions = remember(commentSheet) {
@@ -210,5 +217,7 @@ private fun ReaderRoute(
         actions = actions,
         commentSheetActions = commentSheetActions,
         isCommentLikeEnabled = appConfig.featureFlags.commentLikeEnabled,
+        panelThreads = readerViewModel.panelComments.threads,
+        panelLikeError = readerViewModel.panelLikeError,
     )
 }

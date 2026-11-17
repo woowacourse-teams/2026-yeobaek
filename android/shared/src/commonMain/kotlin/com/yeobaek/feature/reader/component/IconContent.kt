@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.core.designsystem.theme.YeobaekLike
@@ -30,6 +31,7 @@ fun CommentActions(
     onLike: () -> Unit,
     menuButtonDescription: String,
     modifier: Modifier = Modifier,
+    reserveLikeCountSpace: Boolean = false,
 ) {
     Box(
         modifier = modifier,
@@ -47,6 +49,7 @@ fun CommentActions(
                     likedByMe = likedByMe,
                     likeCount = likeCount,
                     onLike = onLike,
+                    reserveLikeCountSpace = reserveLikeCountSpace,
                 )
             }
         }
@@ -78,6 +81,7 @@ private fun LikeButtonContent(
     likeCount: Long,
     onLike: () -> Unit,
     modifier: Modifier = Modifier,
+    reserveLikeCountSpace: Boolean = false,
 ) {
     Column(
         modifier = modifier.width(32.dp),
@@ -96,13 +100,14 @@ private fun LikeButtonContent(
                 tint = Color.Unspecified,
             )
         }
-        if (likeCount > 0) {
+        if (likeCount > 0 || reserveLikeCountSpace) {
             Text(
                 text = likeCount.toString(),
-                color = if (likedByMe) {
-                    YeobaekLike
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = if (likeCount == 0L) Modifier.clearAndSetSemantics {} else Modifier,
+                color = when {
+                    likeCount == 0L -> Color.Transparent
+                    likedByMe -> YeobaekLike
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontSize = 12.sp,

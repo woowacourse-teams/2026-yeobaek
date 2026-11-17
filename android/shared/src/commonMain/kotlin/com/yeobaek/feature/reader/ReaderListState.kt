@@ -15,8 +15,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextRange
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
+import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -45,8 +47,13 @@ class ReaderListState(
         }
     }
 
-    fun updateTextLayout(passageId: Long, fontSize: Int, result: TextLayoutResult) {
-        textLayouts[passageId] = PassageTextLayout(fontSize, result)
+    fun updateTextLayout(
+        passageId: Long,
+        fontSize: Int,
+        text: ReaderPassageText,
+        result: TextLayoutResult,
+    ) {
+        textLayouts[passageId] = PassageTextLayout(fontSize, result, text)
     }
 
     fun removeTextLayout(passageId: Long) {
@@ -65,26 +72,45 @@ class ReaderListState(
         if (fontSizeRestoreRequest?.id == request.id) fontSizeRestoreRequest = null
     }
 
-    internal fun firstVisibleCharacter(passages: LoadedPassages, fontSize: Int): ReaderTextPosition? {
+    private fun firstVisibleCharacter(passages: LoadedPassages, fontSize: Int): ReaderTextPosition? =
+        visiblePassageText(passages, fontSize).firstNotNullOfOrNull { (_, text, range) ->
+            text.firstCharacterIn(range.start, range.end)
+        }
+
+    fun visibleCommentedSentences(
+        passages: LoadedPassages,
+        fontSize: Int,
+    ): List<SentenceUiModel> = visiblePassageText(passages, fontSize)
+        .flatMap { (passage, text, range) -> text.commentedSentencesIn(range, passage.sentences) }
+        .toList()
+
+    private fun visiblePassageText(passages: LoadedPassages, fontSize: Int): Sequence<VisiblePassageText> = sequence {
         val viewport = listState.layoutInfo
         for (item in viewport.visibleItemsInfo) {
-            val passage = passages.findByItemKey(item.key) ?: continue
-            val layout = textLayoutFor(passage.passageId, fontSize) ?: continue
-            val text = ReaderPassageText(passage.sentences)
-            if (layout.layoutInput.text.text != text.text) continue
+            val passage = passages.getOrNull(item.index)?.takeIf { it.passageId == item.key }
+                ?: passages.findByItemKey(item.key)
+                ?: continue
+            val layout = textLayouts[passage.passageId] ?: continue
+            if (layout.fontSize != fontSize || !layout.text.matches(passage.sentences)) continue
+            if (layout.result.layoutInput.text.text != layout.text.text) continue
 
-            for (line in 0 until layout.lineCount) {
-                if (item.offset + layout.getLineBottom(line) <= viewport.viewportStartOffset) continue
-                if (item.offset + layout.getLineTop(line) >= viewport.viewportEndOffset) break
-                val position = text.firstCharacterIn(
-                    start = layout.getLineStart(line),
-                    end = layout.getLineEnd(line, visibleEnd = true),
-                ) ?: continue
-                return position
-            }
+            val range = layout.result.visibleTextRange(
+                viewportStart = viewport.viewportStartOffset - item.offset,
+                viewportEnd = viewport.viewportEndOffset - item.offset,
+            ) ?: continue
+            yield(VisiblePassageText(passage, layout.text, range))
         }
-        return null
     }
+}
+
+private fun TextLayoutResult.visibleTextRange(viewportStart: Int, viewportEnd: Int): TextRange? {
+    if (lineCount == 0 || viewportStart >= viewportEnd) return null
+    val first = getLineForVerticalPosition(viewportStart.toFloat())
+    val last = getLineForVerticalPosition(viewportEnd.toFloat())
+    val firstVisible = if (getLineBottom(first) <= viewportStart) first + 1 else first
+    val lastVisible = if (getLineTop(last) >= viewportEnd) last - 1 else last
+    if (firstVisible > lastVisible) return null
+    return TextRange(getLineStart(firstVisible), getLineEnd(lastVisible, visibleEnd = true))
 }
 
 internal data class FontSizeRestoreRequest(
@@ -96,6 +122,13 @@ internal data class FontSizeRestoreRequest(
 private data class PassageTextLayout(
     val fontSize: Int,
     val result: TextLayoutResult,
+    val text: ReaderPassageText,
+)
+
+private data class VisiblePassageText(
+    val passage: PassageUiModel,
+    val text: ReaderPassageText,
+    val range: TextRange,
 )
 
 @Composable
