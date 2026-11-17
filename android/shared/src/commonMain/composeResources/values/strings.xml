@@ -22,6 +22,8 @@
     <string name="reader_text_settings_open">글자 크기 설정 열기</string>
     <string name="reader_sentence_comments_title">문장 댓글</string>
     <string name="reader_sentence_comment_group_count">%1$d개 문장</string>
+    <string name="reader_sentence_comments_close">문장 댓글 닫기</string>
+    <string name="reader_sentence_comments_open">문장 댓글 열기</string>
     <string name="reader_write_sentence_comment">댓글 달기</string>
     <string name="reader_cancel_sentence_comment">취소</string>
     <string name="reader_comment_list_empty_message">아직 댓글이 없어요.\n첫 번째 생각을 남겨보세요.</string>

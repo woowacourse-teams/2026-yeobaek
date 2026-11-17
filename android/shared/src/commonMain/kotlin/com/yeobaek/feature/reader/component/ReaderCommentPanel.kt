@@ -1,9 +1,13 @@
 package com.yeobaek.feature.reader.component
 
 import android.shared.generated.resources.Res
+import android.shared.generated.resources.ic_close
+import android.shared.generated.resources.ic_reader_comment_panel
 import android.shared.generated.resources.reader_cancel_sentence_comment
 import android.shared.generated.resources.reader_comment_list_empty_message
 import android.shared.generated.resources.reader_sentence_comment_group_count
+import android.shared.generated.resources.reader_sentence_comments_close
+import android.shared.generated.resources.reader_sentence_comments_open
 import android.shared.generated.resources.reader_sentence_comments_title
 import android.shared.generated.resources.reader_write_sentence_comment
 import androidx.compose.foundation.background
@@ -13,17 +17,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -36,14 +47,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yeobaek.feature.reader.CommentSheetActions
@@ -54,6 +72,7 @@ import com.yeobaek.feature.reader.model.CommentUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -61,7 +80,9 @@ fun ReaderCommentPanel(
     sentences: List<SentenceUiModel>,
     previews: Map<Long, ReaderPanelThread>,
     thread: CommentSheetUiState?,
+    listState: LazyListState,
     actions: CommentSheetActions,
+    onClose: () -> Unit,
     onWriteComment: (SentenceUiModel) -> Unit,
     onPreviewRetry: (Long) -> Unit,
     onCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit,
@@ -72,8 +93,18 @@ fun ReaderCommentPanel(
     isThreadVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+    val imeInsets = WindowInsets.ime
+    var submitAnchor by remember { mutableStateOf<PanelSubmitAnchor?>(null) }
+    val cancelRestoreOnScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) submitAnchor = null
+                return Offset.Zero
+            }
+        }
+    }
     val groups = sentences.map { sentence ->
         PanelCommentGroup(
             sentence = sentence,
@@ -81,6 +112,7 @@ fun ReaderCommentPanel(
             activeThread = thread?.takeIf { it.sentenceId == sentence.sentenceId },
         )
     }
+    val currentGroups by rememberUpdatedState(groups)
     val selectedIndex = groups.indexOfFirst { it.activeThread != null }
     val selectedGroup = groups.getOrNull(selectedIndex)
     val selectedStart = if (selectedIndex >= 0) groups.take(selectedIndex).sumOf { it.itemCount } else 0
@@ -131,6 +163,20 @@ fun ReaderCommentPanel(
         }
     }
 
+    LaunchedEffect(submitAnchor, thread?.sentenceId, thread?.isSubmitting, imeInsets, density) {
+        val anchor = submitAnchor ?: return@LaunchedEffect
+        if (thread != null) {
+            if (thread.sentenceId != anchor.sentenceId || !thread.isSubmitting) submitAnchor = null
+            return@LaunchedEffect
+        }
+        snapshotFlow { imeInsets.getBottom(density) }.first { it == 0 }
+        if (submitAnchor != anchor) return@LaunchedEffect
+
+        val index = currentGroups.itemIndexOf(anchor.key)
+        if (index != null) listState.requestScrollToItem(index, anchor.scrollOffset)
+        submitAnchor = null
+    }
+
     Row(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surface)
@@ -141,28 +187,51 @@ fun ReaderCommentPanel(
         VerticalDivider(Modifier.fillMaxHeight())
         Column(modifier = Modifier.weight(1f).fillMaxHeight().imePadding()) {
             Row(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+                    .heightIn(min = 67.dp)
+                    .padding(start = 24.dp, end = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = stringResource(Res.string.reader_sentence_comments_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(Res.string.reader_sentence_comment_group_count, groups.size),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        fontWeight = FontWeight.Medium,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.reader_sentence_comments_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(Res.string.reader_sentence_comment_group_count, groups.size),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        onClose()
+                    },
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_close),
+                        contentDescription = stringResource(Res.string.reader_sentence_comments_close),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
             HorizontalDivider()
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
                     state = listState,
+                    modifier = Modifier.nestedScroll(cancelRestoreOnScroll),
                     contentPadding = PaddingValues(24.dp),
                 ) {
                     groups.forEachIndexed { index, group ->
@@ -178,7 +247,7 @@ fun ReaderCommentPanel(
                                 )
                             }
                             val lastCommentId = group.comments.last().commentId
-                            items(group.comments, key = { "comment-${it.commentId}" }) { comment ->
+                            items(group.comments, key = { panelCommentKey(it.commentId) }) { comment ->
                                 val isBeforeWriteAction = active == null && comment.commentId == lastCommentId
                                 fun act(action: ReaderPanelCommentAction) {
                                     if (active == null) {
@@ -249,6 +318,18 @@ fun ReaderCommentPanel(
                                                 top = if (isEditing) 8.dp else 0.dp,
                                                 bottom = 8.dp,
                                             ),
+                                            onBeforeSubmit = {
+                                                val firstIndex = listState.firstVisibleItemIndex
+                                                val firstItem = listState.layoutInfo.visibleItemsInfo
+                                                    .firstOrNull { it.index == firstIndex }
+                                                submitAnchor = firstItem?.let {
+                                                    PanelSubmitAnchor(
+                                                        sentenceId = id,
+                                                        key = it.key,
+                                                        scrollOffset = listState.firstVisibleItemScrollOffset,
+                                                    )
+                                                }
+                                            },
                                         )
                                     } else {
                                         PanelAction(
@@ -268,6 +349,24 @@ fun ReaderCommentPanel(
                 SnackbarHost(feedback, Modifier.align(Alignment.BottomCenter))
             }
         }
+    }
+}
+
+@Composable
+fun ReaderCommentPanelReopenButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+    ) {
+        Icon(
+            painter = painterResource(Res.drawable.ic_reader_comment_panel),
+            contentDescription = stringResource(Res.string.reader_sentence_comments_open),
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -299,6 +398,22 @@ private data class PanelCommentGroup(
     val quoteKey = "sentence-${sentence.sentenceId}"
     val writingKey = if (comments.isEmpty()) quoteKey else "action-${sentence.sentenceId}"
     val itemCount = if (comments.isEmpty()) 1 else 2 + comments.size
+}
+
+private data class PanelSubmitAnchor(val sentenceId: Long, val key: Any, val scrollOffset: Int)
+
+private fun panelCommentKey(commentId: Long): String = "comment-$commentId"
+
+private fun List<PanelCommentGroup>.itemIndexOf(key: Any): Int? {
+    var index = 0
+    for (group in this) {
+        if (key == group.quoteKey) return index
+        if (key == group.writingKey) return index + group.itemCount - 1
+        val commentIndex = group.comments.indexOfFirst { panelCommentKey(it.commentId) == key }
+        if (commentIndex >= 0) return index + commentIndex + 1
+        index += group.itemCount
+    }
+    return null
 }
 
 @Composable

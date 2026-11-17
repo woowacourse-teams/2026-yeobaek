@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -19,12 +20,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +46,7 @@ import com.yeobaek.feature.reader.component.CommentCollectionContents
 import com.yeobaek.feature.reader.component.DeleteCommentDialog
 import com.yeobaek.feature.reader.component.PassageItem
 import com.yeobaek.feature.reader.component.ReaderCommentPanel
+import com.yeobaek.feature.reader.component.ReaderCommentPanelReopenButton
 import com.yeobaek.feature.reader.component.ReaderProgressBar
 import com.yeobaek.feature.reader.component.ReaderReturnButton
 import com.yeobaek.feature.reader.component.ReaderTableOfContents
@@ -52,6 +56,8 @@ import com.yeobaek.feature.reader.model.CommentedSentenceUiModel
 import com.yeobaek.feature.reader.model.LoadedPassages
 import com.yeobaek.feature.reader.model.PassageUiModel
 import com.yeobaek.feature.reader.model.SentenceUiModel
+
+private val ReaderHorizontalPadding = 36.dp
 
 @Composable
 fun ReaderScreen(
@@ -64,16 +70,24 @@ fun ReaderScreen(
     panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
     panelLikeError: String? = null,
 ) {
-    val showCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
+    var isCommentPanelCollapsed by rememberSaveable { mutableStateOf(false) }
+    val canShowCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
+    val showCommentPanel = canShowCommentPanel && !isCommentPanelCollapsed
     val visibleThread = commentSheet?.takeUnless { it.isPanelDeleteOnly }
     val panelThread = visibleThread?.takeIf {
-        showCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
+        canShowCommentPanel && it.source != CommentSheetSource.COMMENT_COLLECTION
     }
     val modalThread = visibleThread?.takeIf { panelThread == null && !it.openedInPanel }
     val isReaderOverlayVisible = uiState.isTableOfContentsVisible || uiState.isCommentCollectionsVisible
     val panelThreadToRecord = panelThread?.takeUnless { it.openedInPanel }?.sentenceId
+    val notificationSentenceToReveal = panelThread?.takeIf {
+        it.source == CommentSheetSource.NOTIFICATION && it.scrollToLatestPending
+    }?.sentenceId
     LaunchedEffect(panelThreadToRecord) {
         panelThreadToRecord?.let(actions.onPanelThreadShown)
+    }
+    LaunchedEffect(notificationSentenceToReveal) {
+        if (notificationSentenceToReveal != null) isCommentPanelCollapsed = false
     }
 
     PlatformBackHandler(
@@ -83,7 +97,7 @@ fun ReaderScreen(
                 modalThread != null -> commentSheetActions.onDismiss()
                 uiState.isCommentCollectionsVisible -> actions.onCommentCollectionsDismiss()
                 uiState.isTableOfContentsVisible -> actions.onTableOfContentsDismiss()
-                panelThread != null -> commentSheetActions.onDismiss()
+                showCommentPanel && panelThread != null -> commentSheetActions.onDismiss()
                 else -> actions.onBackClick()
             }
         },
@@ -93,12 +107,17 @@ fun ReaderScreen(
         uiState = uiState,
         actions = actions,
     )
+    val commentPanelListState = rememberLazyListState()
     val visibleCommentedSentences = if (showCommentPanel) {
         rememberVisibleCommentedSentences(readerListState, uiState)
     } else {
         emptyList()
     }
-    val sentencesToLoad = if (modalThread == null && !isReaderOverlayVisible) visibleCommentedSentences else emptyList()
+    val sentencesToLoad = if (modalThread == null && !isReaderOverlayVisible) {
+        visibleCommentedSentences
+    } else {
+        emptyList()
+    }
     LaunchedEffect(sentencesToLoad) {
         actions.onVisibleCommentSentencesChange(sentencesToLoad)
     }
@@ -155,14 +174,20 @@ fun ReaderScreen(
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
                 ) {
                     val panelWidth = minOf(maxWidth / 3, 352.dp)
+                    val showReopenButton = canShowCommentPanel && isCommentPanelCollapsed
                     Row(modifier = Modifier.fillMaxSize()) {
                         ReaderContent(
                             passages = uiState.passages.items,
                             fontSize = uiState.fontSize,
                             readerListState = readerListState,
+                            contentPadding = PaddingValues(
+                                horizontal = ReaderHorizontalPadding,
+                                vertical = if (showReopenButton) 32.dp else 0.dp,
+                            ),
                             onSentenceClick = { sentence ->
+                                if (showReopenButton) isCommentPanelCollapsed = false
                                 if (panelThread.canOpenSentence(sentence.sentenceId)) {
-                                    if (showCommentPanel) {
+                                    if (canShowCommentPanel) {
                                         actions.onPanelThreadOpen(sentence)
                                     } else {
                                         actions.onSentenceClick(sentence)
@@ -176,7 +201,9 @@ fun ReaderScreen(
                                 sentences = panelSentences(visibleCommentedSentences, panelThread, uiState.passages),
                                 previews = panelThreads,
                                 thread = panelThread,
+                                listState = commentPanelListState,
                                 actions = commentSheetActions,
+                                onClose = { isCommentPanelCollapsed = true },
                                 onWriteComment = { sentence ->
                                     if (panelThread.canOpenSentence(sentence.sentenceId)) {
                                         actions.onPanelThreadOpen(sentence)
@@ -196,6 +223,14 @@ fun ReaderScreen(
                                 modifier = Modifier.width(panelWidth).fillMaxHeight(),
                             )
                         }
+                    }
+                    if (showReopenButton) {
+                        ReaderCommentPanelReopenButton(
+                            onClick = { isCommentPanelCollapsed = false },
+                            modifier = Modifier.align(Alignment.TopEnd)
+                                .padding(top = 24.dp)
+                                .width(ReaderHorizontalPadding),
+                        )
                     }
                 }
             }
@@ -265,9 +300,9 @@ private fun rememberVisibleCommentedSentences(
     uiState: ReaderUiState,
 ): List<SentenceUiModel> {
     val currentUiState by rememberUpdatedState(uiState)
-    var visibleSentences by remember(readerListState) { mutableStateOf(emptyList<SentenceUiModel>()) }
-    LaunchedEffect(readerListState) {
-        snapshotFlow {
+    var lastVisibleSentences by remember(readerListState) { mutableStateOf(emptyList<SentenceUiModel>()) }
+    val visibleSentences by remember(readerListState) {
+        derivedStateOf {
             val state = currentUiState
             if (!readerListState.hasPositionedInitialPassage ||
                 readerListState.fontSizeRestoreRequest != null ||
@@ -277,11 +312,11 @@ private fun rememberVisibleCommentedSentences(
             } else {
                 readerListState.visibleCommentedSentences(state.passages, state.fontSize)
             }
-        }.collect { sentences ->
-            if (sentences != null) visibleSentences = sentences
         }
     }
-    return visibleSentences
+    val currentSentences = visibleSentences ?: return lastVisibleSentences
+    SideEffect { lastVisibleSentences = currentSentences }
+    return currentSentences
 }
 
 private fun CommentSheetUiState?.canOpenSentence(sentenceId: Long): Boolean {
@@ -378,15 +413,14 @@ private fun ReaderContent(
     passages: List<PassageUiModel>,
     fontSize: Int,
     readerListState: ReaderListState,
+    contentPadding: PaddingValues,
     onSentenceClick: (SentenceUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         state = readerListState.listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            horizontal = 36.dp,
-        ),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         items(

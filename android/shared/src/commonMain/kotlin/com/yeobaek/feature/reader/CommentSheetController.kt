@@ -873,6 +873,5 @@ internal fun CommentSheetUiState.withCommentSaved(
     input = "",
     editingCommentId = null,
     isSubmitting = false,
-    submittedCommentId = if (editedCommentId == null) savedComment.commentId else submittedCommentId,
     submitErrorMessage = null,
 )
