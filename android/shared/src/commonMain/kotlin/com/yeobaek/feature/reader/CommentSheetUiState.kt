@@ -1,5 +1,6 @@
 package com.yeobaek.feature.reader
 
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.feature.reader.model.CommentUiModel
 
@@ -39,7 +40,7 @@ class CommentSheetActions(
     val onDismiss: () -> Unit,
     val onRetry: () -> Unit,
     val onInputChange: (String) -> Unit,
-    val onSubmit: () -> Unit,
+    val onSubmit: (CommentPresentation) -> Unit,
     val onEdit: (commentId: Long) -> Unit,
     val onEditCancel: () -> Unit,
     val onDelete: (commentId: Long) -> Unit,
@@ -51,4 +52,5 @@ class CommentSheetActions(
     val onLike: (commentId: Long) -> Unit,
     val onLikeErrorConsumed: () -> Unit,
     val onContentsShown: (Long) -> Unit = {},
+    val onComposeStarted: (Long, CommentPresentation) -> Unit = { _, _ -> },
 )

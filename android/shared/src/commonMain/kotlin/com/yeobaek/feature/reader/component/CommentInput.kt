@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -54,6 +55,7 @@ fun CommentInput(
     onEditCancel: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+    onInputFocused: () -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     var textFieldValue by remember {
@@ -123,6 +125,7 @@ fun CommentInput(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
+                .onFocusChanged { if (it.isFocused) onInputFocused() }
                 .semantics {
                     contentDescription = "댓글 입력"
                 },

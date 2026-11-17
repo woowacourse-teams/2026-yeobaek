@@ -15,6 +15,57 @@ enum class CommentMode(
     EDIT("edit"),
 }
 
+enum class CommentPresentation(val value: String) {
+    SIDE_PANEL("side_panel"),
+    BOTTOM_SHEET("bottom_sheet"),
+}
+
+enum class CommentPanelAction(val value: String) {
+    CLOSE("close"),
+    REOPEN("reopen"),
+}
+
+data class CommentPanelContentsShown(
+    val bookId: Long?,
+    val readingSessionId: String,
+) : AnalyticsEvent {
+    override val name = "comment_panel_contents_shown"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_READING_SESSION_ID, readingSessionId)
+    }
+}
+
+data class CommentPanelToggled(
+    val bookId: Long?,
+    val readingSessionId: String?,
+    val action: CommentPanelAction,
+) : AnalyticsEvent {
+    override val name = "comment_panel_toggled"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        readingSessionId?.let { put(KEY_READING_SESSION_ID, it) }
+        put("action", action.value)
+    }
+}
+
+data class CommentComposeStarted(
+    val bookId: Long?,
+    val sentenceId: Long,
+    val source: CommentSheetSource,
+    val presentation: CommentPresentation,
+    val readingSessionId: String?,
+) : AnalyticsEvent {
+    override val name = "comment_compose_started"
+    override val properties = buildMap {
+        bookId?.let { put(KEY_BOOK_ID, it) }
+        put(KEY_SENTENCE_ID, sentenceId)
+        put(KEY_SOURCE, source.value)
+        put(KEY_PRESENTATION, presentation.value)
+        readingSessionId?.let { put(KEY_READING_SESSION_ID, it) }
+    }
+}
+
 data class CommentSheetOpened(
     val bookId: Long?,
     val sentenceId: Long,
@@ -103,6 +154,8 @@ data class CommentSubmitted(
     val passageSequence: Int?,
     val source: CommentSheetSource,
     val afterJump: Boolean,
+    val presentation: CommentPresentation,
+    val readingSessionId: String?,
 ) : AnalyticsEvent {
     override val name = "comment_submitted"
     override val properties = buildMap {
@@ -114,6 +167,8 @@ data class CommentSubmitted(
         passageSequence?.let { put(KEY_PASSAGE_SEQUENCE, it) }
         put(KEY_SOURCE, source.value)
         put(KEY_AFTER_JUMP, afterJump)
+        put(KEY_PRESENTATION, presentation.value)
+        readingSessionId?.let { put(KEY_READING_SESSION_ID, it) }
     }
 }
 
@@ -198,6 +253,8 @@ private const val KEY_COMMENT_LENGTH = "comment_length"
 private const val KEY_MODE = "mode"
 private const val KEY_RESULT = "result"
 private const val KEY_SOURCE = "source"
+private const val KEY_PRESENTATION = "presentation"
+private const val KEY_READING_SESSION_ID = "reading_session_id"
 private const val KEY_SENTENCE_ID = "sentence_id"
 private const val KEY_OTHERS_COMMENT_COUNT = "others_comment_count"
 private const val KEY_HAS_NEW_COMMENTS = "has_new_comments"
