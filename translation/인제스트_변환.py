@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """번역본(마크다운) → 문장 단위 서버 인제스트 JSON 변환 + 원문 문단 수 대조 검증.
 
-최종 보관용 ZIP에는 원문 파일, 표지 브리프와 검수를 통과한 표지 산출물도 함께 보관한다.
+최종 보관용 ZIP에는 원문 파일, 최종 번역 평가 결과와 표지 산출물을 함께 보관한다.
+최종 변환은 평가 입력의 경로·순서·해시를 검증하고, 남은 중대 결함이 있으면 중단한다.
 표지 생성·검증 자체는 `표지_하네스.md`와 `표지_시안_준비.py`가 담당한다.
 
 번역본 형식(번역_지침.md의 [4. 구조 보존 규칙]):
@@ -44,15 +45,12 @@ import subprocess
 import sys
 import zipfile
 from 표지_시안_준비 import manifest_variant_ids
+from 번역_평가_보고서 import DEFAULT_CHAPTER_RE, REPORT_NAME, load_report, summarize
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
-
-# 기본값: 열 0에서 시작하는 로마숫자 장 제목 ("I. Silver Blaze" 형태)
-# 다른 형식의 책은 --chapter-re로 교체한다. 예: "^CHAPTER [IVXLCDM]+" , "^Chapter \d+"
-DEFAULT_CHAPTER_RE = r"^[IVXLCDM]+\.\s+\S"
 
 SENTENCE_TERMINATORS = ".?!。？！…"
 SENTENCE_CLOSERS = "\"'’”)]}〉》」』】〕］｝）〗〙〛｠»›"
@@ -1175,8 +1173,13 @@ def list_chapters(original, chapter_re, max_paragraphs=DEFAULT_CHUNK_MAX_PARAGRA
           f"추정 토큰 {max_tokens:,}개")
 
 
+def _paths_alias(left, right):
+    return (left.resolve() == right.resolve()
+            or (left.exists() and right.exists() and left.samefile(right)))
+
+
 def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path,
-                   source_index=None, source_index_review=None):
+                   source_index=None, source_index_review=None, *, quality_report=None):
     """원문과 최종 산출물을 포함한 보관용 ZIP을 만든다."""
     if source_index_review is not None and source_index is None:
         raise ValueError("원문 색인 검토 기록에는 원문 색인이 필요합니다.")
@@ -1205,6 +1208,12 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path,
     introduction_path = validate_introduction(
         book_dir, zip_output, ingest_path, meta_path, original_path
     )
+    if quality_report is not None:
+        quality_report = quality_report.resolve()
+        if quality_report != book_dir / REPORT_NAME or not quality_report.is_file():
+            raise ValueError(f"번역 평가 보고서는 책 폴더의 {REPORT_NAME}이어야 합니다.")
+        if quality_report in conflicting_outputs or quality_report == original_path:
+            raise ValueError("번역 평가 보고서와 입력·출력 경로는 달라야 합니다.")
     cover_dir = book_dir / "표지"
     try:
         manifest = json.loads((cover_dir / "시안_목록.json").read_text(encoding="utf-8-sig"))
@@ -1229,6 +1238,7 @@ def create_archive(zip_output, book_dir, ingest_path, meta_path, original_path,
         book_dir / "장_정보.md",
         book_dir / "번역_공통_가이드.md",
         introduction_path,
+        *([quality_report] if quality_report is not None else []),
         *required_cover_files,
     ]
     output_dirs = [
@@ -1534,6 +1544,55 @@ def main():
         sys.exit("[탐색 정보 검증 실패] " + " / ".join(discovery_errors)
                  + " — ingest.json과 ZIP을 출력하지 않았습니다.")
 
+    try:
+        report_path = book_dir / REPORT_NAME
+        if report_path.resolve() != report_path:
+            raise ValueError("번역 평가 보고서는 책 폴더의 실제 파일이어야 합니다.")
+        for target in (output, zip_output):
+            if target.resolve().is_relative_to((book_dir / "번역본").resolve()):
+                raise ValueError("평가한 번역본 폴더 안에 JSON·ZIP을 출력할 수 없습니다.")
+        protected = [args.original, args.meta, introduction, report_path,
+                     book_dir / "번역_공통_가이드.md", book_dir / "장_정보.md",
+                     *args.translations, args.source_index, args.source_index_review]
+        if _paths_alias(output, zip_output):
+            raise ValueError("인제스트 JSON과 ZIP 출력 경로는 달라야 합니다.")
+        for path in protected:
+            if path is not None and any(_paths_alias(path, target) for target in (output, zip_output)):
+                raise ValueError(f"평가 입력·보고서를 출력으로 덮어쓸 수 없습니다: {path}")
+        if any(_paths_alias(report_path, path) for path in protected
+               if path is not None and path != report_path):
+            raise ValueError("번역 평가 보고서와 평가 입력 경로는 달라야 합니다.")
+        evaluation = load_report(report_path, book_dir=book_dir,
+                                 original_path=args.original, translation_paths=args.translations)
+        if evaluation["book_title"] != book["title"]:
+            raise ValueError("평가 보고서의 도서 제목과 메타데이터가 다릅니다.")
+        if evaluation["scope"]["total_paragraphs"] != total:
+            raise ValueError("평가 보고서의 전체 문단 수와 최종 번역이 다릅니다.")
+        language = SOURCE_LANGUAGE_LINE_RE.search(
+            (book_dir / "번역_공통_가이드.md").read_text(encoding="utf-8-sig"))
+        if language is None or language.group(1).lower() != evaluation["source_language"].lower():
+            raise ValueError("평가 보고서와 공통 가이드의 원문 언어가 다릅니다.")
+        index_record = evaluation["inputs"].get("source_index")
+        if args.source_index is not None:
+            if not isinstance(index_record, dict) or not isinstance(index_record.get("path"), str):
+                raise ValueError("원문 색인을 사용한 평가는 inputs.source_index 기록이 필요합니다.")
+            if ((book_dir / index_record["path"]).resolve() != args.source_index.resolve()
+                    or index_record.get("sha256") != hashlib.sha256(args.source_index.read_bytes()).hexdigest()):
+                raise ValueError("평가 보고서의 원문 색인 경로·SHA256이 현재 입력과 다릅니다.")
+        elif index_record is not None:
+            raise ValueError("원문 색인을 사용한 평가는 같은 --source-index로 변환해야 합니다.")
+        elif evaluation["inputs"].get("chapter_pattern") != args.chapter_re:
+            raise ValueError("평가 보고서와 최종 변환의 원문 장 구분 패턴이 다릅니다.")
+        measurement = summarize(evaluation)
+        major_count = measurement["defect_counts"]["major"]
+        if major_count:
+            raise ValueError(
+                f"중대 결함 {major_count}건이 남아 있습니다. 해당 범위를 재번역하고 "
+                "주변 문맥·관련 항목을 재평가한 뒤 보고서를 다시 생성하세요."
+            )
+    except (ValueError, OSError, UnicodeError) as error:
+        sys.exit(f"[번역 평가 검증 실패] {error} — ingest.json과 ZIP을 출력하지 않았습니다.")
+
     if not validate_cover_artifacts(args.meta):
         sys.exit("\n표지 검증 실패 — ingest.json과 ZIP을 출력하지 않았습니다.")
 
@@ -1541,8 +1600,12 @@ def main():
     print(f"저장 완료: {output}")
 
     create_archive(zip_output, book_dir, output, args.meta, args.original,
-                   source_index=args.source_index, source_index_review=args.source_index_review)
+                   source_index=args.source_index, source_index_review=args.source_index_review,
+                   quality_report=report_path)
     print(f"ZIP 저장 완료: {zip_output}")
+    print(f"최종 번역 평가: {evaluation['scope']['evaluated_paragraphs']}/{total}문단, "
+          f"고정 질문 {measurement['source_counts']}, 고유 결함 {measurement['defect_counts']}")
+    print(f"평가 기준 {evaluation['rubric_version']} / 결과·사용 모델 기록: {report_path}")
     print("소개·장르·해시태그를 ingest.json에 포함했습니다. 독립 검토와 필요한 운영자 검수 후 업로드하세요.")
 
 

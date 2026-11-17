@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 import re
 import struct
 import subprocess
@@ -12,6 +13,8 @@ from pathlib import Path
 from unittest import mock
 
 import 표지_시안_준비 as cover
+from 번역_평가_보고서 import REPORT_NAME, render_report
+from test_번역_평가_보고서 import create_evaluation
 from 인제스트_변환 import (
     LegacyNormalizationError,
     MAX_SENTENCE_CONTENT_BYTES,
@@ -633,7 +636,8 @@ class CreateArchiveCoverTests(unittest.TestCase):
     @staticmethod
     def _write_book_inputs(book_dir, title):
         original = book_dir / "원문.txt"
-        translation = book_dir / "01_첫째.md"
+        (book_dir / "번역본").mkdir(exist_ok=True)
+        translation = book_dir / "번역본" / "01_첫째.md"
         meta_path = book_dir / "메타데이터.json"
         meta = {
             "title": title,
@@ -666,6 +670,8 @@ class CreateArchiveCoverTests(unittest.TestCase):
             "## 원문 언어별 프로필\n\n영어 프로필.\n",
             encoding="utf-8",
         )
+        evaluation = create_evaluation(book_dir, original, [translation], book_title=title)
+        (book_dir / REPORT_NAME).write_bytes(render_report(evaluation).encode("utf-8"))
         return original, translation, meta_path, meta
 
     @staticmethod
@@ -708,6 +714,173 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 self.assertIn("소개 검증 실패", result.stdout + result.stderr)
                 self.assertEqual(ingest.read_bytes(), b"existing ingest")
                 self.assertEqual(archive.read_bytes(), b"existing zip")
+
+    def test_missing_or_malformed_quality_report_preserves_outputs(self):
+        for content in (None, b"", b"# Unstructured report", b"\xff"):
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                original, translation, meta_path, _ = self._write_book_inputs(root, "평가 검증")
+                report = root / REPORT_NAME
+                if content is None:
+                    report.unlink()
+                else:
+                    report.write_bytes(content)
+                ingest, archive = root / "ingest.json", root / "평가_검증.zip"
+                ingest.write_bytes(b"previous ingest")
+                archive.write_bytes(b"previous archive")
+                result = self._run_conversion(root, original, translation, meta_path, ("--force",))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"previous ingest")
+                self.assertEqual(archive.read_bytes(), b"previous archive")
+
+    def test_major_defect_blocks_final_conversion_until_retranslation_and_reevaluation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original, translation, meta_path, meta = self._write_book_inputs(root, "중대 결함 책")
+            brief = {"genre": "고전 문학", "coreSummary": ["기억의 이야기.", "선택의 이야기."],
+                     "keywords": ["기억", "선택", "시간"], "visualMotifs": ["시계"],
+                     "targetAudience": "성인 독자", "avoid": []}
+            (root / "표지_브리프.json").write_text(json.dumps(brief), encoding="utf-8")
+            cover_dir = root / "표지"
+            cover.prepare(meta, brief, cover_dir, "F")
+            image, prompt = cover_dir / "F.png", cover_dir / "프롬프트" / "F.txt"
+            self._write_png(image, 1)
+            review = {"schemaVersion": 2, "variants": {"F": {
+                "textExact": True, "frontCoverOnly": True, "styleMatch": True,
+                "legible": True, "publicationReady": True,
+                "imageSha256": cover._sha256_file(image), "promptSha256": cover._sha256_file(prompt)
+            }}, "setChecks": {"noExtraTextAcrossSet": True}}
+            (cover_dir / "표지_검수.json").write_text(json.dumps(review), encoding="utf-8")
+
+            translation.write_text("## I. 첫째\n\n마지막 문단.\n", encoding="utf-8")
+            data = create_evaluation(root, original, [translation], book_title=meta["title"])
+            data["defects"] = [{
+                "id": "D01", "criterion": "A1", "severity": "major", "description": "핵심 순서가 바뀌었다.",
+                "source_quote": "First paragraph.", "translation_quote": "마지막 문단.",
+                "locations": ["1장 1문단"],
+            }]
+            data["questions"][0].update(status="E", defect_ids=["D01"])
+            report = root / REPORT_NAME
+            report.write_bytes(render_report(data).encode("utf-8"))
+            ingest, archive = root / "ingest.json", root / "중대_결함_책.zip"
+            ingest.write_bytes(b"previous ingest")
+            archive.write_bytes(b"previous archive")
+            for flags in ((), ("--force",), ("--no-verify", "--force")):
+                with self.subTest(flags=flags):
+                    result = self._run_conversion(root, original, translation, meta_path, flags)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("중대 결함 1건", result.stderr)
+                    self.assertIn("재번역", result.stderr)
+                    self.assertEqual(ingest.read_bytes(), b"previous ingest")
+                    self.assertEqual(archive.read_bytes(), b"previous archive")
+
+            translation.write_text("## I. 첫째\n\n첫 문단.\n", encoding="utf-8")
+            stale = self._run_conversion(root, original, translation, meta_path)
+            self.assertIn("평가 후 입력이 변경", stale.stderr)
+            self.assertEqual(ingest.read_bytes(), b"previous ingest")
+            self.assertEqual(archive.read_bytes(), b"previous archive")
+
+            reevaluated = create_evaluation(root, original, [translation], book_title=meta["title"])
+            reevaluated["evaluation_id"] = "재번역 후 평가"
+            reevaluated["revisions"] = ["D01: 첫 문단으로 재번역하고 원문과 다시 대조했다."]
+            report.write_bytes(render_report(reevaluated).encode("utf-8"))
+            completed = self._run_conversion(root, original, translation, meta_path)
+            self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+            with zipfile.ZipFile(archive) as zipped:
+                self.assertEqual(zipped.read(REPORT_NAME), report.read_bytes())
+                self.assertEqual(zipped.read("번역본/01_첫째.md"), translation.read_bytes())
+
+    def test_changed_evaluation_input_preserves_existing_outputs(self):
+        for target in ("원문.txt", "번역본/01_첫째.md", "번역_공통_가이드.md"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                original, translation, meta_path, _ = self._write_book_inputs(root, "평가 변경")
+                path = root / target
+                path.write_bytes(path.read_bytes() + b"\n")
+                ingest, archive = root / "ingest.json", root / "평가_변경.zip"
+                ingest.write_bytes(b"previous ingest")
+                archive.write_bytes(b"previous archive")
+                result = self._run_conversion(root, original, translation, meta_path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"previous ingest")
+                self.assertEqual(archive.read_bytes(), b"previous archive")
+
+    def test_quality_inputs_cannot_be_used_as_output_paths(self):
+        for target in (REPORT_NAME, "번역본/01_첫째.md", "번역_공통_가이드.md", "메타데이터.json"):
+            for option in ("--output", "--zip-output"):
+                with self.subTest(target=target, option=option), tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    original, translation, meta_path, _ = self._write_book_inputs(root, "평가 충돌")
+                    path = root / target
+                    before = path.read_bytes()
+                    result = self._run_conversion(root, original, translation, meta_path,
+                                                  (option, str(path)))
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                    self.assertEqual(path.read_bytes(), before)
+                    self.assertFalse((root / "ingest.json").exists())
+                    self.assertFalse((root / "평가_충돌.zip").exists())
+
+    def test_quality_identity_and_coverage_must_match_final_book(self):
+        for change in ("title", "language", "paragraphs", "unused_index", "chapter_pattern"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                original, translation, meta_path, _ = self._write_book_inputs(root, "평가 대상")
+                data = create_evaluation(root, original, [translation], book_title="평가 대상")
+                if change == "title":
+                    data["book_title"] = "다른 도서"
+                elif change == "language":
+                    data["source_language"] = "fr"
+                elif change == "paragraphs":
+                    data["scope"].update(total_paragraphs=2, evaluated_paragraphs=2)
+                elif change == "chapter_pattern":
+                    # 이 입력에는 같은 결과여도 평가한 파싱 조건 자체가 달라졌음을 거부한다.
+                    data["inputs"]["chapter_pattern"] = r"^I\. "
+                else:
+                    data["inputs"]["source_index"] = {"path": "index.json", "sha256": "0" * 64}
+                    del data["inputs"]["chapter_pattern"]
+                (root / REPORT_NAME).write_bytes(render_report(data).encode("utf-8"))
+                ingest, archive = root / "ingest.json", root / "평가_대상.zip"
+                ingest.write_bytes(b"previous ingest")
+                archive.write_bytes(b"previous archive")
+                result = self._run_conversion(root, original, translation, meta_path)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                self.assertEqual(ingest.read_bytes(), b"previous ingest")
+                self.assertEqual(archive.read_bytes(), b"previous archive")
+
+    def test_new_outputs_cannot_expand_the_evaluated_translation_folder(self):
+        for option in ("--output", "--zip-output"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                original, translation, meta_path, _ = self._write_book_inputs(root, "평가 파일셋")
+                new_output = root / "번역본" / "새_산출물.md"
+                result = self._run_conversion(root, original, translation, meta_path,
+                                              (option, str(new_output)))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                self.assertFalse(new_output.exists())
+                self.assertFalse((root / "ingest.json").exists())
+                self.assertFalse((root / "평가_파일셋.zip").exists())
+
+    def test_output_hardlink_cannot_overwrite_evaluation_evidence(self):
+        for name in (REPORT_NAME, "번역본/01_첫째.md"):
+            for option in ("--output", "--zip-output"):
+                with self.subTest(name=name, option=option), tempfile.TemporaryDirectory() as tmp:
+                    root = Path(tmp)
+                    original, translation, meta_path, _ = self._write_book_inputs(root, "평가 별칭")
+                    protected = root / name
+                    before = protected.read_bytes()
+                    alias = root / "산출물_별칭"
+                    os.link(protected, alias)
+                    result = self._run_conversion(root, original, translation, meta_path,
+                                                  (option, str(alias)))
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("번역 평가 검증 실패", result.stdout + result.stderr)
+                    self.assertEqual(protected.read_bytes(), before)
+                    self.assertEqual(alias.read_bytes(), before)
 
     def test_final_discovery_metadata_is_required_before_outputs_are_replaced(self):
         invalid_values = [
@@ -1168,9 +1341,13 @@ class CreateArchiveCoverTests(unittest.TestCase):
                 self.assertEqual(archived_meta["genres"], ingest["genres"])
                 self.assertEqual(archived_meta["hashtags"], ingest["hashtags"])
                 self.assertEqual(archive.read("책_소개.txt"), (book_dir / "책_소개.txt").read_bytes())
+                self.assertEqual(archive.read(REPORT_NAME), (book_dir / REPORT_NAME).read_bytes())
+                self.assertEqual(archive.read("번역본/01_첫째.md"), translation.read_bytes())
             self.assertEqual(archived_original, original.read_bytes())
             self.assertIn("표지/A.png", names)
             self.assertIn("책_소개.txt", names)
+            self.assertIn(REPORT_NAME, names)
+            self.assertIn("최종 번역 평가:", completed.stdout)
             self.assertIn("운영자 검수 후", completed.stdout)
             # 소개 파일을 수정해 재생성하면 메타데이터의 이전 소개 대신 새 초안을 포함한다.
             meta["description"] = "  검수한 소개.\n내부 개행은 유지한다.  "

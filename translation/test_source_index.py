@@ -463,10 +463,12 @@ class LogicalVerseIndexTests(unittest.TestCase):
     def final_cli_preserves_logical_fixture(self):
         # Reuse the existing final-conversion fixtures; no production files or gates are bypassed.
         from test_인제스트_변환 import CreateArchiveCoverTests
+        from test_번역_평가_보고서 import create_evaluation
+        from 번역_평가_보고서 import REPORT_NAME, render_report
         import 표지_시안_준비 as cover
 
-        _, _, meta_path, meta = CreateArchiveCoverTests._write_book_inputs(self.root, "논리 시행 책")
-        (self.root / "번역본").mkdir()
+        _, unused_translation, meta_path, meta = CreateArchiveCoverTests._write_book_inputs(self.root, "논리 시행 책")
+        unused_translation.unlink()
         self.translation = self.translation.rename(self.root / "번역본/01.md")
         brief = {"genre": "고전 문학", "coreSummary": ["기억의 이야기.", "선택의 이야기."],
                  "keywords": ["기억", "선택", "시간"], "visualMotifs": ["시계"],
@@ -493,16 +495,43 @@ class LogicalVerseIndexTests(unittest.TestCase):
                        "sourceIndexSha256": hashlib.sha256(self.index.read_bytes()).hexdigest()}
         review.write_text(json.dumps(review_data), encoding="utf-8")
         args += ("--source-index-review", review)
+        paragraph_count = sum(len(chapter["passages"])
+                              for chapter in converter.parse_translation([self.translation]))
+        evaluation = create_evaluation(self.root, self.original, [self.translation],
+                                       book_title=meta["title"], total_paragraphs=paragraph_count)
+        evaluation["inputs"]["source_index"] = {
+            "path": self.index.relative_to(self.root).as_posix(),
+            "sha256": hashlib.sha256(self.index.read_bytes()).hexdigest(),
+        }
+        del evaluation["inputs"]["chapter_pattern"]
+        quality_report = self.root / REPORT_NAME
+        quality_report.write_bytes(render_report(evaluation).encode("utf-8"))
         preserved = {path: path.read_bytes() for path in (self.original, self.translation, self.index, review)}
         result = self.cli(*args)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         with zipfile.ZipFile(self.root / "논리_시행_책.zip") as archive:
             self.assertIsNone(archive.testzip())
+            self.assertEqual(archive.read(REPORT_NAME), quality_report.read_bytes())
             for name, path in (("원문/original.txt", self.original), ("번역본/01.md", self.translation),
                                ("원문_검증/원문_색인.json", self.index),
                                ("원문_검증/원문_색인_검토.json", review)):
                 self.assertEqual(archive.read(name), preserved[path])
         self.assertEqual(preserved, {path: path.read_bytes() for path in preserved})
+        outputs = [self.root / "ingest.json", self.root / "논리_시행_책.zip"]
+        output_bytes = [path.read_bytes() for path in outputs]
+        for change in ("missing", "stale"):
+            invalid_evaluation = copy.deepcopy(evaluation)
+            if change == "missing":
+                del invalid_evaluation["inputs"]["source_index"]
+                invalid_evaluation["inputs"]["chapter_pattern"] = converter.DEFAULT_CHAPTER_RE
+            else:
+                invalid_evaluation["inputs"]["source_index"]["sha256"] = "0" * 64
+            quality_report.write_bytes(render_report(invalid_evaluation).encode("utf-8"))
+            rejected = self.cli(*args)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("번역 평가 검증 실패", rejected.stderr)
+            self.assertEqual([path.read_bytes() for path in outputs], output_bytes)
+        quality_report.write_bytes(render_report(evaluation).encode("utf-8"))
         self.index.write_bytes(self.index.read_bytes() + b" ")
         stale = self.cli(*args)
         self.assertNotEqual(stale.returncode, 0)
