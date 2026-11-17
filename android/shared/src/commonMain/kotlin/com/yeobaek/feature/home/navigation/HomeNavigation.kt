@@ -20,6 +20,7 @@ import com.yeobaek.core.common.TrackScreen
 import com.yeobaek.core.common.TrackedScreen
 import com.yeobaek.feature.home.HomeScreen
 import com.yeobaek.feature.home.HomeViewModel
+import com.yeobaek.feature.home.component.HomePatchNotePrompt
 import com.yeobaek.feature.reader.ReaderTarget
 import com.yeobaek.feature.survey.HomeSurveyPrompt
 import kotlinx.serialization.Serializable
@@ -72,6 +73,11 @@ fun NavGraphBuilder.homeNavGraph(
         val invitation by appContainer.invitations.pendingOpen.collectAsState()
         val joiningOwners by appContainer.invitations.joiningOwners.collectAsState()
         val notification by appContainer.notifications.pendingOpen.collectAsState()
+        val acknowledgedPatchNotes by appContainer.patchNotePreferences.acknowledgedIds.collectAsState()
+        val pendingPatchNote = appContainer.patchNote?.takeIf {
+            it.id !in acknowledgedPatchNotes && appContainer.guideOnboardingPreferences.getOnboardingState()
+        }
+        val otherPromptPending = invitation != null || joiningOwners.isNotEmpty() || notification != null
 
         HomeScreen(
             appName = appContainer.appName,
@@ -139,6 +145,11 @@ fun NavGraphBuilder.homeNavGraph(
                 navigateToMyPage()
             },
         )
+        HomePatchNotePrompt(
+            note = pendingPatchNote,
+            otherPromptPending = otherPromptPending,
+            onAcknowledge = appContainer.patchNotePreferences::acknowledge,
+        )
         HomeSurveyPrompt(
             userId = userId,
             config = config.surveyConfig,
@@ -146,7 +157,7 @@ fun NavGraphBuilder.homeNavGraph(
             preferences = appContainer.surveyPreferences,
             linkLauncher = appContainer.surveyLinkLauncher,
             homeReady = homeViewModel.uiState.isLoadingComplete,
-            otherPromptPending = invitation != null || joiningOwners.isNotEmpty() || notification != null,
+            otherPromptPending = otherPromptPending || pendingPatchNote != null,
         )
     }
 }

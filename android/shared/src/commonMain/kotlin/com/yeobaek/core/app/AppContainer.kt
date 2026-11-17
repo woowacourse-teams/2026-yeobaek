@@ -24,6 +24,7 @@ import com.yeobaek.core.update.UpdatePolicyRepository
 import com.yeobaek.core.update.UpdatePolicySource
 import com.yeobaek.data.local.GuideOnboardingPreferences
 import com.yeobaek.data.local.NotificationRegistrationPreferences
+import com.yeobaek.data.local.PatchNotePreferences
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.local.SurveyPreferences
 import com.yeobaek.data.local.UpdatePolicyPreferences
@@ -63,6 +64,8 @@ class AppContainer(
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
 ) {
     private val settings = Settings()
+    internal val patchNotePreferences = PatchNotePreferences(settings)
+    val patchNote = patchNotePreferences.readFor(updatePolicyPlatform, appVersion)
 
     val userPreferences = UserPreferences(settings)
     val readerPreferences = ReaderPreferences(settings)
@@ -138,6 +141,7 @@ class AppContainer(
 
     val appConfigRepository: AppConfigRepository = AppConfigRepositoryImpl(
         dataSource = FirebaseRemoteConfigDataSource(),
+        patchNotePreferences = patchNotePreferences,
     )
     private val appConfigScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val appConfigStartup = AppConfigStartup(

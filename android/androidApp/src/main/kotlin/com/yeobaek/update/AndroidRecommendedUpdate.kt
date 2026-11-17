@@ -108,6 +108,10 @@ internal fun AndroidRecommendedUpdate(
     }
     YeobaekTheme {
         val readyToInstall = updatesAllowed && state.stage == RecommendedUpdateStage.READY_TO_INSTALL
+        val updateNoticeVisible = updatesAllowed && (
+            promptPending || readyToInstall || state.stage == RecommendedUpdateStage.INSTALLING ||
+                state.errorMessage != null || snackbarHostState.currentSnackbarData != null
+            )
         Surface(
             color = if (readyToInstall) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -121,10 +125,7 @@ internal fun AndroidRecommendedUpdate(
                 ),
             ) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    AppPromptBlocker(
-                        blocked = promptPending || snackbarHostState.currentSnackbarData != null,
-                        content = content,
-                    )
+                    AppPromptBlocker(blocked = updateNoticeVisible, content = content)
                 }
                 SnackbarHost(
                     hostState = snackbarHostState,
