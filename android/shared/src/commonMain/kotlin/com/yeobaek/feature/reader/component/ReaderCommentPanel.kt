@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReaderPanelCommentAction
@@ -91,6 +92,8 @@ fun ReaderCommentPanel(
     onPanelLikeErrorConsumed: () -> Unit,
     isLikeEnabled: Boolean,
     isThreadVisible: Boolean,
+    readingSessionId: String?,
+    onContentsShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -121,6 +124,20 @@ fun ReaderCommentPanel(
     val feedback = remember { SnackbarHostState() }
     if (thread != null) {
         rememberCommentThreadFeedback(thread, actions, isThreadVisible, feedback)
+    }
+    LaunchedEffect(listState, readingSessionId, isThreadVisible) {
+        if (readingSessionId == null || !isThreadVisible) return@LaunchedEffect
+
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            layout.visibleItemsInfo.any { item ->
+                (item.key as? String)?.startsWith(PANEL_COMMENT_KEY_PREFIX) == true &&
+                    item.size > 0 &&
+                    item.offset < layout.viewportEndOffset &&
+                    item.offset + item.size > layout.viewportStartOffset
+            }
+        }.first { it }
+        onContentsShown()
     }
     LaunchedEffect(panelLikeError) {
         val message = panelLikeError ?: return@LaunchedEffect
@@ -313,6 +330,7 @@ fun ReaderCommentPanel(
                                         CommentThreadInput(
                                             uiState = active,
                                             actions = actions,
+                                            presentation = CommentPresentation.SIDE_PANEL,
                                             modifier = if (hasComments) revealModifier else Modifier,
                                             contentPadding = PaddingValues(
                                                 top = if (isEditing) 8.dp else 0.dp,
@@ -402,7 +420,9 @@ private data class PanelCommentGroup(
 
 private data class PanelSubmitAnchor(val sentenceId: Long, val key: Any, val scrollOffset: Int)
 
-private fun panelCommentKey(commentId: Long): String = "comment-$commentId"
+private const val PANEL_COMMENT_KEY_PREFIX = "comment-"
+
+private fun panelCommentKey(commentId: Long): String = "$PANEL_COMMENT_KEY_PREFIX$commentId"
 
 private fun List<PanelCommentGroup>.itemIndexOf(key: Any): Int? {
     var index = 0

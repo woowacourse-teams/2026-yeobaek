@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.CommentSheetUiState
 import com.yeobaek.feature.reader.ReportState
@@ -95,7 +96,7 @@ fun CommentThreadContent(
                     Text(stringResource(Res.string.reader_go_to_sentence))
                 }
             }
-            CommentThreadInput(uiState, actions)
+            CommentThreadInput(uiState, actions, CommentPresentation.BOTTOM_SHEET)
         }
         SnackbarHost(
             hostState = snackbarHostState,
@@ -152,6 +153,7 @@ fun rememberCommentThreadFeedback(
 fun CommentThreadInput(
     uiState: CommentSheetUiState,
     actions: CommentSheetActions,
+    presentation: CommentPresentation,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
     onBeforeSubmit: () -> Unit = {},
@@ -164,11 +166,14 @@ fun CommentThreadInput(
         onValueChange = actions.onInputChange,
         onSubmit = {
             onBeforeSubmit()
-            actions.onSubmit()
+            actions.onSubmit(presentation)
             focusManager.clearFocus()
         },
         modifier = modifier,
         contentPadding = contentPadding,
+        onInputFocused = {
+            if (uiState.editingCommentId == null) actions.onComposeStarted(uiState.sentenceId, presentation)
+        },
         onEditCancel = {
             actions.onEditCancel()
             focusManager.clearFocus()

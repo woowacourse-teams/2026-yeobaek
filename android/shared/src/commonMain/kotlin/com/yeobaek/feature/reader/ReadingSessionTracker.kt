@@ -1,5 +1,8 @@
 package com.yeobaek.feature.reader
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.ReaderClosed
 import com.yeobaek.core.analytics.ReaderLoaded
@@ -20,7 +23,7 @@ class ReadingSessionTracker(
     private val trackEvent: (AnalyticsEvent) -> Unit,
     private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
-    private var startMark: TimeMark? = null
+    private var startMark by mutableStateOf<TimeMark?>(null)
     private var hasStarted = false
     private var readingSessionId = ""
     private var bookId = 0L

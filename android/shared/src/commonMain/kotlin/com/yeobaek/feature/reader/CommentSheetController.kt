@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import com.yeobaek.core.analytics.CommentCollectionCardContext
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.crashlytics.CrashContext
@@ -52,6 +53,7 @@ class CommentSheetController(
     private var didSubmitInSheet = false
     private var refreshPending = false
     private var sheetVersion = 0L
+    private val composeStarts = mutableSetOf<Pair<String?, CommentPresentation>>()
     private val likeRequests = mutableSetOf<Long>()
 
     val pendingRestoreSentenceId: Long?
@@ -176,6 +178,7 @@ class CommentSheetController(
         cancelLoad()
         didSubmitInSheet = false
         refreshPending = false
+        composeStarts.clear()
         track(
             operation = CrashOperation.COMMENT_SHEET_OPENED,
             sentenceId = sentenceId,
@@ -325,6 +328,13 @@ class CommentSheetController(
         persistDraft()
     }
 
+    fun startComposing(sentenceId: Long, presentation: CommentPresentation) {
+        val sheet = uiState?.takeIf { it.sentenceId == sentenceId && !it.isPanelDeleteOnly } ?: return
+        if (sheet.editingCommentId != null || sheet.isSubmitting || sheet.isDeleting) return
+        val context = analytics.activeReadingSessionId to presentation
+        if (composeStarts.add(context)) analytics.composeStarted(sheet, presentation)
+    }
+
     fun startEditing(commentId: Long) {
         val sheet = uiState ?: return
         if (sheet.isSubmitting || sheet.isDeleting) return
@@ -470,7 +480,7 @@ class CommentSheetController(
         }
     }
 
-    fun submit() {
+    fun submit(presentation: CommentPresentation) {
         val sheet = uiState ?: return
         val content = sheet.input.trim()
         if (
@@ -483,6 +493,7 @@ class CommentSheetController(
         }
         val editingCommentId = sheet.editingCommentId
         val requestSheetVersion = sheetVersion
+        val readingSessionId = analytics.activeReadingSessionId
 
         prepareMutation()
 
@@ -525,7 +536,10 @@ class CommentSheetController(
                     sentenceId = sheet.sentenceId,
                     itemCount = commentCount,
                 )
-                if (updated != null) didSubmitInSheet = true
+                if (updated != null) {
+                    didSubmitInSheet = true
+                    if (editingCommentId == null) composeStarts.clear()
+                }
                 analytics.submitted(
                     sentenceId = sheet.sentenceId,
                     passageSequence = sheet.targetPassageSequence,
@@ -533,6 +547,8 @@ class CommentSheetController(
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.SUCCESS,
+                    presentation = presentation,
+                    readingSessionId = readingSessionId,
                 )
                 if (updated != null && sheet.openedInPanel) {
                     dismiss()
@@ -552,6 +568,8 @@ class CommentSheetController(
                     isEditing = editingCommentId != null,
                     commentLength = content.length,
                     result = EventResult.FAILURE,
+                    presentation = presentation,
+                    readingSessionId = readingSessionId,
                 )
                 updateSheet(
                     sentenceId = sheet.sentenceId,

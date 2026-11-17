@@ -2,6 +2,7 @@ package com.yeobaek.feature.reader
 
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.CommentCollectionCardContext
+import com.yeobaek.core.analytics.CommentComposeStarted
 import com.yeobaek.core.analytics.CommentDeleteCanceled
 import com.yeobaek.core.analytics.CommentDeleteRequested
 import com.yeobaek.core.analytics.CommentDeleted
@@ -9,6 +10,10 @@ import com.yeobaek.core.analytics.CommentEditCanceled
 import com.yeobaek.core.analytics.CommentEditStarted
 import com.yeobaek.core.analytics.CommentLikeSubmitted
 import com.yeobaek.core.analytics.CommentMode
+import com.yeobaek.core.analytics.CommentPanelAction
+import com.yeobaek.core.analytics.CommentPanelContentsShown
+import com.yeobaek.core.analytics.CommentPanelToggled
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.core.analytics.CommentReported
 import com.yeobaek.core.analytics.CommentSheetClosed
 import com.yeobaek.core.analytics.CommentSheetContentsShown
@@ -30,6 +35,34 @@ class CommentSheetAnalytics(
     private val isAfterJump: () -> Boolean,
     private val isCommentLikeEnabled: () -> Boolean = { true },
 ) {
+    val activeReadingSessionId: String?
+        get() = readingSession.sessionId.takeIf { readingSession.isActive }
+
+    private var lastPanelContentsSessionId: String? = null
+
+    fun panelContentsShown() {
+        val sessionId = activeReadingSessionId ?: return
+        if (lastPanelContentsSessionId == sessionId) return
+        lastPanelContentsSessionId = sessionId
+        trackEvent(CommentPanelContentsShown(bookId(), sessionId))
+    }
+
+    fun panelToggled(action: CommentPanelAction) {
+        trackEvent(CommentPanelToggled(bookId(), activeReadingSessionId, action))
+    }
+
+    fun composeStarted(sheet: CommentSheetUiState, presentation: CommentPresentation) {
+        trackEvent(
+            CommentComposeStarted(
+                bookId = bookId(),
+                sentenceId = sheet.sentenceId,
+                source = sheet.source,
+                presentation = presentation,
+                readingSessionId = activeReadingSessionId,
+            ),
+        )
+    }
+
     fun sheetOpened(
         sentenceId: Long,
         passageSequence: Int?,
@@ -92,9 +125,12 @@ class CommentSheetAnalytics(
         isEditing: Boolean,
         commentLength: Int,
         result: EventResult,
+        presentation: CommentPresentation,
+        readingSessionId: String?,
     ) {
         val mode = if (isEditing) CommentMode.EDIT else CommentMode.CREATE
-        if (mode == CommentMode.CREATE && result == EventResult.SUCCESS) {
+        val createdComment = mode == CommentMode.CREATE && result == EventResult.SUCCESS
+        if (createdComment && readingSessionId == activeReadingSessionId) {
             readingSession.onCommentWritten()
         }
         trackEvent(
@@ -107,6 +143,8 @@ class CommentSheetAnalytics(
                 passageSequence = passageSequence ?: passageSequenceOf(sentenceId),
                 source = source,
                 afterJump = isAfterJump(),
+                presentation = presentation,
+                readingSessionId = readingSessionId,
             ),
         )
     }

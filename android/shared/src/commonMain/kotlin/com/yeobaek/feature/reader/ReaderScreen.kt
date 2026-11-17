@@ -35,6 +35,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.yeobaek.core.analytics.CommentCollectionAction
+import com.yeobaek.core.analytics.CommentPanelAction
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.core.analytics.CommentSentenceRevealTrigger
 import com.yeobaek.core.analytics.CommentSheetSource
 import com.yeobaek.core.common.isLandscape
@@ -69,6 +71,7 @@ fun ReaderScreen(
     modifier: Modifier = Modifier,
     panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
     panelLikeError: String? = null,
+    readingSessionId: String? = null,
 ) {
     var isCommentPanelCollapsed by rememberSaveable { mutableStateOf(false) }
     val canShowCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
@@ -203,10 +206,17 @@ fun ReaderScreen(
                                 thread = panelThread,
                                 listState = commentPanelListState,
                                 actions = commentSheetActions,
-                                onClose = { isCommentPanelCollapsed = true },
+                                onClose = {
+                                    isCommentPanelCollapsed = true
+                                    actions.onPanelToggled(CommentPanelAction.CLOSE)
+                                },
                                 onWriteComment = { sentence ->
                                     if (panelThread.canOpenSentence(sentence.sentenceId)) {
                                         actions.onPanelThreadOpen(sentence)
+                                        commentSheetActions.onComposeStarted(
+                                            sentence.sentenceId,
+                                            CommentPresentation.SIDE_PANEL,
+                                        )
                                     }
                                 },
                                 onPreviewRetry = actions.onPanelThreadRetry,
@@ -220,13 +230,20 @@ fun ReaderScreen(
                                 onPanelLikeErrorConsumed = actions.onPanelLikeErrorConsumed,
                                 isLikeEnabled = isCommentLikeEnabled,
                                 isThreadVisible = !isReaderOverlayVisible,
+                                readingSessionId = readingSessionId.takeUnless {
+                                    modalThread != null || commentSheet?.deletingCommentId != null
+                                },
+                                onContentsShown = actions.onPanelContentsShown,
                                 modifier = Modifier.width(panelWidth).fillMaxHeight(),
                             )
                         }
                     }
                     if (showReopenButton) {
                         ReaderCommentPanelReopenButton(
-                            onClick = { isCommentPanelCollapsed = false },
+                            onClick = {
+                                isCommentPanelCollapsed = false
+                                actions.onPanelToggled(CommentPanelAction.REOPEN)
+                            },
                             modifier = Modifier.align(Alignment.TopEnd)
                                 .padding(top = 24.dp)
                                 .width(ReaderHorizontalPadding),
@@ -374,6 +391,8 @@ class ReaderActions(
     val onPanelCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit = { _, _, _ -> },
     val onPanelLike: (Long, Long) -> Unit = { _, _ -> },
     val onPanelLikeErrorConsumed: () -> Unit = {},
+    val onPanelContentsShown: () -> Unit = {},
+    val onPanelToggled: (CommentPanelAction) -> Unit = {},
 )
 
 @Composable

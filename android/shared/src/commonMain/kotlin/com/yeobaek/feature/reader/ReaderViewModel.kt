@@ -141,6 +141,15 @@ class ReaderViewModel(
     var panelLikeError by mutableStateOf<String?>(null)
         private set
 
+    val commentAnalytics = CommentSheetAnalytics(
+        trackEvent = trackReaderEvent,
+        readingSession = readingSession,
+        bookId = { currentBookId },
+        passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
+        isAfterJump = { uiState.returnPassageSequence != null },
+        isCommentLikeEnabled = isCommentLikeEnabled,
+    )
+
     val commentSheet = CommentSheetController(
         savedStateHandle = savedStateHandle,
         commentSpace = commentSpace,
@@ -189,14 +198,7 @@ class ReaderViewModel(
                 loadCommentCollections(CommentCollectionLoadTrigger.COMMENT_CHANGED, isRefreshing = false)
             }
         },
-        analytics = CommentSheetAnalytics(
-            trackEvent = trackReaderEvent,
-            readingSession = readingSession,
-            bookId = { currentBookId },
-            passageSequenceOf = { sentenceId -> uiState.passages.findPassageSequenceBySentenceId(sentenceId) },
-            isAfterJump = { uiState.returnPassageSequence != null },
-            isCommentLikeEnabled = isCommentLikeEnabled,
-        ),
+        analytics = commentAnalytics,
         onCommentsViewed = ::handleCommentsViewed,
         onCommentsUpdated = panelComments::replace,
         onLikeUpdated = panelComments::updateLike,

@@ -2,9 +2,12 @@ package com.yeobaek
 
 import com.yeobaek.core.analytics.AnalyticsEvent
 import com.yeobaek.core.analytics.CommentLikeSubmitted
+import com.yeobaek.core.analytics.CommentPanelContentsShown
+import com.yeobaek.core.analytics.CommentPresentation
 import com.yeobaek.core.analytics.CommentSheetContentsShown
 import com.yeobaek.core.analytics.CommentSheetOpened
 import com.yeobaek.core.analytics.CommentSheetSource
+import com.yeobaek.core.analytics.CommentSubmitted
 import com.yeobaek.core.analytics.EventResult
 import com.yeobaek.core.analytics.ReaderClosed
 import com.yeobaek.core.analytics.ReaderSessionEnd
@@ -18,6 +21,54 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class CommentSheetAnalyticsTest {
+    @Test
+    fun panelContentExposureIsRecordedOncePerActiveReadingSession() {
+        val events = mutableListOf<AnalyticsEvent>()
+        val session = ReadingSessionTracker(events::add)
+        val analytics = CommentSheetAnalytics(events::add, session, { 12L }, { 3 }, { false })
+
+        analytics.panelContentsShown()
+        session.start(12, "book", 1, 0f)
+        val firstSession = session.sessionId
+        analytics.panelContentsShown()
+        analytics.panelContentsShown()
+        session.end(0f, ReaderSessionEnd.BACKGROUND)
+        analytics.panelContentsShown()
+        session.start(12, "book", 1, 0f)
+        analytics.panelContentsShown()
+
+        val exposureSessions = events.filterIsInstance<CommentPanelContentsShown>().map { it.readingSessionId }
+        assertEquals(listOf(firstSession, session.sessionId), exposureSessions)
+    }
+
+    @Test
+    fun submissionThatFinishesAfterForegroundKeepsTheOriginalSessionAndPresentation() {
+        val events = mutableListOf<AnalyticsEvent>()
+        val session = ReadingSessionTracker(events::add)
+        val analytics = CommentSheetAnalytics(events::add, session, { 12L }, { 3 }, { false })
+        session.start(12, "book", 1, 0f)
+        val submissionSession = analytics.activeReadingSessionId
+        session.end(0f, ReaderSessionEnd.BACKGROUND)
+        session.start(12, "book", 1, 0f)
+
+        analytics.submitted(
+            sentenceId = 42,
+            passageSequence = 3,
+            source = CommentSheetSource.READER,
+            isEditing = false,
+            commentLength = 10,
+            result = EventResult.SUCCESS,
+            presentation = CommentPresentation.SIDE_PANEL,
+            readingSessionId = submissionSession,
+        )
+        session.end(0f, ReaderSessionEnd.BACK)
+
+        val submission = events.filterIsInstance<CommentSubmitted>().single()
+        assertEquals(submissionSession, submission.properties["reading_session_id"])
+        assertEquals("side_panel", submission.properties["presentation"])
+        assertEquals(0, assertIs<ReaderClosed>(events.last()).commentsWritten)
+    }
+
     @Test
     fun likeAndUnlikeResultsKeepTheirContextWithoutCountingAsWrittenComments() {
         val events = mutableListOf<AnalyticsEvent>()
