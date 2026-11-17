@@ -61,12 +61,6 @@ fun CommentThreadContent(
         actions.onScrollToLatestConsumed(uiState.sentenceId)
     }
 
-    LaunchedEffect(uiState.sentenceId, uiState.submittedCommentId) {
-        val commentId = uiState.submittedCommentId ?: return@LaunchedEffect
-        val index = uiState.comments.indexOfFirst { it.commentId == commentId }
-        if (index >= 0) commentListState.animateScrollToItem(index)
-    }
-
     Box(modifier = modifier) {
         Column(
             modifier = Modifier
@@ -160,6 +154,7 @@ fun CommentThreadInput(
     actions: CommentSheetActions,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+    onBeforeSubmit: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     CommentInput(
@@ -168,6 +163,7 @@ fun CommentThreadInput(
         isEditing = uiState.editingCommentId != null,
         onValueChange = actions.onInputChange,
         onSubmit = {
+            onBeforeSubmit()
             actions.onSubmit()
             focusManager.clearFocus()
         },
