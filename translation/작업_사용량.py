@@ -1,4 +1,4 @@
-"""Local, origin-deduplicated Codex usage ledger. Quota attribution is unavailable."""
+"""Local, origin-deduplicated Codex usage ledger and conservative UI observations."""
 import argparse
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -11,12 +11,13 @@ import sqlite3
 import sys
 import time
 import uuid
+import 작업_한도 as quota_adapter
 
 TOKEN_FIELDS = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens",
                 "output_tokens", "reasoning_output_tokens", "total_tokens")
 STAGES = ("translation", "normalization", "upload", "book_control", "shared")
 DEFAULT_STATE = Path(__file__).resolve().parent / ".omc/state/measurement"
-QUOTA = {"status": "unavailable", "percentPoints": None, "reason": "No attributable per-book/thread weekly quota API or provider evidence is available. Account rate limits and token ratios are not quota attribution."}
+QUOTA = {"status": "unavailable", "percentPoints": None, "reason": "No validated bound-chat UI observations available. Account rate limits and token ratios are not quota attribution."}
 
 
 def connection(state_dir=DEFAULT_STATE):
@@ -38,6 +39,7 @@ def connection(state_dir=DEFAULT_STATE):
       CREATE TABLE IF NOT EXISTS pending (
         path TEXT PRIMARY KEY, reason TEXT NOT NULL);
     """)
+    quota_adapter.initialize(db)
     return db
 
 
@@ -91,7 +93,10 @@ def bind(db, book, stage, session_id, run_id=None, source=None, purpose="prepare
                     or (source is not None and json.loads(old["source"] or "null") != source)):
                 raise ValueError("Session assignment conflict: original book/stage/run/source is immutable")
             return dict(old)
-        run_id = run_id or str(uuid.uuid4())
+        quota_binding = db.execute("SELECT book,run_id FROM quota_chats WHERE thread_id=?", (session_id,)).fetchone()
+        if quota_binding and (quota_binding['book'] != book or (run_id and quota_binding['run_id'] != run_id)):
+            raise ValueError("Session assignment conflicts with quota chat attribution")
+        run_id = run_id or (quota_binding['run_id'] if quota_binding else str(uuid.uuid4()))
         db.execute("INSERT INTO bindings VALUES (?,?,?,?,?,?,?,?)",
                    (session_id, book, stage, run_id, json.dumps(source) if source else None, purpose, time.time(), start_turn_id))
     return {"session_id": session_id, "book": book, "stage": stage, "run_id": run_id}
@@ -417,7 +422,7 @@ def report(db, book, run_id=None):
                                   "priorMeasuredTokenLowerBounds": item["priorTokenEvidence"],
                                   "reason": "Appended usage omitted previously measured fields; current exact values are unknown."}
                                  for item in [json.loads(row["record"]) for row in rows] if item.get("priorTokenEvidence")],
-            "quota": QUOTA}
+            "quota": quota_adapter.quota_report(db, book, run_id)}
 
 
 def persist_report(db, book):
@@ -430,12 +435,17 @@ def persist_report(db, book):
         destination.mkdir(parents=True, exist_ok=True)
         data = report(db, book)
         total = data["bookTotal"]
+        quota = data["quota"]
+        quota_text = f"Weekly book quota: unconfirmed. {quota['reason']}"
+        for observation in quota["chatObservations"]:
+            quota_text += (f"\nObserved chat display: {observation['displayedWeeklyPercentText']}"
+                           f" at {observation['observedAt']}; reporting period, freshness and child coverage unverified.")
         text = (f"# Usage: {Path(book).name}\n\n"
                 f"Measured tokens: {total['tokens']['total_tokens']}.\n"
                 f"Summed duration: {total['summedDurationMs']} ms; interval union: {total['intervalUnionMs']} ms.\n"
                 f"Assigned indexed source characters: {data['sourceVolume']['characters']} (declared scope, not completed translation).\n"
                 f"Coverage: {data['coverage']['status']}.\n"
-                f"Weekly quota: unavailable. {QUOTA['reason']}\n\n"
+                f"{quota_text}\n\n"
                 "Token sums include measured fields only. See report.json for missing data, models, control stages and declared source scopes.\n")
         for name, content in (("report.json", json.dumps(data, ensure_ascii=False, indent=2) + "\n"), ("report.md", text)):
             temporary = destination / (name + "." + uuid.uuid4().hex + ".tmp")
@@ -458,7 +468,7 @@ def read_turn(log_path, turn_id):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    commands = ("init", "bind", "reconcile", "report", "hook", "probe")
+    commands = ("init", "bind", "reconcile", "report", "hook", "probe", "quota-bind", "quota-import")
     legacy = not any(arg in commands for arg in argv) and "--log" in argv
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=commands, nargs="?", default="reconcile")
@@ -467,6 +477,8 @@ def main(argv=None):
     parser.add_argument("--stage", choices=STAGES)
     parser.add_argument("--session-id")
     parser.add_argument("--run-id")
+    parser.add_argument("--chat-title")
+    parser.add_argument("--snapshot", type=Path)
     parser.add_argument("--purpose", choices=("draft", "review", "correction", "prepare", "comparison"), default="prepare")
     parser.add_argument("--turn-id")
     parser.add_argument("--log", type=Path)
@@ -478,7 +490,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "probe" and not legacy:
-            print(json.dumps({"quota": QUOTA, "tokens": "local_session_logs", "provider": "codex"}))
+            print(json.dumps({"quota": QUOTA, "quotaObservationSource": "codex_desktop_accessibility",
+                              "tokens": "local_session_logs", "provider": "codex"}))
             return 0
         db = connection(args.state_dir)
         try:
@@ -514,6 +527,17 @@ def main(argv=None):
                             json.dump(record, output, ensure_ascii=False, indent=2)
                             output.write("\n")
                     result = {"path": str(path)}
+            elif args.command in ("quota-bind", "quota-import"):
+                if not args.book or not args.run_id or not args.session_id:
+                    raise ValueError("Quota commands require --book, --run-id and --session-id")
+                if args.command == "quota-bind":
+                    result = quota_adapter.bind_chat(db, args.book, args.run_id, args.session_id, args.chat_title)
+                else:
+                    if not args.snapshot:
+                        raise ValueError("quota-import requires --snapshot")
+                    result = quota_adapter.import_snapshot(db, args.book, args.run_id, args.session_id,
+                                                           json.loads(args.snapshot.read_text(encoding="utf-8-sig")))
+                persist_report(db, args.book)
             elif args.command == "report":
                 if not args.book:
                     raise ValueError("report requires --book")

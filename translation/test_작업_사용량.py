@@ -7,6 +7,7 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -55,9 +56,58 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(reports), 1)
         data = json.loads(reports[0].read_text(encoding="utf-8"))
         self.assertEqual(data["bookTotal"]["turns"], 1)
-        self.assertIn("Weekly quota: unavailable", reports[0].with_suffix(".md").read_text(encoding="utf-8"))
+        self.assertIn("Weekly book quota: unconfirmed", reports[0].with_suffix(".md").read_text(encoding="utf-8"))
         self.assertNotIn(" turns", reports[0].with_suffix(".md").read_text(encoding="utf-8"))
         self.assertEqual(list((self.state / "reports").rglob("*.tmp")), [])
+
+    def test_quota_binding_and_token_ledger_agree_in_both_orders(self):
+        usage.quota_adapter.bind_chat(self.db, self.book, "run", "chat", "Book chat")
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            usage.bind(self.db, self.book, "translation", "chat", "different")
+        self.assertEqual(usage.bind(self.db, self.book, "translation", "chat")["run_id"], "run")
+        usage.bind(self.db, self.book, "translation", "second", "run")
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            usage.quota_adapter.bind_chat(self.db, self.book, "different", "second", "Second chat")
+
+    def test_quota_cli_import_refreshes_sanitized_book_report(self):
+        from test_작업_한도 import AX
+        snapshot = self.root / "snapshot.json"
+        snapshot.write_text(json.dumps({"source": "codex_desktop_accessibility", "accessibilityText": AX,
+                                        "observedAt": "2026-11-18T05:24:38Z"}), encoding="utf-8")
+        common = ["--state-dir", str(self.state), "--book", str(self.book), "--run-id", "run", "--session-id", "chat"]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(usage.main(["quota-bind", *common, "--chat-title", "Dedicated book fixture"]), 0)
+            self.assertEqual(usage.main(["quota-import", *common, "--snapshot", str(snapshot)]), 0)
+        path = next((self.state / "reports").glob("*/report.json"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["quota"]["displayedWeeklyPercent"], 35.32)
+        self.assertIsNone(data["quota"]["percentPoints"])
+        self.assertNotIn("accessibilityText", path.read_text(encoding="utf-8"))
+        human = path.with_suffix(".md").read_text(encoding="utf-8")
+        self.assertIn("35.32%", human)
+        self.assertIn("unconfirmed", human)
+        self.assertNotIn("observationCount", human)
+
+    def test_concurrent_quota_and_token_assignment_have_one_owner(self):
+        barrier = threading.Barrier(2)
+
+        def assign(kind):
+            db = usage.connection(self.state)
+            try:
+                barrier.wait(timeout=10)
+                try:
+                    if kind == "quota":
+                        usage.quota_adapter.bind_chat(db, self.book, "quota-run", "race", "Race fixture")
+                    else:
+                        usage.bind(db, self.book, "translation", "race", "token-run")
+                    return "bound"
+                except ValueError:
+                    return "conflict"
+            finally:
+                db.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(sorted(pool.map(assign, ("quota", "token"))), ["bound", "conflict"])
 
     def test_global_origin_idempotence_and_stage_conflict(self):
         self.bind( self.book, "translation", "s")
