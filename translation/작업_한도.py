@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 
 SOURCE = "codex_desktop_accessibility"
-REASON = "Chat display observations do not establish full-book, child inclusion, reporting period, or freshness coverage."
+REASON = "App-reported chat usage is observed; server aggregation completeness, exact reporting period and freshness are outside the verified measurement scope."
 NODE = re.compile(r"^\s*(?:-\s*)?\d+\s+(text|table|data item|button|column header|row|cell)(?:\s+\(([^)]*)\))?(?:\s+(.*))?$")
 
 
