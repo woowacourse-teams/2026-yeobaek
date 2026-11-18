@@ -1,0 +1,76 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/translation/작업_사용량.py\" hook",
+            "commandWindows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $p=(Get-Location).Path; while ($p) { $f=Join-Path $p '.codex/usage-hook.ps1'; if(Test-Path -LiteralPath $f){ & $f; exit $LASTEXITCODE }; $parent=Split-Path -Parent $p; if($parent -eq $p){ break }; $p=$parent }; Write-Output '{}' }\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}
