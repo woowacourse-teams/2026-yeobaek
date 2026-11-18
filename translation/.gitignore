@@ -9,6 +9,10 @@
 !.gitignore
 !*.md
 !*.py
+!.codex/
+.codex/*
+!.codex/hooks.json
+!.codex/usage-hook.ps1
 
 # 위 규칙에 다시 걸리는 개인 작업물 예외 처리
 # (번역본/ 안의 .md는 폴더 자체가 무시되므로 별도 규칙 불필요)
