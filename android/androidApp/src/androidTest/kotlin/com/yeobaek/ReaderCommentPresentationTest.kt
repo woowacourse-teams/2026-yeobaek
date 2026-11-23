@@ -476,6 +476,9 @@ class ReaderCommentPresentationTest {
         rule.onNodeWithContentDescription("댓글 입력").performTextReplacement("새로 등록한 댓글")
         rule.onNodeWithText("등록").performSemanticsAction(SemanticsActions.OnClick) { it() }
         rule.onNodeWithContentDescription("댓글 입력").assertDoesNotExist()
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithText("2개 문장").fetchSemanticsNodes().size == 1
+        }
         rule.onNodeWithText("2개 문장").assertIsDisplayed()
         rule.onNodeWithText("새로 등록한 댓글").assertIsDisplayed()
 
@@ -609,7 +612,7 @@ class ReaderCommentPresentationTest {
         onDismiss = onDismiss,
         onRetry = {},
         onInputChange = { input -> controller?.updateInput(input) },
-        onSubmit = { controller?.submit() },
+        onSubmit = { presentation -> controller?.submit(presentation) },
         onEdit = {},
         onEditCancel = {},
         onDelete = {},
