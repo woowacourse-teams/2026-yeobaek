@@ -67,7 +67,7 @@
 
 ## 프로젝트 아키텍처
 
-![여백 프로젝트 아키텍처](docs/project-architecture.png)
+![여백 프로젝트 아키텍처](https://github.com/user-attachments/assets/9f723ff2-b52f-4bc7-a1bc-6ea6681b0f85)
 
 ### CI/CD
 
