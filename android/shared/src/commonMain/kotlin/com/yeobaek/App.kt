@@ -65,7 +65,7 @@ fun App(
         val isReady by startup.isReady.collectAsState()
 
         LifecycleEventEffect(Lifecycle.Event.ON_START) {
-            startup.onForeground()
+            appContainer.onForeground()
         }
 
         if (!isReady) {

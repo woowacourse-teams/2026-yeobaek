@@ -21,6 +21,7 @@ import com.yeobaek.data.model.CommentedSentenceFilter
 import com.yeobaek.feature.reader.CommentSheetActions
 import com.yeobaek.feature.reader.ReaderActions
 import com.yeobaek.feature.reader.ReaderCommentTarget
+import com.yeobaek.feature.reader.ReaderProgressPersistence
 import com.yeobaek.feature.reader.ReaderScreen
 import com.yeobaek.feature.reader.ReaderTarget
 import com.yeobaek.feature.reader.ReaderViewModel
@@ -123,6 +124,12 @@ private fun ReaderRoute(
             crashReporter = appContainer.crashReporter,
             analyticsTracker = appContainer.analyticsTracker,
             notifications = appContainer.notifications,
+            progressPersistence = ReaderProgressPersistence(
+                memberId = appContainer.userPreferences.getUserId(),
+                target = readerTarget,
+                store = appContainer.readingProgressStore,
+                sync = appContainer.readingProgressSync,
+            ),
             isCommentLikeEnabled = {
                 appContainer.appConfigRepository.state.value.featureFlags.commentLikeEnabled
             },
@@ -189,6 +196,7 @@ private fun ReaderRoute(
             onPanelCommentAction = readerViewModel::handlePanelCommentAction,
             onPanelLike = readerViewModel::togglePanelCommentLike,
             onPanelLikeErrorConsumed = readerViewModel::consumePanelLikeError,
+            onProgressSaveErrorDismiss = readerViewModel::dismissProgressSaveError,
             onPanelContentsShown = readerViewModel.commentAnalytics::panelContentsShown,
             onPanelToggled = readerViewModel.commentAnalytics::panelToggled,
         )
@@ -222,6 +230,7 @@ private fun ReaderRoute(
         isCommentLikeEnabled = appConfig.featureFlags.commentLikeEnabled,
         panelThreads = readerViewModel.panelComments.threads,
         panelLikeError = readerViewModel.panelLikeError,
+        progressSaveError = readerViewModel.progressSaveError,
         readingSessionId = readerViewModel.commentAnalytics.activeReadingSessionId,
     )
 }

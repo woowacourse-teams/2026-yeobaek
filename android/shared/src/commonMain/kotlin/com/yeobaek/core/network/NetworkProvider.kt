@@ -33,6 +33,8 @@ class NetworkProvider(
             httpClient = httpClient,
         )
 
+    internal val readingProgressSender = HttpReadingProgressSender(httpClient, baseUrl)
+
     fun close() {
         httpClient.close()
     }
@@ -70,6 +72,7 @@ class NetworkProvider(
     }.apply {
         plugin(HttpSend).intercept { request ->
             awaitRequestPermission()
+            request.bindReadingProgressMember(userPreferences.getUserId())
             execute(request)
         }
     }
