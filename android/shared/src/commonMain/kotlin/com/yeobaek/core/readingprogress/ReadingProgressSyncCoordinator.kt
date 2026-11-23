@@ -38,6 +38,7 @@ class ReadingProgressSyncCoordinator(
                 for (command in checkpoints) {
                     when (command) {
                         is Checkpoint -> persist(command)
+
                         is RemoveMember -> {
                             try {
                                 store.removeMember(command.memberId)
@@ -174,6 +175,9 @@ class ReadingProgressSyncCoordinator(
                     durationMillis = started.elapsedNow().inWholeMilliseconds,
                     storedPassageSequence = storedSequence,
                     error = failure,
+                    attemptNumber = attempts + 1,
+                    willRetry =
+                        failure is ReadingProgressSyncException && failure.retryable && attempts + 1 < maxAttempts,
                 ),
             )
             if (failure == null) {

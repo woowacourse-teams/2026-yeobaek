@@ -1,5 +1,10 @@
 package com.yeobaek.core.analytics
 
+import com.yeobaek.core.readingprogress.ReadingProgress
+import com.yeobaek.core.readingprogress.ReadingProgressKey
+import com.yeobaek.core.readingprogress.ReadingProgressSyncReason
+import com.yeobaek.core.readingprogress.ReadingSpace
+
 enum class ReaderSessionStart(
     val value: String,
 ) {
@@ -165,6 +170,56 @@ enum class ReaderResumeSource(val value: String) {
     UNKNOWN("unknown"),
 }
 
+data class ReadingProgressSyncResult(
+    val progress: ReadingProgress,
+    val attemptId: String,
+    val reason: ReadingProgressSyncReason,
+    val result: EventResult,
+    val durationMillis: Long,
+    val storedPassageSequence: Int?,
+    val errorType: String? = null,
+    val attemptNumber: Int = 1,
+    val willRetry: Boolean = false,
+) : AnalyticsEvent {
+    override val name = "reader_progress_saved"
+    override val properties = progress.key.progressProperties() +
+        buildMap {
+            put("schema_version", 2)
+            put("passage_sequence", progress.passageSequence)
+            put("progress_revision", progress.revision)
+            put("save_attempt_id", attemptId)
+            put("attempt_number", attemptNumber)
+            put("will_retry", willRetry)
+            put("trigger", reason.name.lowercase())
+            put("result", result.value)
+            put("duration_ms", durationMillis)
+            storedPassageSequence?.let { put("stored_passage_sequence", it) }
+            errorType?.let { put("error_type", it) }
+        }
+}
+
+data class ReadingProgressCheckpointed(
+    val key: ReadingProgressKey,
+    val passageSequence: Int,
+    val revision: Long?,
+    val result: EventResult,
+) : AnalyticsEvent {
+    override val name = "reader_progress_checkpointed"
+    override val properties = key.progressProperties() +
+        buildMap {
+            put("schema_version", 2)
+            put("passage_sequence", passageSequence)
+            put("result", result.value)
+            revision?.let { put("progress_revision", it) }
+        }
+}
+
+private fun ReadingProgressKey.progressProperties(): Map<String, Any> = mapOf(
+    "book_id" to bookId,
+    "reading_space" to space.name.lowercase(),
+    (if (space == ReadingSpace.GROUP) "group_id" else "public_room_id") to spaceId,
+)
+
 data class ReaderProgressRestored(
     val bookId: Long?,
     val readingSessionId: String?,
@@ -172,6 +227,7 @@ data class ReaderProgressRestored(
     val result: EventResult,
     val expectedPassageSequence: Int?,
     val initialPassageSequence: Int?,
+    val progressRevision: Long? = null,
 ) : AnalyticsEvent {
     override val name = "reader_progress_restored"
     override val properties = buildMap {
@@ -181,6 +237,8 @@ data class ReaderProgressRestored(
         put("result", result.value)
         expectedPassageSequence?.let { put("expected_passage_sequence", it) }
         initialPassageSequence?.let { put("initial_passage_sequence", it) }
+        progressRevision?.let { put("progress_revision", it) }
+        put("schema_version", 2)
     }
 }
 

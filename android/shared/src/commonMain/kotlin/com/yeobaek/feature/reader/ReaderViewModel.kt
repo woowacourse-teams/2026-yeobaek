@@ -488,6 +488,15 @@ class ReaderViewModel(
     }
 
     private fun trackInitialPosition(result: EventResult, initialSequence: Int?) {
+        crashReporter.track(
+            level = if (result == EventResult.SUCCESS) CrashLogLevel.INFO else CrashLogLevel.WARN,
+            context = readerContext(CrashOperation.READER_PROGRESS_RESTORED, initialSequence).copy(
+                progressRevision = restoredLocalProgress?.revision,
+                resumeSource = resumeSource.value,
+                expectedPassageSequence = expectedResumeSequence,
+                initialPassageSequence = initialSequence,
+            ),
+        )
         trackReaderEvent(
             ReaderProgressRestored(
                 bookId = currentBookId,
@@ -496,6 +505,7 @@ class ReaderViewModel(
                 result = result,
                 expectedPassageSequence = expectedResumeSequence,
                 initialPassageSequence = initialSequence,
+                progressRevision = restoredLocalProgress?.revision,
             ),
         )
     }
@@ -1404,6 +1414,7 @@ class ReaderViewModel(
         operation = operation,
         bookId = currentBookId,
         publicRoomId = publicRoomId,
+        groupId = (readerTarget as? ReaderTarget.Group)?.id,
         readingSpace = readingSpace,
         chapterSequence = chapterSequence ?: chapterSequenceFor(passageSequence),
         passageSequence = passageSequence,

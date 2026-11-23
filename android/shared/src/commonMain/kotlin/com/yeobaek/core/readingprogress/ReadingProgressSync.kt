@@ -38,6 +38,8 @@ sealed interface ReadingProgressSyncEvent {
         val durationMillis: Long,
         val storedPassageSequence: Int?,
         val error: Exception?,
+        val attemptNumber: Int = 1,
+        val willRetry: Boolean = false,
     ) : ReadingProgressSyncEvent
 
     data class PendingReadFailed(val memberId: Int, val error: Exception) : ReadingProgressSyncEvent

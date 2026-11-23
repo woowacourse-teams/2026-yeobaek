@@ -17,4 +17,10 @@ data class CrashContext(
     val chapterSequence: Int? = null,
     val passageSequence: Int? = null,
     val itemCount: Int? = null,
+    val groupId: Long? = null,
+    val progressRevision: Long? = null,
+    val saveAttemptId: String? = null,
+    val resumeSource: String? = null,
+    val expectedPassageSequence: Int? = null,
+    val initialPassageSequence: Int? = null,
 )
