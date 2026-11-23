@@ -60,6 +60,11 @@ ktlintEngine = "1.8.0"
 # multiplatform settings
 multiplatform-settings = "1.3.0"
 
+# reading progress persistence
+room = "2.8.5"
+sqlite = "2.7.1"
+robolectric = "4.16.1"
+
 # buildKonfig
 buildkonfig = "0.17.1"
 
@@ -119,6 +124,12 @@ coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.r
 
 # multiplatform settings
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatform-settings" }
+
+# reading progress persistence
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 # firebase-kotlin-sdk
 firebase-config = { module = "dev.gitlive:firebase-config", version.ref = "firebaseKotlinSdk" }

@@ -83,6 +83,11 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
         }
 
+        getByName("androidHostTest").dependencies {
+            implementation(libs.robolectric)
+            implementation(libs.kotlin.testJunit)
+        }
+
         iosMain.dependencies {
             // ktor engine
             implementation(libs.ktor.client.darwin)
@@ -122,6 +127,9 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
 
+            implementation(libs.room.runtime)
+            implementation(libs.sqlite.bundled)
+
             // multiplatform settings
             implementation(libs.multiplatform.settings)
 
@@ -142,6 +150,13 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+    add("kspAndroid", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 tasks.named("runKtlintFormatOverCommonMainSourceSet") {
