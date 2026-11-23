@@ -77,3 +77,21 @@ HTTP 408·429·5xx와 네트워크 I/O 오류는 최대 3회, 1초·2초 간격�
 - 저장소 네이티브 테스트는 앱 전체의 iOS 화면 검증을 의미하지 않는다. 원래 `:shared:iosSimulatorArm64Test`는 GitLive가 요구하는 Firebase framework와 Xcode SwiftPM object의 링크 구성 차이로 실행되지 않아 분리 검증했다.
 - Android API 36 에뮬레이터에서 실제 ReaderScreen·Room을 연결한 복원/뒤로가기/초기 배치 경계 시나리오 3개와 기존 댓글 화면 9개, 총 12개가 통과했다. 테스트는 운영 서버에 장애를 주지 않고 주입한 전송기를 사용한다. 기존 댓글 테스트는 현재 presentation 인자를 전달하고 비동기 문장 수 갱신을 조건으로 기다리도록 맞췄다.
 - 로컬 증거: `shared/build/reports/reader-progress-verification/`의 빌드 로그, 기기 테스트 결과, iOS 저장소 결과·소스 해시. 운영 개선율이나 사용자별 위치 유실 감소율은 아직 측정하지 않았다.
+
+### 추가 검증: iOS 실제 읽기 화면
+
+2026-11-23, 별도로 생성한 iPhone 17 Pro / iOS 26.5 시뮬레이터에서 실제 `ReaderScreen`, `ReaderViewModel`, `ReaderProgressPersistence`, `ReadingProgressSyncCoordinator`, iOS Room 저장소를 연결해 수동 실행했다. UI는 Simulator의 접근성 요소를 클릭해 조작했으며, 화면·프로세스 재실행·DB·런타임 로그를 대조했다.
+
+운영 데이터에 영향을 주지 않도록 책/모임 조회에는 고정 fixture를, 저장에는 실패 여부를 전환하는 주입 전송기를 사용했다. 표의 서버 위치는 실제 API 서버가 아닌 fixture의 영속 상태다. 실제 DNS 장애·HTTP 서버 연동·Firebase 업로드를 검증한 결과로 해석하지 않는다.
+
+| 시나리오 | 관측 결과 | 결과 |
+|---|---|---|
+| 서버 기준 1번에서 17번으로 이동 후 저장 실패·뒤로가기 | 실제 화면 17번, DB `passageSequence=17, revision=1, syncedRevision=0`; 화면 이동 가능 | 통과 |
+| 프로세스를 완전히 종료하고 새 프로세스에서 책 재진입 | 실제 17번 표시; `resume_source=local_pending`, 기대 17·실제 17 | 통과 |
+| 전송기 복구 후 재전송·재실행 | fixture 서버 17번, DB 변경 1·반영 1; 새 진입은 `saved_progress`로 17번 표시 | 통과 |
+| 34번에서 실제 Home 전환 후 앱 아이콘으로 복귀 | `ended_by=background`, background/foreground 재시도 로그와 34번 유지; 복구 후 변경 2·반영 2 | 통과 |
+| 34번에서 1번으로 돌아가 읽고 저장·프로세스 재실행 | DB `passageSequence=1, revision=3, syncedRevision=3`; 실제 1번 표시·기대 1·실제 1 | 통과 |
+
+첫 실행과 두 번째 실행의 PID는 각각 35182·35301로 달랐고, 정상 반영 후 재실행은 35337, 앞부분 재독 후 재실행은 35525였다. 단순 화면 재구성만으로 복원을 판정하지 않았다. 초기 화면에 진입만 한 경우 기존 checkpoint revision이 증가하지 않는 점도 확인했다.
+
+검증용 DEBUG 진입점과 fixture는 임시로 추가했다가 원복했다. 실제 읽기·동기화·저장소 소스 53개의 SHA-256은 검증 전후 동일하다. 로컬 증거는 `shared/build/reports/reader-progress-verification/ios-ui/`에 화면 PNG, 세션별 stdout/stderr, DB 조회 JSON, 소스 해시로 보존했다. 대표 화면은 `03-restored-17-after-relaunch.png`, 반영 상태는 `04-retransmission-acknowledged.png`, 재독 결과는 `07-restored-reread-1.png`다.
