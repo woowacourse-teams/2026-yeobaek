@@ -7,6 +7,7 @@ import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     lazy var analyticsClient = IOSPostHogAnalyticsClient()
+    private let networkMonitor = IOSNetworkMonitor()
     lazy var appContainer = AppContainer(
         isDebug: isDebug,
         appVersion: Bundle.main.object(
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         ) ?? 0,
         installationId: IOSInstallationIdStore.shared.getOrCreate(),
         readingProgressStore: ReadingProgressStore_iosKt.createReadingProgressStore(),
+        networkMonitor: networkMonitor.state,
         analyticsClient: analyticsClient,
         updatePolicySource: IOSRealtimeUpdatePolicySource(
             source: IOSFirebaseUpdatePolicySource(isDebug: isDebug)
@@ -39,6 +41,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FirebaseApp.configure()
         appContainer.startUpdatePolicyUpdates()
+        networkMonitor.start()
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermissionOnce()

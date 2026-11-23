@@ -14,11 +14,14 @@ import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.network.ApiProvider
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.network.NetworkProvider
+import com.yeobaek.core.network.NetworkMonitor
+import com.yeobaek.core.network.NoOpNetworkMonitor
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
 import com.yeobaek.core.readingprogress.ReadingProgressStore
 import com.yeobaek.core.readingprogress.ReadingProgressSyncCoordinator
+import com.yeobaek.core.readingprogress.ReadingProgressSyncReason
 import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
@@ -62,6 +65,7 @@ class AppContainer(
     val appVersionCode: Int,
     installationId: String,
     val readingProgressStore: ReadingProgressStore,
+    private val networkMonitor: NetworkMonitor = NoOpNetworkMonitor,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
@@ -187,6 +191,11 @@ class AppContainer(
     val apiBaseUrl = networkProvider.baseUrl
 
     init {
+        applicationScope.launch {
+            networkMonitor.isConnected.collect { connected ->
+                if (connected) readingProgressSync.requestSync(ReadingProgressSyncReason.NETWORK_RESTORED)
+            }
+        }
         analyticsClient.setup(
             apiKey = posthogApiKey,
             host = BuildKonfig.POSTHOG_HOST,
@@ -194,6 +203,11 @@ class AppContainer(
         )
         analyticsTracker.registerCommonProperties()
         userPreferences.getUserId()?.let(analyticsTracker::identify)
+    }
+
+    fun onForeground() {
+        appConfigStartup.onForeground()
+        readingProgressSync.requestSync(ReadingProgressSyncReason.FOREGROUND)
     }
 
     fun updateFirebaseInstallationId(installationId: String) {
@@ -227,6 +241,7 @@ class AppContainer(
     }
 
     fun close() {
+        networkMonitor.close()
         applicationScope.cancel()
         appConfigScope.cancel()
         networkProvider.close()
