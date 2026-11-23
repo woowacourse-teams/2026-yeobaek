@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
         ) ?? 0,
         installationId: IOSInstallationIdStore.shared.getOrCreate(),
+        readingProgressStore: ReadingProgressStore_iosKt.createReadingProgressStore(),
         analyticsClient: analyticsClient,
         updatePolicySource: IOSRealtimeUpdatePolicySource(
             source: IOSFirebaseUpdatePolicySource(isDebug: isDebug)

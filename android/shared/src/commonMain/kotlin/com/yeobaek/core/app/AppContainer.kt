@@ -17,6 +17,8 @@ import com.yeobaek.core.network.NetworkProvider
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.NotificationPresentation
 import com.yeobaek.core.notification.NotificationRegistrationCoordinator
+import com.yeobaek.core.readingprogress.ReadingProgressStore
+import com.yeobaek.core.readingprogress.ReadingProgressSyncCoordinator
 import com.yeobaek.core.survey.SurveyLinkLauncher
 import com.yeobaek.core.update.AppStoreUpdateSession
 import com.yeobaek.core.update.UpdatePolicyPlatform
@@ -59,6 +61,7 @@ class AppContainer(
     val appVersion: String,
     val appVersionCode: Int,
     installationId: String,
+    val readingProgressStore: ReadingProgressStore,
     analyticsClient: AnalyticsClient = NoOpAnalyticsClient,
     updatePolicySource: UpdatePolicySource? = null,
     updatePolicyPlatform: UpdatePolicyPlatform = UpdatePolicyPlatform.ANDROID,
@@ -118,6 +121,13 @@ class AppContainer(
 
     private val apiProvider = ApiProvider(
         ktorfit = networkProvider.ktorfit,
+    )
+
+    val readingProgressSync = ReadingProgressSyncCoordinator(
+        memberId = userPreferences.userId,
+        store = readingProgressStore,
+        sender = networkProvider.readingProgressSender,
+        scope = applicationScope,
     )
 
     val invitations = AppInvitations { request ->
@@ -220,6 +230,7 @@ class AppContainer(
         applicationScope.cancel()
         appConfigScope.cancel()
         networkProvider.close()
+        readingProgressStore.close()
     }
 
     companion object {

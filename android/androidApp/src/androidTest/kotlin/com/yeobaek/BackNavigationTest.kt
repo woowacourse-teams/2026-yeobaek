@@ -16,6 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.data.local.readingprogress.createReadingProgressStore
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.feature.group.detail.navigation.Detail
 import com.yeobaek.feature.group.detail.navigation.detailNavGraph
@@ -61,6 +62,7 @@ class BackNavigationTest {
             isDebug = true,
             appVersion = "1.0.0",
             appVersionCode = 1,
+            readingProgressStore = createReadingProgressStore(rule.activity),
             installationId = "back-navigation-test",
         )
         try {

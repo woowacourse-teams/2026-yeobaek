@@ -30,7 +30,6 @@ import com.yeobaek.core.analytics.ProgressSeeked
 import com.yeobaek.core.analytics.ReaderPositionCleared
 import com.yeobaek.core.analytics.ReaderPositionReturned
 import com.yeobaek.core.analytics.ReaderProgressRestored
-import com.yeobaek.core.analytics.ReaderProgressSaved
 import com.yeobaek.core.analytics.ReaderResumeSource
 import com.yeobaek.core.analytics.ReaderReturnAction
 import com.yeobaek.core.analytics.ReaderReturnEvent
@@ -48,6 +47,8 @@ import com.yeobaek.core.crashlytics.CrashOperation
 import com.yeobaek.core.network.CrashReporter
 import com.yeobaek.core.notification.AppNotifications
 import com.yeobaek.core.notification.CommentNotification
+import com.yeobaek.core.readingprogress.ReadingProgress
+import com.yeobaek.core.readingprogress.ReadingProgressSyncReason
 import com.yeobaek.data.local.ReaderPreferences
 import com.yeobaek.data.model.CommentLikeModel
 import com.yeobaek.data.model.CommentSpace
@@ -92,6 +93,7 @@ class ReaderViewModel(
     private val analyticsTracker: AnalyticsTracker,
     private val notifications: AppNotifications,
     private val isCommentLikeEnabled: () -> Boolean,
+    private val progressPersistence: ReaderProgressPersistence,
     private val commentTarget: ReaderCommentTarget? = null,
     private val notificationOpenId: String? = null,
 ) : ViewModel() {
@@ -208,7 +210,7 @@ class ReaderViewModel(
 
     private var pagingJob: Job? = null
     private var moveToPassageJob: Job? = null
-    private var saveReadingProgressJob: Job? = null
+    private var isSavingForBack = false
     private var commentCollectionsJob: Job? = null
     private var newCommentCountJob: Job? = null
     private var commentNotificationJob: Job? = null
@@ -219,7 +221,10 @@ class ReaderViewModel(
     private var returningToAnchor = false
 
     private var currentBookId: Long? = null
-    private var lastSavedPassageId: Long? = null
+    private var positionHasChanged = false
+    private var restoredLocalProgress: ReadingProgress? = null
+    var progressSaveError by mutableStateOf<String?>(null)
+        private set
     private var resumeSource = ReaderResumeSource.UNKNOWN
     private var expectedResumeSequence: Int? = null
     private var initialPositionRecorded = false
@@ -243,14 +248,18 @@ class ReaderViewModel(
             expectedResumeSequence = initialCommentTarget?.passageSequence
 
             try {
+                progressPersistence.capturePendingAtEntry()
                 val readerDetail = getReaderDetail()
                 currentBookId = readerDetail.bookId
+                restoredLocalProgress =
+                    progressPersistence.resumeProgress(readerDetail.bookId, readerDetail.passageCount)
                 if (initialCommentTarget == null) {
-                    expectedResumeSequence = readerDetail.myProgress?.lastReadPassageSequence
-                    resumeSource = if (expectedResumeSequence == null) {
-                        ReaderResumeSource.BOOK_START
-                    } else {
-                        ReaderResumeSource.SAVED_PROGRESS
+                    expectedResumeSequence = restoredLocalProgress?.passageSequence
+                        ?: readerDetail.myProgress?.lastReadPassageSequence
+                    resumeSource = when {
+                        restoredLocalProgress != null -> ReaderResumeSource.LOCAL_PENDING
+                        expectedResumeSequence == null -> ReaderResumeSource.BOOK_START
+                        else -> ReaderResumeSource.SAVED_PROGRESS
                     }
                 }
 
@@ -279,7 +288,8 @@ class ReaderViewModel(
                     require(initialCommentTarget.passageSequence in FIRST_PASSAGE_SEQUENCE..passageCount)
                 }
                 val readingSequence = (
-                    initialCommentTarget?.passageSequence ?: readerDetail.myProgress?.lastReadPassageSequence
+                    initialCommentTarget?.passageSequence ?: restoredLocalProgress?.passageSequence
+                        ?: readerDetail.myProgress?.lastReadPassageSequence
                         ?: initialReadingSequence
                     )
                     .coerceIn(
@@ -455,6 +465,8 @@ class ReaderViewModel(
         }
 
         uiState = uiState.copy(readingSequence = passage.sequence)
+        positionHasChanged = true
+        checkpointPosition(passage, ReadingProgressSyncReason.CHECKPOINT)
         readingSession.onPassageReached(passage.sequence)
         crashReporter.updateContext(
             readerContext(CrashOperation.READER_POSITION_UPDATED, passageSequence = passage.sequence),
@@ -464,7 +476,10 @@ class ReaderViewModel(
     fun onInitialPositionApplied(sequence: Int?) {
         if (initialPositionRecorded) return
         initialPositionRecorded = true
-        val matchesSavedPosition = resumeSource != ReaderResumeSource.SAVED_PROGRESS ||
+        if (sequence != null && sequence in 1..uiState.totalPassageCount) {
+            uiState = uiState.copy(readingSequence = sequence)
+        }
+        val matchesSavedPosition = expectedResumeSequence == null ||
             (sequence != null && sequence == expectedResumeSequence)
         trackInitialPosition(
             result = if (matchesSavedPosition) EventResult.SUCCESS else EventResult.FAILURE,
@@ -486,74 +501,50 @@ class ReaderViewModel(
     }
 
     fun saveReadingProgress(trigger: ReaderSessionEnd, onComplete: () -> Unit = {}) {
-        val runningJob = saveReadingProgressJob
-        if (runningJob?.isActive == true) {
-            viewModelScope.launch {
-                runningJob.join()
-                onComplete()
-            }
-            return
+        if (trigger == ReaderSessionEnd.BACK && isSavingForBack) return
+        val reason = when (trigger) {
+            ReaderSessionEnd.BACK -> ReadingProgressSyncReason.BACK
+            ReaderSessionEnd.BACKGROUND -> ReadingProgressSyncReason.BACKGROUND
         }
-
-        val readingPassage = uiState.passages.findBySequence(uiState.readingSequence)
-        if (readingPassage == null) {
-            track(CrashOperation.READER_PROGRESS_SAVE_SKIPPED, CrashLogLevel.WARN)
+        val passage = uiState.passages.findBySequence(uiState.readingSequence)
+        if (!positionHasChanged || passage == null || uiState.loadState != ReaderLoadState.Success) {
+            progressPersistence.requestSync(reason)
             onComplete()
             return
         }
-
-        if (readingPassage.passageId == lastSavedPassageId) {
-            track(
-                operation = CrashOperation.READER_PROGRESS_SAVE_SKIPPED,
-                level = CrashLogLevel.DEBUG,
-                passageSequence = readingPassage.sequence,
-            )
-            onComplete()
-            return
-        }
-
-        val sessionId = readingSession.sessionId
-        saveReadingProgressJob = viewModelScope.launch {
-            val start = TimeSource.Monotonic.markNow()
+        val receipt = currentBookId?.let { progressPersistence.checkpoint(it, passage, reason) }
+        if (trigger == ReaderSessionEnd.BACK) isSavingForBack = true
+        viewModelScope.launch {
             try {
-                val storedProgress = updatePassage(passageId = readingPassage.passageId)
-                lastSavedPassageId = readingPassage.passageId
-                trackReaderEvent(
-                    ReaderProgressSaved(
-                        bookId = currentBookId,
-                        readingSessionId = sessionId,
-                        passageSequence = readingPassage.sequence,
-                        storedPassageSequence = storedProgress.lastReadPassageSequence,
-                        trigger = trigger,
-                        result = EventResult.SUCCESS,
-                        durationMillis = start.elapsedNow().inWholeMilliseconds,
-                    ),
-                )
-                track(CrashOperation.READER_PROGRESS_SAVE_SUCCEEDED, passageSequence = readingPassage.sequence)
+                receipt?.await()
+                progressSaveError = null
+                onComplete()
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (exception: Exception) {
-                trackReaderEvent(
-                    ReaderProgressSaved(
-                        bookId = currentBookId,
-                        readingSessionId = sessionId,
-                        passageSequence = readingPassage.sequence,
-                        storedPassageSequence = null,
-                        trigger = trigger,
-                        result = EventResult.FAILURE,
-                        durationMillis = start.elapsedNow().inWholeMilliseconds,
-                    ),
-                )
-                recordFailure(
-                    exception = exception,
-                    operation = CrashOperation.READER_PROGRESS_SAVE_FAILED,
-                    passageSequence = readingPassage.sequence,
-                )
+            } catch (_: Exception) {
+                progressSaveError = "읽던 위치를 기기에 저장하지 못했어요. 다시 시도해 주세요."
             } finally {
-                saveReadingProgressJob = null
+                if (trigger == ReaderSessionEnd.BACK) isSavingForBack = false
             }
+        }
+    }
 
-            onComplete()
+    fun dismissProgressSaveError() {
+        progressSaveError = null
+    }
+
+    private fun checkpointPosition(passage: PassageUiModel, reason: ReadingProgressSyncReason) {
+        val bookId = currentBookId ?: return
+        val receipt = progressPersistence.checkpoint(bookId, passage, reason) ?: return
+        viewModelScope.launch {
+            try {
+                receipt.await()
+                progressSaveError = null
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                progressSaveError = "읽던 위치를 기기에 저장하지 못했어요. 다시 시도해 주세요."
+            }
         }
     }
 
@@ -845,6 +836,8 @@ class ReaderViewModel(
             returnPassageSequence = uiState.returnPassageSequence
                 ?.takeUnless { returnSequence -> returnSequence == passage.sequence },
         )
+        positionHasChanged = true
+        checkpointPosition(passage, ReadingProgressSyncReason.CHECKPOINT)
         refreshNewCommentStatus()
     }
 
@@ -1398,18 +1391,6 @@ class ReaderViewModel(
         )
     }
 
-    private suspend fun updatePassage(passageId: Long): MyProgressModel = when (val target = readerTarget) {
-        is ReaderTarget.Group -> readerRepository.updatePassage(
-            clubId = target.id,
-            passageId = passageId,
-        )
-
-        is ReaderTarget.PublicRoom -> publicRoomRepository.updatePassage(
-            publicRoomId = target.id,
-            passageId = passageId,
-        )
-    }
-
     private fun readerContext(
         operation: CrashOperation,
         passageSequence: Int?,
@@ -1444,6 +1425,7 @@ class ReaderViewModel(
             analyticsTracker: AnalyticsTracker,
             notifications: AppNotifications,
             isCommentLikeEnabled: () -> Boolean,
+            progressPersistence: ReaderProgressPersistence,
             commentTarget: ReaderCommentTarget? = null,
             notificationOpenId: String? = null,
         ): ViewModelProvider.Factory = viewModelFactory {
@@ -1461,6 +1443,7 @@ class ReaderViewModel(
                     analyticsTracker = analyticsTracker,
                     notifications = notifications,
                     isCommentLikeEnabled = isCommentLikeEnabled,
+                    progressPersistence = progressPersistence,
                     commentTarget = commentTarget,
                     notificationOpenId = notificationOpenId,
                 )

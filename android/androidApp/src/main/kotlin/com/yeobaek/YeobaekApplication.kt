@@ -8,6 +8,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yeobaek.analytics.AndroidPostHogAnalyticsClient
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.data.local.readingprogress.createReadingProgressStore
 import com.yeobaek.core.notification.ACTIVITY_NOTIFICATION_CHANNEL_ID
 import com.yeobaek.data.local.AndroidInstallationIdStore
 import com.yeobaek.update.FirebaseUpdatePolicySource
@@ -42,6 +43,7 @@ class YeobaekApplication : Application() {
             appVersion = BuildConfig.VERSION_NAME,
             appVersionCode = BuildConfig.VERSION_CODE,
             installationId = AndroidInstallationIdStore(noBackupFilesDir).getOrCreate(),
+            readingProgressStore = createReadingProgressStore(this),
             updatePolicySource = FirebaseUpdatePolicySource(isDebug = isDebug),
             analyticsClient = AndroidPostHogAnalyticsClient(
                 application = this,

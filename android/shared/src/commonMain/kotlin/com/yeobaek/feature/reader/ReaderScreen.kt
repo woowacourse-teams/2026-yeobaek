@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -71,8 +73,18 @@ fun ReaderScreen(
     modifier: Modifier = Modifier,
     panelThreads: Map<Long, ReaderPanelThread> = emptyMap(),
     panelLikeError: String? = null,
+    progressSaveError: String? = null,
     readingSessionId: String? = null,
 ) {
+    if (progressSaveError != null) {
+        AlertDialog(
+            onDismissRequest = actions.onProgressSaveErrorDismiss,
+            text = { Text(progressSaveError) },
+            confirmButton = {
+                TextButton(onClick = actions.onProgressSaveErrorDismiss) { Text("확인") }
+            },
+        )
+    }
     var isCommentPanelCollapsed by rememberSaveable { mutableStateOf(false) }
     val canShowCommentPanel = isLandscape() && uiState.loadState == ReaderLoadState.Success
     val showCommentPanel = canShowCommentPanel && !isCommentPanelCollapsed
@@ -391,6 +403,7 @@ class ReaderActions(
     val onPanelCommentAction: (SentenceUiModel, Long, ReaderPanelCommentAction) -> Unit = { _, _, _ -> },
     val onPanelLike: (Long, Long) -> Unit = { _, _ -> },
     val onPanelLikeErrorConsumed: () -> Unit = {},
+    val onProgressSaveErrorDismiss: () -> Unit = {},
     val onPanelContentsShown: () -> Unit = {},
     val onPanelToggled: (CommentPanelAction) -> Unit = {},
 )

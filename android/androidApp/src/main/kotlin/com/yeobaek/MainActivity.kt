@@ -6,8 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.data.local.readingprogress.createReadingProgressStore
 import com.yeobaek.update.AndroidRequiredUpdateGate
 import java.util.UUID
 
@@ -58,12 +62,16 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App(
-        appContainer = AppContainer(
-            isDebug = false,
+    val context = LocalContext.current
+    val container = remember {
+        AppContainer(
+            isDebug = true,
             appVersion = BuildConfig.VERSION_NAME,
             appVersionCode = BuildConfig.VERSION_CODE,
             installationId = UUID.randomUUID().toString(),
-        ),
-    )
+            readingProgressStore = createReadingProgressStore(context),
+        )
+    }
+    DisposableEffect(container) { onDispose { container.close() } }
+    App(appContainer = container)
 }

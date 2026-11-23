@@ -33,6 +33,7 @@ import com.yeobaek.core.analytics.GroupJoinEntryPoint
 import com.yeobaek.core.analytics.GroupJoinVisit
 import com.yeobaek.core.analytics.NoOpAnalyticsClient
 import com.yeobaek.core.app.AppContainer
+import com.yeobaek.data.local.readingprogress.createReadingProgressStore
 import com.yeobaek.core.designsystem.theme.YeobaekTheme
 import com.yeobaek.core.invitation.AppInvitations
 import com.yeobaek.core.invitation.InviteAttribution
@@ -104,6 +105,7 @@ class InvitationNavigationTest {
             isDebug = true,
             appVersion = "1.0.0",
             appVersionCode = 1,
+            readingProgressStore = createReadingProgressStore(rule.activity),
             installationId = "join-back-test",
         )
         try {

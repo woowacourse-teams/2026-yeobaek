@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import com.yeobaek.feature.reader.model.LoadedPassages
@@ -199,8 +200,16 @@ private fun ScrollToInitialPassageEffect(
             if (readingPassageIndex >= 0) {
                 state.listState.scrollToItem(readingPassageIndex)
             }
+            withFrameNanos { }
+            val target = uiState.passages.getOrNull(readingPassageIndex)
+            val visible = state.listState.layoutInfo.visibleItemsInfo
+            val appliedSequence = if (target != null && visible.any { it.key == target.passageId }) {
+                target.sequence
+            } else {
+                visible.firstNotNullOfOrNull { uiState.passages.findByItemKey(it.key)?.sequence }
+            }
             state.hasPositionedInitialPassage = true
-            currentOnPositionApplied(uiState.readingSequence.takeIf { readingPassageIndex >= 0 })
+            currentOnPositionApplied(appliedSequence)
         }
     }
 }
@@ -294,6 +303,7 @@ private fun ReportVisiblePassageEffect(
     LaunchedEffect(state.hasPositionedInitialPassage, state.listState) {
         if (!state.hasPositionedInitialPassage) return@LaunchedEffect
 
+        var hasUserScrolled = false
         snapshotFlow {
             val latestUiState = currentUiState
             val passage = readingPassage(state.listState, latestUiState)
@@ -301,9 +311,10 @@ private fun ReportVisiblePassageEffect(
             val isScrolledByCode = state.fontSizeRestoreRequest != null ||
                 latestUiState.mode != ReaderMode.Idle
 
-            passage to isScrolledByCode
-        }.distinctUntilChanged().collect { (passage, isScrolledByCode) ->
-            if (!isScrolledByCode && passage != null) {
+            Triple(passage, isScrolledByCode, state.listState.isScrollInProgress)
+        }.distinctUntilChanged().collect { (passage, isScrolledByCode, isScrolling) ->
+            if (isScrolling && !isScrolledByCode) hasUserScrolled = true
+            if (hasUserScrolled && !isScrolledByCode && passage != null) {
                 currentOnVisiblePassageChange(passage)
             }
         }

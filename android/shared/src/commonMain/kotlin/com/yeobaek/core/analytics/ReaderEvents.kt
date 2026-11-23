@@ -159,6 +159,7 @@ data class ReaderProgressSaved(
 
 enum class ReaderResumeSource(val value: String) {
     SAVED_PROGRESS("saved_progress"),
+    LOCAL_PENDING("local_pending"),
     BOOK_START("book_start"),
     NOTIFICATION("notification"),
     UNKNOWN("unknown"),
