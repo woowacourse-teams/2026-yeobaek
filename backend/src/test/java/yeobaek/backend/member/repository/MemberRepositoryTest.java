@@ -9,9 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class MemberRepositoryTest extends IntegrationTest {
+class MemberRepositoryTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;

@@ -1,0 +1,906 @@
+package yeobaek.backend.comment.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import yeobaek.backend.book.domain.Book;
+import yeobaek.backend.book.domain.Chapter;
+import yeobaek.backend.book.domain.Passage;
+import yeobaek.backend.book.domain.Sentence;
+import yeobaek.backend.book.domain.vo.BookTitle;
+import yeobaek.backend.book.domain.vo.ChapterTitle;
+import yeobaek.backend.book.domain.vo.SentenceContent;
+import yeobaek.backend.book.repository.BookManagementRepository;
+import yeobaek.backend.book.repository.ChapterRepository;
+import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.club.domain.Club;
+import yeobaek.backend.club.domain.ClubMember;
+import yeobaek.backend.club.domain.vo.ClubName;
+import yeobaek.backend.club.domain.vo.JoinCode;
+import yeobaek.backend.club.repository.ClubMemberRepository;
+import yeobaek.backend.club.repository.ClubRepository;
+import yeobaek.backend.comment.domain.Comment;
+import yeobaek.backend.comment.domain.CommentLike;
+import yeobaek.backend.comment.domain.CommentView;
+import yeobaek.backend.comment.domain.CommentedSentenceFilter;
+import yeobaek.backend.comment.domain.ContentVisibility;
+import yeobaek.backend.comment.domain.vo.CommentContent;
+import yeobaek.backend.comment.dto.CommentLikeResponse;
+import yeobaek.backend.comment.dto.CommentResponse;
+import yeobaek.backend.comment.dto.CommentsResponse;
+import yeobaek.backend.comment.repository.CommentLikeRepository;
+import yeobaek.backend.comment.repository.CommentReportRepository;
+import yeobaek.backend.comment.repository.CommentRepository;
+import yeobaek.backend.comment.repository.CommentViewRepository;
+import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
+import yeobaek.backend.member.domain.vo.Nickname;
+import yeobaek.backend.member.repository.MemberBlockRepository;
+import yeobaek.backend.member.repository.MemberRepository;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
+import yeobaek.backend.support.NotFoundException;
+
+class CommentServiceIntegrationTest extends DatabaseCleaningIntegrationTest {
+
+    @Autowired
+    private CommentService commentService;
+
+    @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentReportRepository commentReportRepository;
+
+    @Autowired
+    private CommentLikeRepository commentLikeRepository;
+
+    @Autowired
+    private CommentViewRepository commentViewRepository;
+
+    @Autowired
+    private BookManagementRepository bookRepository;
+
+    @Autowired
+    private ChapterRepository chapterRepository;
+
+    @Autowired
+    private PassageRepository passageRepository;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private MemberBlockRepository memberBlockRepository;
+
+    @Autowired
+    private ClubRepository clubRepository;
+
+    @Autowired
+    private ClubMemberRepository clubMemberRepository;
+
+    private Member writer;
+    private Book book;
+    private Member other;
+    private Club club;
+    private Club otherClub;
+    private Passage passage;
+    private Sentence sentence;
+
+    @BeforeEach
+    void setUp() {
+        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 2, null, null, null, null, null));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
+        passage = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
+        sentence = passage.getSentences().getFirst();
+        writer = memberRepository.save(new Member(new Nickname("민서")));
+        other = memberRepository.save(new Member(new Nickname("지수")));
+        club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
+        otherClub = clubRepository.save(new Club(new ClubName("2기"), book, new JoinCode("CODE02")));
+        clubMemberRepository.save(new ClubMember(writer, club));
+        clubMemberRepository.save(new ClubMember(other, club));
+    }
+
+    @Nested
+    @DisplayName("댓글 좋아요 추가·취소")
+    class Likes {
+
+        private Comment comment;
+
+        @BeforeEach
+        void createComment() {
+            ClubMember membership = clubMemberRepository.findJoinedByMemberIdAndClubId(
+                    writer.getId(), club.getId()).orElseThrow();
+            comment = commentRepository.save(new Comment(membership, sentence, new CommentContent("좋아요 대상")));
+        }
+
+        @Test
+        @DisplayName("좋아요를 추가하면 저장하고 처리 후 개수와 내 좋아요 여부를 반환한다")
+        void addLike() {
+            CommentLikeResponse response = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("본인 댓글에도 좋아요를 추가할 수 있다")
+        void addOwnCommentLike() {
+            CommentLikeResponse response = commentService.addLike(writer.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+        }
+
+        @Test
+        @DisplayName("추가 요청을 반복해도 중복 저장하지 않고 다른 회원의 좋아요를 포함한 개수를 반환한다")
+        void addLikeRepeatedly() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+
+            CommentLikeResponse first = commentService.addLike(other.getId(), comment.getId());
+            CommentLikeResponse repeated = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(first).isEqualTo(new CommentLikeResponse(2, true));
+            assertThat(repeated).isEqualTo(first);
+            assertThat(commentLikeRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("취소하면 내 좋아요만 삭제하고 다른 회원의 좋아요는 유지한다")
+        void cancelLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            CommentLikeResponse response = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, false));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isFalse();
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("취소 요청을 반복해도 개수가 음수가 되거나 좋아요가 다시 생기지 않는다")
+        void cancelLikeRepeatedly() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            CommentLikeResponse first = commentService.cancelLike(other.getId(), comment.getId());
+            CommentLikeResponse repeated = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(first).isEqualTo(new CommentLikeResponse(0, false));
+            assertThat(repeated).isEqualTo(first);
+            assertThat(commentLikeRepository.count()).isZero();
+        }
+
+        @Test
+        @DisplayName("누른 적 없는 좋아요를 취소해도 성공하고 다른 회원의 좋아요는 유지한다")
+        void cancelLikeWithoutExistingLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+
+            CommentLikeResponse response = commentService.cancelLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, false));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(writer.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("차단한 작성자의 댓글은 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForBlockedWriter() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            memberBlockRepository.save(new MemberBlock(other, writer));
+
+            assertThatThrownBy(() -> commentService.addLike(other.getId(), comment.getId()))
+                    .isInstanceOf(NotFoundException.class).extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+            assertThatThrownBy(() -> commentService.cancelLike(other.getId(), comment.getId()))
+                    .isInstanceOf(NotFoundException.class).extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("모임 탈퇴자는 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForLeftMember() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            leaveClub(other, club);
+
+            assertThatThrownBy(() -> commentService.addLike(other.getId(), comment.getId()))
+                    .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+            assertThatThrownBy(() -> commentService.cancelLike(other.getId(), comment.getId()))
+                    .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("삭제 도서의 댓글은 좋아요 추가·취소를 거부하고 기존 좋아요를 보존한다")
+        void rejectLikeChangesForDeletedBook() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+            bookRepository.delete(book.getId());
+
+            assertBookNotAvailable(() -> commentService.addLike(other.getId(), comment.getId()));
+            assertBookNotAvailable(() -> commentService.cancelLike(other.getId(), comment.getId()));
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+            assertThat(commentLikeRepository.countByCommentId(comment.getId())).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("취소한 댓글에 다시 좋아요를 추가할 수 있다")
+        void addLikeAfterCancellation() {
+            commentService.addLike(other.getId(), comment.getId());
+            commentService.cancelLike(other.getId(), comment.getId());
+
+            CommentLikeResponse response = commentService.addLike(other.getId(), comment.getId());
+
+            assertThat(response).isEqualTo(new CommentLikeResponse(1, true));
+            assertThat(commentLikeRepository.count()).isEqualTo(1);
+            assertThat(commentLikeRepository.existsByMemberIdAndCommentId(other.getId(), comment.getId())).isTrue();
+        }
+
+        @Test
+        @DisplayName("댓글 목록은 댓글별 좋아요 수와 요청 회원별 좋아요 여부를 반환하고 없는 좋아요는 0과 false다")
+        void findCommentsWithLikeSummaries() {
+            var first = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("둘이 좋아요"));
+            var second = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("작성자만 좋아요"));
+            commentLikeRepository.save(new CommentLike(other, commentRepository.getReferenceById(first.commentId())));
+            commentLikeRepository.save(new CommentLike(writer, commentRepository.getReferenceById(first.commentId())));
+            commentLikeRepository.save(new CommentLike(writer, commentRepository.getReferenceById(second.commentId())));
+
+            var readerResponse = commentService.findComments(other.getId(), club.getId(), sentence.getId());
+            var writerResponse = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+
+            assertThat(readerResponse.comments())
+                    .extracting(CommentResponse::commentId, CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(tuple(comment.getId(), 0L, false), tuple(first.commentId(), 2L, true),
+                            tuple(second.commentId(), 1L, false));
+            assertThat(writerResponse.comments())
+                    .extracting(CommentResponse::commentId, CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(tuple(comment.getId(), 0L, false), tuple(first.commentId(), 2L, true),
+                            tuple(second.commentId(), 1L, true));
+        }
+
+        @Test
+        @DisplayName("수정 응답에도 기존 좋아요 수와 본인의 좋아요 여부를 유지한다")
+        void updateCommentWithOwnLike() {
+            commentLikeRepository.save(new CommentLike(writer, comment));
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
+
+            assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(2L, true);
+            assertThat(commentLikeRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("다른 회원만 좋아요를 누른 댓글의 수정 응답은 개수와 false를 반환한다")
+        void updateCommentWithoutOwnLike() {
+            commentLikeRepository.save(new CommentLike(other, comment));
+
+            var response = commentService.update(writer.getId(), comment.getId(), new CommentContent("수정"));
+
+            assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
+                    .containsExactly(1L, false);
+        }
+    }
+
+    @Test
+    @DisplayName("댓글을 작성하면 작성자 정보와 mine 플래그가 함께 응답된다")
+    void createComment() {
+        CommentResponse response = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("멈칫했어요."));
+
+        assertThat(response).extracting(CommentResponse::nickname, CommentResponse::mine,
+                        CommentResponse::likeCount, CommentResponse::likedByMe)
+                .containsExactly("민서", true, 0L, false);
+        assertThat(response.createdAt()).isNotNull();
+        assertThat(response.updatedAt()).isNull();
+        assertThat(commentRepository.count()).isEqualTo(1);
+
+    }
+
+    @Test
+    @DisplayName("기능 도입 전에 존재한 본인 댓글은 조회 기록이 없어 NEW로 계산된다")
+    void treatExistingOwnCommentAsNew() {
+        ClubMember membership = clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow();
+        commentRepository.save(new Comment(membership, sentence, new CommentContent("기존 댓글")));
+
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("댓글 문장 목록 조회는 조회 상태와 저장된 진도를 변경하지 않는다")
+    void discoveryListDoesNotChangeViewStatusOrProgress() {
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("새 댓글"));
+
+        var response = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId());
+
+        assertThat(response.commentedSentences()).singleElement().satisfies(item -> {
+            assertThat(item.sentenceId()).isEqualTo(sentence.getId());
+            assertThat(item.unreadCommentCount()).isEqualTo(1);
+            assertThat(item.contentVisibility()).isEqualTo(ContentVisibility.VISIBLE);
+        });
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+        assertThat(clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow()
+                .getLastReadPassage()).isNull();
+    }
+
+    @Test
+    @DisplayName("v2는 조회 기록을 집계하되 댓글 확인 여부와 독서 진도를 변경하지 않는다")
+    void findCommentedSentencesV2WithoutChangingReadingState() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("확인한 댓글"));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("새 댓글"));
+        long viewsBefore = commentViewRepository.count();
+
+        var all = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.ALL);
+        var unread = commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.NEW);
+
+        assertThat(all.commentedSentences()).extracting(item -> tuple(item.sentenceId(), item.commentCount(),
+                item.unreadCommentCount(), item.contentVisibility()))
+                .containsExactly(tuple(sentence.getId(), 2L, 1L, ContentVisibility.VISIBLE));
+        assertThat(unread).isEqualTo(all);
+        assertThat(commentViewRepository.count()).isEqualTo(viewsBefore);
+        ClubMember membership = clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow();
+        assertThat(membership).extracting(ClubMember::getLastReadPassage, ClubMember::getLastReadAt)
+                .containsExactly(null, null);
+    }
+
+    @Test
+    @DisplayName("v2 NEW는 요청 문단까지의 미확인 댓글 문장만 반환한다")
+    void findNewCommentsThroughRequestedPassage() {
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("미래 장"), 2));
+        Passage future = passageRepository.save(new Passage(chapter, 2,
+                List.of(new SentenceContent("미래 새 댓글 문장"))));
+        Long futureSentenceId = future.getSentences().getFirst().getId();
+        commentService.create(other.getId(), club.getId(), futureSentenceId, new CommentContent("미래 댓글"));
+
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount()).isZero();
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.ALL).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(futureSentenceId, ContentVisibility.REVEAL_REQUIRED));
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), future.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.contentVisibility()))
+                .containsExactly(tuple(futureSentenceId, ContentVisibility.VISIBLE));
+
+        commentService.findComments(writer.getId(), club.getId(), futureSentenceId);
+
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), future.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("v2의 집계는 차단 댓글과 다른 모임을 제외하고 신고 댓글은 유지한다")
+    void findCommentedSentencesV2WithExistingVisibilityPolicy() {
+        Member blocked = memberRepository.save(new Member(new Nickname("차단 작성자")));
+        ClubMember blockedMembership = clubMemberRepository.save(new ClubMember(blocked, club));
+        ClubMember foreignMembership = clubMemberRepository.save(new ClubMember(other, otherClub));
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("숨긴 문장"), 2));
+        Passage blockedPassage = passageRepository.save(new Passage(chapter, 2,
+                List.of(new SentenceContent("차단 댓글만 있는 문장"))));
+        CommentResponse visible = commentService.create(other.getId(), club.getId(), sentence.getId(),
+                new CommentContent("신고했지만 보이는 댓글"));
+        commentRepository.save(new Comment(blockedMembership, sentence, new CommentContent("같은 문장 차단 댓글")));
+        commentRepository.save(new Comment(blockedMembership, blockedPassage.getSentences().getFirst(),
+                new CommentContent("차단 댓글만 존재")));
+        commentRepository.save(new Comment(foreignMembership, sentence, new CommentContent("다른 모임 댓글")));
+        memberBlockRepository.save(new MemberBlock(writer, blocked));
+        commentService.report(writer.getId(), visible.commentId());
+
+        assertThat(commentService.findCommentedSentencesV2(writer.getId(), club.getId(), passage.getId(),
+                CommentedSentenceFilter.NEW).commentedSentences())
+                .extracting(item -> tuple(item.sentenceId(), item.commentCount(), item.unreadCommentCount()))
+                .containsExactly(tuple(sentence.getId(), 1L, 1L));
+    }
+
+    @Test
+    @DisplayName("v2는 미가입·잘못된 현재 문단·삭제 도서의 기존 접근 제한을 유지한다")
+    void rejectInvalidCommentedSentencesV2Context() {
+        Member outsider = memberRepository.save(new Member(new Nickname("미가입")));
+        assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
+                outsider.getId(), club.getId(), passage.getId(), CommentedSentenceFilter.ALL))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
+                writer.getId(), club.getId(), Long.MAX_VALUE, CommentedSentenceFilter.ALL))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
+        book.delete();
+        bookRepository.save(book);
+        assertThatThrownBy(() -> commentService.findCommentedSentencesV2(
+                writer.getId(), club.getId(), passage.getId(), CommentedSentenceFilter.ALL))
+                .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    @Test
+    @DisplayName("중복 조회 기록이 있어도 댓글 수와 미확인 댓글 수를 중복 집계하지 않는다")
+    void aggregateSafelyWithDuplicateViews() {
+        CommentResponse created = commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("새 댓글"));
+        Comment comment = commentRepository.findById(created.commentId()).orElseThrow();
+        commentViewRepository.save(new CommentView(writer, comment));
+        commentViewRepository.save(new CommentView(writer, comment));
+
+        var item = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences().getFirst();
+
+        assertThat(item.commentCount()).isEqualTo(1);
+        assertThat(item.unreadCommentCount()).isZero();
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("상세 조회는 보이는 댓글만 VIEWED로 전환하고 차단한 작성자의 댓글은 제외한다")
+    void viewOnlyVisibleCommentDetails() {
+        CommentResponse visible = commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("보이는 댓글"));
+        Member blocked = memberRepository.save(new Member(new Nickname("차단 대상")));
+        clubMemberRepository.save(new ClubMember(blocked, club));
+        CommentResponse hidden = commentService.create(blocked.getId(), club.getId(), sentence.getId(), new CommentContent("숨긴 댓글"));
+        memberBlockRepository.save(new MemberBlock(writer, blocked));
+
+        CommentsResponse response = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+
+        assertThat(response.comments()).extracting(CommentResponse::commentId).containsExactly(visible.commentId());
+        assertThat(commentViewRepository.existsByMemberIdAndCommentId(writer.getId(), visible.commentId())).isTrue();
+        assertThat(commentViewRepository.existsByMemberIdAndCommentId(writer.getId(), hidden.commentId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("댓글 문장은 현재 미확인, 미래 미확인, 모두 확인 그룹 순서로 정렬된다")
+    void sortCommentedSentencesByDiscoveryGroups() {
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("2장"), 2));
+        Passage futurePassage = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("미래 문장"))));
+        Passage viewedPassage = passageRepository.save(new Passage(chapter, 3, Collections.singletonList(new SentenceContent("확인한 문장"))));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("현재 새 댓글"));
+        commentService.create(other.getId(), club.getId(), futurePassage.getSentences().getFirst().getId(), new CommentContent("미래 새 댓글"));
+        commentService.create(writer.getId(), club.getId(), viewedPassage.getSentences().getFirst().getId(), new CommentContent("확인한 댓글"));
+
+        var response = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId());
+
+        assertThat(response.commentedSentences())
+                .extracting(item -> item.content())
+                .containsExactly("본문 1", "미래 문장", "확인한 문장");
+        assertThat(response.commentedSentences().get(1).contentVisibility())
+                .isEqualTo(ContentVisibility.REVEAL_REQUIRED);
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+        assertThat(commentService.findCommentedSentences(other.getId(), club.getId(), passage.getId())
+                .commentedSentences())
+                .extracting(item -> item.content())
+                .containsExactly("확인한 문장", "본문 1", "미래 문장");
+    }
+
+    @Test
+    @DisplayName("댓글 목록은 작성일 오름차순이고 본인 여부가 표시되며 같은 모임의 댓글만 보인다")
+    void findCommentsOrderedAndIsolated() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("첫 댓글"));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("둘째 댓글"));
+        ClubMember otherClubMembership = clubMemberRepository.save(new ClubMember(writer, otherClub));
+        commentRepository.save(new Comment(otherClubMembership, sentence, new CommentContent("다른 모임 댓글")));
+
+        CommentsResponse response = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+
+        assertThat(response.comments()).hasSize(2);
+        assertThat(response.comments().get(0).content()).isEqualTo("첫 댓글");
+        assertThat(response.comments().get(0).mine()).isTrue();
+        assertThat(response.comments().get(1).nickname()).isEqualTo("지수");
+        assertThat(response.comments().get(1).mine()).isFalse();
+    }
+
+    @Test
+    @DisplayName("요청자가 차단한 회원의 댓글만 단방향으로 숨긴다")
+    void excludeBlockedWritersCommentsDirectionally() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("작성자 댓글"));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("차단자 댓글"));
+        memberBlockRepository.save(new MemberBlock(writer, other));
+
+        CommentsResponse blockerResponse = commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+        CommentsResponse blockedResponse = commentService.findComments(other.getId(), club.getId(), sentence.getId());
+
+        assertThat(blockerResponse.comments()).extracting(CommentResponse::content)
+                .containsExactly("작성자 댓글");
+        assertThat(blockedResponse.comments()).extracting(CommentResponse::content)
+                .containsExactly("작성자 댓글", "차단자 댓글");
+    }
+
+    @Test
+    @DisplayName("탈퇴 회원의 댓글은 작성자 정보와 내용이 그대로 조회된다")
+    void preserveLeftMembersComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("남겨진 댓글"));
+        leaveClub(writer, club);
+
+        CommentsResponse response = commentService.findComments(other.getId(), club.getId(), sentence.getId());
+
+        assertThat(response.comments()).singleElement().satisfies(comment -> {
+            assertThat(comment.commentId()).isEqualTo(created.commentId());
+            assertThat(comment.nickname()).isEqualTo("민서");
+            assertThat(comment.content()).isEqualTo("남겨진 댓글");
+            assertThat(comment.mine()).isFalse();
+        });
+    }
+
+    @Test
+    @DisplayName("본인 댓글을 삭제하면 하드 삭제된다")
+    void deleteOwnComment() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("삭제될 댓글"));
+
+        commentService.delete(writer.getId(), created.commentId());
+
+        assertThat(commentRepository.findById(created.commentId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("같은 댓글을 다시 신고해도 신고 한 건만 저장된다")
+    void reportCommentIdempotently() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("신고 대상"));
+
+        commentService.report(other.getId(), created.commentId());
+        commentService.report(other.getId(), created.commentId());
+
+        assertThat(commentReportRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("댓글 신고 후에도 해당 댓글은 목록에 노출된다")
+    void preserveCommentExposureAfterReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("신고 대상"));
+
+        commentService.report(other.getId(), created.commentId());
+
+        assertThat(commentService.findComments(other.getId(), club.getId(), sentence.getId()).comments())
+                .singleElement()
+                .extracting(CommentResponse::commentId)
+                .isEqualTo(created.commentId());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 댓글은 신고할 수 없다")
+    void rejectUnknownCommentReport() {
+        assertThatThrownBy(() -> commentService.report(other.getId(), 999L))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("신고자가 차단한 작성자의 댓글은 보이지 않는 댓글로 처리한다")
+    void rejectBlockedWriterCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("차단된 댓글"));
+        memberBlockRepository.save(new MemberBlock(other, writer));
+
+        assertThatThrownBy(() -> commentService.report(other.getId(), created.commentId()))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("모임에 참여하지 않은 회원은 댓글을 신고할 수 없다")
+    void rejectOutsiderCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("신고 대상"));
+        Member outsider = memberRepository.save(new Member(new Nickname("외부인")));
+
+        assertThatThrownBy(() -> commentService.report(outsider.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("모임을 탈퇴한 회원은 댓글을 신고할 수 없다")
+    void rejectLeftMemberCommentReport() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("신고 대상"));
+        leaveClub(other, club);
+
+        assertThatThrownBy(() -> commentService.report(other.getId(), created.commentId()))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("모임의 도서에 속하지 않는 문장은 SENTENCE_NOT_IN_CLUB_BOOK으로 구분한다")
+    void rejectPassageOfOtherBook() {
+        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null, null, null, null, null));
+        Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
+        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
+
+        assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(),
+                otherPassage.getSentences().getFirst().getId(), new CommentContent("댓글")))
+                .isInstanceOf(NotFoundException.class)
+                .extracting("code").isEqualTo(ErrorCode.SENTENCE_NOT_IN_CLUB_BOOK);
+    }
+
+    @Nested
+    @DisplayName("삭제된 도서를 대상으로 독서 활동을 할 수 있는가")
+    class CommentActivityOfDeletedBook {
+
+        private CommentResponse existingComment;
+
+        @BeforeEach
+        void deleteBookAfterWritingComment() {
+            existingComment = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("원본"));
+            bookRepository.delete(book.getId());
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 조회할 수 없다")
+        void cannotReadComments() {
+            assertBookNotAvailable(() ->
+                    commentService.findComments(writer.getId(), club.getId(), sentence.getId()));
+        }
+
+        @Test
+        @DisplayName("새 댓글을 작성할 수 없다")
+        void cannotCreateComment() {
+            assertBookNotAvailable(() ->
+                    commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("신규")));
+            assertThat(commentRepository.count()).isEqualTo(1);
+        }
+
+
+        @Test
+        @DisplayName("기존 댓글을 삭제할 수 없고 데이터는 보존된다")
+        void cannotDeleteCommentAndPreservesData() {
+            assertBookNotAvailable(() -> commentService.delete(writer.getId(), existingComment.commentId()));
+            assertThat(commentRepository.findById(existingComment.commentId())).isPresent();
+        }
+
+        @Test
+        @DisplayName("기존 댓글을 신고할 수 없고 신고 데이터는 생성되지 않는다")
+        void cannotReportComment() {
+            assertBookNotAvailable(() -> commentService.report(other.getId(), existingComment.commentId()));
+            assertThat(commentReportRepository.count()).isZero();
+        }
+    }
+
+    @Autowired
+    private yeobaek.backend.member.service.MemberService memberService;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    @Test
+    @DisplayName("본인 작성은 즉시 확인되고 반복 상세 조회는 기록을 추가하지 않는다")
+    void ownCommentAndRepeatedViews() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("내 댓글"));
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isZero();
+        commentService.findComments(other.getId(), club.getId(), sentence.getId());
+        commentService.findComments(other.getId(), club.getId(), sentence.getId());
+        assertThat(commentViewRepository.count()).isEqualTo(2);
+        commentService.update(writer.getId(), created.commentId(), new CommentContent("수정 후에도 확인 유지"));
+        assertThat(commentService.countNewComments(other.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("문장 집계는 차단한 작성자의 댓글 수와 최신 작성 시각을 제외한다")
+    void aggregateOnlyVisibleComments() {
+        CommentResponse visible = commentService.create(
+                other.getId(), club.getId(), sentence.getId(), new CommentContent("보이는 댓글"));
+        LocalDateTime visibleCreatedAt = LocalDateTime.of(2026, 10, 14, 10, 0);
+        Comment visibleComment = commentRepository.findById(visible.commentId()).orElseThrow();
+        org.springframework.test.util.ReflectionTestUtils.setField(visibleComment, "createdAt", visibleCreatedAt);
+        commentRepository.saveAndFlush(visibleComment);
+        Member blocked = memberRepository.save(new Member(new Nickname("차단 대상")));
+        clubMemberRepository.save(new ClubMember(blocked, club));
+        CommentResponse hidden = commentService.create(
+                blocked.getId(), club.getId(), sentence.getId(), new CommentContent("더 늦은 숨긴 댓글"));
+        Comment hiddenComment = commentRepository.findById(hidden.commentId()).orElseThrow();
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                hiddenComment, "createdAt", visibleCreatedAt.plusHours(1));
+        commentRepository.saveAndFlush(hiddenComment);
+        memberBlockRepository.save(new MemberBlock(writer, blocked));
+
+        var summary = commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences().getFirst();
+
+        assertThat(summary.commentCount()).isEqualTo(1);
+        assertThat(summary.unreadCommentCount()).isEqualTo(1);
+        assertThat(summary.latestCommentCreatedAt()).isEqualTo(visibleCreatedAt);
+    }
+
+    @Test
+    @DisplayName("요청 진도 경계와 차단을 적용하고 차단 해제 뒤 새 조회에서 갱신한다")
+    void countWithinRequestedProgressAndVisibility() {
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("미래 장"), 2));
+        Passage future = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("미래 본문"))));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("현재"));
+        commentService.create(other.getId(), club.getId(), future.getSentences().getFirst().getId(), new CommentContent("미래"));
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), future.getId()).newCommentCount())
+                .isEqualTo(2);
+        MemberBlock block = memberBlockRepository.save(new MemberBlock(writer, other));
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences()).isEmpty();
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), future.getId()).newCommentCount())
+                .isZero();
+        memberBlockRepository.delete(block);
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("탈퇴 재가입 시 확인 상태를 유지하고 탈퇴 중 댓글과 신규 가입 전 댓글은 NEW다")
+    void retainViewsAcrossRejoin() {
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("기존"));
+        commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+        leaveClub(writer, club);
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("탈퇴 중"));
+        ClubMember membership = clubMemberRepository.findByMemberIdAndClubId(writer.getId(), club.getId()).orElseThrow();
+        membership.rejoin();
+        clubMemberRepository.save(membership);
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+        Member newcomer = memberRepository.save(new Member(new Nickname("신규 참여자")));
+        clubMemberRepository.save(new ClubMember(newcomer, club));
+        assertThat(commentService.countNewComments(newcomer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("댓글 삭제는 중복 확인 기록까지 삭제하고 목록에서 제외한다")
+    void cascadeCommentViews() {
+        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("삭제 대상"));
+        Comment comment = commentRepository.findById(created.commentId()).orElseThrow();
+        commentViewRepository.save(new CommentView(other, comment));
+        commentViewRepository.save(new CommentView(other, comment));
+        commentService.delete(writer.getId(), created.commentId());
+        assertThat(commentViewRepository.count()).isZero();
+        assertThat(commentService.findCommentedSentences(other.getId(), club.getId(), passage.getId())
+                .commentedSentences()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("회원 삭제는 본인의 기록과 본인 댓글에 대한 타인의 기록을 함께 삭제한다")
+    void cascadeMemberViews() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("작성자 댓글"));
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("남길 댓글"));
+        commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+        commentService.findComments(other.getId(), club.getId(), sentence.getId());
+        memberService.delete(writer.getId());
+        assertThat(commentViewRepository.count()).isEqualTo(1);
+        assertThat(commentRepository.count()).isEqualTo(1);
+        assertThat(commentService.findCommentedSentences(other.getId(), club.getId(), passage.getId())
+                .commentedSentences().getFirst().commentCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("같은 그룹은 댓글 작성 시각과 관계없이 책의 문단과 문장 순서로 정렬한다")
+    void sortSameGroupByBookPosition() {
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("정렬 장"), 2));
+        Passage laterPassage = passageRepository.save(new Passage(chapter, 2, java.util.List.of(
+                new SentenceContent("뒤 문단 첫 문장"),
+                new SentenceContent("뒤 문단 둘째 문장"))));
+        Sentence laterFirstSentence = laterPassage.getSentences().get(0);
+        Sentence laterSecondSentence = laterPassage.getSentences().get(1);
+        CommentResponse earlierPassageComment = commentService.create(
+                other.getId(), club.getId(), sentence.getId(), new CommentContent("앞 문단 댓글"));
+        CommentResponse laterFirstComment = commentService.create(
+                other.getId(), club.getId(), laterFirstSentence.getId(), new CommentContent("뒤 문단 첫 댓글"));
+        CommentResponse laterSecondComment = commentService.create(
+                other.getId(), club.getId(), laterSecondSentence.getId(), new CommentContent("뒤 문단 둘째 댓글"));
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                java.sql.Timestamp.valueOf("2026-09-07 10:00:00"), earlierPassageComment.commentId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                java.sql.Timestamp.valueOf("2026-09-07 12:00:00"), laterFirstComment.commentId());
+        jdbcTemplate.update("update comments set created_at = ? where id = ?",
+                java.sql.Timestamp.valueOf("2026-09-07 13:00:00"), laterSecondComment.commentId());
+
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), laterPassage.getId())
+                .commentedSentences()).extracting(item -> item.sentenceId())
+                .containsExactly(sentence.getId(), laterFirstSentence.getId(), laterSecondSentence.getId());
+
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("앞 문단 최신 댓글"));
+
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), laterPassage.getId())
+                .commentedSentences()).extracting(item -> item.sentenceId())
+                .containsExactly(sentence.getId(), laterFirstSentence.getId(), laterSecondSentence.getId());
+    }
+
+    @Test
+    @DisplayName("상세 조회 트랜잭션 실패 시 확인 기록도 롤백된다")
+    void rollBackDetailViews() {
+        commentService.create(other.getId(), club.getId(), sentence.getId(), new CommentContent("롤백 대상"));
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
+            commentService.findComments(writer.getId(), club.getId(), sentence.getId());
+            throw new IllegalStateException("응답 생성 후 트랜잭션 실패");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(commentService.countNewComments(writer.getId(), club.getId(), passage.getId()).newCommentCount())
+                .isEqualTo(1);
+        assertThat(commentViewRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("존재하지 않거나 다른 책의 현재 문단은 INVALID_REQUEST다")
+    void rejectInvalidDiscoveryPassage() {
+        Book anotherBook = bookRepository.save(new Book(new BookTitle("새 책"), null, null, 1, null, null, null, null, null));
+        Chapter chapter = chapterRepository.save(new Chapter(anotherBook, new ChapterTitle("새 장"), 1));
+        Passage foreign = passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("다른 책 본문"))));
+        for (Long passageId : java.util.List.of(Long.MAX_VALUE, foreign.getId())) {
+            assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), club.getId(), passageId))
+                    .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
+            assertThatThrownBy(() -> commentService.findCommentedSentences(writer.getId(), club.getId(), passageId))
+                    .isInstanceOf(BadRequestException.class).extracting("code").isEqualTo(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    @Test
+    @DisplayName("발견 API는 존재하지 않는 모임을 미가입으로 처리한다")
+    void rejectUnknownClubDiscovery() {
+        assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), Long.MAX_VALUE, passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentences(writer.getId(), Long.MAX_VALUE, passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("발견 API는 모임에 가입하지 않은 회원을 거부한다")
+    void rejectOutsiderDiscovery() {
+        assertThatThrownBy(() -> commentService.countNewComments(other.getId(), otherClub.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentences(other.getId(), otherClub.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("발견 API는 모임을 탈퇴한 회원을 거부한다")
+    void rejectLeftMemberDiscovery() {
+        leaveClub(writer, club);
+        assertThatThrownBy(() -> commentService.countNewComments(writer.getId(), club.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+        assertThatThrownBy(() -> commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId()))
+                .isInstanceOf(ForbiddenException.class).extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
+    }
+
+    @Test
+    @DisplayName("삭제된 도서의 발견 API는 데이터를 노출하지 않는다")
+    void rejectDeletedBookDiscovery() {
+        commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("보존 댓글"));
+        bookRepository.delete(book.getId());
+        assertBookNotAvailable(() -> commentService.countNewComments(writer.getId(), club.getId(), passage.getId()));
+        assertBookNotAvailable(() -> commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId()));
+    }
+    private void assertBookNotAvailable(org.assertj.core.api.ThrowableAssert.ThrowingCallable operation) {
+        assertThatThrownBy(operation)
+                .isInstanceOf(BadRequestException.class)
+                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    }
+
+    private void leaveClub(Member member, Club targetClub) {
+        ClubMember membership = clubMemberRepository
+                .findByMemberIdAndClubId(member.getId(), targetClub.getId()).orElseThrow();
+        membership.leave();
+        clubMemberRepository.saveAndFlush(membership);
+    }
+    @Test
+    @DisplayName("기존 페이지 크기보다 많은 문장도 전부 반환한다")
+    void returnEntireListBeyondFormerPageSize() {
+        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("전체 목록"), 2));
+        var contents = java.util.stream.IntStream.range(0, 25).mapToObj(index -> "문장 " + index).toList();
+        Passage manySentences = passageRepository.save(new Passage(chapter, 2, contents.stream().map(SentenceContent::new).toList()));
+        ClubMember author = clubMemberRepository.findByMemberIdAndClubId(other.getId(), club.getId()).orElseThrow();
+        commentRepository.saveAll(manySentences.getSentences().stream()
+                .map(item -> new Comment(author, item, new CommentContent("댓글"))).toList());
+        assertThat(commentService.findCommentedSentences(writer.getId(), club.getId(), passage.getId())
+                .commentedSentences()).hasSize(25);
+    }
+}

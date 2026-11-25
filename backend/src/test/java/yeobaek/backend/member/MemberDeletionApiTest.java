@@ -38,9 +38,9 @@ import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class MemberDeletionApiTest extends IntegrationTest {
+class MemberDeletionApiTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -76,7 +76,7 @@ class MemberDeletionApiTest extends IntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    @DisplayName("계정 삭제는 대상 회원의 댓글과 모든 참여·진도를 삭제하고 다른 데이터는 보존한다")
+    @DisplayName("계정 삭제는 대상 회원의 댓글과 모임 참여·진도를 삭제하고 다른 데이터는 보존한다")
     void deleteMemberData() throws Exception {
         Book book = bookRepository.save(new Book(new BookTitle("회원 탈퇴 테스트 도서"), null, null, 1, null, null, null, null, null));
         Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));

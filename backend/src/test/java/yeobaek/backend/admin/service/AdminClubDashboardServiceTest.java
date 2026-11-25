@@ -34,9 +34,9 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.member.service.MemberService;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class AdminClubDashboardServiceTest extends IntegrationTest {
+class AdminClubDashboardServiceTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private AdminClubDashboardService adminClubDashboardService;

@@ -52,9 +52,9 @@ import yeobaek.backend.notification.registration.repository.NotificationRegistra
 import yeobaek.backend.notification.registration.service.NotificationClubPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationPreferencesService;
 import yeobaek.backend.notification.registration.service.NotificationRegistrationService;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class ClubJoinNotificationIntegrationTest extends IntegrationTest {
+class ClubJoinNotificationIntegrationTest extends DatabaseCleaningIntegrationTest {
     private static final JoinCode JOIN_CODE = new JoinCode("JOIN02");
     private static final String PHONE = "c" + "a".repeat(21);
     private static final String TABLET = "d" + "a".repeat(21);

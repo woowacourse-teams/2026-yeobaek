@@ -20,9 +20,9 @@ import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class ClubMappingTest extends IntegrationTest {
+class ClubMappingTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private ClubRepository clubRepository;

@@ -60,9 +60,9 @@ import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class CommentNotificationRecipientIntegrationTest extends IntegrationTest {
+class CommentNotificationRecipientIntegrationTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private NotificationClubPreferencesService clubPreferences;

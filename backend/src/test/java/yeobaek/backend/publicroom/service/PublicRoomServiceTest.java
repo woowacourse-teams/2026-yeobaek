@@ -1,236 +1,185 @@
 package yeobaek.backend.publicroom.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import yeobaek.backend.book.domain.Author;
-import yeobaek.backend.book.domain.AuthorBook;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
-import yeobaek.backend.book.domain.vo.AuthorName;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
+import yeobaek.backend.comment.repository.CommentRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
+import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.dto.PublicRoomSort;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.publicroom.repository.PublicRoomVisitorCount;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.NotFoundException;
 
-class PublicRoomServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class PublicRoomServiceTest {
 
-    @Autowired
-    private AuthorRepository authorRepository;
-
-    @Autowired
-    private AuthorBookRepository authorBookRepository;
-
-    @Autowired
-    private BookManagementRepository bookRepository;
-
-    @Autowired
-    private ChapterRepository chapterRepository;
-
-    @Autowired
-    private PassageRepository passageRepository;
-
-    @Autowired
+    @Mock
     private PublicRoomRepository publicRoomRepository;
-
-    @Autowired
+    @Mock
+    private PublicRoomMemberRepository publicRoomMemberRepository;
+    @Mock
     private MemberRepository memberRepository;
-
-    @Autowired
+    @Mock
+    private PassageRepository passageRepository;
+    @Mock
+    private CommentRepository commentRepository;
+    @Mock
+    private AuthorBookRepository authorBookRepository;
+    @Mock
+    private BookCoverUrlResolver bookCoverUrlResolver;
+    @Mock
+    private PublicRoomVisitorCount visitorCount;
+    @InjectMocks
     private PublicRoomService publicRoomService;
 
-    @Autowired
-    private PublicRoomMemberRepository publicRoomMemberRepository;
+    private Book book;
+    private PublicRoom room;
+    private PublicRoomMember membership;
+    private Passage passage;
 
-    @Test
-    @DisplayName("동시 최초 방문과 진도 저장은 활동 한 건에 두 상태를 모두 보존한다")
-    void concurrentFirstWrites() throws Exception {
-        ReadingFixture fixture = createRoom("동시성 책", 1);
-        Member member = memberRepository.save(new Member(new Nickname("동시 독자")));
-        CountDownLatch start = new CountDownLatch(1);
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var visit = executor.submit(() -> {
-                await(start);
-                publicRoomService.visit(member.getId(), fixture.room().getId());
-            });
-            var progress = executor.submit(() -> {
-                await(start);
-                publicRoomService.updateProgress(member.getId(), fixture.room().getId(),
-                        fixture.passages().getFirst().getId());
-            });
-            start.countDown();
-            visit.get(10, TimeUnit.SECONDS);
-            progress.get(10, TimeUnit.SECONDS);
-        }
-
-        var membership = publicRoomMemberRepository.findByMemberIdAndPublicRoomId(
-                member.getId(), fixture.room().getId()).orElseThrow();
-        assertThat(membership.getLastVisitedAt()).isNotNull();
-        assertThat(membership.getLastReadPassage()).isNotNull();
-        assertThat(publicRoomMemberRepository.count()).isOne();
-    }
-
-    @Test
-    @DisplayName("공개방 목록은 중복 방문을 제외한 누적 방문 회원 수 내림차순으로 반환한다")
-    void findAllByDistinctVisitorCount() {
-        ReadingFixture first = createRoom("첫 번째 책", 2,
-                List.of("로맨스", "비극"), List.of("재회", "첫사랑", "재회"));
-        ReadingFixture second = createRoom("두 번째 책", 1);
-        Member member = memberRepository.save(new Member(new Nickname("독자")));
-        Member other = memberRepository.save(new Member(new Nickname("다른 독자")));
-        publicRoomService.visit(member.getId(), first.room().getId());
-        publicRoomService.visit(member.getId(), first.room().getId());
-        publicRoomService.visit(other.getId(), second.room().getId());
-        publicRoomService.visit(member.getId(), second.room().getId());
-
-        var response = publicRoomService.findAll(member.getId(), PublicRoomSort.MOST_VISITED, null);
-
-        assertThat(response.publicRooms()).extracting(room -> tuple(room.publicRoomId(), room.myProgress()))
-                .containsExactly(tuple(second.room().getId(), null), tuple(first.room().getId(), null));
-        var bookWithMetadata = response.publicRooms().get(1).book();
-        assertThat(bookWithMetadata.genres()).containsExactlyInAnyOrder("로맨스", "비극");
-        assertThat(bookWithMetadata.hashtags()).containsExactlyInAnyOrder("재회", "첫사랑", "재회");
-        var legacyBook = response.publicRooms().getFirst().book();
-        assertThat(List.of(legacyBook.genres(), legacyBook.hashtags())).containsOnly(List.of());
-        assertThat(publicRoomMemberRepository.count()).isEqualTo(3);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"운수", "현진"})
-    @DisplayName("제목 또는 여러 작가의 이름에 부분 일치하는 공개방을 중복 없이 검색한다")
-    void searchByTitleOrAuthor(String keyword) {
-        ReadingFixture matched = createRoom("운수 좋은 날", 1);
-        addAuthor(matched.book(), "현진건");
-        addAuthor(matched.book(), "현진영");
-        addAuthor(matched.book(), "다른 작가");
-        createRoom("무관한 책", 1);
-        ReadingFixture deleted = createRoom("운수 삭제 도서", 1);
-        addAuthor(deleted.book(), "현진수");
-        bookRepository.delete(deleted.book().getId());
-        Member reader = memberRepository.save(new Member(new Nickname("검색 독자")));
-
-        var response = publicRoomService.findAll(reader.getId(), PublicRoomSort.MOST_VISITED, keyword);
-
-        assertThat(response.publicRooms()).singleElement().satisfies(room -> {
-            assertThat(room.publicRoomId()).isEqualTo(matched.room().getId());
-            assertThat(room.book().authors()).containsExactlyInAnyOrder("현진건", "현진영", "다른 작가");
-            assertThat(room.myProgress()).isNull();
-        });
+    @BeforeEach
+    void setUp() {
+        book = new Book(new BookTitle("공개방 도서"), null, null, 4, null, null, null, null, null);
+        ReflectionTestUtils.setField(book, "id", 20L);
+        room = new PublicRoom(book);
+        ReflectionTestUtils.setField(room, "id", 10L);
+        membership = new PublicRoomMember(new Member(new Nickname("독자")), room);
+        passage = new Passage(new Chapter(book, new ChapterTitle("첫 장"), 1), 2,
+                List.of(new SentenceContent("본문")));
     }
 
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
-    @DisplayName("검색어가 없거나 비어 있으면 삭제 도서를 제외한 전체 공개방을 조회한다")
-    void searchWithoutKeyword(String keyword) {
-        ReadingFixture first = createRoom("첫 번째 책", 1);
-        ReadingFixture second = createRoom("두 번째 책", 1);
-        ReadingFixture deleted = createRoom("삭제 도서", 1);
-        bookRepository.delete(deleted.book().getId());
-        Member reader = memberRepository.save(new Member(new Nickname("목록 독자")));
-        visit(second.room(), reader);
-        var response = publicRoomService.findAll(reader.getId(), PublicRoomSort.MOST_VISITED, keyword);
+    @DisplayName("검색어가 비어 있으면 전체 활성 방을 방문 수 순서로 반환한다")
+    void sortActiveRoomsWithoutKeyword(String keyword) {
+        PublicRoom other = new PublicRoom(book);
+        ReflectionTestUtils.setField(other, "id", 11L);
+        given(publicRoomRepository.findAllActiveWithBook()).willReturn(List.of(room, other));
+        given(publicRoomMemberRepository.countVisitorsByPublicRoomIds(List.of(10L, 11L)))
+                .willReturn(List.of(visitorCount));
+        given(visitorCount.getPublicRoomId()).willReturn(11L);
+        given(visitorCount.getVisitorCount()).willReturn(3L);
 
-        assertThat(response.publicRooms()).extracting(room -> room.publicRoomId())
-                .containsExactly(second.room().getId(), first.room().getId());
+        var response = publicRoomService.findAll(1L, PublicRoomSort.MOST_VISITED, keyword);
+
+        assertThat(response.publicRooms()).extracting(result -> result.publicRoomId()).containsExactly(11L, 10L);
+        assertThat(response.publicRooms()).allSatisfy(result -> assertThat(result.myProgress()).isNull());
     }
 
     @Test
-    @DisplayName("제목·작가 검색 결과에도 누적 방문순 정렬과 내 진도를 유지한다")
-    void searchKeepsSortAndProgress() {
-        ReadingFixture titleMatch = createRoom("검색 제목", 1);
-        ReadingFixture authorMatch = createRoom("다른 제목", 2);
-        addAuthor(authorMatch.book(), "검색 작가");
-        ReadingFixture unrelated = createRoom("무관한 책", 1);
-        Member reader = memberRepository.save(new Member(new Nickname("정렬 검색 독자")));
-        Member other = memberRepository.save(new Member(new Nickname("다른 독자")));
-        visit(titleMatch.room(), reader);
-        visit(authorMatch.room(), reader);
-        visit(authorMatch.room(), other);
-        visit(authorMatch.room(), other);
-        visit(unrelated.room(), reader);
-        publicRoomService.updateProgress(reader.getId(), authorMatch.room().getId(),
-                authorMatch.passages().getFirst().getId());
+    @DisplayName("미방문 공개방도 가입 없이 상세를 조회한다")
+    void detailBeforeVisit() {
+        given(publicRoomRepository.findWithBookById(10L)).willReturn(Optional.of(room));
 
-        var response = publicRoomService.findAll(reader.getId(), PublicRoomSort.MOST_VISITED, "검색");
+        var response = publicRoomService.findDetail(1L, 10L);
 
-        assertThat(response.publicRooms()).extracting(room -> room.publicRoomId())
-                .containsExactly(authorMatch.room().getId(), titleMatch.room().getId());
-        assertThat(response.publicRooms().getFirst().myProgress()).satisfies(progress -> {
-            assertThat(progress.lastReadPassageSequence()).isEqualTo(1);
-            assertThat(progress.progressRate()).isEqualTo(50);
-            assertThat(progress.lastReadAt()).isNotNull();
-        });
+        assertThat(response.publicRoomId()).isEqualTo(10L);
+        assertThat(response.myProgress()).isNull();
+        assertThat(response.lastVisitedAt()).isNull();
     }
 
     @Test
-    @DisplayName("일치하는 공개방이 없으면 빈 배열을 반환한다")
-    void searchWithoutMatches() {
-        createRoom("다른 책", 1);
-        Member reader = memberRepository.save(new Member(new Nickname("빈 검색 독자")));
+    @DisplayName("방문 시각을 갱신해도 마지막 읽기 위치는 유지한다")
+    void visitPreservesProgress() {
+        LocalDateTime readAt = LocalDateTime.of(2026, 1, 1, 12, 0);
+        membership.updateProgress(passage, readAt);
+        givenMembership();
+        LocalDateTime before = LocalDateTime.now();
 
-        var response = publicRoomService.findAll(reader.getId(), PublicRoomSort.MOST_VISITED, "없는 검색어");
+        publicRoomService.visit(1L, 10L);
 
-        assertThat(response.publicRooms()).isEmpty();
+        assertThat(membership.getLastVisitedAt()).isBetween(before, LocalDateTime.now());
+        assertThat(membership.getLastReadPassage()).isSameAs(passage);
+        assertThat(membership.getLastReadAt()).isEqualTo(readAt);
     }
 
-    private void addAuthor(Book book, String name) {
-        Author author = authorRepository.save(new Author(new AuthorName(name)));
-        authorBookRepository.save(new AuthorBook(author, book));
+    @Test
+    @DisplayName("공개방의 앞부분을 다시 읽으면 진도는 후퇴하고 방문 시각은 바뀌지 않는다")
+    void progressPreservesVisit() {
+        LocalDateTime visitedAt = LocalDateTime.of(2026, 1, 1, 12, 0);
+        membership.visit(visitedAt);
+        membership.updateProgress(new Passage(passage.getChapter(), 4, List.of(new SentenceContent("마지막"))), visitedAt);
+        givenMembership();
+        given(passageRepository.findById(30L)).willReturn(Optional.of(passage));
+
+        var response = publicRoomService.updateProgress(1L, 10L, 30L);
+
+        assertThat(response.lastReadPassageSequence()).isEqualTo(2);
+        assertThat(response.progressRate()).isEqualTo(50);
+        assertThat(membership.getLastVisitedAt()).isEqualTo(visitedAt);
     }
 
-    private void visit(PublicRoom room, Member member) {
-        publicRoomService.visit(member.getId(), room.getId());
+    @Test
+    @DisplayName("다른 도서 본문을 공개방 진도로 저장할 수 없다")
+    void rejectOtherBook() {
+        Book other = new Book(new BookTitle("다른 책"), null, null, 1, null, null, null, null, null);
+        ReflectionTestUtils.setField(other, "id", 21L);
+        Passage otherPassage = new Passage(new Chapter(other, new ChapterTitle("첫 장"), 1), 1,
+                List.of(new SentenceContent("다른 본문")));
+        given(publicRoomRepository.findWithBookByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(passageRepository.findById(30L)).willReturn(Optional.of(otherPassage));
+
+        assertThatThrownBy(() -> publicRoomService.updateProgress(1L, 10L, 30L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.PASSAGE_NOT_FOUND));
+
     }
 
-    private ReadingFixture createRoom(String title, int passageCount) {
-        return createRoom(title, passageCount, null, null);
+    @Test
+    @DisplayName("삭제된 도서의 공개방 방문은 BOOK_NOT_AVAILABLE로 거부한다")
+    void rejectDeletedBookVisit() {
+        book.delete();
+        given(publicRoomRepository.findWithBookByIdForUpdate(10L)).willReturn(Optional.of(room));
+
+        assertThatThrownBy(() -> publicRoomService.visit(1L, 10L))
+                .isInstanceOfSatisfying(BadRequestException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE));
+
     }
 
-    private ReadingFixture createRoom(String title, int passageCount, List<String> genres, List<String> hashtags) {
-        Book book = bookRepository.save(new Book(new BookTitle(title), null, null, passageCount, null, null, null,
-                genres, hashtags));
-        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        List<Passage> passages = java.util.stream.IntStream.rangeClosed(1, passageCount)
-                .mapToObj(sequence -> passageRepository.save(new Passage(chapter, sequence,
-                        List.of(new SentenceContent(sequence + "번 문장")))))
-                .toList();
-        PublicRoom room = publicRoomRepository.save(new PublicRoom(book));
-        return new ReadingFixture(book, room, passages);
+    @Test
+    @DisplayName("없는 공개방의 상세는 공개방 오류로 구분한다")
+    void missingRoom() {
+        assertThatThrownBy(() -> publicRoomService.findDetail(1L, 10L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.PUBLIC_ROOM_NOT_FOUND));
     }
 
-    private void await(CountDownLatch latch) {
-        try {
-            latch.await();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(exception);
-        }
-    }
-
-    private record ReadingFixture(Book book, PublicRoom room, List<Passage> passages) {
+    private void givenMembership() {
+        given(publicRoomRepository.findWithBookByIdForUpdate(10L)).willReturn(Optional.of(room));
+        given(publicRoomMemberRepository.findByMemberIdAndPublicRoomId(1L, 10L))
+                .willReturn(Optional.of(membership));
     }
 }

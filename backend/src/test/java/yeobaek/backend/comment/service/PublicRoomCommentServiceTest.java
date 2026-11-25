@@ -43,11 +43,11 @@ import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.domain.PublicRoomMember;
 import yeobaek.backend.publicroom.repository.PublicRoomMemberRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 
-class PublicRoomCommentServiceTest extends IntegrationTest {
+class PublicRoomCommentServiceTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private BookManagementRepository bookRepository;

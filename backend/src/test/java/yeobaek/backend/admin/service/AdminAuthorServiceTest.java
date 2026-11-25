@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminAuthorBookResponse;
 import yeobaek.backend.admin.dto.AdminAuthorResponse;
 import yeobaek.backend.admin.dto.AdminAuthorsResponse;
@@ -23,6 +24,7 @@ import yeobaek.backend.book.repository.AuthorRepository;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.support.IntegrationTest;
 
+@Transactional
 class AdminAuthorServiceTest extends IntegrationTest {
 
     @Autowired

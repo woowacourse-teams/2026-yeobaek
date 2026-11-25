@@ -22,9 +22,9 @@ import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.ContentSequence;
 import yeobaek.backend.book.domain.vo.Publisher;
 import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class BookMappingTest extends IntegrationTest {
+class BookMappingTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private BookManagementRepository bookRepository;

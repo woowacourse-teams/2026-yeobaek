@@ -21,9 +21,9 @@ import yeobaek.backend.notification.registration.domain.NotificationRegistration
 import yeobaek.backend.notification.registration.dto.NotificationRegistrationRequest;
 import yeobaek.backend.notification.registration.repository.NotificationPreferenceRepository;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class NotificationRegistrationCleanupTest extends IntegrationTest {
+class NotificationRegistrationCleanupTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private NotificationRegistrationService registrationService;

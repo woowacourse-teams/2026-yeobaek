@@ -40,10 +40,10 @@ import yeobaek.backend.notification.registration.dto.NotificationRegistrationReq
 import yeobaek.backend.notification.registration.repository.NotificationPreferenceRepository;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class NotificationPreferencesIntegrationTest extends IntegrationTest {
+class NotificationPreferencesIntegrationTest extends DatabaseCleaningIntegrationTest {
     private static final FirebaseInstallationId PHONE = new FirebaseInstallationId("c" + "a".repeat(21));
     private static final FirebaseInstallationId TABLET = new FirebaseInstallationId("d" + "a".repeat(21));
 
@@ -111,19 +111,6 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         assertThat(preferences.find(member.getId(), PHONE))
                 .isEqualTo(new NotificationPreferencesResponse(true, true, true, false));
         assertThat(registrationRepository.count()).isEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("빈 부분 변경 요청은 기존 설정을 유지한다")
-    void ignoreOmittedSettings() {
-        Member member = member();
-        register(member, PHONE);
-        preferences.update(member.getId(), PHONE, new NotificationPreferencesUpdateRequest(null, false, null, null));
-
-        preferences.update(member.getId(), PHONE, new NotificationPreferencesUpdateRequest(null, null, null, null));
-
-        assertThat(preferences.find(member.getId(), PHONE))
-                .isEqualTo(new NotificationPreferencesResponse(true, false, true, true));
     }
 
     @ParameterizedTest

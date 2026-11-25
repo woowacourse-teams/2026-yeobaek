@@ -2,98 +2,124 @@ package yeobaek.backend.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
-import org.junit.jupiter.api.BeforeEach;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.member.domain.Member;
+import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
-import yeobaek.backend.member.dto.BlockedMembersResponse;
+import yeobaek.backend.member.dto.BlockedMemberResponse;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class MemberBlockServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class MemberBlockServiceTest {
 
-    @Autowired
-    private MemberBlockService memberBlockService;
-
-    @Autowired
+    @Mock
     private MemberRepository memberRepository;
 
-    @Autowired
+    @Mock
     private MemberBlockRepository memberBlockRepository;
 
-    private Member blocker;
-    private Member blocked;
+    @InjectMocks
+    private MemberBlockService memberBlockService;
 
-    @BeforeEach
-    void setUp() {
-        blocker = memberRepository.save(new Member(new Nickname("민서")));
-        blocked = memberRepository.save(new Member(new Nickname("지수")));
+    @Test
+    @DisplayName("차단 목록에는 대상 회원의 현재 ID와 닉네임이 표시된다")
+    void findBlockedMembers() {
+        Member blocker = member(1L, "요청자");
+        Member blocked = member(2L, "변경된닉네임");
+        given(memberBlockRepository.findAllWithBlockedByBlockerId(1L))
+                .willReturn(List.of(new MemberBlock(blocker, blocked)));
+
+        var response = memberBlockService.findBlockedMembers(1L);
+
+        assertThat(response.blockedMembers()).containsExactly(new BlockedMemberResponse(2L, "변경된닉네임"));
     }
 
     @Test
-    @DisplayName("회원을 차단하고 차단 목록에서 조회한다")
-    void blockAndFind() {
-        memberBlockService.block(blocker.getId(), blocked.getId());
+    @DisplayName("차단 요청의 요청자와 대상 회원을 구분해 저장한다")
+    void block() {
+        Member blocker = member(1L, "요청자");
+        Member blocked = member(2L, "대상자");
+        given(memberRepository.findById(2L)).willReturn(Optional.of(blocked));
+        given(memberRepository.getReferenceById(1L)).willReturn(blocker);
 
-        BlockedMembersResponse response = memberBlockService.findBlockedMembers(blocker.getId());
+        memberBlockService.block(1L, 2L);
 
-        assertThat(response.blockedMembers()).singleElement().satisfies(member -> {
-            assertThat(member.memberId()).isEqualTo(blocked.getId());
-            assertThat(member.nickname()).isEqualTo("지수");
-        });
+        var saved = ArgumentCaptor.forClass(MemberBlock.class);
+        verify(memberBlockRepository).save(saved.capture());
+        assertThat(saved.getValue().getBlocker()).isSameAs(blocker);
+        assertThat(saved.getValue().getBlocked()).isSameAs(blocked);
     }
 
     @Test
-    @DisplayName("같은 회원을 다시 차단해도 관계는 하나만 유지된다")
-    void blockIdempotently() {
-        memberBlockService.block(blocker.getId(), blocked.getId());
-        memberBlockService.block(blocker.getId(), blocked.getId());
+    @DisplayName("이미 차단한 회원의 재요청은 새 관계를 만들지 않는다")
+    void repeatedBlock() {
+        given(memberRepository.findById(2L)).willReturn(Optional.of(member(2L, "대상자")));
+        given(memberBlockRepository.existsByBlockerIdAndBlockedId(1L, 2L)).willReturn(true);
 
-        assertThat(memberBlockRepository.count()).isEqualTo(1);
+        memberBlockService.block(1L, 2L);
+
+        verify(memberBlockRepository, never()).save(any(MemberBlock.class));
     }
 
     @Test
-    @DisplayName("관계가 없을 때도 차단 해제는 멱등하게 성공한다")
-    void unblockIdempotently() {
-        memberBlockService.unblock(blocker.getId(), blocked.getId());
-        memberBlockService.block(blocker.getId(), blocked.getId());
-        memberBlockService.unblock(blocker.getId(), blocked.getId());
-        memberBlockService.unblock(blocker.getId(), blocked.getId());
-
-        assertThat(memberBlockRepository.count()).isZero();
-    }
-
-    @Test
-    @DisplayName("자기 자신을 차단하면 CANNOT_BLOCK_SELF로 실패한다")
+    @DisplayName("본인 차단은 CANNOT_BLOCK_SELF로 거부한다")
     void rejectSelfBlock() {
-        assertThatThrownBy(() -> memberBlockService.block(blocker.getId(), blocker.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.CANNOT_BLOCK_SELF);
+        assertThatThrownBy(() -> memberBlockService.block(1L, 1L))
+                .isInstanceOfSatisfying(BadRequestException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.CANNOT_BLOCK_SELF));
+        verifyNoInteractions(memberRepository, memberBlockRepository);
     }
 
     @Test
-    @DisplayName("존재하지 않는 회원은 차단하거나 차단 해제할 수 없다")
-    void rejectUnknownMember() {
-        assertThatThrownBy(() -> memberBlockService.block(blocker.getId(), 999L))
-                .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
-        assertThatThrownBy(() -> memberBlockService.unblock(blocker.getId(), 999L))
-                .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.MEMBER_NOT_FOUND);
+    @DisplayName("존재하지 않는 대상은 차단할 수 없다")
+    void rejectUnknownBlockTarget() {
+        assertThatThrownBy(() -> memberBlockService.block(1L, 2L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
+        verifyNoInteractions(memberBlockRepository);
     }
 
     @Test
-    @DisplayName("차단은 단방향 관계다")
-    void blockIsDirectional() {
-        memberBlockService.block(blocker.getId(), blocked.getId());
+    @DisplayName("차단 해제는 요청자와 대상 사이의 관계만 제거한다")
+    void unblock() {
+        given(memberRepository.existsById(2L)).willReturn(true);
 
-        assertThat(memberBlockService.findBlockedMembers(blocked.getId()).blockedMembers()).isEmpty();
+        memberBlockService.unblock(1L, 2L);
+
+        verify(memberBlockRepository).deleteByBlockerIdAndBlockedId(1L, 2L);
+    }
+
+    @Test
+    @DisplayName("삭제된 대상의 차단 해제는 MEMBER_NOT_FOUND로 거부한다")
+    void rejectUnknownUnblockTarget() {
+        assertThatThrownBy(() -> memberBlockService.unblock(1L, 2L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
+        verifyNoInteractions(memberBlockRepository);
+    }
+
+    private Member member(Long memberId, String nickname) {
+        Member member = new Member(new Nickname(nickname));
+        ReflectionTestUtils.setField(member, "id", memberId);
+        return member;
     }
 }
