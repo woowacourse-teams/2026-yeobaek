@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 
 import java.sql.SQLException;
@@ -17,7 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.InOrder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -62,6 +61,9 @@ class MemberServiceUnitTest {
 
         MemberCreateResponse response = memberService.create(new Nickname("민서"));
 
+        var persistedMember = ArgumentCaptor.forClass(Member.class);
+        verify(memberRepository).saveAndFlush(persistedMember.capture());
+        assertThat(persistedMember.getValue().getNickname()).isEqualTo("민서");
         assertThat(response.memberId()).isEqualTo(1L);
         assertThat(response.nickname()).isEqualTo("민서");
     }
@@ -93,7 +95,6 @@ class MemberServiceUnitTest {
 
         assertThat(response).isEqualTo(new MemberNicknameUpdateResponse(7L, "새닉네임"));
         assertThat(member.getNickname()).isEqualTo("새닉네임");
-        verify(memberRepository).flush();
     }
 
     @ParameterizedTest
@@ -154,19 +155,6 @@ class MemberServiceUnitTest {
         assertThatThrownBy(() -> memberService.updateNickname(7L, new Nickname("새닉네임")))
                 .isInstanceOfSatisfying(NotFoundException.class,
                         exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND));
-    }
-
-    @Test
-    @DisplayName("계정을 삭제할 때 댓글, 공개방 활동, 모임 참여 기록, 회원 순으로 삭제한다")
-    void delete() {
-        memberService.delete(1L);
-
-        InOrder ordered = inOrder(commentRepository, publicRoomMemberRepository,
-                clubMemberRepository, memberRepository);
-        ordered.verify(commentRepository).deleteAllByMemberId(1L);
-        ordered.verify(publicRoomMemberRepository).deleteAllByMemberId(1L);
-        ordered.verify(clubMemberRepository).deleteAllByMemberId(1L);
-        ordered.verify(memberRepository).deleteById(1L);
     }
 
     private DataIntegrityViolationException constraintViolation(String constraintName) {

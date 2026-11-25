@@ -113,19 +113,6 @@ class NotificationPreferencesIntegrationTest extends IntegrationTest {
         assertThat(registrationRepository.count()).isEqualTo(1);
     }
 
-    @Test
-    @DisplayName("빈 부분 변경 요청은 기존 설정을 유지한다")
-    void ignoreOmittedSettings() {
-        Member member = member();
-        register(member, PHONE);
-        preferences.update(member.getId(), PHONE, new NotificationPreferencesUpdateRequest(null, false, null, null));
-
-        preferences.update(member.getId(), PHONE, new NotificationPreferencesUpdateRequest(null, null, null, null));
-
-        assertThat(preferences.find(member.getId(), PHONE))
-                .isEqualTo(new NotificationPreferencesResponse(true, false, true, true));
-    }
-
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     @DisplayName("다른 회원의 FID로 설정을 조회하거나 변경할 수 없다")

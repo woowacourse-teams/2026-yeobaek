@@ -31,6 +31,25 @@ class ActiveBookRepositoryTest extends IntegrationTest {
     private AuthorBookRepository authorBookRepository;
 
     @Test
+    @DisplayName("제목과 여러 작가가 검색어에 일치해도 활성 도서는 한 번만 반환한다")
+    void searchesTitleAndAuthorsWithoutDuplicates() {
+        Book matched = bookManagementRepository.save(new Book(new BookTitle("검색 도서"), null, null,
+                1, null, null, null, null, null));
+        bookManagementRepository.save(new Book(new BookTitle("무관한 도서"), null, null,
+                1, null, null, null, null, null));
+        Author first = authorRepository.save(new Author(new AuthorName("검색 작가")));
+        Author second = authorRepository.save(new Author(new AuthorName("검색 공저자")));
+        authorBookRepository.save(new AuthorBook(first, matched));
+        authorBookRepository.save(new AuthorBook(second, matched));
+
+        assertThat(activeBookRepository.searchByTitleOrAuthorName("검색"))
+                .extracting(Book::getId).containsExactly(matched.getId());
+        assertThat(activeBookRepository.searchByTitleOrAuthorName("공저자"))
+                .extracting(Book::getId).containsExactly(matched.getId());
+        assertThat(activeBookRepository.searchByTitleOrAuthorName("없는 검색어")).isEmpty();
+    }
+
+    @Test
     @DisplayName("삭제된 도서는 활성 도서 목록에 포함되지 않는다")
     void excludesDeletedBookFromActiveBooks() {
         Book active = bookManagementRepository.save(new Book(new BookTitle("활성 도서"), null, null, 1, null, null, null, null, null));

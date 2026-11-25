@@ -2,206 +2,159 @@ package yeobaek.backend.book.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
-import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.AuthorName;
-import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BookDescription;
+import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.BodyCharacterCount;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
-import yeobaek.backend.book.domain.vo.Publisher;
-import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.dto.BookDetailResponse;
-import yeobaek.backend.book.dto.BooksResponse;
-import yeobaek.backend.book.dto.ChapterResponse;
+import yeobaek.backend.book.repository.ActiveBookRepository;
 import yeobaek.backend.book.repository.AuthorBookRepository;
-import yeobaek.backend.book.repository.AuthorRepository;
-import yeobaek.backend.book.repository.BookManagementRepository;
+import yeobaek.backend.book.repository.ChapterPassageRange;
 import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
-import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class BookServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class BookServiceTest {
 
-    private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.webp";
-
-    @Autowired
+    @Mock
+    private ActiveBookRepository bookRepository;
+    @Mock
+    private AuthorBookRepository authorBookRepository;
+    @Mock
+    private ChapterRepository chapterRepository;
+    @Mock
+    private PassageRepository passageRepository;
+    @Mock
+    private BookCoverUrlResolver bookCoverUrlResolver;
+    @Mock
+    private ChapterPassageRange chapterRange;
+    @InjectMocks
     private BookService bookService;
 
-    @Autowired
-    private BookManagementRepository bookRepository;
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    @DisplayName("검색어가 없으면 전체 도서를 작가와 함께 반환한다")
+    void listWithoutKeyword(String keyword) {
+        Book book = book(1L);
+        given(bookRepository.findAll()).willReturn(List.of(book));
+        given(authorBookRepository.findAllWithAuthorByBookIdIn(List.of(1L)))
+                .willReturn(List.of(new AuthorBook(new Author(new AuthorName("현진건")), book)));
 
-    @Autowired
-    private AuthorRepository authorRepository;
+        var response = bookService.findBooks(keyword);
 
-    @Autowired
-    private AuthorBookRepository authorBookRepository;
-
-    @Autowired
-    private ChapterRepository chapterRepository;
-
-    @Autowired
-    private PassageRepository passageRepository;
-
-    @Test
-    @DisplayName("책 상세 응답에 책의 소개와 쪽수를 포함한다")
-    void findBookWithDescriptionAndPageCount() {
-        Book book = bookRepository.save(new Book(new BookTitle("황야의 이리"), null, null, 1, null,
-                new BookDescription("검수한 소개"), new BodyCharacterCount(198_376), null, null));
-
-        BookDetailResponse detail = bookService.findBook(book.getId());
-
-        assertThat(detail.description()).isEqualTo(book.getDescription().value());
-        assertThat(detail.pageCount()).isEqualTo(book.pageCount());
+        assertThat(response.books()).singleElement().satisfies(summary -> {
+            assertThat(summary.bookId()).isEqualTo(1L);
+            assertThat(summary.authors()).containsExactly("현진건");
+        });
     }
 
     @Test
-    @DisplayName("소개와 쪽수 정보가 없는 책도 상세 조회할 수 있다")
-    void findBookWithoutDescriptionAndPageCount() {
-        Book book = bookRepository.save(new Book(new BookTitle("기존 도서"), null, null, 1, null, null, null, null, null));
+    @DisplayName("검색 결과만 반환하고 작가 정보가 없으면 빈 배열을 제공한다")
+    void searchResults() {
+        given(bookRepository.searchByTitleOrAuthorName("운수")).willReturn(List.of(book(2L)));
 
-        BookDetailResponse detail = bookService.findBook(book.getId());
+        var response = bookService.findBooks("운수");
+
+        assertThat(response.books()).singleElement().satisfies(summary -> {
+            assertThat(summary.bookId()).isEqualTo(2L);
+            assertThat(summary.authors()).isEmpty();
+        });
+    }
+
+    @Test
+    @DisplayName("목록과 상세에 표지 URL 및 장르와 태그를 보존한다")
+    void exposeBookMetadata() {
+        Book book = book(1L);
+        String key = "123e4567-e89b-12d3-a456-426614174000";
+        book.replaceCoverImage(key);
+        book.replaceHashtags(List.of("독서", "모임", "독서"));
+        given(bookRepository.findAll()).willReturn(List.of(book));
+        given(bookRepository.getById(1L)).willReturn(book);
+        given(bookCoverUrlResolver.resolve(key)).willReturn("https://covers.example/book.webp");
+
+        var summary = bookService.findBooks(null).books().getFirst();
+        var detail = bookService.findBook(1L);
+
+        assertThat(List.of(summary.coverImageUrl(), detail.coverImageUrl()))
+                .containsOnly("https://covers.example/book.webp");
+        assertThat(List.of(summary.genres(), detail.genres())).containsOnly(List.of("소설"));
+        assertThat(List.of(summary.hashtags(), detail.hashtags()))
+                .allSatisfy(hashtags -> assertThat(hashtags).containsExactlyInAnyOrder("독서", "모임", "독서"));
+    }
+
+    @Test
+    @DisplayName("상세는 소개와 환산 쪽수 및 목차별 본문 범위를 조합한다")
+    void detailWithChapterRanges() {
+        Book book = book(1L);
+        Chapter first = new Chapter(book, new ChapterTitle("첫 장"), 1);
+        Chapter empty = new Chapter(book, new ChapterTitle("빈 장"), 2);
+        ReflectionTestUtils.setField(first, "id", 10L);
+        ReflectionTestUtils.setField(empty, "id", 11L);
+        given(bookRepository.getById(1L)).willReturn(book);
+        given(chapterRepository.findAllByBookIdOrderBySequenceAsc(1L)).willReturn(List.of(first, empty));
+        given(passageRepository.findChapterRangesByBookId(1L)).willReturn(List.of(chapterRange));
+        given(chapterRange.getChapterId()).willReturn(10L);
+        given(chapterRange.getStartSequence()).willReturn(1);
+        given(chapterRange.getEndSequence()).willReturn(3);
+
+        var detail = bookService.findBook(1L);
+
+        assertThat(detail.description()).isEqualTo("책 소개");
+        assertThat(detail.pageCount()).isEqualTo(2L);
+        assertThat(detail.chapters()).extracting(chapter -> List.of(chapter.sequence(),
+                        chapter.startPassageSequence(), chapter.endPassageSequence()))
+                .containsExactly(List.of(1, 1, 3), List.of(2, 0, 0));
+    }
+
+    @Test
+    @DisplayName("보완 전 도서의 선택 정보가 없어도 상세를 반환한다")
+    void legacyOptionalMetadata() {
+        Book book = new Book(new BookTitle("기존 도서"), null, null, 1, null, null, null, null, null);
+        ReflectionTestUtils.setField(book, "id", 1L);
+        given(bookRepository.getById(1L)).willReturn(book);
+
+        var detail = bookService.findBook(1L);
 
         assertThat(detail.description()).isNull();
         assertThat(detail.pageCount()).isNull();
-        assertThat(detail.genres()).isEmpty();
-        assertThat(detail.hashtags()).isEmpty();
+        assertThat(detail.coverImageUrl()).isNull();
+        assertThat(detail.chapters()).isEmpty();
     }
 
     @Test
-    @DisplayName("도서 목록에 작가 이름이 함께 조회된다")
-    void findBooksWithAuthors() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), new Publisher("자체 제작"), 1924, 3, null, null, null, null, null));
-        Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        authorBookRepository.save(new AuthorBook(author, book));
+    @DisplayName("이용할 도서가 없으면 대상별 오류를 유지한다")
+    void missingBook() {
+        given(bookRepository.getById(99L)).willThrow(new NotFoundException(ErrorCode.BOOK_NOT_FOUND, "없는 도서"));
 
-        BooksResponse response = bookService.findBooks(null);
-
-        assertThat(response.books()).hasSize(1);
-        assertThat(response.books().getFirst().authors()).containsExactly("현진건");
-        assertThat(response.books().getFirst().passageCount()).isEqualTo(3);
+        assertThatThrownBy(() -> bookService.findBook(99L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.BOOK_NOT_FOUND));
     }
 
-    @Test
-    @DisplayName("도서 목록과 상세는 표지 공개 URL과 장르·태그를 제공한다")
-    void exposeCoverImageUrl() {
-        Book book = bookRepository.save(new Book(new BookTitle("표지 도서"), null, null, 1, COVER_KEY, null, null,
-                List.of("로맨스", "비극"), List.of("재회", "첫사랑", "재회")));
-
-        String expectedUrl = "https://yeobaek-local-book-covers.s3.ap-northeast-2.amazonaws.com/" + COVER_KEY;
-        var summary = bookService.findBooks(null).books().getFirst();
-        var detail = bookService.findBook(book.getId());
-
-        assertThat(List.of(summary.coverImageUrl(), detail.coverImageUrl())).containsOnly(expectedUrl);
-        assertThat(summary.genres()).containsExactlyInAnyOrder("로맨스", "비극");
-        assertThat(detail.genres()).containsExactlyInAnyOrder("로맨스", "비극");
-        assertThat(summary.hashtags()).containsExactlyInAnyOrder("재회", "첫사랑", "재회");
-        assertThat(detail.hashtags()).containsExactlyInAnyOrder("재회", "첫사랑", "재회");
-    }
-
-    @Test
-    @DisplayName("키워드가 제목에 부분 일치하는 도서를 검색한다")
-    void searchByTitle() {
-        bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 3, null, null, null, null, null));
-        bookRepository.save(new Book(new BookTitle("메밀꽃 필 무렵"), null, 1936, 5, null, null, null, null, null));
-
-        BooksResponse response = bookService.findBooks("운수");
-
-        assertThat(response.books()).hasSize(1);
-        assertThat(response.books().getFirst().title()).isEqualTo("운수 좋은 날");
-    }
-
-    @Test
-    @DisplayName("키워드가 작가 이름에 부분 일치하는 도서를 검색한다")
-    void searchByAuthorName() {
-        Book matched = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 3, null, null, null, null, null));
-        bookRepository.save(new Book(new BookTitle("메밀꽃 필 무렵"), null, 1936, 5, null, null, null, null, null));
-        Author author = authorRepository.save(new Author(new AuthorName("현진건")));
-        authorBookRepository.save(new AuthorBook(author, matched));
-
-        BooksResponse response = bookService.findBooks("현진");
-
-        assertThat(response.books()).hasSize(1);
-        assertThat(response.books().getFirst().title()).isEqualTo("운수 좋은 날");
-    }
-
-    @Test
-    @DisplayName("제목과 작가 어디에도 일치하지 않으면 빈 목록을 반환한다")
-    void searchNoMatch() {
-        bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 3, null, null, null, null, null));
-
-        BooksResponse response = bookService.findBooks("이상");
-
-        assertThat(response.books()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("공백 키워드는 전체 목록을 반환한다")
-    void searchWithBlankKeyword() {
-        bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 3, null, null, null, null, null));
-        bookRepository.save(new Book(new BookTitle("메밀꽃 필 무렵"), null, 1936, 5, null, null, null, null, null));
-
-        BooksResponse response = bookService.findBooks(" ");
-
-        assertThat(response.books()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("도서 상세의 목차에 챕터별 본문 순서 범위가 계산된다")
-    void findBookWithChapterRanges() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 5, null, null, null, null, null));
-        Chapter first = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        Chapter second = chapterRepository.save(new Chapter(book, new ChapterTitle("2장"), 2));
-        for (int sequence = 1; sequence <= 3; sequence++) {
-            passageRepository.save(new Passage(first, sequence, Collections.singletonList(new SentenceContent("본문 " + sequence))));
-        }
-        for (int sequence = 4; sequence <= 5; sequence++) {
-            passageRepository.save(new Passage(second, sequence, Collections.singletonList(new SentenceContent("본문 " + sequence))));
-        }
-
-        BookDetailResponse response = bookService.findBook(book.getId());
-
-        assertThat(response.chapters()).extracting(ChapterResponse::startPassageSequence).containsExactly(1, 4);
-        assertThat(response.chapters()).extracting(ChapterResponse::endPassageSequence).containsExactly(3, 5);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 도서 상세 조회는 예외를 던진다")
-    void findBookNotFound() {
-        assertThatThrownBy(() -> bookService.findBook(999L))
-                .isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("삭제된 도서는 이용 가능한 도서 목록과 검색 결과에 나타나지 않는다")
-    void excludesDeletedBookFromAvailableBooks() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null, null, null, null, null));
-        bookRepository.delete(book.getId());
-
-        assertThat(bookService.findBooks(null).books()).isEmpty();
-        assertThat(bookService.findBooks("운수").books()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("삭제된 도서를 직접 조회하면 BOOK_NOT_AVAILABLE 오류가 발생한다")
-    void cannotFindDeletedBookDetail() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 1, null, null, null, null, null));
-        bookRepository.delete(book.getId());
-
-        assertThatThrownBy(() -> bookService.findBook(book.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    private Book book(Long id) {
+        Book book = new Book(new BookTitle("운수 좋은 날"), null, 1924, 3, null,
+                new BookDescription("책 소개"), new BodyCharacterCount(701), List.of("소설"), List.of("독서"));
+        ReflectionTestUtils.setField(book, "id", id);
+        return book;
     }
 }

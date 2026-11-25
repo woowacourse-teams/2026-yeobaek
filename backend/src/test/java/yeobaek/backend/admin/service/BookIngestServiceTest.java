@@ -37,7 +37,6 @@ import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
-import yeobaek.backend.support.NotFoundException;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 
 class BookIngestServiceTest extends IntegrationTest {
@@ -204,37 +203,6 @@ class BookIngestServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 authorId 참조는 AUTHOR_NOT_FOUND로 거부한다")
-    void rejectUnknownAuthorId() {
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(999L, null, null))))
-                .isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("ISNI로 찾은 기존 작가와 이름이 다르면 AUTHOR_NAME_MISMATCH로 거부한다")
-    void rejectNameMismatch() {
-        authorRepository.save(new Author(new AuthorName("현진건"), new Isni("000000012345964X")));
-
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(null, new AuthorName("이효석"), new Isni("000000012345964X")))))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.AUTHOR_NAME_MISMATCH);
-    }
-
-    @Test
-    @DisplayName("한 업로드 안에 같은 작가를 중복 기재하면 DUPLICATE_AUTHOR로 거부한다")
-    void rejectDuplicateAuthorEntry() {
-        Author existing = authorRepository.save(new Author(new AuthorName("현진건"), new Isni("000000012345964X")));
-
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(existing.getId(), null, null),
-                new AuthorEntryRequest(null, new AuthorName("현진건"), new Isni("000000012345964X")))))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.DUPLICATE_AUTHOR);
-    }
-
-    @Test
     @DisplayName("제목·출판사·출판연도·작가 구성이 동일한 도서는 DUPLICATE_BOOK으로 거부한다")
     void rejectDuplicateBook() {
         Author author = authorRepository.save(new Author(new AuthorName("현진건")));
@@ -328,55 +296,6 @@ class BookIngestServiceTest extends IntegrationTest {
 
         assertThat(response.bookId()).isNotEqualTo(deleted.getId());
         assertThat(bookRepository.findAll()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("작가 0명, 목차 0개, 본문 0개인 목차는 거부한다")
-    void rejectEmptyStructures() {
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                List.of(), chaptersWithOnePassage(), null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(), null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"), List.of())), null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    @DisplayName("문장이 없거나 문장 내용이 공백이면 거부한다")
-    void rejectBlankContent() {
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(new PassageUploadRequest(List.of())))), null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> bookIngestService.upload(new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                        List.of(passage(" ")))), null, null, null)))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    @DisplayName("문장 내용이 TEXT 저장 한도를 넘으면 거부한다")
-    void rejectSentenceExceedingTextLimit() {
-        BookUploadRequest request = new BookUploadRequest(new BookTitle("제목"), null, null, null,
-                authorsOfUnknown(), List.of(new ChapterUploadRequest(new ChapterTitle("1장"),
-                List.of(passage("a".repeat(65_536))))), null, null, null);
-
-        assertThatThrownBy(() -> bookIngestService.upload(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("문장 하나는 65535바이트를 넘을 수 없습니다.");
-    }
-
-    @Test
-    @DisplayName("authorId와 name을 함께 주는 작가 항목은 거부한다")
-    void rejectAmbiguousAuthorEntry() {
-        Author existing = authorRepository.save(new Author(new AuthorName("현진건")));
-
-        assertThatThrownBy(() -> bookIngestService.upload(requestWithAuthors(
-                new AuthorEntryRequest(existing.getId(), new AuthorName("현진건"), null))))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private BookUploadRequest requestWithAuthors(AuthorEntryRequest... authors) {

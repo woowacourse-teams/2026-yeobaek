@@ -2,15 +2,19 @@ package yeobaek.backend.club.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
-import jakarta.persistence.EntityManagerFactory;
-import java.util.Collections;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
 import yeobaek.backend.book.domain.Chapter;
@@ -18,213 +22,151 @@ import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
+import yeobaek.backend.book.repository.AuthorBookRepository;
 import yeobaek.backend.book.repository.PassageRepository;
+import yeobaek.backend.book.service.BookCoverUrlResolver;
 import yeobaek.backend.club.domain.Club;
 import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
-import yeobaek.backend.club.dto.LastReadingResponse;
-import yeobaek.backend.club.dto.ProgressResponse;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
-import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.InvalidRequestException;
 import yeobaek.backend.support.NotFoundException;
 
-class ProgressServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class ProgressServiceTest {
 
-    @Autowired
+    @Mock
+    private ClubRepository clubRepository;
+    @Mock
+    private ClubMemberRepository clubMemberRepository;
+    @Mock
+    private PassageRepository passageRepository;
+    @Mock
+    private AuthorBookRepository authorBookRepository;
+    @Mock
+    private BookCoverUrlResolver bookCoverUrlResolver;
+    @InjectMocks
     private ProgressService progressService;
 
-    @Autowired
-    private BookManagementRepository bookRepository;
-
-    @Autowired
-    private ChapterRepository chapterRepository;
-
-    @Autowired
-    private PassageRepository passageRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
-
-    @Autowired
-    private ClubRepository clubRepository;
-
-    @Autowired
-    private ClubMemberRepository clubMemberRepository;
-
-    @Autowired
-    private EntityManagerFactory entityManagerFactory;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    private Member reader;
     private Book book;
     private Club club;
-    private ClubMember clubMember;
+    private ClubMember membership;
     private Passage second;
-    private Passage fourth;
 
     @BeforeEach
     void setUp() {
-        book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 4, null, null, null, null, null));
-        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        passageRepository.save(new Passage(chapter, 1, Collections.singletonList(new SentenceContent("본문 1"))));
-        second = passageRepository.save(new Passage(chapter, 2, Collections.singletonList(new SentenceContent("본문 2"))));
-        passageRepository.save(new Passage(chapter, 3, Collections.singletonList(new SentenceContent("본문 3"))));
-        fourth = passageRepository.save(new Passage(chapter, 4, Collections.singletonList(new SentenceContent("본문 4"))));
-        reader = memberRepository.save(new Member(new Nickname("민서")));
-        club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        clubMember = clubMemberRepository.save(new ClubMember(reader, club));
+        book = new Book(new BookTitle("운수 좋은 날"), null, null, 4, null, null, null, null, null);
+        ReflectionTestUtils.setField(book, "id", 20L);
+        club = new Club(new ClubName("독서 모임"), book, new JoinCode("CODE01"));
+        ReflectionTestUtils.setField(club, "id", 10L);
+        membership = new ClubMember(new Member(new Nickname("독자")), club);
+        second = new Passage(new Chapter(book, new ChapterTitle("1장"), 1), 2,
+                List.of(new SentenceContent("두 번째 본문")));
     }
 
     @Test
-    @DisplayName("진도를 보고하면 최근 열람 본문과 진도율이 갱신된다")
-    void updateProgress() {
-        ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
+    @DisplayName("다시 앞부분을 읽으면 저장 위치와 진도율도 뒤로 이동한다")
+    void rereadingEarlierPassage() {
+        Passage fourth = new Passage(second.getChapter(), 4, List.of(new SentenceContent("마지막 본문")));
+        membership.updateProgress(fourth, LocalDateTime.of(2026, 1, 1, 12, 0));
+        givenTargets(second);
+        LocalDateTime before = LocalDateTime.now();
 
-        assertThat(response.lastReadPassageSequence()).isEqualTo(4);
-        assertThat(response.progressRate()).isEqualTo(100);
-        assertThat(response.lastReadAt()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("앞부분을 다시 읽으면 진도율이 후퇴한다 (PRD 3.4 트레이드오프)")
-    void progressCanGoBackward() {
-        progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
-
-        ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), second.getId());
+        var response = progressService.updateProgress(1L, 10L, 30L);
 
         assertThat(response.lastReadPassageSequence()).isEqualTo(2);
         assertThat(response.progressRate()).isEqualTo(50);
-        clubMemberRepository.flush();
-        assertThat(jdbcTemplate.queryForObject("""
-                select count(*) from club_member_last_reads where club_member_id = ?
-                """, Long.class, clubMember.getId())).isOne();
+        assertThat(response.lastReadAt()).isBetween(before, LocalDateTime.now());
+        assertThat(membership.getLastReadPassage()).isSameAs(second);
     }
 
     @Test
-    @DisplayName("모임 미소속 회원의 진도 보고는 거부된다")
-    void rejectOutsider() {
-        Member outsider = memberRepository.save(new Member(new Nickname("외부인")));
+    @DisplayName("현재 모임 참여자가 아니면 진도를 변경할 수 없다")
+    void rejectNonParticipant() {
+        given(clubRepository.findById(10L)).willReturn(Optional.of(club));
 
-        assertThatThrownBy(() -> progressService.updateProgress(outsider.getId(), club.getId(), second.getId()))
-                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> progressService.updateProgress(1L, 10L, 30L))
+                .isInstanceOfSatisfying(ForbiddenException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.NOT_CLUB_MEMBER));
+        assertThat(membership.getLastReadPassage()).isNull();
     }
 
     @Test
-    @DisplayName("탈퇴 회원의 진도 보고는 거부된다")
-    void rejectLeftMemberProgress() {
-        leaveClub();
+    @DisplayName("다른 도서의 본문은 현재 모임 진도에 저장하지 않는다")
+    void rejectOtherBook() {
+        Book other = new Book(new BookTitle("다른 책"), null, null, 1, null, null, null, null, null);
+        ReflectionTestUtils.setField(other, "id", 21L);
+        Passage otherPassage = new Passage(new Chapter(other, new ChapterTitle("첫 장"), 1), 1,
+                List.of(new SentenceContent("다른 본문")));
+        givenTargets(otherPassage);
 
-        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
-                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> progressService.updateProgress(1L, 10L, 30L))
+                .isInstanceOf(InvalidRequestException.class);
+        assertThat(membership.getLastReadPassage()).isNull();
     }
 
     @Test
-    @DisplayName("존재하지 않는 모임·본문의 진도 보고는 실패한다")
-    void rejectUnknownTargets() {
-        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), 999L, second.getId()))
-                .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), 999L))
-                .isInstanceOf(NotFoundException.class);
+    @DisplayName("삭제된 책의 진도는 갱신할 수 없다")
+    void rejectDeletedBook() {
+        book.delete();
+        givenTargets(second);
+
+        assertThatThrownBy(() -> progressService.updateProgress(1L, 10L, 30L))
+                .isInstanceOfSatisfying(BadRequestException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE));
+        assertThat(membership.getLastReadPassage()).isNull();
     }
 
     @Test
-    @DisplayName("삭제된 도서를 대상으로 진도를 갱신할 수 없다")
-    void cannotUpdateProgressOfDeletedBook() {
-        bookRepository.delete(book.getId());
-
-        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), second.getId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
+    @DisplayName("존재하지 않는 모임은 모임 오류로 구분한다")
+    void missingClub() {
+        assertThatThrownBy(() -> progressService.updateProgress(1L, 10L, 30L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.CLUB_NOT_FOUND));
     }
 
     @Test
-    @DisplayName("모임의 도서가 지연 로딩 프록시로 남아 있어도 도서 일치 여부를 올바르게 판단한다")
-    void updateProgressWorksWhenBookIsUninitializedProxy() {
-        Club loadedClub = clubRepository.findById(club.getId()).orElseThrow();
-        assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedClub.getBook())).isFalse();
+    @DisplayName("존재하지 않는 본문은 본문 오류로 구분한다")
+    void missingPassage() {
+        given(clubRepository.findById(10L)).willReturn(Optional.of(club));
+        given(clubMemberRepository.findJoinedByMemberIdAndClubId(1L, 10L)).willReturn(Optional.of(membership));
 
-        ProgressResponse response = progressService.updateProgress(reader.getId(), club.getId(), fourth.getId());
-
-        assertThat(response.lastReadPassageSequence()).isEqualTo(4);
-        assertThat(response.progressRate()).isEqualTo(100);
+        assertThatThrownBy(() -> progressService.updateProgress(1L, 10L, 30L))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.PASSAGE_NOT_FOUND));
     }
 
     @Test
-    @DisplayName("모임의 도서에 속하지 않는 본문으로는 진도를 보고할 수 없다")
-    void rejectPassageOfOtherBook() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 1, null, null, null, null, null));
-        Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
-
-        assertThatThrownBy(() -> progressService.updateProgress(reader.getId(), club.getId(), otherPassage.getId()))
-                .isInstanceOf(IllegalArgumentException.class);
+    @DisplayName("읽은 기록이 없으면 마지막 읽기도 없다")
+    void noReadingHistory() {
+        assertThat(progressService.findLastReading(1L)).isEmpty();
     }
 
     @Test
-    @DisplayName("읽기 기록이 없으면 마지막 읽던 책이 비어 있다")
-    void lastReadingEmptyWithoutHistory() {
-        assertThat(progressService.findLastReading(reader.getId())).isEmpty();
-    }
+    @DisplayName("삭제된 도서의 마지막 읽기도 상태와 저장 위치를 보존한다")
+    void preserveDeletedBookHistory() {
+        LocalDateTime readAt = LocalDateTime.of(2026, 1, 1, 12, 0);
+        membership.updateProgress(second, readAt);
+        book.delete();
+        given(clubMemberRepository.findAllJoinedWithLastReadingByMemberId(1L)).willReturn(List.of(membership));
 
-    @Test
-    @DisplayName("여러 모임 중 가장 최근에 읽은 모임이 마지막 읽던 책으로 조회된다")
-    void lastReadingPicksMostRecent() {
-        Book otherBook = bookRepository.save(new Book(new BookTitle("다른 책"), null, null, 2, null, null, null, null, null));
-        Chapter otherChapter = chapterRepository.save(new Chapter(otherBook, new ChapterTitle("1장"), 1));
-        Passage otherPassage = passageRepository.save(new Passage(otherChapter, 1, Collections.singletonList(new SentenceContent("다른 본문"))));
-        Club otherClub = clubRepository.save(new Club(new ClubName("2기"), otherBook, new JoinCode("CODE02")));
-        clubMemberRepository.save(new ClubMember(reader, otherClub));
-
-        progressService.updateProgress(reader.getId(), club.getId(), second.getId());
-        progressService.updateProgress(reader.getId(), otherClub.getId(), otherPassage.getId());
-
-        Optional<LastReadingResponse> response = progressService.findLastReading(reader.getId());
-
-        assertThat(response).isPresent();
-        assertThat(response.get().clubId()).isEqualTo(otherClub.getId());
-        assertThat(response.get().book().title()).isEqualTo("다른 책");
-        assertThat(response.get().lastReadPassageSequence()).isEqualTo(1);
-        assertThat(response.get().progressRate()).isEqualTo(50);
-    }
-
-    @Test
-    @DisplayName("탈퇴한 모임은 마지막 읽던 책 후보에서 제외된다")
-    void lastReadingExcludesLeftMembership() {
-        progressService.updateProgress(reader.getId(), club.getId(), second.getId());
-        leaveClub();
-
-        assertThat(progressService.findLastReading(reader.getId())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("삭제된 도서의 기존 마지막 읽기 기록은 DELETED 상태로 보존된다")
-    void preservesLastReadingRecordOfDeletedBook() {
-        progressService.updateProgress(reader.getId(), club.getId(), second.getId());
-        bookRepository.delete(book.getId());
-
-        LastReadingResponse response = progressService.findLastReading(reader.getId()).orElseThrow();
+        var response = progressService.findLastReading(1L).orElseThrow();
 
         assertThat(response.book().status()).isEqualTo(BookStatus.DELETED);
-        assertThat(response.book().bookId()).isEqualTo(book.getId());
+        assertThat(response.lastReadPassageSequence()).isEqualTo(2);
+        assertThat(response.lastReadAt()).isEqualTo(readAt);
     }
 
-    private void leaveClub() {
-        ClubMember membership = clubMemberRepository
-                .findByMemberIdAndClubId(reader.getId(), club.getId()).orElseThrow();
-        membership.leave();
-        clubMemberRepository.saveAndFlush(membership);
+    private void givenTargets(Passage passage) {
+        given(clubRepository.findById(10L)).willReturn(Optional.of(club));
+        given(clubMemberRepository.findJoinedByMemberIdAndClubId(1L, 10L)).willReturn(Optional.of(membership));
+        given(passageRepository.findById(30L)).willReturn(Optional.of(passage));
     }
-
 }

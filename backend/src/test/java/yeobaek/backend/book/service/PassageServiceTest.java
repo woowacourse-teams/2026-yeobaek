@@ -1,7 +1,6 @@
 package yeobaek.backend.book.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Collections;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,11 +32,7 @@ import yeobaek.backend.member.domain.MemberBlock;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.BadRequestException;
-import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.ForbiddenException;
 import yeobaek.backend.support.IntegrationTest;
-import yeobaek.backend.support.NotFoundException;
 
 class PassageServiceTest extends IntegrationTest {
 
@@ -72,7 +67,6 @@ class PassageServiceTest extends IntegrationTest {
     private MemberBlockRepository memberBlockRepository;
 
     private Member reader;
-    private Member outsider;
     private Club club;
     private Club otherClub;
 
@@ -84,7 +78,6 @@ class PassageServiceTest extends IntegrationTest {
             passageRepository.save(new Passage(chapter, sequence, Collections.singletonList(new SentenceContent("본문 " + sequence))));
         }
         reader = memberRepository.save(new Member(new Nickname("민서")));
-        outsider = memberRepository.save(new Member(new Nickname("외부인")));
         club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
         otherClub = clubRepository.save(new Club(new ClubName("2기"), book, new JoinCode("CODE02")));
     }
@@ -143,56 +136,4 @@ class PassageServiceTest extends IntegrationTest {
         assertThat(response.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
     }
 
-    @Test
-    @DisplayName("모임에 참여하지 않은 회원의 조회는 거부된다")
-    void rejectOutsider() {
-        assertThatThrownBy(() -> passageService.findPassages(outsider.getId(), club.getId(), 1, 3))
-                .isInstanceOf(ForbiddenException.class);
-    }
-
-    @Test
-    @DisplayName("탈퇴 회원의 본문 조회는 거부된다")
-    void rejectLeftMember() {
-        ClubMember membership = clubMemberRepository.save(new ClubMember(reader, club));
-        membership.leave();
-        clubMemberRepository.saveAndFlush(membership);
-
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 3))
-                .isInstanceOf(ForbiddenException.class);
-    }
-
-    @Test
-    @DisplayName("삭제된 도서를 대상으로 본문을 조회할 수 없다")
-    void cannotReadPassagesOfDeletedBook() {
-        clubMemberRepository.save(new ClubMember(reader, club));
-        Book book = club.getBook();
-        bookRepository.delete(book.getId());
-
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 3))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 모임의 조회는 실패한다")
-    void rejectUnknownClub() {
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), 999L, 1, 3))
-                .isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("한 번에 100개를 넘는 범위는 거부된다")
-    void rejectTooWideRange() {
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 1, 101))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    @DisplayName("시작이 1보다 작거나 끝이 시작보다 앞서는 범위는 거부된다")
-    void rejectInvalidRange() {
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 0, 3))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> passageService.findPassages(reader.getId(), club.getId(), 3, 2))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
 }

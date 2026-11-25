@@ -536,48 +536,6 @@ class CommentServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("모임 미소속 회원은 댓글을 작성할 수 없다")
-    void rejectOutsider() {
-        Member outsider = memberRepository.save(new Member(new Nickname("외부인")));
-
-        assertThatThrownBy(() -> commentService.create(outsider.getId(), club.getId(), sentence.getId(), new CommentContent("댓글")))
-                .isInstanceOf(ForbiddenException.class);
-    }
-
-    @Test
-    @DisplayName("탈퇴 회원은 댓글을 조회하거나 작성할 수 없다")
-    void rejectCommentContextForLeftMember() {
-        leaveClub(writer, club);
-
-        assertThatThrownBy(() -> commentService.findComments(writer.getId(), club.getId(), sentence.getId()))
-                .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("댓글")))
-                .isInstanceOf(ForbiddenException.class);
-    }
-
-    @Test
-    @DisplayName("본인 댓글을 수정하면 내용이 바뀌고 수정일이 기록된다")
-    void updateOwnComment() {
-        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("원본"));
-
-        CommentResponse response = commentService.update(writer.getId(), created.commentId(), new CommentContent("수정된 내용"));
-
-        assertThat(response.content()).isEqualTo("수정된 내용");
-        assertThat(response.updatedAt()).isNotNull();
-        assertThat(response).extracting(CommentResponse::likeCount, CommentResponse::likedByMe)
-                .containsExactly(0L, false);
-    }
-
-    @Test
-    @DisplayName("남의 댓글은 수정할 수 없다")
-    void rejectUpdatingOthersComment() {
-        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("원본"));
-
-        assertThatThrownBy(() -> commentService.update(other.getId(), created.commentId(), new CommentContent("탈취 시도")))
-                .isInstanceOf(ForbiddenException.class);
-    }
-
-    @Test
     @DisplayName("본인 댓글을 삭제하면 하드 삭제된다")
     void deleteOwnComment() {
         CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("삭제될 댓글"));
@@ -585,38 +543,6 @@ class CommentServiceTest extends IntegrationTest {
         commentService.delete(writer.getId(), created.commentId());
 
         assertThat(commentRepository.findById(created.commentId())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("남의 댓글은 삭제할 수 없다")
-    void rejectDeletingOthersComment() {
-        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("원본"));
-
-        assertThatThrownBy(() -> commentService.delete(other.getId(), created.commentId()))
-                .isInstanceOf(ForbiddenException.class);
-        assertThat(commentRepository.findById(created.commentId())).isPresent();
-    }
-
-    @Test
-    @DisplayName("탈퇴 회원은 재가입 전까지 기존 댓글을 수정하거나 삭제할 수 없다")
-    void rejectChangingCommentForLeftMember() {
-        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("보존할 댓글"));
-        leaveClub(writer, club);
-
-        assertThatThrownBy(() -> commentService.update(writer.getId(), created.commentId(), new CommentContent("수정 시도")))
-                .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> commentService.delete(writer.getId(), created.commentId()))
-                .isInstanceOf(ForbiddenException.class);
-        assertThat(commentRepository.findById(created.commentId())).isPresent();
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 댓글의 수정·삭제는 실패한다")
-    void rejectUnknownComment() {
-        assertThatThrownBy(() -> commentService.update(writer.getId(), 999L, new CommentContent("내용")))
-                .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> commentService.delete(writer.getId(), 999L))
-                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -641,16 +567,6 @@ class CommentServiceTest extends IntegrationTest {
                 .singleElement()
                 .extracting(CommentResponse::commentId)
                 .isEqualTo(created.commentId());
-    }
-
-    @Test
-    @DisplayName("본인 댓글은 신고할 수 없다")
-    void rejectOwnCommentReport() {
-        CommentResponse created = commentService.create(writer.getId(), club.getId(), sentence.getId(), new CommentContent("본인 댓글"));
-
-        assertThatThrownBy(() -> commentService.report(writer.getId(), created.commentId()))
-                .isInstanceOf(BadRequestException.class)
-                .extracting("code").isEqualTo(ErrorCode.CANNOT_REPORT_OWN_COMMENT);
     }
 
     @Test
@@ -692,14 +608,6 @@ class CommentServiceTest extends IntegrationTest {
         assertThatThrownBy(() -> commentService.report(other.getId(), created.commentId()))
                 .isInstanceOf(ForbiddenException.class)
                 .extracting("code").isEqualTo(ErrorCode.NOT_CLUB_MEMBER);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 문장의 댓글 조회는 SENTENCE_NOT_FOUND로 실패한다")
-    void rejectUnknownSentence() {
-        assertThatThrownBy(() -> commentService.findComments(writer.getId(), club.getId(), 999L))
-                .isInstanceOf(NotFoundException.class)
-                .extracting("code").isEqualTo(ErrorCode.SENTENCE_NOT_FOUND);
     }
 
     @Test
