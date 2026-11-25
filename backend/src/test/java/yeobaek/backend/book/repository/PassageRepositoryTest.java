@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
@@ -16,7 +17,8 @@ import yeobaek.backend.book.domain.vo.SentenceContent;
 import yeobaek.backend.support.IntegrationTest;
 
 // 목차 범위 집계와 본문 범위의 도서 격리·정렬은 저장소의 사용자 정의 쿼리를 검증한다.
-class BookReadingQueryTest extends IntegrationTest {
+@Transactional
+class PassageRepositoryTest extends IntegrationTest {
 
     @Autowired
     private BookManagementRepository bookRepository;

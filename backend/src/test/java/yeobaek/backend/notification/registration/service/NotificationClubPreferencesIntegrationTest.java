@@ -26,10 +26,10 @@ import yeobaek.backend.notification.registration.repository.NotificationClubPref
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.ForbiddenException;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class NotificationClubPreferencesIntegrationTest extends IntegrationTest {
+class NotificationClubPreferencesIntegrationTest extends DatabaseCleaningIntegrationTest {
     private static final FirebaseInstallationId PHONE = new FirebaseInstallationId("c" + "a".repeat(21));
     private static final FirebaseInstallationId TABLET = new FirebaseInstallationId("d" + "a".repeat(21));
 

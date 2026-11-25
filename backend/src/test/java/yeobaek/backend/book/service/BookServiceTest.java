@@ -127,8 +127,8 @@ class BookServiceTest {
     }
 
     @Test
-    @DisplayName("보완 전 도서의 선택 정보가 없어도 상세를 반환한다")
-    void legacyOptionalMetadata() {
+    @DisplayName("도서의 선택 정보가 없어도 상세를 반환한다")
+    void detailWithoutOptionalMetadata() {
         Book book = new Book(new BookTitle("기존 도서"), null, null, 1, null, null, null, null, null);
         ReflectionTestUtils.setField(book, "id", 1L);
         given(bookRepository.getById(1L)).willReturn(book);
@@ -142,7 +142,7 @@ class BookServiceTest {
     }
 
     @Test
-    @DisplayName("이용할 도서가 없으면 대상별 오류를 유지한다")
+    @DisplayName("없는 도서의 상세 조회는 BOOK_NOT_FOUND로 실패한다")
     void missingBook() {
         given(bookRepository.getById(99L)).willThrow(new NotFoundException(ErrorCode.BOOK_NOT_FOUND, "없는 도서"));
 

@@ -53,10 +53,10 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class AdminBookServiceTest extends IntegrationTest {
+class AdminBookServiceTest extends DatabaseCleaningIntegrationTest {
 
     private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.jpg";
 

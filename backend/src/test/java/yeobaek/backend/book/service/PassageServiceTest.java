@@ -1,139 +1,136 @@
 package yeobaek.backend.book.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
 
-import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.Chapter;
 import yeobaek.backend.book.domain.Passage;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.domain.vo.ChapterTitle;
 import yeobaek.backend.book.domain.vo.SentenceContent;
-import yeobaek.backend.book.dto.PassagesResponse;
-import yeobaek.backend.book.repository.BookManagementRepository;
-import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.club.domain.Club;
-import yeobaek.backend.club.domain.ClubMember;
 import yeobaek.backend.club.domain.vo.ClubName;
 import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubMemberRepository;
 import yeobaek.backend.club.repository.ClubRepository;
-import yeobaek.backend.comment.domain.Comment;
-import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.comment.repository.CommentRepository;
-import yeobaek.backend.comment.service.CommentService;
-import yeobaek.backend.member.domain.Member;
-import yeobaek.backend.member.domain.MemberBlock;
-import yeobaek.backend.member.domain.vo.Nickname;
-import yeobaek.backend.member.repository.MemberBlockRepository;
-import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.comment.repository.SentenceCommentCount;
+import yeobaek.backend.support.BadRequestException;
+import yeobaek.backend.support.ErrorCode;
+import yeobaek.backend.support.ForbiddenException;
+import yeobaek.backend.support.NotFoundException;
 
-class PassageServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class PassageServiceTest {
 
-    @Autowired
+    @Mock
+    private ClubRepository clubRepository;
+    @Mock
+    private ClubMemberRepository clubMemberRepository;
+    @Mock
+    private PassageRepository passageRepository;
+    @Mock
+    private CommentRepository commentRepository;
+    @Mock
+    private SentenceCommentCount commentCount;
+    @InjectMocks
     private PassageService passageService;
 
-    @Autowired
-    private BookManagementRepository bookRepository;
-
-    @Autowired
-    private ChapterRepository chapterRepository;
-
-    @Autowired
-    private PassageRepository passageRepository;
-
-    @Autowired
-    private MemberRepository memberRepository;
-
-    @Autowired
-    private ClubRepository clubRepository;
-
-    @Autowired
-    private ClubMemberRepository clubMemberRepository;
-
-    @Autowired
-    private CommentRepository commentRepository;
-
-    @Autowired
-    private CommentService commentService;
-
-    @Autowired
-    private MemberBlockRepository memberBlockRepository;
-
-    private Member reader;
+    private Book book;
     private Club club;
-    private Club otherClub;
 
     @BeforeEach
     void setUp() {
-        Book book = bookRepository.save(new Book(new BookTitle("운수 좋은 날"), null, 1924, 5, null, null, null, null, null));
-        Chapter chapter = chapterRepository.save(new Chapter(book, new ChapterTitle("1장"), 1));
-        for (int sequence = 1; sequence <= 5; sequence++) {
-            passageRepository.save(new Passage(chapter, sequence, Collections.singletonList(new SentenceContent("본문 " + sequence))));
-        }
-        reader = memberRepository.save(new Member(new Nickname("민서")));
-        club = clubRepository.save(new Club(new ClubName("1기"), book, new JoinCode("CODE01")));
-        otherClub = clubRepository.save(new Club(new ClubName("2기"), book, new JoinCode("CODE02")));
+        book = new Book(new BookTitle("읽는 책"), null, null, 100, null, null, null, null, null);
+        ReflectionTestUtils.setField(book, "id", 20L);
+        club = new Club(new ClubName("독서 모임"), book, new JoinCode("CODE01"));
     }
 
     @Test
-    @DisplayName("범위의 본문과 모임 내 댓글 수를 함께 조회한다")
-    void findPassagesWithCommentCounts() {
-        ClubMember clubMember = clubMemberRepository.save(new ClubMember(reader, club));
-        ClubMember otherClubMember = clubMemberRepository.save(new ClubMember(reader, otherClub));
-        Passage second = passageRepository.findRangeByBookId(club.getBook().getId(), 2, 2).getFirst();
-        var sentence = second.getSentences().getFirst();
-        commentRepository.save(new Comment(clubMember, sentence, new CommentContent("우리 모임 댓글 1")));
-        commentRepository.save(new Comment(clubMember, sentence, new CommentContent("우리 모임 댓글 2")));
-        commentRepository.save(new Comment(otherClubMember, sentence, new CommentContent("다른 모임 댓글")));
+    @DisplayName("문장별 집계가 없는 문장은 0으로 반환하고 집계된 댓글 수는 해당 문장에 연결한다")
+    void sentenceCounts() {
+        givenParticipant();
+        Chapter chapter = new Chapter(book, new ChapterTitle("첫 장"), 1);
+        ReflectionTestUtils.setField(chapter, "id", 30L);
+        Passage passage = new Passage(chapter, 1, List.of(new SentenceContent("첫 문장"), new SentenceContent("둘째 문장")));
+        ReflectionTestUtils.setField(passage.getSentences().get(0), "id", 41L);
+        ReflectionTestUtils.setField(passage.getSentences().get(1), "id", 42L);
+        given(passageRepository.findRangeByBookId(20L, 1, 100)).willReturn(List.of(passage));
+        given(commentRepository.countVisibleByMemberIdAndClubIdAndSentenceIdIn(1L, 10L, List.of(41L, 42L)))
+                .willReturn(List.of(commentCount));
+        given(commentCount.getSentenceId()).willReturn(42L);
+        given(commentCount.getCommentCount()).willReturn(3L);
 
-        PassagesResponse response = passageService.findPassages(reader.getId(), club.getId(), 1, 3);
+        var response = passageService.findPassages(1L, 10L, 1, 100);
 
-        assertThat(response.passages()).hasSize(3);
-        assertThat(response.passages().get(0).sentences().getFirst().commentCount()).isZero();
-        assertThat(response.passages().get(1).sequence()).isEqualTo(2);
-        assertThat(response.passages().get(1).sentences().getFirst().commentCount()).isEqualTo(2);
+        assertThat(response.passages()).singleElement().satisfies(result -> {
+            assertThat(result.chapterId()).isEqualTo(30L);
+            assertThat(result.sentences()).extracting(sentence -> sentence.commentCount()).containsExactly(0L, 3L);
+        });
     }
 
     @Test
-    @DisplayName("댓글 신고 전후 본문 응답의 댓글 수는 동일하다")
-    void preserveCommentCountAfterReport() {
-        Member writer = memberRepository.save(new Member(new Nickname("작성자")));
-        clubMemberRepository.save(new ClubMember(reader, club));
-        ClubMember writerMembership = clubMemberRepository.save(new ClubMember(writer, club));
-        Passage first = passageRepository.findRangeByBookId(club.getBook().getId(), 1, 1).getFirst();
-        Comment comment = commentRepository.save(
-                new Comment(writerMembership, first.getSentences().getFirst(), new CommentContent("신고 대상")));
+    @DisplayName("범위에 본문이 없으면 빈 배열을 반환한다")
+    void emptyRange() {
+        givenParticipant();
 
-        PassagesResponse beforeReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
-        commentService.report(reader.getId(), comment.getId());
-        PassagesResponse afterReport = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
+        assertThat(passageService.findPassages(1L, 10L, 1, 10).passages()).isEmpty();
+    }
 
-        assertThat(beforeReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
-        assertThat(afterReport.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
+    @ParameterizedTest
+    @CsvSource({"0,3", "3,2", "1,101"})
+    @DisplayName("잘못된 범위와 100개를 초과한 범위는 거부한다")
+    void rejectInvalidRange(int from, int to) {
+        assertThatThrownBy(() -> passageService.findPassages(1L, 10L, from, to))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    @DisplayName("문장 댓글 수에서 요청자가 차단한 회원의 댓글을 제외한다")
-    void excludeBlockedWritersFromCommentCounts() {
-        Member blockedWriter = memberRepository.save(new Member(new Nickname("차단 대상")));
-        ClubMember readerMembership = clubMemberRepository.save(new ClubMember(reader, club));
-        ClubMember blockedMembership = clubMemberRepository.save(new ClubMember(blockedWriter, club));
-        Passage first = passageRepository.findRangeByBookId(club.getBook().getId(), 1, 1).getFirst();
-        var sentence = first.getSentences().getFirst();
-        commentRepository.save(new Comment(readerMembership, sentence, new CommentContent("보이는 댓글")));
-        commentRepository.save(new Comment(blockedMembership, sentence, new CommentContent("숨길 댓글")));
-        memberBlockRepository.save(new MemberBlock(reader, blockedWriter));
+    @DisplayName("참여 중인 회원이 아니면 본문을 읽을 수 없다")
+    void rejectNonParticipant() {
+        given(clubRepository.findById(10L)).willReturn(Optional.of(club));
 
-        PassagesResponse response = passageService.findPassages(reader.getId(), club.getId(), 1, 1);
-
-        assertThat(response.passages().getFirst().sentences().getFirst().commentCount()).isEqualTo(1);
+        assertThatThrownBy(() -> passageService.findPassages(1L, 10L, 1, 10))
+                .isInstanceOfSatisfying(ForbiddenException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.NOT_CLUB_MEMBER));
     }
 
+    @Test
+    @DisplayName("없는 모임의 본문 조회는 CLUB_NOT_FOUND로 거부한다")
+    void rejectMissingClub() {
+        assertThatThrownBy(() -> passageService.findPassages(1L, 10L, 1, 10))
+                .isInstanceOfSatisfying(NotFoundException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.CLUB_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("삭제 도서의 본문은 반환하지 않는다")
+    void rejectDeletedBook() {
+        givenParticipant();
+        book.delete();
+
+        assertThatThrownBy(() -> passageService.findPassages(1L, 10L, 1, 10))
+                .isInstanceOfSatisfying(BadRequestException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE));
+    }
+
+    private void givenParticipant() {
+        given(clubRepository.findById(10L)).willReturn(Optional.of(club));
+        given(clubMemberRepository.existsJoinedByMemberIdAndClubId(1L, 10L)).willReturn(true);
+    }
 }

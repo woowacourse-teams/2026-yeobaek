@@ -13,9 +13,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class MemberBlockApiTest extends IntegrationTest {
+class MemberBlockApiTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;

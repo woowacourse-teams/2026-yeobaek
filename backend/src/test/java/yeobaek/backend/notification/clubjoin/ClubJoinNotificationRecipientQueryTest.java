@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.repository.BookManagementRepository;
@@ -23,6 +24,7 @@ import yeobaek.backend.member.repository.MemberBlockRepository;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.support.IntegrationTest;
 
+@Transactional
 class ClubJoinNotificationRecipientQueryTest extends IntegrationTest {
     @Autowired
     private ClubJoinNotificationRecipientQueryRepository recipients;

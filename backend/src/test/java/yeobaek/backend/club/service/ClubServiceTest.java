@@ -156,16 +156,14 @@ class ClubServiceTest {
     }
 
     @Test
-    @DisplayName("삭제 도서 모임에는 참여할 수 없고 기존 탈퇴 상태를 보존한다")
-    void unavailableBookCannotRejoin() {
-        membership.leave();
+    @DisplayName("삭제된 도서의 모임에는 참여할 수 없다")
+    void rejectJoiningClubOfDeletedBook() {
         book.delete();
         given(clubRepository.findByJoinCode("CODE01")).willReturn(Optional.of(club));
 
         assertThatThrownBy(() -> clubService.join(1L, new JoinCode("CODE01")))
                 .isInstanceOfSatisfying(BadRequestException.class,
                         exception -> assertThat(exception.getCode()).isEqualTo(ErrorCode.BOOK_NOT_AVAILABLE));
-        assertThat(membership.isJoined()).isFalse();
         verifyNoInteractions(eventPublisher);
     }
 

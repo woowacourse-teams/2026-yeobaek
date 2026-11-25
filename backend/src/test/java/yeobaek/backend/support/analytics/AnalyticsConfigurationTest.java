@@ -20,7 +20,7 @@ class AnalyticsConfigurationTest {
     private final AnalyticsConfiguration configuration = new AnalyticsConfiguration();
 
     @Test
-    @DisplayName("PostHog가 비활성화되어도 이벤트를 남기는 요청은 계속 처리한다")
+    @DisplayName("PostHog 비활성 상태에서도 이벤트 기록 호출은 예외 없이 끝난다")
     void acceptEventsWithoutPostHog() {
         ObjectProvider<PostHogInterface> provider = mock();
         given(provider.getIfAvailable()).willReturn(null);

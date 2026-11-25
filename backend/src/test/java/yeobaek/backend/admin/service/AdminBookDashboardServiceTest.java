@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.admin.dto.AdminDashboardBookResponse;
 import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.BookStatus;
@@ -17,6 +18,7 @@ import yeobaek.backend.club.domain.vo.JoinCode;
 import yeobaek.backend.club.repository.ClubRepository;
 import yeobaek.backend.support.IntegrationTest;
 
+@Transactional
 class AdminBookDashboardServiceTest extends IntegrationTest {
 
     @Autowired

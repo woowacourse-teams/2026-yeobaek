@@ -36,10 +36,10 @@ import yeobaek.backend.book.repository.ChapterRepository;
 import yeobaek.backend.book.repository.PassageRepository;
 import yeobaek.backend.support.BadRequestException;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 
-class BookIngestServiceTest extends IntegrationTest {
+class BookIngestServiceTest extends DatabaseCleaningIntegrationTest {
 
     private static final String COVER_KEY = "yeobaek/book-covers/123e4567-e89b-12d3-a456-426614174000.png";
 

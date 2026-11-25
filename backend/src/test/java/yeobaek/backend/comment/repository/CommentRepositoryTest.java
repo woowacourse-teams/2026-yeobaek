@@ -38,6 +38,7 @@ import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
 import yeobaek.backend.support.IntegrationTest;
 
+@Transactional
 class CommentRepositoryTest extends IntegrationTest {
 
     @Autowired
@@ -136,7 +137,6 @@ class CommentRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @Transactional
     @DisplayName("모임 댓글 문장 집계에 필요한 스칼라 값만 조회하고 보이지 않는 댓글은 제외한다")
     void findAllVisibleSentenceRowsByMemberIdAndClubId() {
         Book book = bookRepository.save(new Book(new BookTitle("댓글 문장 조회 도서"), null, null, 1, null, null, null, null, null));

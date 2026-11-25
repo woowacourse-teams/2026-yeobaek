@@ -22,9 +22,9 @@ import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 import yeobaek.backend.publicroom.domain.PublicRoom;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class SurveyHistoryPersistenceTest extends IntegrationTest {
+class SurveyHistoryPersistenceTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private SurveyService surveyService;

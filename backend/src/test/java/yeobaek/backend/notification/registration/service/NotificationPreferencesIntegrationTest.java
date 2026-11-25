@@ -40,10 +40,10 @@ import yeobaek.backend.notification.registration.dto.NotificationRegistrationReq
 import yeobaek.backend.notification.registration.repository.NotificationPreferenceRepository;
 import yeobaek.backend.notification.registration.repository.NotificationRegistrationRepository;
 import yeobaek.backend.support.ErrorCode;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
-class NotificationPreferencesIntegrationTest extends IntegrationTest {
+class NotificationPreferencesIntegrationTest extends DatabaseCleaningIntegrationTest {
     private static final FirebaseInstallationId PHONE = new FirebaseInstallationId("c" + "a".repeat(21));
     private static final FirebaseInstallationId TABLET = new FirebaseInstallationId("d" + "a".repeat(21));
 

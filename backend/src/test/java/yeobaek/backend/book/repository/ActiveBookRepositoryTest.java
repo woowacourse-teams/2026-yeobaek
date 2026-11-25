@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import yeobaek.backend.book.domain.Author;
 import yeobaek.backend.book.domain.AuthorBook;
 import yeobaek.backend.book.domain.Book;
@@ -16,6 +17,7 @@ import yeobaek.backend.support.ErrorCode;
 import yeobaek.backend.support.IntegrationTest;
 import yeobaek.backend.support.NotFoundException;
 
+@Transactional
 class ActiveBookRepositoryTest extends IntegrationTest {
 
     @Autowired

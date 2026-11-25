@@ -30,9 +30,9 @@ import yeobaek.backend.comment.domain.vo.CommentContent;
 import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class CommentLikeRepositoryTest extends IntegrationTest {
+class CommentLikeRepositoryTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private CommentLikeRepository commentLikeRepository;

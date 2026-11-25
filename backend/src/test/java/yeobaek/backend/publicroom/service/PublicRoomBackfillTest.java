@@ -10,9 +10,9 @@ import yeobaek.backend.book.domain.Book;
 import yeobaek.backend.book.domain.vo.BookTitle;
 import yeobaek.backend.book.repository.BookManagementRepository;
 import yeobaek.backend.publicroom.repository.PublicRoomRepository;
-import yeobaek.backend.support.IntegrationTest;
+import yeobaek.backend.support.DatabaseCleaningIntegrationTest;
 
-class PublicRoomBackfillTest extends IntegrationTest {
+class PublicRoomBackfillTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private BookManagementRepository bookRepository;

@@ -11,7 +11,7 @@ import yeobaek.backend.member.domain.Member;
 import yeobaek.backend.member.domain.vo.Nickname;
 import yeobaek.backend.member.repository.MemberRepository;
 
-class DatabaseCleanerTest extends IntegrationTest {
+class DatabaseCleanerTest extends DatabaseCleaningIntegrationTest {
 
     @Autowired
     private DatabaseCleaner databaseCleaner;
@@ -28,13 +28,13 @@ class DatabaseCleanerTest extends IntegrationTest {
     @Test
     @DisplayName("데이터베이스를 정리하면 저장된 데이터와 자동 증가 값이 초기화된다")
     void cleanResetsTablesAndAutoIncrement() {
-        Member first = memberRepository.save(new Member(new Nickname("민서")));
+        memberRepository.save(new Member(new Nickname("민서")));
 
         databaseCleaner.clean();
 
         Member afterClean = memberRepository.save(new Member(new Nickname("지수")));
         assertThat(memberRepository.count()).isEqualTo(1);
-        assertThat(afterClean.getId()).isEqualTo(first.getId());
+        assertThat(afterClean.getId()).isEqualTo(1L);
         assertThat(jdbcTemplate.queryForObject("SELECT @@FOREIGN_KEY_CHECKS", Integer.class)).isEqualTo(1);
     }
 
